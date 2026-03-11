@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">    
+    
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}?">
+
+    <!-- Title -->
+    {% if title %}
+        <title>Search App - {{title}} </title>
+    {% else %}
+        <title>Search App</title>
+    {% endif %}
+</head>
+<body>
+    {% if show_search %}
+    <!-- Navigation -->
+    
+    <header class="site-header">
+        <nav class="navbar navbar-expand-md navbar-dark bg-steel fixed-top">
+            <div class="container-fluid" style="padding-left: 1rem; padding-right: 1rem;">
+            <a class="navbar-brand me-2 " href="/" id="app-home">Search App</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarToggle">
+                <div class="navbar-nav mr-auto">
+                </div>
+
+                <!-- Navbar SEARCHBAR-->
+                <div class="nav-searchbar">
+                    <form method="POST" action="{{ url_for('result')}}" class ="d-flex" id="search-bar">
+                        {{ form.hidden_tag()}}
+                        <input class="form-control me-4" type="search" placeholder="Type your query here...", style="width:500px;margin-right:30px" aria-label="Search", name="query" id="search-box" autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="submit" style="color:white" name="submit-box" id="submit-box">Search</button>
+                    </form>
+                </div>
+                
+            </div>
+            </div>
+        </nav>
+        </header>
+
+
+    <div style="display: flex; gap: 0.5em;">
+    <!-- Sidebar -->
+    <aside style="width: 250px; position: sticky; top: 20px; height: fit-content; padding: 1em; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;">
+        <h5>Done searching?</h5>
+        <p>Press the button below once you are sure you have the answers you are looking for!</p>
+    
+        <button type="submit" onclick="openEndTaskModal()" class="btn btn-danger mt-3" id = "end-task-btn" style="width: 70%;background-color: white;color: black;border: 1px solid #28a745;padding: 8px 12px;border-radius: 4px;cursor: pointer;">End Task</button>
+
+       
+    </aside>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main role="main" class="container">
+        <div class="row">
+            <div class="col-md-12">
+            {% block content %}{% endblock content%}
+            </div>
+
+                <hr>
+                </p>
+            </div>
+            </div>
+            
+
+        </div>
+        </main>
+    </div>
+    
+    <div id="endTaskModal" class="modal" style="display: none;">
+    <div class="modal-content-box">
+        
+        <span class="close" onclick="closeEndTaskModal()">&times;</span>
+        <h2>Are you sure you want to end the task?</h2>
+        <p>
+        There is no going back. Do you really want to end the task now?
+        </p>
+
+        <!-- <div id="savedDocuments">
+        <a href="#" id="toggleSavedLink" onclick="toggleSavedTitles(event)">See saved documents ▼</a>
+        <ul id="savedTitles" style="display: none;" ></ul>
+        </div> -->
+
+        <div class="modal-buttons">
+        <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
+        <button id = "yes-end-btn" class="btn btn-primary">Yes, end task</button>
+
+        <button id = "no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, resume search</button>
+        </div>
+        
+    </div>
+    </div>
+
+    <div id="feedbackModal" class="modal" style="display: none;">
+    <div class="modal-content-box">
+        
+        <span class="close" onclick="closeFeedbackModal();openEndTaskModal()">&times;</span>
+        <h2>Why are you ending the task now?</h2>
+        <p>
+        (e.g., the time is up, you found enough arguments for your essay, the task is too difficult, etc.) 
+        </p>
+
+        <div id="feedback">
+        <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>
+        </div>
+
+        <div class="modal-buttons">
+
+        <button id = "feedback-btn" class="btn btn-primary">Submit and end</button>
+
+        </div>
+        
+    </div>
+    </div>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+    <script>
+        // const finalbtn = document.getElementById("feedback-btn");
+        const finalbtn = document.getElementById("yes-end-btn");
+        if (finalbtn) {
+        finalbtn.addEventListener('click', async (e) => {
+                e.preventDefault()
+                await new Promise(resolve => setTimeout(resolve, 50));
+                try {
+                await studyLogger.sendLogs();
+
+                const response = await fetch('/end', { method: 'POST' });
+
+                if (response.redirected) {
+                    clearClientData();
+                    window.location.href = response.url;
+                } else {
+                    console.error('Unexpected response:', await response.text());
+                }
+            } catch (err) {
+                console.error('Error ending task:', err);
+            }
+            });
+        }
+    </script>
+
+    <script>
+    function openEndTaskModal() {
+        document.getElementById("endTaskModal").style.display = "flex";
+        populateSavedDocuments();
+    }
+
+    function openFeedbackModal() {
+        document.getElementById("feedbackModal").style.display = "flex";
+    }
+
+    function closeEndTaskModal() {
+        document.getElementById("endTaskModal").style.display = "none";
+    }
+
+    function closeFeedbackModal() {
+        document.getElementById("feedbackModal").style.display = "none";
+    }
+
+    function toggleSavedTitles(event) {
+    event.preventDefault();
+    const list = document.getElementById('savedTitles');
+    const link = document.getElementById('toggleSavedLink');
+
+    const isVisible = list.style.display === 'block';
+    list.style.display = isVisible ? 'none' : 'block';
+    link.innerHTML = isVisible ? 'See saved documents ▼' : 'Hide saved documents ▲';
+    }
+    
+
+    function populateSavedDocuments() {
+    const argumentSelections = JSON.parse(localStorage.getItem('argumentSelections') || '{}');
+    const savedTitles = JSON.parse(localStorage.getItem('savedTitles') || '{}');
+    const savedTitlesUl = document.getElementById('savedTitles');
+    savedTitlesUl.innerHTML = '';
+
+    for (const docid in argumentSelections) {
+        const li = document.createElement('li');
+        li.textContent = (argumentSelections[docid].toUpperCase() === 'PRO' ? 'PRO: ' : 'CON: ') + savedTitles[docid] || `ID: ${docid}`; // Change the labels for the Overview list of marked documents here
+        li.classList.add(argumentSelections[docid] === 'pro' ? 'pro-vote' : 'con-vote');
+        savedTitlesUl.appendChild(li);
+    }
+
+}
+
+    </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll(".toggle-abstract").forEach(toggle => {
+        toggle.addEventListener("click", () => {
+            const index = toggle.getAttribute("data-index");
+            const arrow = document.getElementById(`arrow-${index}`);
+            const label = document.getElementById(`toggle-label-${index}`);
+            const preview = document.getElementById(`abstract-preview-${index}`);
+            const full = document.getElementById(`abstract-link-${index}`);
+
+            if (full.classList.contains("d-none")) {
+            full.classList.remove("d-none");
+            preview.classList.add("d-none");
+            arrow.innerText = "▲";
+            label.innerText = "Reduce";
+            } else {
+            full.classList.add("d-none");
+            preview.classList.remove("d-none");
+            arrow.innerText = "▼";
+            label.innerText = "Expand";
+            }
+        });
+        });
+    });
+    </script>
+    
+
+    <script>
+    const argumentSelections = JSON.parse(localStorage.getItem('argumentSelections') || '{}');
+    const savedTitles = JSON.parse(localStorage.getItem('savedTitles') || '{}');
+
+    function toggleArgument(docid, type) {
+        const proBtn = document.getElementById(`pro-btn-${docid}`);
+        const conBtn = document.getElementById(`con-btn-${docid}`);
+
+        const isPro = type === 'pro';
+        const activeBtn = isPro ? proBtn : conBtn;
+        const otherBtn = isPro ? conBtn : proBtn;
+
+        const activeClass = isPro ? 'btn-success' : 'btn-danger';
+        const outlineClass = isPro ? 'btn-outline-success' : 'btn-outline-danger';
+        const otherActiveClass = isPro ? 'btn-danger' : 'btn-success';
+        const otherOutlineClass = isPro ? 'btn-outline-danger' : 'btn-outline-success';
+
+        const currentState = argumentSelections[docid];
+
+        const titleElement = document.querySelector(`article[base_ir="${docid}"] h4 > span`);
+        fullTitle = titleElement ? titleElement.innerText.trim() : '0. Untitled Document';
+        title = fullTitle.replace(/^\d+\.\s*/, ''); 
+
+        if (currentState === type) {
+        activeBtn.classList.remove(activeClass);
+        activeBtn.classList.add(outlineClass);
+        delete argumentSelections[docid];
+        delete savedTitles[docid];
+        } else {
+        activeBtn.classList.remove(outlineClass);
+        activeBtn.classList.add(activeClass);
+        otherBtn.classList.remove(otherActiveClass);
+        otherBtn.classList.add(otherOutlineClass);
+        argumentSelections[docid] = type;
+        savedTitles[docid] = title;
+        }
+
+        localStorage.setItem('argumentSelections', JSON.stringify(argumentSelections));
+        localStorage.setItem('savedTitles', JSON.stringify(savedTitles));
+
+        updateCounters();
+    }
+
+    function restoreButtonStates() {
+        for (const docid in argumentSelections) {
+        const type = argumentSelections[docid];
+        const isPro = type === 'pro';
+
+        const proBtn = document.getElementById(`pro-btn-${docid}`);
+        const conBtn = document.getElementById(`con-btn-${docid}`);
+
+        if (!proBtn || !conBtn) continue;
+
+        if (isPro) {
+            proBtn.classList.remove('btn-outline-success');
+            proBtn.classList.add('btn-success');
+            conBtn.classList.remove('btn-danger');
+            conBtn.classList.add('btn-outline-danger');
+        } else {
+            conBtn.classList.remove('btn-outline-danger');
+            conBtn.classList.add('btn-danger');
+            proBtn.classList.remove('btn-success');
+            proBtn.classList.add('btn-outline-success');
+        }
+        }
+    }
+
+    function updateCounters() {
+        let proCount = 0, conCount = 0;
+        for (const key in argumentSelections) {
+        if (argumentSelections[key] === 'pro') proCount++;
+        if (argumentSelections[key] === 'con') conCount++;
+        }
+
+        pcount = document.getElementById('pro-count')
+        if(pcount) {pcount.textContent = proCount;}
+        ccount = document.getElementById('con-count')
+        if (ccount) {ccount.textContent = conCount;}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        restoreButtonStates();
+        updateCounters();
+    });
+    </script>
+
+    <script>
+    function clearClientData() {
+        localStorage.clear();  
+    }
+    </script>
+
+</body>
+
+
+<script src="../static/logger.js"></script>
+
+
+</html>

@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}Task{% endblock %}
+{% block content %}
+
+<h2>Task {{ task_number }}: {{ topic_title }}</h2>
+<p>Imagine you have to write an opinion essay on the following topic:</p>
+<p><b>{{ topic }}</b></p>
+<p>An opinion essay presents your personal view on an issue and supports it with clear reasoning, while also addressing arguments from the other side.</p>
+<p>To prepare, your task is to gather arguments that <b>both support and challenge</b> your position. This will help you present your ideas clearly while addressing possible counterarguments.</p>
+<p>Look for arguments that are convincing, well-reasoned, and address different perspectives, such as social, ethical, legal, or practical aspects. Aim to find <b>multiple arguments</b> rather than stopping after the first relevant point you come across. You don’t need to agree with all the arguments you find; the goal is to develop a well-rounded understanding of the issue.</p>
+<p>Use the search system to explore and identify relevant arguments. <b>Mark relevant arguments</b> using the "pro" and "con" buttons on the right side of each argument.</p>
+<p>You have 10 minutes for this task. Once you're done, or when time runs out, click the “End task” button to proceed.</p>
+<p></p>
+  <div id="task-wrapper"
+       data-user-id="{{ user_id }}"
+       data-task-num="{{ task_number }}"
+       data-topic="{{ topic }}">
+  </div>
+<form action="{{ url_for('home') }}" method="get">
+  <button id="task-btn" type="submit" class="btn btn-primary">Continue</button>
+</form>
+{% endblock %}

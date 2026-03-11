@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block content %}
+<div style="max-width: 650px; margin: auto; padding-top: 3em; text-align: center;">
+    <h2>Welcome to the Study</h2>
+    <p>To begin, please enter the <b>user id</b> attached to your device to access the search engine. </p>
+    
+
+    <form method="POST" id="enter-id-form">
+        <input list="id-suggestions" type="text" name="user_id" class="form-control" id="id-box"
+            placeholder="Enter your ID" required style="margin: 1em auto; max-width: 325px;" autocomplete="off" />
+        <datalist id="id-suggestions"></datalist>
+        <p id="error-message" style="color: red; display: none;">ID not valid</p>
+        <button class="btn btn-dark" id="task-btn" type="submit">Start</button>
+    </form>
+
+
+</div>
+
+
+<script>
+  const validIDs = {{ valid_ids | tojson }};
+  const input = document.getElementById("id-box");
+  const datalist = document.getElementById("id-suggestions");
+  const form = document.getElementById("enter-id-form");
+  const errorMsg = document.getElementById("error-message");
+
+  input.addEventListener("focus", () => {
+    datalist.innerHTML = "";
+    validIDs.forEach(id => {
+      const option = document.createElement("option");
+      option.value = id;
+      datalist.appendChild(option);
+    });
+  });
+
+  input.addEventListener("input", () => {
+    const query = input.value.toLowerCase();
+    datalist.innerHTML = "";
+    const filtered = validIDs.filter(id => id.toLowerCase().startsWith(query));
+    filtered.forEach(id => {
+      const option = document.createElement("option");
+      option.value = id;
+      datalist.appendChild(option);
+    });
+    errorMsg.style.display = "none";
+  });
+
+  input.addEventListener("change", () => {
+    if (validIDs.includes(input.value)) {
+      datalist.innerHTML = ""; 
+    }
+  });
+
+  form.addEventListener("submit", function(e) {
+    if (!validIDs.includes(input.value)) {
+      errorMsg.style.display = "block";
+      e.preventDefault(); 
+    }
+  });
+</script>
+
+{% endblock %}

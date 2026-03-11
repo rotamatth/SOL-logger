@@ -1,0 +1,198 @@
+body {
+    background: #fafafa;
+    color: #333333;
+    margin-top: 5rem;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: #444444;
+  }
+  
+  .bg-steel {
+    background-color: #6da861;
+  }
+  
+  .site-header .navbar-nav .nav-link {
+    color: #cbd5db;
+  }
+  
+  .site-header .navbar-nav .nav-link:hover {
+    color: #ffffff;
+  }
+  
+  .site-header .navbar-nav .nav-link.active {
+    font-weight: 500;
+  }
+  
+  .content-section {
+    background: #ffffff;
+    padding: 10px 20px;
+    border: 1px solid #dddddd;
+    border-radius: 3px;
+    margin-bottom: 20px;
+  }
+  
+  .article-title {
+    color: #444444;
+  }
+  
+  a.article-title:hover {
+    color: #428bca;
+    text-decoration: none;
+  }
+  
+  .article-content {
+    white-space: pre-line;
+  }
+  
+  .article-img {
+    height: 65px;
+    width: 65px;
+    margin-right: 16px;
+  }
+  
+  .article-metadata {
+    padding-bottom: 1px;
+    margin-bottom: 4px;
+    border-top: 1px solid #e3e3e3
+  }
+
+  .article-tag {
+    float:left;
+    border-radius: 1em;
+    background: #949493;
+    color: #eff3f5;
+    padding: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-top: 2px;
+    margin-right: 12px;
+    margin-bottom: 4px;
+  }
+  
+  .article-tag:hover {
+    background: rgb(163, 211, 101);
+    color:#ffffff;
+    text-decoration: none;
+  }
+  
+
+  .article-metadata a:hover {
+    color: #333;
+    text-decoration: none;
+  }
+  
+  .article-svg {
+    width: 25px;
+    height: 25px;
+    vertical-align: middle;
+  }
+  
+  .account-img {
+    height: 125px;
+    width: 125px;
+    margin-right: 20px;
+    margin-bottom: 16px;
+  }
+  
+  .account-heading {
+    font-size: 2.5rem;
+  }
+
+/* Modal container (overlay) */
+#endTaskModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent dark overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* Modal container (overlay) */
+#feedbackModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent dark overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* Modal content box */
+.modal-content-box {
+  background-color: #f5fdfc;
+  width: 700px;
+  max-width: 90%;
+  min-height: 200px;
+  padding: 2em;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid #ddd;
+}
+
+/* Headline */
+.modal-content-box h2 {
+  margin-top: 0;
+  font-size: 1.5em;
+  color: #333;
+}
+
+/* Button group */
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1.5em;
+  margin-top: 1.5em;
+}
+
+/* Individual buttons */
+.modal-buttons button {
+  padding: 0.5em 1.5em;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background-color: #fff;
+  color:#333;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.modal-buttons button:hover {
+  background-color: #eee;
+}
+
+#savedTitles {
+  display: none;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-left: 0;
+  margin-top: 0.5em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.pro-vote {
+  color: green;
+}
+
+.con-vote {
+  color: red;
+}
+
+textarea {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.imageflex { display: flex; }
+.imageflexcontent { margin-left: 5px; margin-top: 0; }
