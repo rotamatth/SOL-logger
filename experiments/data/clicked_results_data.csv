@@ -1,20 +1,20 @@
-uid,sessionID,date,time,query,docid,url,SERP_rank,SERP_page
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11,16:06:12.672Z,can pigs climb trees,3092,https://www.africanstorybook.org/#,9,1
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11,16:06:21.849Z,can pigs climb trees,5567,http://www.gutenberg.org/files/28132/28132-h/28132-h.htm#Page_109,2,6
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11,16:06:32.855Z,can pigs climb trees,5463,http://www.gutenberg.org/files/28142/28142-h/28142-h.htm#Page_91,2,4
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11,16:06:56.563Z,what do pigs eat,5536,http://www.gutenberg.org/files/28130/28130-h/28130-h.htm#Page_61,3,1
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11,16:07:05.790Z,what do pigs eat,2513,https://www.africanstorybook.org/,10,1
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11,16:07:15.988Z,what do pigs eat,7034,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_294,3,6
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11,16:07:25.539Z,what do pigs eat,4790,https://www.commonlit.org/texts/the-three-little-pigs,8,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11,15:53:17.548Z,can monkeys climb trees,3417,https://www.africanstorybook.org/,2,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11,15:53:30.268Z,can monkeys climb trees,3379,https://www.africanstorybook.org/,10,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11,15:53:38.913Z,can monkeys climb trees,2342,https://simple.wikipedia.org/wiki/Rainforest,6,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11,15:53:52.317Z,can monkeys climb trees,1579,http://www.gutenberg.org/files/16173/16173-h/16173-h.htm#mayday,2,7
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:07:53.983Z,causes of global warming,2091,https://simple.wikipedia.org/wiki/Greenhouse_effect,5,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:08:16.817Z,causes of global warming,5948,http://www.gutenberg.org/files/1597/1597-h/1597-h.htm,6,3
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:08:30.810Z,causes of global warming,8008,http://static.ehe.osu.edu/sites/beyond/penguins/downloads/feature-stories/king-of-cold-23-text.pdf,8,3
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:08:41.724Z,causes of global warming,2416,https://en.wikipedia.org/wiki/Technology_assessment,9,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:08:57.783Z,climate change effects,2599,https://kids.frontiersin.org/article/10.3389/frym.2019.00136,1,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:09:06.987Z,climate change effects,3498,https://www.commonlit.org/texts/what-is-antarctica,6,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:09:17.639Z,climate change effects,4615,http://www.gutenberg.org/files/18746/18746-h/18746-h.htm#Page_774,2,6
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11,16:09:23.281Z,climate change effects,3035,https://www.commonlit.org/texts/water-scarcity-a-global-issue,1,6
+uid,sessionID,timestamp,query,docid,url,SERP_rank,SERP_page
+Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:12.672000+00:00,can pigs climb trees,3092,https://www.africanstorybook.org/#,9,1
+Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:21.849000+00:00,can pigs climb trees,5567,http://www.gutenberg.org/files/28132/28132-h/28132-h.htm#Page_109,2,6
+Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:32.855000+00:00,can pigs climb trees,5463,http://www.gutenberg.org/files/28142/28142-h/28142-h.htm#Page_91,2,4
+Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:56.563000+00:00,what do pigs eat,5536,http://www.gutenberg.org/files/28130/28130-h/28130-h.htm#Page_61,3,1
+Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:07:05.790000+00:00,what do pigs eat,2513,https://www.africanstorybook.org/,10,1
+Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:07:15.988000+00:00,what do pigs eat,7034,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_294,3,6
+Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:07:25.539000+00:00,what do pigs eat,4790,https://www.commonlit.org/texts/the-three-little-pigs,8,1
+Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:17.548000+00:00,can monkeys climb trees,3417,https://www.africanstorybook.org/,2,1
+Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:30.268000+00:00,can monkeys climb trees,3379,https://www.africanstorybook.org/,10,1
+Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:38.913000+00:00,can monkeys climb trees,2342,https://simple.wikipedia.org/wiki/Rainforest,6,1
+Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:52.317000+00:00,can monkeys climb trees,1579,http://www.gutenberg.org/files/16173/16173-h/16173-h.htm#mayday,2,7
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:07:53.983000+00:00,causes of global warming,2091,https://simple.wikipedia.org/wiki/Greenhouse_effect,5,1
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:16.817000+00:00,causes of global warming,5948,http://www.gutenberg.org/files/1597/1597-h/1597-h.htm,6,3
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:30.810000+00:00,causes of global warming,8008,http://static.ehe.osu.edu/sites/beyond/penguins/downloads/feature-stories/king-of-cold-23-text.pdf,8,3
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:41.724000+00:00,causes of global warming,2416,https://en.wikipedia.org/wiki/Technology_assessment,9,1
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:57.783000+00:00,climate change effects,2599,https://kids.frontiersin.org/article/10.3389/frym.2019.00136,1,1
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:09:06.987000+00:00,climate change effects,3498,https://www.commonlit.org/texts/what-is-antarctica,6,1
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:09:17.639000+00:00,climate change effects,4615,http://www.gutenberg.org/files/18746/18746-h/18746-h.htm#Page_774,2,6
+Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:09:23.281000+00:00,climate change effects,3035,https://www.commonlit.org/texts/water-scarcity-a-global-issue,1,6
