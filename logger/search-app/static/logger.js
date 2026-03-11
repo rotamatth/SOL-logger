@@ -161,7 +161,7 @@ function logSERP() {
                         page: page,
                         url: url,
                         windowLocation: searchAppLocation,
-                        history: studyLogger.getHistory(),
+                        // history: studyLogger.getHistory(),
                     });
             });
         }
@@ -194,7 +194,7 @@ if(searchSnippets){
                 page: page,
                 url: url,
                 windowLocation: searchAppLocation,
-                history: studyLogger.getHistory(),
+                // history: studyLogger.getHistory(),
             });
         });
 
@@ -206,7 +206,7 @@ if(searchSnippets){
                 page: page,
                 url: url,
                 windowLocation: searchAppLocation,
-                history: studyLogger.getHistory(),
+                // history: studyLogger.getHistory(),
             });
         });           
     });
@@ -223,15 +223,17 @@ if (resultLinks) {
             const snippet = document.getElementById(`result-${rank}`);
             const query = snippet.getAttribute("query");
             const page = snippet.getAttribute("page");
+            const docid = document.getElementById(`result-${rank}`).getAttribute("base_ir");
             
             studyLogger.addHistory(url);
             studyLogger.logEvent("clickedResult", {
                 query: query,
+                docid: docid,
                 rank: rank,
                 page: page,
                 url: url,
                 windowLocation: url,
-                history: studyLogger.getHistory(),
+                // history: studyLogger.getHistory(),
             });
 
         });
