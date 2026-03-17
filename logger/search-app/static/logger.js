@@ -126,142 +126,161 @@ if (searchbar) {
     }); 
 }
 
+function getSearchAppLocation(query, page){
+    const search_params = new URLSearchParams();
+    search_params.set("query", query);
+    search_params.set("page", page);
+    return window.location.origin + "/result?" + search_params.toString();
+}
+
 function logSERP() {
     const searchResults = document.querySelectorAll("article.content-section");
-    if(searchResults){
+    if (!searchResults || searchResults.length === 0) return; // DOM not ready
 
-        const firstResult = document.querySelector("article.content-section");
-        const query = firstResult.getAttribute("query");
-        const  page = firstResult.getAttribute("page");
-        const searchAppLocation = page=="1" ? window.location.href + "?query="+query+"&page=1" : window.location.href;
+    const firstResult = document.querySelector("article.content-section");
+    const query = firstResult.getAttribute("query");
+    const  page = firstResult.getAttribute("page");
+    const searchAppLocation = getSearchAppLocation(query, page);
 
-        if(studyLogger.checkHistory(searchAppLocation)){
-            studyLogger.logEvent("wentBack", {
-                "query": query,
-                "fromURL": studyLogger.checkHistory(searchAppLocation),
-                "toURL": searchAppLocation,
+    if(studyLogger.checkHistory(searchAppLocation)){
+        studyLogger.logEvent("wentBack", {
+            "query": query,
+            "fromURL": studyLogger.checkHistory(searchAppLocation),
+            "toURL": searchAppLocation,
+        });
+        studyLogger.removeHistory();
+        studyLogger.addHistory(searchAppLocation);
+    }
+    else{
+        studyLogger.addHistory(searchAppLocation);
+        searchResults.forEach(result => {
+            const query = result.getAttribute("query");
+            const docid = result.getAttribute("base_ir");
+            const rank = result.id.split("-")[1];
+            const page = result.getAttribute("page");
+            const url = document.getElementById(`abstract-link-${rank}`).getAttribute("href");
+            const searchAppLocation = getSearchAppLocation(query, page);
+            
+            studyLogger.logEvent("searchResultGenerated", {
+                    query: query,
+                    docid: docid,
+                    rank: rank,
+                    page: page,
+                    url: url,
+                    windowLocation: searchAppLocation,
+                    // history: studyLogger.getHistory(),
+                });
+        });
+    }
+}
+
+function logMouseHovers(){
+    const searchSnippets = document.querySelectorAll("article.content-section");
+    if(searchSnippets){
+            searchSnippets.forEach(result => {
+            const query = result.getAttribute("query");
+            const docid = result.getAttribute("base_ir");
+            const rank = result.id.split("-")[1];
+            const page = result.getAttribute("page");
+            const url = document.getElementById(`abstract-link-${rank}`).getAttribute("href");
+            const searchAppLocation = getSearchAppLocation(query, page);
+
+            result.addEventListener("mouseenter", ()=>{           
+                studyLogger.logEvent("cursorEnteredSnippet", {
+                    query: query,
+                    docid: docid,
+                    rank: rank,
+                    page: page,
+                    url: url,
+                    windowLocation: searchAppLocation,
+                    // history: studyLogger.getHistory(),
+                });
             });
-            studyLogger.removeHistory();
-            studyLogger.addHistory(searchAppLocation);
-        }
-        else{
-            studyLogger.addHistory(searchAppLocation);
-            searchResults.forEach(result => {
-                const query = result.getAttribute("query");
-                const docid = result.getAttribute("base_ir");
-                const rank = result.id.split("-")[1];
-                const page = result.getAttribute("page");
-                const url = document.getElementById(`abstract-link-${rank}`).getAttribute("href");
-                const searchAppLocation = page==="1" ? window.location.href + "?query="+query+"&page=1" : window.location.href;
+
+            result.addEventListener("mouseleave", ()=>{            
+                studyLogger.logEvent("cursorLeftSnippet", {
+                    query: query,
+                    docid: docid,
+                    rank: rank,
+                    page: page,
+                    url: url,
+                    windowLocation: searchAppLocation,
+                    // history: studyLogger.getHistory(),
+                });
+            });           
+        });
+    }
+}
+
+
+function logClicks(){
+    const resultLinks = document.querySelectorAll("a.result-link");
+    if (resultLinks) {
+        // const serpContainer = document.getElementsByClassName("container-info");
+        resultLinks.forEach(link => {
+            link.addEventListener("click", (e) => {
+                const rank = link.id.split("-")[2];
+                const url = link.getAttribute("href");
+                const snippet = document.getElementById(`result-${rank}`);
+                const query = snippet.getAttribute("query");
+                const page = snippet.getAttribute("page");
+                const docid = document.getElementById(`result-${rank}`).getAttribute("base_ir");
                 
-                studyLogger.logEvent("searchResultGenerated", {
-                        query: query,
-                        docid: docid,
-                        rank: rank,
-                        page: page,
-                        url: url,
-                        windowLocation: searchAppLocation,
-                        // history: studyLogger.getHistory(),
-                    });
+                studyLogger.addHistory(url);
+                studyLogger.logEvent("clickedResult", {
+                    query: query,
+                    docid: docid,
+                    rank: rank,
+                    page: page,
+                    url: url,
+                    windowLocation: url,
+                    // history: studyLogger.getHistory(),
+                });
+
             });
+        });
+    }
+}
+
+function logPageNavigation(){
+    const pageLinks = document.querySelectorAll("a.page-link");
+    if (pageLinks) {
+        pageLinks.forEach(link => {
+        link.addEventListener("click", (e) => {
+            const clickedLabel = link.textContent.trim();
+            const currentPage = parseInt(document.querySelector(".page-item.active a")?.textContent || "0", 10);
+            const nextPage = getTargetPage(clickedLabel, currentPage);
+            studyLogger.logEvent("pageNavigationClicked", {
+            clicked: clickedLabel,
+            fromPage: currentPage,
+            toPage: nextPage
+            });
+        });
+        });
+
+        function getTargetPage(label, current) {
+        if (label.includes("Next")) return current + 1;
+        if (label.includes("Previous")) return current - 1;
+        const num = parseInt(label, 10);
+        return isNaN(num) ? null : num;
         }
     }
 }
 
-document.addEventListener("DOMContentLoaded", logSERP);
+function loggingSearchActions(){
+    logSERP();
+    logClicks();
+    logMouseHovers();
+    logPageNavigation();
+}
+
+document.addEventListener("DOMContentLoaded", loggingSearchActions);
 
 window.addEventListener("pageshow", (e)=>{
     if(e.persisted) {
-        logSERP();
+        loggingSearchActions();
     }
 });
-
-const searchSnippets = document.querySelectorAll("article.content-section");
-if(searchSnippets){
-        searchSnippets.forEach(result => {
-        const query = result.getAttribute("query");
-        const docid = result.getAttribute("base_ir");
-        const rank = result.id.split("-")[1];
-        const page = result.getAttribute("page");
-        const url = document.getElementById(`abstract-link-${rank}`).getAttribute("href");
-        const searchAppLocation = page==="1" ? window.location.href + "?query="+query+"&page=1" : window.location.href;
-
-        result.addEventListener("mouseenter", ()=>{           
-            studyLogger.logEvent("cursorEnteredSnippet", {
-                query: query,
-                docid: docid,
-                rank: rank,
-                page: page,
-                url: url,
-                windowLocation: searchAppLocation,
-                // history: studyLogger.getHistory(),
-            });
-        });
-
-        result.addEventListener("mouseleave", ()=>{            
-            studyLogger.logEvent("cursorLeftSnippet", {
-                query: query,
-                docid: docid,
-                rank: rank,
-                page: page,
-                url: url,
-                windowLocation: searchAppLocation,
-                // history: studyLogger.getHistory(),
-            });
-        });           
-    });
-}
-
-
-const resultLinks = document.querySelectorAll("a.result-link");
-if (resultLinks) {
-    // const serpContainer = document.getElementsByClassName("container-info");
-    resultLinks.forEach(link => {
-        link.addEventListener("click", (e) => {
-            const rank = link.id.split("-")[2];
-            const url = link.getAttribute("href");
-            const snippet = document.getElementById(`result-${rank}`);
-            const query = snippet.getAttribute("query");
-            const page = snippet.getAttribute("page");
-            const docid = document.getElementById(`result-${rank}`).getAttribute("base_ir");
-            
-            studyLogger.addHistory(url);
-            studyLogger.logEvent("clickedResult", {
-                query: query,
-                docid: docid,
-                rank: rank,
-                page: page,
-                url: url,
-                windowLocation: url,
-                // history: studyLogger.getHistory(),
-            });
-
-        });
-    });
-}
-
-const pageLinks = document.querySelectorAll("a.page-link");
-if (pageLinks) {
-    pageLinks.forEach(link => {
-    link.addEventListener("click", (e) => {
-        const clickedLabel = link.textContent.trim();
-        const currentPage = parseInt(document.querySelector(".page-item.active a")?.textContent || "0", 10);
-        const nextPage = getTargetPage(clickedLabel, currentPage);
-        studyLogger.logEvent("pageNavigationClicked", {
-        clicked: clickedLabel,
-        fromPage: currentPage,
-        toPage: nextPage
-        });
-    });
-    });
-
-    function getTargetPage(label, current) {
-    if (label.includes("Next")) return current + 1;
-    if (label.includes("Previous")) return current - 1;
-    const num = parseInt(label, 10);
-    return isNaN(num) ? null : num;
-    }
-}
 
 const homeButton = document.getElementById("app-home");
 homeButton.addEventListener("click", ()=>{

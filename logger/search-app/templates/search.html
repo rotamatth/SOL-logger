@@ -1,70 +1,37 @@
 {% extends "layout.html" %}
 {% block content %}
 <!-- Container Info-->
-<small class="container-info"><p><b>▻ Search Results</b> for: [ {{ query }} ] 
+<small class="container-info"><p><b>▻ Search Results</b> for: [ {{ query|safe }} ] 
 </small>
 
   <hr>
   <!-- Search Result Arguments-->
   {% for s in search_results %}     <!-- After adjusting the system.py regarding the data fields you might need to adapt the displayed data fields here (e.g. s.title, s.argument, ...)-->
-        <article class="media content-section" id="result-{{ loop.index }}" base_ir="{{ s.docid }}" query="{{ query }}" page="{{ page }}">
+        <article class="media content-section" id="result-{{ loop.index }}" base_ir="{{ s.docid|safe }}" query="{{ query|safe }}" page="{{ page|safe }}">
         <div class="media-body">
           <!-- Title -->
           <h4>
-            <span>{{ loop.index + 10*(page-1) }}. <a class="result-link" href="{{ s.link }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">{{ s.title }}</a></span>
+            <span>{{ loop.index + 10*(page-1) }}. <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">{{ s.title|safe }}</a></span>
           </h4>
           <!-- Snippet preview -->
           {% if s.thumbnail %}
           <div class="imageflex">
             <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
-              {{ s.snippet }} <a class="result-link" href="{{ s.link }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>                                             
+              {{ s.snippet|safe }} <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>                                             
             </p>
-            <img src="{{ s.thumbnail }}">
+            <img src="{{ s.thumbnail|safe }}">
           </div>
           {% else %}
             <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
-              {{ s.snippet }} <a class="result-link" href="{{ s.link }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>                                             
+              {{ s.snippet|safe }} <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>                                             
             </p>
           {% endif %}
-          
-              
 
-          <!-- Full abstract (initially hidden) -->
-          <!-- <a class="result-link" href="{{ s.link }}" id="abstract-link-{{ loop.index }}">{{ s.displayed_link }}</a> -->
-
-          <!-- Expand/Collapse Control -->
-          <!-- <div class="toggle-abstract" data-index="{{ loop.index }}" data-rank="{{loop.index + 10*(page-1)}}" did = {{s.docid}} style="cursor: pointer; color: #007bff; user-select: none;">
-            <span id="arrow-{{ loop.index }}">▼</span> <span id="toggle-label-{{ loop.index }}">Expand</span>
-          </div> -->
-
-          <!-- <div style="display: flex; justify-content: flex-end; gap: 0.5em; margin-top: 0.5em;" id="buttons-{{ loop.index }}">
-            <button type="button"
-                    data-type="pro"
-                    class="btn btn-outline-success btn-no-focus"
-                    data-index="{{ loop.index }}"
-                    data-rank="{{loop.index + 10*(page-1)}}"
-                    did = {{s.docid}}
-                    onclick="toggleArgument('{{ s.docid }}', 'pro')"
-                    id="pro-btn-{{ s.docid }}">
-              Pro                                                      <!- - Change button label here - -> 
-            </button>
-
-            <button type="button"
-                    data-type="con"
-                    class="btn btn-outline-danger btn-no-focus"
-                    data-index="{{ loop.index }}"
-                    data-rank="{{loop.index + 10*(page-1)}}"
-                    did = {{s.docid}}
-                    onclick="toggleArgument('{{ s.docid }}', 'con')"
-                    id="con-btn-{{ s.docid }}">
-            Con                                                        <!- - Change button label here - ->
-            </button>
-          </div> -->
           <!-- Date + DocID -->
           <div class="article-metadata" style="display: flex; justify-content: space-between;" id="metadata-{{ loop.index }}_l">
             <!-- <h5>{{ s.source }}</h5> -->
             <!-- <small class="text-muted">{{ s.source_title }}</small> -->
-            <small class="text-muted">{{ s.displayed_link }}</small>
+            <small class="text-muted">{{ s.displayed_link|safe }}</small>
             <!--<small class="text-muted">{{ s.date }}</small>   // mostly no existing date-->
           </div>              
         </div>
@@ -77,19 +44,19 @@
 
       <!-- Previous -->
       <li class="page-item {% if page == 1 %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for('result', query=query, page=page-1) }}" tabindex="-1">« Previous</a>
+        <a class="page-link" href="{{ url_for('result', query=query, page=page-1)|safe }}" tabindex="-1">« Previous</a>
       </li>
 
       <!-- Page Numbers -->
       {% for p in range(1, total_pages + 1) %}
       <li class="page-item {% if page == p %}active{% endif %}">
-        <a class="page-link" href="{{ url_for('result', query=query, page=p) }}">{{ p }}</a>
+        <a class="page-link" href="{{ url_for('result', query=query, page=p)|safe }}">{{ p }}</a>
       </li>
       {% endfor %}
 
       <!-- Next -->
       <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for('result', query=query, page=page+1) }}">Next »</a>
+        <a class="page-link" href="{{ url_for('result', query=query, page=page+1)|safe }}">Next »</a>
       </li>
 
     </ul>
