@@ -1,20 +1,66 @@
 uid,sessionID,timestamp,query,docid,url,SERP_rank,SERP_page
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:12.672000+00:00,can pigs climb trees,3092,https://www.africanstorybook.org/#,9,1
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:21.849000+00:00,can pigs climb trees,5567,http://www.gutenberg.org/files/28132/28132-h/28132-h.htm#Page_109,2,6
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:32.855000+00:00,can pigs climb trees,5463,http://www.gutenberg.org/files/28142/28142-h/28142-h.htm#Page_91,2,4
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:06:56.563000+00:00,what do pigs eat,5536,http://www.gutenberg.org/files/28130/28130-h/28130-h.htm#Page_61,3,1
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:07:05.790000+00:00,what do pigs eat,2513,https://www.africanstorybook.org/,10,1
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:07:15.988000+00:00,what do pigs eat,7034,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_294,3,6
-Participant10,24cce0de-96b4-41eb-bd43-110c3e25313a,2026-03-11 16:07:25.539000+00:00,what do pigs eat,4790,https://www.commonlit.org/texts/the-three-little-pigs,8,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:17.548000+00:00,can monkeys climb trees,3417,https://www.africanstorybook.org/,2,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:30.268000+00:00,can monkeys climb trees,3379,https://www.africanstorybook.org/,10,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:38.913000+00:00,can monkeys climb trees,2342,https://simple.wikipedia.org/wiki/Rainforest,6,1
-Participant1,64365d9f-f36b-47f6-a915-397b285677f6,2026-03-11 15:53:52.317000+00:00,can monkeys climb trees,1579,http://www.gutenberg.org/files/16173/16173-h/16173-h.htm#mayday,2,7
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:07:53.983000+00:00,causes of global warming,2091,https://simple.wikipedia.org/wiki/Greenhouse_effect,5,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:16.817000+00:00,causes of global warming,5948,http://www.gutenberg.org/files/1597/1597-h/1597-h.htm,6,3
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:30.810000+00:00,causes of global warming,8008,http://static.ehe.osu.edu/sites/beyond/penguins/downloads/feature-stories/king-of-cold-23-text.pdf,8,3
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:41.724000+00:00,causes of global warming,2416,https://en.wikipedia.org/wiki/Technology_assessment,9,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:08:57.783000+00:00,climate change effects,2599,https://kids.frontiersin.org/article/10.3389/frym.2019.00136,1,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:09:06.987000+00:00,climate change effects,3498,https://www.commonlit.org/texts/what-is-antarctica,6,1
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:09:17.639000+00:00,climate change effects,4615,http://www.gutenberg.org/files/18746/18746-h/18746-h.htm#Page_774,2,6
-Participant20,07403d1c-12db-450a-8e4f-c81f7d760330,2026-03-11 16:09:23.281000+00:00,climate change effects,3035,https://www.commonlit.org/texts/water-scarcity-a-global-issue,1,6
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:35:47.780000+00:00,what does the fox say,7163,http://www.gutenberg.org/cache/epub/3152/pg3152.html,8,1
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:35:57.998000+00:00,what does the fox say,7175,http://www.gutenberg.org/cache/epub/3152/pg3152.html,2,1
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:36:09.096000+00:00,what does the fox say,7021,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_220,3,3
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:36:25.235000+00:00,what does the fox say,6735,http://www.gutenberg.org/files/17767/17767-h/17767-h.htm,9,3
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:36:46.058000+00:00,what does the fox say,6725,http://www.gutenberg.org/files/19522/19522-h/19522-h.htm,1,4
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:36:59.610000+00:00,where do fox live,7034,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_294,1,1
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:37:12.172000+00:00,where do fox live,6487,http://www.gutenberg.org/files/24628/24628-h/24628-h.htm,2,3
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:37:29.299000+00:00,fox food,7175,http://www.gutenberg.org/cache/epub/3152/pg3152.html,3,1
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:37:35.646000+00:00,fox food,3304,https://www.africanstorybook.org/#,7,1
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:37:49.400000+00:00,fox food,2885,https://kids.frontiersin.org/article/10.3389/frym.2017.00064,1,5
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:38:02.483000+00:00,fox food,2197,https://kids.frontiersin.org/article/10.3389/frym.2020.00014,5,5
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:38:49.871000+00:00,what does the fox say,6637,http://www.gutenberg.org/cache/epub/13815/pg13815-images.html,2,4
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:38:58.019000+00:00,what does the fox say,2607,https://freekidsbooks.org/wp-content/uploads/2019/09/we-love-our-home-pratham-FKB.pdf,7,4
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:39:12.937000+00:00,fox home,7034,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_294,1,1
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:39:22.425000+00:00,fox home,5743,http://www.gutenberg.org/files/24479/24479-h/24479-h.htm#Page_167,5,1
+Participant1,0b0cd4e1-3bd5-41fc-9e24-d7a34709df8c,2026-03-19 10:39:34.858000+00:00,fox home,442,http://www.gutenberg.org/files/24097/24097-h/24097-h.htm,8,4
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:49:24.581000+00:00,climate change,1960,https://simple.wikipedia.org/wiki/Climate,1,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:49:33.477000+00:00,climate change,3235,https://kids.frontiersin.org/article/10.3389/frym.2015.00014,2,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:49:44.236000+00:00,climate change,3025,https://kids.frontiersin.org/article/10.3389/frym.2017.00031,10,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:50:10.511000+00:00,biodiversity,2512,https://kids.frontiersin.org/article/10.3389/frym.2019.00040,5,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:50:17.952000+00:00,biodiversity,2041,https://en.wikipedia.org/wiki/Evolution,6,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:50:24.353000+00:00,biodiversity,2777,https://kids.frontiersin.org/article/10.3389/frym.2018.00022,2,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:50:49.850000+00:00,climate change effect,2599,https://kids.frontiersin.org/article/10.3389/frym.2019.00136,1,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:50:57.014000+00:00,climate change effect,2162,https://kids.frontiersin.org/article/10.3389/frym.2019.00161,4,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:51:05.456000+00:00,climate change effect,1988,https://kids.frontiersin.org/article/10.3389/frym.2019.00154,5,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:51:18.618000+00:00,climate change effect,2992,https://kids.frontiersin.org/article/10.3389/frym.2017.00041,3,2
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:51:37.156000+00:00,clime change earth sciences,2033,https://en.wikipedia.org/wiki/Environmental_science,1,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:51:44.658000+00:00,clime change earth sciences,2557,https://simple.wikipedia.org/wiki/Encryption,6,1
+Participant1,ac19467f-cd75-43ee-b0bb-d4a19dad75d0,2026-03-19 10:51:56.567000+00:00,clime change earth sciences,7349,http://www.gutenberg.org/files/38750/38750-h/38750-h.htm#Page_281,1,3
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:42:51.941000+00:00,fox sound,3813,http://www.gutenberg.org/cache/epub/8075/pg8075-images.html,2,1
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:42:58.266000+00:00,fox sound,3304,https://www.africanstorybook.org/#,10,1
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:43:09.162000+00:00,fox sound,470,http://www.gutenberg.org/files/21008/21008-h/21008-h.htm,1,2
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:43:22.402000+00:00,fox sound,7163,http://www.gutenberg.org/cache/epub/3152/pg3152.html,3,2
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:43:29.379000+00:00,fox sound,7042,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_306,10,2
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:43:40.654000+00:00,fox sound,3154,https://kids.frontiersin.org/article/10.3389/frym.2016.00004,2,3
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:44:30.697000+00:00,fox sound,3059,https://kids.frontiersin.org/article/10.3389/frym.2017.00002,10,3
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:45:02.373000+00:00,how long do foxs live,5489,http://www.gutenberg.org/ebooks/19399,5,1
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:45:08.096000+00:00,how long do foxs live,7008,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_98,7,1
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:45:20.049000+00:00,how long do foxs live,6735,http://www.gutenberg.org/files/17767/17767-h/17767-h.htm,2,3
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:45:33.588000+00:00,how long do foxs live,6670,http://www.gutenberg.org/cache/epub/5834/pg5834-images.html,10,5
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:46:00.349000+00:00,fox sound,7175,http://www.gutenberg.org/cache/epub/3152/pg3152.html,5,1
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:46:08.813000+00:00,fox sound,6154,http://www.gutenberg.org/files/20985/20985-h/20985-h.htm,1,1
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:46:20.737000+00:00,fox sound,5668,http://www.gutenberg.org/files/24476/24476-h/24476-h.htm#Page_82,3,10
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:46:27.191000+00:00,fox sound,4745,http://www.gutenberg.org/files/19721/19721-h/19721-h.htm,7,10
+Participant2,2db4a128-a7b0-462d-9432-0f66ce1c7a9f,2026-03-19 10:46:57.393000+00:00,fox house,3384,https://www.africanstorybook.org/,5,5
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:52:38.409000+00:00,is climete chnage real,3403,https://www.commonlit.org/texts/how-autism-freed-me-to-be-myself,2,1
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:52:49.179000+00:00,is climete chnage real,2585,https://kids.frontiersin.org/article/10.3389/frym.2019.00051,3,1
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:53:03.875000+00:00,is climate change real,1960,https://simple.wikipedia.org/wiki/Climate,1,1
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:53:08.634000+00:00,is climate change real,1988,https://kids.frontiersin.org/article/10.3389/frym.2019.00154,3,1
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:53:17.639000+00:00,is climate change real,2803,https://kids.frontiersin.org/article/10.3389/frym.2018.00010,2,3
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:53:26.475000+00:00,is climate change real,6240,http://www.gutenberg.org/files/17993/17993-h/17993-h.htm,5,3
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:53:38.083000+00:00,is climate change real,2457,https://kids.frontiersin.org/article/10.3389/frym.2020.00049,1,4
+Participant2,358665ed-05f9-463c-b357-29b94091e948,2026-03-19 10:53:47.902000+00:00,is climate change real,3816,http://www.gutenberg.org/cache/epub/8075/pg8075-images.html,4,4
+Participant3,5cb5b8f2-6892-4106-9aaa-2be16016a862,2026-03-19 10:47:45.922000+00:00,fox live where,6891,http://www.gutenberg.org/files/4980/4980-h/4980-h.htm,1,2
+Participant3,5cb5b8f2-6892-4106-9aaa-2be16016a862,2026-03-19 10:47:54.309000+00:00,fox live where,6886,http://www.gutenberg.org/files/14732/14732-h/14732-h.htm,10,2
+Participant3,5cb5b8f2-6892-4106-9aaa-2be16016a862,2026-03-19 10:48:16.386000+00:00,where do foxs live,7034,http://www.gutenberg.org/files/25359/25359-h/25359-h.htm#Page_294,1,1
+Participant3,5cb5b8f2-6892-4106-9aaa-2be16016a862,2026-03-19 10:48:21.326000+00:00,where do foxs live,2891,https://www.africanstorybook.org/#,2,1
+Participant3,5cb5b8f2-6892-4106-9aaa-2be16016a862,2026-03-19 10:48:35.721000+00:00,fox habitat,2092,https://en.wikipedia.org/wiki/Habitat,1,1
+Participant3,5cb5b8f2-6892-4106-9aaa-2be16016a862,2026-03-19 10:48:41.591000+00:00,fox habitat,7175,http://www.gutenberg.org/cache/epub/3152/pg3152.html,3,1
+Participant3,bc54211a-9aac-4d27-96b4-9efdc0db6ace,2026-03-19 10:54:17.470000+00:00,climate change greenhouse,2091,https://simple.wikipedia.org/wiki/Greenhouse_effect,4,1
+Participant3,bc54211a-9aac-4d27-96b4-9efdc0db6ace,2026-03-19 10:54:27.344000+00:00,climate change greenhouse,1960,https://simple.wikipedia.org/wiki/Climate,3,1
+Participant3,bc54211a-9aac-4d27-96b4-9efdc0db6ace,2026-03-19 10:54:39.805000+00:00,climate change greenhouse,2599,https://kids.frontiersin.org/article/10.3389/frym.2019.00136,10,1
+Participant3,bc54211a-9aac-4d27-96b4-9efdc0db6ace,2026-03-19 10:54:57.391000+00:00,climate change greenhouse,4963,http://www.gutenberg.org/files/15417/15417-h/15417-h.htm,2,2
+Participant3,bc54211a-9aac-4d27-96b4-9efdc0db6ace,2026-03-19 10:55:31.885000+00:00,clime change causes,7349,http://www.gutenberg.org/files/38750/38750-h/38750-h.htm#Page_281,9,1
+Participant3,bc54211a-9aac-4d27-96b4-9efdc0db6ace,2026-03-19 10:55:38.147000+00:00,clime change causes,2691,https://kids.frontiersin.org/article/10.3389/frym.2019.00134,10,1
