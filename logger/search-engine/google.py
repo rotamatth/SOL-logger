@@ -4,6 +4,7 @@ import pandas as pd
 import json
 from tqdm.notebook import tqdm
 
+# Load Google API credentials and endpoint configuration from file
 f = open("API_keys.json")
 data = json.load(f)
 
@@ -13,6 +14,7 @@ SERP_endpoint = data["google"]["SERP_endpoint"]
 f.close()
 
 def get_google_SERP(query):
+    # Query Google Custom Search for a single text query
 
     payload = {
             'key': API_KEY,
@@ -26,30 +28,34 @@ def get_google_SERP(query):
     except requests.ConnectionError:
         return "Connection Error"
     
+    # Return raw JSON response from the API
     search_results = SERP_response.json()
 
     return search_results
     
-    for result in SERP_result_set["items"]:
-        try:
-            web_title =  result["title"]
-        except:
-            web_title = None
-        try:
-            web_url = result["link"]
-        except:
-            web_url = None
-        try:
-            web_snippet = result["snippet"]
-        except:
-            web_snippet = None
+    # Unused parsing code kept from an earlier version
+    # for result in SERP_result_set["items"]:
+    #     try:
+    #         web_title =  result["title"]
+    #     except:
+    #         web_title = None
+    #     try:
+    #         web_url = result["link"]
+    #     except:
+    #         web_url = None
+    #     try:
+    #         web_snippet = result["snippet"]
+    #     except:
+    #         web_snippet = None
 
 def get_google_results(queries_df, results_file_name):
+    # Collect Google results for multiple queries and save them to Excel
 
     SERP_results = []
     today = datetime.now()
     today = today.strftime("%Y_%m_%d")
 
+    # Iterate over all queries in the input DataFrame
     for _, row in tqdm(queries_df.iterrows(), total=len(queries_df)):
         query = row["query"] 
         query_category = str(row["ngram"]) + '-gram'
@@ -65,6 +71,8 @@ def get_google_results(queries_df, results_file_name):
         try:
             SERP_result_set = SERP_response.json()
             asked_query = payload['q']
+
+            # Extract basic metadata for each returned result
             for result in SERP_result_set["items"]:
                 try:
                     web_title =  result["title"]
@@ -79,6 +87,7 @@ def get_google_results(queries_df, results_file_name):
                 except:
                     web_snippet = None
 
+                # Optional webpage crawling logic was disabled here
                 # try:
                 #     req = Request(
                 #         url= web_url, 
@@ -94,8 +103,10 @@ def get_google_results(queries_df, results_file_name):
                 
                 SERP_results.append([query, asked_query, query_category, web_title, web_url, web_snippet, today])
         except:
+            # If parsing fails, still record the query with empty result fields
             print(query)
             SERP_results.append([query, asked_query, query_category, None, None, None, today])
 
+    # Convert collected results into a DataFrame and export them
     SERP_df = pd.DataFrame(SERP_results, columns=["query", "asked_query", "query_category", "web_title", "web_url", "web_snippet", "date_crawled"])
     SERP_df.to_excel("../data/" + results_file_name + ".xlsx", index=False)

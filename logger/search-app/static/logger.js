@@ -1,7 +1,6 @@
 (() => {
 
-
-    // Fallback-UUID-Function for outdated browsers
+    // Fallback UUID generator for browsers without crypto.randomUUID()
     function generateUUID() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             const r = Math.random() * 16 | 0,
@@ -15,6 +14,7 @@
         logs: [],
         historyTracker: [],
 
+        // Restore previous logger state from localStorage or create a new session
         init() {
             const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
                 ? crypto.randomUUID()
@@ -29,6 +29,7 @@
             this.historyTracker = browserHistory ? JSON.parse(browserHistory) : [];
         },
         
+        // Create one log entry and persist it locally immediately
         logEvent(type, details = {}) {
             const event = {
                 type,
@@ -41,11 +42,13 @@
             localStorage.setItem('sessionLogs', JSON.stringify(this.logs));
         },
 
+        // Track visited pages/results to reconstruct navigation behavior
         addHistory(url) {
             this.historyTracker.push(url);
             localStorage.setItem('browserHistory', JSON.stringify(this.historyTracker));
         },
 
+        // Detect a back-navigation pattern by comparing current and previous URLs
         checkHistory(url) {
             if (this.historyTracker.length <= 1) return;
             
@@ -54,15 +57,18 @@
             else return;
         },
 
+        // Remove the last back-and-forth pair once it has been logged
         removeHistory(){
             this.historyTracker.splice(this.historyTracker.length-2, 2);
             localStorage.setItem('browserHistory', JSON.stringify(this.historyTracker));
         },
 
+        // Debug/helper view of current history stack
         getHistory() {
             return JSON.stringify(this.historyTracker);
         },
 
+        // Send collected logs to the Flask backend and clear local state if successful
         sendLogs() {
             if (this.logs.length === 0) return;
 
@@ -90,10 +96,12 @@
         }
     };
 
+    // Initialize once and expose globally so templates can call studyLogger
     logger.init();
     window.studyLogger = logger;
 })();
 
+// Log the submitted participant ID at the start of the study
 const idform = document.getElementById("enter-id-form");
 if (idform) {
   idform.addEventListener("submit", (e) => {
@@ -102,6 +110,7 @@ if (idform) {
   });
 }
 
+// Log the start of a task once the user confirms/enters it
 const taskbtn = document.getElementById("task-btn")
 if (taskbtn) {
     taskbtn.addEventListener("click", () => {
@@ -109,6 +118,7 @@ if (taskbtn) {
     });
 }
 
+// Capture when the user focuses the search box
 const searchbox = document.getElementById("search-box")
 if (searchbox) {
     searchbox.addEventListener("focus", () => {
@@ -116,6 +126,7 @@ if (searchbox) {
     });
 }
 
+// Log each submitted query before the search request is processed
 const searchbar = document.getElementById("search-bar")
 if (searchbar) {
     searchbar.addEventListener("submit", (e) => {
@@ -126,6 +137,7 @@ if (searchbar) {
     }); 
 }
 
+// Rebuild the internal search-app URL for a given query/page pair
 function getSearchAppLocation(query, page){
     const search_params = new URLSearchParams();
     search_params.set("query", query);
@@ -135,13 +147,15 @@ function getSearchAppLocation(query, page){
 
 function logSERP() {
     const searchResults = document.querySelectorAll("article.content-section");
-    if (!searchResults || searchResults.length === 0) return; // DOM not ready
+    if (!searchResults || searchResults.length === 0) return; // No SERP on this page
 
+    // Use the first result to recover page-level context
     const firstResult = document.querySelector("article.content-section");
     const query = firstResult.getAttribute("query");
     const  page = firstResult.getAttribute("page");
     const searchAppLocation = getSearchAppLocation(query, page);
 
+    // If this SERP was revisited via back navigation, log it differently
     if(studyLogger.checkHistory(searchAppLocation)){
         studyLogger.logEvent("wentBack", {
             "query": query,
@@ -152,6 +166,7 @@ function logSERP() {
         studyLogger.addHistory(searchAppLocation);
     }
     else{
+        // First visit to this SERP: log every generated result item
         studyLogger.addHistory(searchAppLocation);
         searchResults.forEach(result => {
             const query = result.getAttribute("query");
@@ -177,6 +192,7 @@ function logSERP() {
 function logMouseHovers(){
     const searchSnippets = document.querySelectorAll("article.content-section");
     if(searchSnippets){
+            // Log hover enter/leave to approximate attention on each result
             searchSnippets.forEach(result => {
             const query = result.getAttribute("query");
             const docid = result.getAttribute("base_ir");
@@ -216,7 +232,7 @@ function logMouseHovers(){
 function logClicks(){
     const resultLinks = document.querySelectorAll("a.result-link");
     if (resultLinks) {
-        // const serpContainer = document.getElementsByClassName("container-info");
+        // Log which result was clicked and save the target URL in history
         resultLinks.forEach(link => {
             link.addEventListener("click", (e) => {
                 const rank = link.id.split("-")[2];
@@ -258,6 +274,7 @@ function logPageNavigation(){
         });
         });
 
+        // Infer target page from pagination label text
         function getTargetPage(label, current) {
         if (label.includes("Next")) return current + 1;
         if (label.includes("Previous")) return current - 1;
@@ -267,6 +284,7 @@ function logPageNavigation(){
     }
 }
 
+// Register all SERP-related logging hooks for the current page
 function loggingSearchActions(){
     logSERP();
     logClicks();
@@ -274,20 +292,23 @@ function loggingSearchActions(){
     logPageNavigation();
 }
 
+// Run logging setup once the page DOM is ready
 document.addEventListener("DOMContentLoaded", loggingSearchActions);
 
+// Rebind logging when returning through browser cache/back-forward cache
 window.addEventListener("pageshow", (e)=>{
     if(e.persisted) {
         loggingSearchActions();
     }
 });
 
+// Log explicit return to the app home page
 const homeButton = document.getElementById("app-home");
 homeButton.addEventListener("click", ()=>{
     studyLogger.logEvent("wentBackHome");
 });
 
-
+// Log click on the "end task" entry action
 endtask = document.getElementById("end-task-btn")
 if (endtask) {
     endtask.addEventListener("click", () => {
@@ -295,6 +316,7 @@ if (endtask) {
     });
 }
 
+// Log confirmation of task termination
 endyes = document.getElementById("yes-end-btn")
 if (endyes) {
     endyes.addEventListener("click", () => {
@@ -302,6 +324,7 @@ if (endyes) {
     });
 }
 
+// Log final feedback reason before ending the task
 feedbackbtn = document.getElementById("feedback-btn")
 if (feedbackbtn) {
     feedbackbtn.addEventListener("click", () => {
@@ -312,10 +335,10 @@ if (feedbackbtn) {
     });
 }
 
+// Log cancellation of the end-task action
 endno = document.getElementById("no-end-btn")
 if (endno) {
     endno.addEventListener("click", () => {
         studyLogger.logEvent("TaskContinued");
     });
 }
-

@@ -2,27 +2,33 @@ import os
 import pyterrier as pt
 import pandas as pd
 from pathlib import Path
-pt.init()
+pt.init()  # Initialize PyTerrier once before using indexing/retrieval features
 
 import ir_datasets
 import json
 
+# Alternative dataset configuration kept for previous experiments
 # DATASET = 'irds:argsme/2020-04-01/touche-2020-task-1'
 # IDX_PATH = './index/argsme'
 
+# Alternative local corpus configuration
 # CORPUS = r'datasets/kid-friend-en/docs.jsonl'
 # IDX_PATH = Path.cwd() / "index" / "kid-friend-en"
 
+# Current corpus and index location used by the search engine
 CORPUS = r'datasets/commonlit/docs.jsonl'
 IDX_PATH = Path.cwd() / "index" / "commonlit"
 
 def read_corpus():
+    # Read the JSONL corpus file and load it into a pandas DataFrame
     lines = []
     with open(str(CORPUS)) as f:
         lines = f.read().splitlines()
 
     line_dicts = [json.loads(line) for line in lines]
     df_final = pd.DataFrame(line_dicts)
+
+    # Remove duplicate rows to avoid indexing the same document twice
     df_final.drop_duplicates(inplace=True,ignore_index=True)
     return df_final
 
@@ -30,15 +36,25 @@ def read_corpus():
 class Ranker(object):
 
     def __init__(self, wmodel):
+        # Index handle; loaded or created later
         self.idx = None
+
+        # Retrieval model passed from the environment/app
         self.wmodel = wmodel
+
+        # Force BM25 as the current weighting model
         self.wmodel = 'BM25'
+
+        # Load the corpus once at startup for metadata lookup during ranking
         self.dataset = read_corpus()
+
+        # Old ir_datasets-based setup kept for reference
         # self.dataset = ir_datasets.load("argsme/2020-04-01/touche-2020-task-1")
         # self.docstore = self.dataset.docs_store()
 
     def index(self):
         
+        # Old indexing logic for ir_datasets kept for reference
         # dataset = pt.get_dataset(DATASET)
 
         # title_dict = {}
@@ -65,11 +81,13 @@ class Ranker(object):
         # self.idx = indexer.index(filter_dataset())
 
         ## reading corpus
+        # Reload corpus from disk before indexing
         df_final = read_corpus()
         self.dataset = df_final
 
         ## creating corpus iterator
         ### kid-friend-en
+        # Old iterator for a different dataset schema
         # def df_iter():
         #     for i, row in df_final.iterrows():
         #         yield {
@@ -80,6 +98,7 @@ class Ranker(object):
         #         }
 
         ### commonlit
+        # Convert each DataFrame row into the dictionary format expected by PyTerrier
         def df_iter():
             for i, row in df_final.iterrows():
                 yield {
@@ -93,6 +112,7 @@ class Ranker(object):
 
         ## creating indexer
         ### kid-friend-en
+        # Old indexer for another corpus schema
         # indexer = pt.IterDictIndexer(
         #     index_path = str(IDX_PATH),
         #     meta={ # metadata recorded in index
@@ -107,6 +127,8 @@ class Ranker(object):
         # )
 
         ### commonlit
+        # Build an indexer describing which fields are stored as metadata
+        # and which field is actually indexed for retrieval
         indexer = pt.IterDictIndexer(
             index_path = str(IDX_PATH),
             meta={ # metadata recorded in index
@@ -117,34 +139,45 @@ class Ranker(object):
                 "url": max([len(url) for url in df_final["url"]]),
                 "source": max([len(source) for source in df_final["source"]])
             },
-            text_attrs = ["snippet"], # columns indexed
+            text_attrs = ["snippet"], # only the snippet text is indexed for search
             stemmer="porter",
             stopwords="terrier",
         )
 
         ## indexing corpus
+        # Create the on-disk PyTerrier index and keep a handle to it
         self.idx = indexer.index(df_iter())
 
     def rank_publications(self, query, page, rpp):
 
+        # List of result dictionaries returned to the Flask API
         itemlist = []
         import os
        
+        # Absolute path to the existing PyTerrier index metadata file
         idx_path_abs = os.path.abspath(os.path.join(IDX_PATH, 'data.properties'))
     
         if query is not None:
+            # Lazily load the index from disk if it is not already in memory
             if self.idx is None:
                 try:
                     self.idx = pt.IndexFactory.of(os.path.join(IDX_PATH, 'data.properties'))
                 except Exception as e:
                     print('No index available: ', e)
+
             if self.idx is not None:
 
+                # Access stored metadata fields for indexed documents
                 meta_index = self.idx.getMetaIndex()
 
+                # Run retrieval with the configured weighting model
                 wmodel = pt.BatchRetrieve(self.idx, controls={"wmodel": self.wmodel})
+
+                # Get ranked document IDs and apply page slicing
                 items = wmodel.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
                 itemlist = []
+
+                # Old result-construction logic for other datasets kept for reference
                 # for i in items: 
                 #     item =  self.docstore.get(i)
                 #     internal_id = meta_index.getDocument("docno", i)
@@ -161,6 +194,7 @@ class Ranker(object):
                 #     )
 
                 ### kid-friend-en
+                # Old result mapping for another corpus schema
                 # for i in items: 
                 #     item =  self.dataset.loc[self.dataset["docno"]==i]
                 #     itemlist.append(                                            # Adjust to the data fields that the collection you want to use provides (Corresponding don't have to be adjusted)
@@ -173,6 +207,7 @@ class Ranker(object):
                 #     )     
 
                 ### commonlit
+                # Rebuild the API response using metadata stored in the original DataFrame
                 for i in items: 
                     item =  self.dataset.loc[self.dataset["docno"]==i]
                     itemlist.append(                                            # Adjust to the data fields that the collection you want to use provides (Corresponding don't have to be adjusted)
@@ -185,6 +220,7 @@ class Ranker(object):
                         }
                     )                    
                    
+        # Return ranking results in the JSON structure expected by the Flask API
         return {
             'page': page,
             'rpp': rpp,
