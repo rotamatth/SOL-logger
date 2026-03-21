@@ -1,66 +1,60 @@
 {% extends "layout.html" %}
 {% block content %}
-<!-- Container Info-->
-<small class="container-info"><p><b>▻ Search Results</b> for: [ {{ query|safe }} ] 
+<small class="container-info">
+  <p><b>Search Results</b> for: [ {{ query|safe }} ]</p>
 </small>
 
-  <hr>
-  <!-- Search Result Arguments-->
-  {% for s in search_results %}     <!-- After adjusting the system.py regarding the data fields you might need to adapt the displayed data fields here (e.g. s.title, s.argument, ...)-->
-        <article class="media content-section" id="result-{{ loop.index }}" base_ir="{{ s.docid|safe }}" query="{{ query|safe }}" page="{{ page|safe }}">
-        <div class="media-body">
-          <!-- Title -->
-          <h4>
-            <span>{{ loop.index + 10*(page-1) }}. <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">{{ s.title|safe }}</a></span>
-          </h4>
-          <!-- Snippet preview -->
-          {% if s.thumbnail %}
-          <div class="imageflex">
-            <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
-              {{ s.snippet|safe }} <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>                                             
-            </p>
-            <img src="{{ s.thumbnail|safe }}">
-          </div>
-          {% else %}
-            <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
-              {{ s.snippet|safe }} <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>                                             
-            </p>
-          {% endif %}
+<hr>
 
-          <!-- Date + DocID -->
-          <div class="article-metadata" style="display: flex; justify-content: space-between;" id="metadata-{{ loop.index }}_l">
-            <!-- <h5>{{ s.source }}</h5> -->
-            <!-- <small class="text-muted">{{ s.source_title }}</small> -->
-            <small class="text-muted">{{ s.displayed_link|safe }}</small>
-            <!--<small class="text-muted">{{ s.date }}</small>   // mostly no existing date-->
-          </div>              
-        </div>
-      </article>
-  {% endfor %}
-  
-  {% if total_pages > 1 %}
-  <nav aria-label="Page navigation" class="mt-4">
-    <ul class="pagination justify-content-center">
+{% for s in search_results %}
+  <article class="media content-section" id="result-{{ loop.index }}" base_ir="{{ s.docid|safe }}" query="{{ query|safe }}" page="{{ page|safe }}">
+    <div class="media-body">
+      <div class="article-metadata" id="metadata-{{ loop.index }}_l">
+        <small class="text-muted">{{ s.displayed_link|safe }}</small>
+      </div>
 
-      <!-- Previous -->
-      <li class="page-item {% if page == 1 %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for('result', query=query, page=page-1)|safe }}" tabindex="-1">« Previous</a>
-      </li>
+      <h4>
+        <span>{{ loop.index + 10*(page-1) }}. <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">{{ s.title|safe }}</a></span>
+      </h4>
 
-      <!-- Page Numbers -->
-      {% for p in range(1, total_pages + 1) %}
-      <li class="page-item {% if page == p %}active{% endif %}">
-        <a class="page-link" href="{{ url_for('result', query=query, page=p)|safe }}">{{ p }}</a>
-      </li>
-      {% endfor %}
+      {% if s.thumbnail %}
+      <div class="imageflex">
+        <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
+          {{ s.snippet|safe }}
+          <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>
+        </p>
+        <img src="{{ s.thumbnail|safe }}" alt="Result thumbnail">
+      </div>
+      {% else %}
+      <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
+        {{ s.snippet|safe }}
+        <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>
+      </p>
+      {% endif %}
+    </div>
+  </article>
+{% endfor %}
 
-      <!-- Next -->
-      <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for('result', query=query, page=page+1)|safe }}">Next »</a>
-      </li>
+{% if total_pages > 1 %}
+<nav aria-label="Page navigation" class="mt-4">
+  <ul class="pagination justify-content-center">
 
-    </ul>
-  </nav>
-  {% endif %}
+    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('result', query=query, page=page-1)|safe }}" tabindex="-1">« Previous</a>
+    </li>
 
-{% endblock  content%}
+    {% for p in range(1, total_pages + 1) %}
+    <li class="page-item {% if page == p %}active{% endif %}">
+      <a class="page-link" href="{{ url_for('result', query=query, page=p)|safe }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('result', query=query, page=page+1)|safe }}">Next »</a>
+    </li>
+
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock content %}

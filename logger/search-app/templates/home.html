@@ -1,18 +1,18 @@
-
 {% extends "layout.html" %}
 {% block content %}
-    {% for document in documents %}
-        <div class ="search-sectopm">
-            <form method="GET" action="">
-                {{ form.hidden_tag()}}
-                <fieldset class ="form-group">
-                    <legend class="border_bottom mb-4">Search Field</legend>
-                    <dir class="form-group">
-                        {{ form.q.label(class="form-control-label") }}
-                        {{ form.q(class="form-control form-control-lg") }}
-                    </dir>
-                </fieldset>
-            </form>
-        </div>
-    {% endfor %}
-{% endblock  content%}
+<div class="home-search-center">
+    <div class="home-search-title">Search</div>
+
+    <form method="POST" action="{{ url_for('result') }}" id="search-bar" class="home-search-form">
+        {{ form.hidden_tag() }}
+        <input
+            type="search"
+            name="query"
+            id="search-box"
+            placeholder="Search..."
+            aria-label="Search"
+            autocomplete="off">
+        <button type="submit" name="submit-box" id="submit-box">Search</button>
+    </form>
+</div>
+{% endblock content %}
