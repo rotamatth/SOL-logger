@@ -1,36 +1,37 @@
 {% extends "layout.html" %}
 {% block content %}
-<small class="container-info">
-  <p><b>Search Results</b> for: [ {{ query|safe }} ]</p>
-</small>
-
-<hr>
+<p class="container-info">Results for: {{ query|safe }}</p>
 
 {% for s in search_results %}
   <article class="media content-section" id="result-{{ loop.index }}" base_ir="{{ s.docid|safe }}" query="{{ query|safe }}" page="{{ page|safe }}">
     <div class="media-body">
-      <div class="article-metadata" id="metadata-{{ loop.index }}_l">
-        <small class="text-muted">{{ s.displayed_link|safe }}</small>
+
+      <div class="result-source-line">
+        <div class="result-favicon"></div>
+        <div class="article-metadata" id="metadata-{{ loop.index }}_l">
+          <small>{{ s.displayed_link|safe }}</small>
+        </div>
       </div>
 
       <h4>
-        <span>{{ loop.index + 10*(page-1) }}. <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">{{ s.title|safe }}</a></span>
+        <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">{{ s.title|safe }}</a>
       </h4>
 
       {% if s.thumbnail %}
       <div class="imageflex">
         <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
           {{ s.snippet|safe }}
-          <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>
+          <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" tabindex="-1" aria-label="Read more"></a>
         </p>
         <img src="{{ s.thumbnail|safe }}" alt="Result thumbnail">
       </div>
       {% else %}
       <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
         {{ s.snippet|safe }}
-        <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}">Read More</a>
+        <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" tabindex="-1" aria-label="Read more"></a>
       </p>
       {% endif %}
+
     </div>
   </article>
 {% endfor %}
