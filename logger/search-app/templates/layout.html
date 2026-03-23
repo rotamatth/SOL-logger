@@ -18,7 +18,7 @@
     <header class="site-header">
         <nav class="navbar navbar-expand-md navbar-light bg-steel fixed-top">
             <div class="container-fluid" style="padding-left: 1.25rem; padding-right: 1.25rem;">
-                <a class="navbar-brand me-2" href="/" id="app-home"><span style="color:#4285F4">S</span><span style="color:#EA4335">e</span><span style="color:#FBBC05">a</span><span style="color:#4285F4">r</span><span style="color:#34A853">c</span><span style="color:#EA4335">h</span></a>
+                <a class="navbar-brand me-2" href="/" id="app-home"><span style="color:#4285F4">S</span><span style="color:#EA4335">O</span><span style="color:#FBBC05">L</span> <span style="color:#4285F4">S</span><span style="color:#EA4335">e</span><span style="color:#FBBC05">a</span><span style="color:#4285F4">r</span><span style="color:#34A853">c</span><span style="color:#EA4335">h</span></a>
 
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -32,8 +32,8 @@
                             {{ form.hidden_tag() }}
                             <input class="form-control me-4"
                                    type="search"
-                                   placeholder="Search..."
-                                   aria-label="Search"
+                                   placeholder="Cerca..."
+                                   aria-label="Cerca"
                                    name="query"
                                    id="search-box"
                                    autocomplete="off"
@@ -42,7 +42,7 @@
                                     type="submit"
                                     name="submit-box"
                                     id="submit-box">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#5f6368" style="vertical-align:middle;margin-right:4px"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>Search
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#5f6368" style="vertical-align:middle;margin-right:4px"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>Cerca
                             </button>
                         </form>
                     </div>
@@ -56,13 +56,13 @@
         {% if query is defined %}
         <div class="results-shell">
             <aside class="results-sidebar">
-                <h5>Done searching?</h5>
-                <p>Press the button below once you are sure you have the answers you are looking for.</p>
+                <h5>Hai finito di cercare?</h5>
+                <p>Premi il pulsante qui sotto quando sei sicuro di aver trovato le risposte che cercavi.</p>
                 <button type="submit"
                         onclick="openEndTaskModal()"
                         class="btn btn-danger mt-3"
                         id="end-task-btn">
-                    End Task
+                    Fine compito
                 </button>
             </aside>
             <section class="results-main">
@@ -83,12 +83,12 @@
     <div id="endTaskModal" class="modal" style="display: none;">
         <div class="modal-content-box">
             <span class="close" onclick="closeEndTaskModal()">&times;</span>
-            <h2>Are you sure you want to end the task?</h2>
-            <p>There is no going back. Do you really want to end the task now?</p>
+            <h2>Sei sicuro di voler terminare il compito?</h2>
+            <p>Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
 
             <div class="modal-buttons">
-                <button id="yes-end-btn" class="btn btn-primary">Yes, end task</button>
-                <button id="no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, resume search</button>
+                <button id="yes-end-btn" class="btn btn-primary">Sì, termina il compito</button>
+                <button id="no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, riprendi la ricerca</button>
             </div>
         </div>
     </div>
@@ -96,15 +96,15 @@
     <div id="feedbackModal" class="modal" style="display: none;">
         <div class="modal-content-box">
             <span class="close" onclick="closeFeedbackModal();openEndTaskModal()">&times;</span>
-            <h2>Why are you ending the task now?</h2>
-            <p>(e.g., the time is up, you found enough arguments for your essay, the task is too difficult, etc.)</p>
+            <h2>Perché stai terminando il compito adesso?</h2>
+            <p>(es. il tempo è scaduto, hai trovato abbastanza informazioni, il compito è troppo difficile, ecc.)</p>
 
             <div id="feedback">
                 <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>
             </div>
 
             <div class="modal-buttons">
-                <button id="feedback-btn" class="btn btn-primary">Submit and end</button>
+                <button id="feedback-btn" class="btn btn-primary">Invia e termina</button>
             </div>
         </div>
     </div>

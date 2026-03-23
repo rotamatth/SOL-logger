@@ -131,6 +131,7 @@ class Ranker(object):
         # and which field is actually indexed for retrieval
         indexer = pt.IterDictIndexer(
             index_path = str(IDX_PATH),
+            overwrite=True,
             meta={ # metadata recorded in index
                 "docno": max([len(docno) for docno in df_final["docno"]]),
                 "title": max([len(title) for title in df_final["title"]]),

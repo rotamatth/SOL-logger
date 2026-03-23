@@ -145,11 +145,11 @@ def result():
     
     try:
         response = requests.get(end_query)
+        search_results = response.json()
     except requests.ConnectionError:
-        return "Connection Error" 
-
-    # JSON response expected from the ranking backend
-    search_results = response.json()
+        return "Connection Error"
+    except Exception:
+        return "Search engine error — please rebuild the index and try again."
 
     # Task reminder shown together with search results
     reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')

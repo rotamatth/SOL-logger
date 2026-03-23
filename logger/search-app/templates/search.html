@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% block content %}
-<p class="container-info">Results for: {{ query|safe }}</p>
+<p class="container-info">Risultati per: {{ query|safe }}</p>
 
 {% for s in search_results %}
   <article class="media content-section" id="result-{{ loop.index }}" base_ir="{{ s.docid|safe }}" query="{{ query|safe }}" page="{{ page|safe }}">
@@ -21,14 +21,14 @@
       <div class="imageflex">
         <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
           {{ s.snippet|safe }}
-          <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" tabindex="-1" aria-label="Read more"></a>
+          <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" aria-hidden="true"></a>
         </p>
         <img src="{{ s.thumbnail|safe }}" alt="Result thumbnail">
       </div>
       {% else %}
       <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
         {{ s.snippet|safe }}
-        <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" tabindex="-1" aria-label="Read more"></a>
+        <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" aria-hidden="true"></a>
       </p>
       {% endif %}
 
@@ -41,7 +41,7 @@
   <ul class="pagination justify-content-center">
 
     <li class="page-item {% if page == 1 %}disabled{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=page-1)|safe }}" tabindex="-1">« Previous</a>
+      <a class="page-link" href="{{ url_for('result', query=query, page=page-1)|safe }}" tabindex="-1">« Precedente</a>
     </li>
 
     {% for p in range(1, total_pages + 1) %}
@@ -51,7 +51,7 @@
     {% endfor %}
 
     <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=page+1)|safe }}">Next »</a>
+      <a class="page-link" href="{{ url_for('result', query=query, page=page+1)|safe }}">Successiva »</a>
     </li>
 
   </ul>

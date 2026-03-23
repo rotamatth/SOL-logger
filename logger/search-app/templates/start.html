@@ -1,16 +1,16 @@
 {% extends "layout.html" %}
 {% block content %}
 <div style="max-width: 650px; margin: auto; padding-top: 3em; text-align: center;">
-    <h2>Welcome to the Study</h2>
-    <p>To begin, please enter the <b>user id</b> attached to your device to access the search engine. </p>
+    <h2>Benvenuto allo studio</h2>
+    <p>Per iniziare, inserisci l'<b>ID utente</b> associato al tuo dispositivo per accedere al motore di ricerca.</p>
     
 
     <form method="POST" id="enter-id-form">
         <input list="id-suggestions" type="text" name="user_id" class="form-control" id="id-box"
-            placeholder="Enter your ID" required style="margin: 1em auto; max-width: 325px;" autocomplete="off" />
+            placeholder="Inserisci il tuo ID" required style="margin: 1em auto; max-width: 325px;" autocomplete="off" />
         <datalist id="id-suggestions"></datalist>
-        <p id="error-message" style="color: red; display: none;">ID not valid</p>
-        <button class="btn btn-dark" id="task-btn" type="submit">Start</button>
+        <p id="error-message" style="color: red; display: none;">ID non valido</p>
+        <button class="btn btn-dark" id="task-btn" type="submit">Inizia</button>
     </form>
 
 
