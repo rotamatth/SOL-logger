@@ -267,18 +267,39 @@ function logPageNavigation(){
     }
 }
 
-function loggingSearchActions(){
+let listenersAttached = false;
+
+function loggingSearchActions(isPageShow = false){
+    // When restored from BFCache, re-sync logger state from localStorage
+    if (isPageShow) {
+        studyLogger.init();
+    }
+
     logSERP();
-    logClicks();
-    logMouseHovers();
-    logPageNavigation();
+
+    // Only attach event listeners once to prevent duplicates
+    if (!listenersAttached) {
+        logClicks();
+        logMouseHovers();
+        logPageNavigation();
+        listenersAttached = true;
+    }
 }
 
-document.addEventListener("DOMContentLoaded", loggingSearchActions);
+document.addEventListener("DOMContentLoaded", () => loggingSearchActions(false));
 
-window.addEventListener("pageshow", (e)=>{
-    if(e.persisted) {
-        loggingSearchActions();
+window.addEventListener("pageshow", (e) => {
+    if (e.persisted) {
+        // Page restored from BFCache - re-run SERP logging for back detection
+        loggingSearchActions(true);
+    }
+});
+
+// Fallback for browsers that don't use BFCache but still have back navigation issues
+window.addEventListener("pagehide", (e) => {
+    // Reset flag so listeners are re-attached if page is reloaded fresh
+    if (!e.persisted) {
+        listenersAttached = false;
     }
 });
 
