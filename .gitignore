@@ -6,3 +6,4 @@ experiments/data/corpus
 __pycache__/
 .venv/
 .pytest_cache/
+experiments/testfile.ipynb

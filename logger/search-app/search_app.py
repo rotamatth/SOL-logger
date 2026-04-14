@@ -154,11 +154,14 @@ def result():
     # print(API_KEY, SERP_endpoint)
 
     # payload = {
-    #         'api_key': API_KEY,
-    #         'engine': "google",
-    #         'q': query,
-    #         'json_restrictor': "organic_results",
-    #         'start': 0
+
+    #     "engine": "google",
+    #     "q": query,
+    #     "start": page * 10,
+    #     "num": 10,
+    #     "filter": 0,
+    #     "api_key": API_KEY
+
     #     }
 
     # SERP_response = requests.get(url=SERP_endpoint, params=payload)
@@ -172,7 +175,7 @@ def result():
     #     total_pages = min(10, math.ceil(total_results / rpp))
     #     start = (page - 1) * rpp
     #     end = start + rpp
-    #     return render_template("search.html", title="Search Results", search_results = search_results['organic_results'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
+    #     return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
     
 @app.route('/log_session', methods=['POST'])
 def log_session():
