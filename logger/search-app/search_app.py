@@ -51,7 +51,9 @@ def load_user_topics(filepath='data/user_topics.csv'):
                 '1_short': row['topic1_keyword'],
                 '1_full': row['topic1_question'],
                 '2_short': row['topic2_keyword'],
-                '2_full': row['topic2_question']
+                '2_full': row['topic2_question'],
+                '3_short': row['topic3_keyword'],
+                '3_full': row['topic3_question']
             }
     return topics
 
@@ -178,11 +180,14 @@ def result():
     # print(API_KEY, SERP_endpoint)
 
     # payload = {
-    #         'api_key': API_KEY,
-    #         'engine': "google",
-    #         'q': query,
-    #         'json_restrictor': "organic_results",
-    #         'start': 0
+
+    #     "engine": "google",
+    #     "q": query,
+    #     "start": page * 10,
+    #     "num": 10,
+    #     "filter": 0,
+    #     "api_key": API_KEY
+
     #     }
 
     # SERP_response = requests.get(url=SERP_endpoint, params=payload)
@@ -196,7 +201,7 @@ def result():
     #     total_pages = min(10, math.ceil(total_results / rpp))
     #     start = (page - 1) * rpp
     #     end = start + rpp
-    #     return render_template("search.html", title="Search Results", search_results = search_results['organic_results'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
+    #     return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
     
 @app.route('/log_session', methods=['POST'])
 def log_session():
@@ -229,18 +234,18 @@ def log_session():
 
 @app.route('/end', methods=['POST'])
 def end_task():
-    # End the current task flow by clearing the session
-    session.clear()
-    return redirect(url_for('thank_you'))
-
-    # Old logic for a second task is kept here for future reuse
-    # task_number = session.get('task_number')
-    # if task_number == '1':
-    #     session['task_number'] = '2'
-    #     return redirect(url_for('task'))
-    # else:
-    #     session.clear()
-    #     return redirect(url_for('thank_you'))
+    task_number = session.get('task_number')
+    if task_number == '1':
+        session['task_number'] = '2'
+        # return redirect(url_for('task'))
+        return redirect(url_for('home'))
+    elif task_number == '2':
+        session['task_number'] = '3'
+        # return redirect(url_for('task'))
+        return redirect(url_for('home'))
+    else:
+        session.clear()
+        return redirect(url_for('thank_you'))
 
 @app.route('/thank_you')
 def thank_you():

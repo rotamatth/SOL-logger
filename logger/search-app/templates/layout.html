@@ -86,18 +86,24 @@
             <h2>Sei sicuro di voler terminare il compito?</h2>
             <p>Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
 
-            <div class="modal-buttons">
-                <button id="yes-end-btn" class="btn btn-primary">Sì, termina il compito</button>
-                <button id="no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, riprendi la ricerca</button>
-            </div>
+        <!-- <div id="savedDocuments">
+        <a href="#" id="toggleSavedLink" onclick="toggleSavedTitles(event)">See saved documents ▼</a>
+        <ul id="savedTitles" style="display: none;" ></ul>
+        </div> -->
+
+        <div class="modal-buttons">
+        <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
+        <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button>
+
+        <button id = "no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, resume search</button>
         </div>
     </div>
 
     <div id="feedbackModal" class="modal" style="display: none;">
-        <div class="modal-content-box">
-            <span class="close" onclick="closeFeedbackModal();openEndTaskModal()">&times;</span>
-            <h2>Perché stai terminando il compito adesso?</h2>
-            <p>(es. il tempo è scaduto, hai trovato abbastanza informazioni, il compito è troppo difficile, ecc.)</p>
+    <div class="modal-content-box">
+
+        <span class="close" onclick="closeFeedbackModal();openEndTaskModal()">&times;</span>
+        <h2>Enter your answer below:</h2>
 
             <div id="feedback">
                 <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>
@@ -114,7 +120,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3XB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 
     <script>
-        const finalbtn = document.getElementById("yes-end-btn");
+        const finalbtn = document.getElementById("feedback-btn");
+        // const finalbtn = document.getElementById("yes-end-btn");
         if (finalbtn) {
             finalbtn.addEventListener('click', async (e) => {
                 e.preventDefault();
@@ -140,7 +147,7 @@
     <script>
     function openEndTaskModal() {
         document.getElementById("endTaskModal").style.display = "flex";
-        populateSavedDocuments();
+        // populateSavedDocuments();
     }
 
     function openFeedbackModal() {

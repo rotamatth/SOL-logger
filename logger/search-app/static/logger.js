@@ -284,21 +284,39 @@ function logPageNavigation(){
     }
 }
 
-// Register all SERP-related logging hooks for the current page
-function loggingSearchActions(){
+let listenersAttached = false;
+
+function loggingSearchActions(isPageShow = false){
+    // When restored from BFCache, re-sync logger state from localStorage
+    if (isPageShow) {
+        studyLogger.init();
+    }
+
     logSERP();
-    logClicks();
-    logMouseHovers();
-    logPageNavigation();
+
+    // Only attach event listeners once to prevent duplicates
+    if (!listenersAttached) {
+        logClicks();
+        logMouseHovers();
+        logPageNavigation();
+        listenersAttached = true;
+    }
 }
 
-// Run logging setup once the page DOM is ready
-document.addEventListener("DOMContentLoaded", loggingSearchActions);
+document.addEventListener("DOMContentLoaded", () => loggingSearchActions(false));
 
-// Rebind logging when returning through browser cache/back-forward cache
-window.addEventListener("pageshow", (e)=>{
-    if(e.persisted) {
-        loggingSearchActions();
+window.addEventListener("pageshow", (e) => {
+    if (e.persisted) {
+        // Page restored from BFCache - re-run SERP logging for back detection
+        loggingSearchActions(true);
+    }
+});
+
+// Fallback for browsers that don't use BFCache but still have back navigation issues
+window.addEventListener("pagehide", (e) => {
+    // Reset flag so listeners are re-attached if page is reloaded fresh
+    if (!e.persisted) {
+        listenersAttached = false;
     }
 });
 
@@ -330,7 +348,7 @@ if (feedbackbtn) {
     feedbackbtn.addEventListener("click", () => {
         const fb = document.getElementById("textarea_feedback").value;
         studyLogger.logEvent("TaskEnded", {
-            reason: fb
+            answer: fb
         });
     });
 }
