@@ -5,3 +5,12 @@ experiments/data/corpus
 .DS_Store
 **/.DS_Store
 logger/logs/*.log
+# Runtime logs
+logger/logs/
+# Local search index
+logger/search-engine/index/commonlit/
+# Python cache
+__pycache__/
+*.pyc
+# macOS
+.DS_Store
