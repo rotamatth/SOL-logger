@@ -92,7 +92,7 @@
 
         <div class="modal-buttons">
         <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
-        <button id = "yes-end-btn" class="btn btn-primary">Yes, end task</button>
+        <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button>
 
         <button id = "no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, resume search</button>
         </div>
@@ -104,10 +104,7 @@
     <div class="modal-content-box">
         
         <span class="close" onclick="closeFeedbackModal();openEndTaskModal()">&times;</span>
-        <h2>Why are you ending the task now?</h2>
-        <p>
-        (e.g., the time is up, you found enough arguments for your essay, the task is too difficult, etc.) 
-        </p>
+        <h2>Enter your answer below:</h2>
 
         <div id="feedback">
         <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>
@@ -129,8 +126,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 
     <script>
-        // const finalbtn = document.getElementById("feedback-btn");
-        const finalbtn = document.getElementById("yes-end-btn");
+        const finalbtn = document.getElementById("feedback-btn");
+        // const finalbtn = document.getElementById("yes-end-btn");
         if (finalbtn) {
         finalbtn.addEventListener('click', async (e) => {
                 e.preventDefault()
@@ -156,7 +153,7 @@
     <script>
     function openEndTaskModal() {
         document.getElementById("endTaskModal").style.display = "flex";
-        populateSavedDocuments();
+        // populateSavedDocuments();
     }
 
     function openFeedbackModal() {

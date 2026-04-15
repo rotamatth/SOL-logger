@@ -46,7 +46,9 @@ def load_user_topics(filepath='data/user_topics.csv'):
                 '1_short': row['topic1_keyword'],
                 '1_full': row['topic1_question'],
                 '2_short': row['topic2_keyword'],
-                '2_full': row['topic2_question']
+                '2_full': row['topic2_question'],
+                '3_short': row['topic3_keyword'],
+                '3_full': row['topic3_question']
             }
     return topics
 
@@ -204,17 +206,19 @@ def log_session():
 
 @app.route('/end', methods=['POST'])
 def end_task():
-    session.clear()
-    return redirect(url_for('thank_you'))
-
-    # task_number = session.get('task_number')
-    # if task_number == '1':
-    #     session['task_number'] = '2'
-    #     return redirect(url_for('task'))
-    # else:
-    #     session.clear()
-    #     return redirect(url_for('thank_you'))
-
+    task_number = session.get('task_number')
+    if task_number == '1':
+        session['task_number'] = '2'
+        # return redirect(url_for('task'))
+        return redirect(url_for('home'))
+    elif task_number == '2':
+        session['task_number'] = '3'
+        # return redirect(url_for('task'))
+        return redirect(url_for('home'))
+    else:
+        session.clear()
+        return redirect(url_for('thank_you'))
+    
 @app.route('/thank_you')
 def thank_you():
     return render_template('end.html')

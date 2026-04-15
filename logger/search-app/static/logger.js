@@ -328,7 +328,7 @@ if (feedbackbtn) {
     feedbackbtn.addEventListener("click", () => {
         const fb = document.getElementById("textarea_feedback").value;
         studyLogger.logEvent("TaskEnded", {
-            reason: fb
+            answer: fb
         });
     });
 }
