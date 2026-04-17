@@ -4,11 +4,16 @@ COPY requirements.txt requirements.txt
 
 RUN apt-get update && \
     apt-get install openjdk-11-jdk -y && \
-    apt-get install -y python3 && \
-    apt-get install -y python3-pip && \
-    apt-get install -y libpcre3 libpcre3-dev && \
+    apt-get install -y python3.9 && \
+    apt-get install -y python3-pip
+
+CMD ["python", "--version"]
+    
+RUN apt-get install -y libpcre3 libpcre3-dev && \
     apt-get install zip unzip && \
-    python3 -m pip install -r requirements.txt
+    apt-get update && apt-get install -y git && \
+    python3 -m pip install -r requirements.txt && \
+    python3 -m pip install --upgrade git+https://github.com/terrierteam/pyterrier_t5.git
     # mkdir -p /root/.ir_datasets/downloads 
 
 COPY . .

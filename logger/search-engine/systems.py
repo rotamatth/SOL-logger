@@ -1,5 +1,6 @@
 import os
 import pyterrier as pt
+from pyterrier_t5 import MonoT5ReRanker
 import pandas as pd
 from pathlib import Path
 pt.init()
@@ -31,8 +32,10 @@ class Ranker(object):
 
     def __init__(self, wmodel):
         self.idx = None
-        self.wmodel = wmodel
-        self.wmodel = 'BM25'
+        # self.wmodel = wmodel
+        self.firstRanker = 'BM25'
+        self.reranker = MonoT5ReRanker()
+        # self.reranker = MonoT5ReRanker(text_field='snippet', model = 'castorini/monot5-base-msmarco')
         self.dataset = read_corpus()
         # self.dataset = ir_datasets.load("argsme/2020-04-01/touche-2020-task-1")
         # self.docstore = self.dataset.docs_store()
@@ -142,7 +145,9 @@ class Ranker(object):
 
                 meta_index = self.idx.getMetaIndex()
 
-                wmodel = pt.BatchRetrieve(self.idx, controls={"wmodel": self.wmodel})
+                retriever_pipeline = self.firstRanker >> pt.get_text(self.idx, "snippet") >> self.reranker
+
+                wmodel = pt.BatchRetrieve(self.idx, controls={"wmodel": retriever_pipeline})
                 items = wmodel.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
                 itemlist = []
                 # for i in items: 
