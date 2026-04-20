@@ -1,5 +1,6 @@
 import os
 import pyterrier as pt
+from pyterrier_t5 import MonoT5ReRanker
 import pandas as pd
 from pathlib import Path
 pt.init()  # Initialize PyTerrier once before using indexing/retrieval features
@@ -38,14 +39,10 @@ class Ranker(object):
     def __init__(self, wmodel):
         # Index handle; loaded or created later
         self.idx = None
-
-        # Retrieval model passed from the environment/app
-        self.wmodel = wmodel
-
-        # Force BM25 as the current weighting model
-        self.wmodel = 'BM25'
-
-        # Load the corpus once at startup for metadata lookup during ranking
+        # self.wmodel = wmodel
+        self.firstRanker = 'BM25'
+        self.reranker = MonoT5ReRanker()
+        # self.reranker = MonoT5ReRanker(text_field='snippet', model = 'castorini/monot5-base-msmarco')
         self.dataset = read_corpus()
 
         # Old ir_datasets-based setup kept for reference
@@ -171,10 +168,9 @@ class Ranker(object):
                 # Access stored metadata fields for indexed documents
                 meta_index = self.idx.getMetaIndex()
 
-                # Run retrieval with the configured weighting model
-                wmodel = pt.BatchRetrieve(self.idx, controls={"wmodel": self.wmodel})
+                retriever_pipeline = self.firstRanker >> pt.get_text(self.idx, "snippet") >> self.reranker
 
-                # Get ranked document IDs and apply page slicing
+                wmodel = pt.BatchRetrieve(self.idx, controls={"wmodel": retriever_pipeline})
                 items = wmodel.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
                 itemlist = []
 
