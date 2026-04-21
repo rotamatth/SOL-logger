@@ -1,27 +1,30 @@
 FROM ubuntu:20.04
 
-COPY requirements.txt requirements.txt
+# ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y openjdk-11-jdk && \
-    apt-get install -y python3.9 python3-pip python3-dev && \
-    apt-get install -y build-essential
+    apt-get install -y software-properties-common curl && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y \
+        python3.9 \
+        python3.9-distutils \
+        openjdk-11-jdk \
+        git \
+        zip \
+        unzip \
+        libpcre3 \
+        libpcre3-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-CMD ["python", "--version"]
-    
-RUN apt-get install -y libpcre3 libpcre3-dev && \
-    apt-get install -y libxml2-dev libxslt1-dev zlib1g-dev && \
-    apt-get install -y zip unzip && \
-    apt-get update && apt-get install -y git && \
-    python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install -r requirements.txt && \
-    python3 -m pip install --upgrade git+https://github.com/terrierteam/pyterrier_t5.git
-    # mkdir -p /root/.ir_datasets/downloads 
+# Install pip for Python 3.9
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
+
+COPY requirements.txt requirements.txt
+RUN python3.9 -m pip install -r requirements.txt && \
+    python3.9 -m pip install --upgrade git+https://github.com/terrierteam/pyterrier_t5.git
 
 COPY . .
 
-# RUN unzip datasets/argsme.zip -d /root/.ir_datasets/
-
 EXPOSE 7002
-
-ENTRYPOINT python3 app.py
+ENTRYPOINT ["python3.9", "app.py"]

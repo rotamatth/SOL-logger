@@ -11,3 +11,4 @@ __pycache__/
 .venv/
 .pytest_cache/
 experiments/testfile.ipynb
+logger/search-engine/test.ipynb

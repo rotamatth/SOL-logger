@@ -41,8 +41,8 @@ class Ranker(object):
         self.idx = None
         # self.wmodel = wmodel
         self.firstRanker = 'BM25'
-        self.reranker = MonoT5ReRanker()
-        # self.reranker = MonoT5ReRanker(text_field='snippet', model = 'castorini/monot5-base-msmarco')
+        # self.reranker = MonoT5ReRanker()
+        self.reranker = MonoT5ReRanker(text_field='snippet', model = 'castorini/monot5-base-msmarco')
         self.dataset = read_corpus()
 
         # Old ir_datasets-based setup kept for reference
@@ -168,10 +168,9 @@ class Ranker(object):
                 # Access stored metadata fields for indexed documents
                 meta_index = self.idx.getMetaIndex()
 
-                retriever_pipeline = self.firstRanker >> pt.get_text(self.idx, "snippet") >> self.reranker
-
-                wmodel = pt.BatchRetrieve(self.idx, controls={"wmodel": retriever_pipeline})
-                items = wmodel.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
+                firstStageRetriever = pt.BatchRetrieve(self.idx, controls={"wmodel": self.firstRanker})
+                full_retriever_pipeline = firstStageRetriever >> pt.text.get_text(self.idx, "snippet") >> self.reranker
+                items = full_retriever_pipeline.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
                 itemlist = []
 
                 # Old result-construction logic for other datasets kept for reference
