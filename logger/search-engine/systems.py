@@ -99,14 +99,6 @@ class Ranker(object):
                     >> self.reranker
                 )
 
-<<<<<<< HEAD
-                items = full_retriever_pipeline.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
-                itemlist = []
-
-                for i in items:
-                    item = self.dataset.loc[self.dataset["docno"] == i]
-                    itemlist.append(
-=======
                 firstStageRetriever = pt.BatchRetrieve(self.idx, controls={"wmodel": self.firstRanker})
                 # full_retriever_pipeline = firstStageRetriever >> pt.text.get_text(self.idx, "snippet") >> self.reranker
                 full_retriever_pipeline = firstStageRetriever
@@ -117,7 +109,6 @@ class Ranker(object):
                 for i in items: 
                     item =  self.dataset.loc[self.dataset["docno"]==i]
                     itemlist.append(                                            # Adjust to the data fields that the collection you want to use provides (Corresponding don't have to be adjusted)
->>>>>>> upstream/main
                         {
                             'title': item["title"].values[0],
                             'snippet': item["snippet"].values[0],

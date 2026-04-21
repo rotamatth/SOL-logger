@@ -72,30 +72,8 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 
 def sanitize_query(query):
-    # Removes all characters except letters, numbers, and spaces
-    # This is necessary for PyTerrier compatibility
-    cleaned_query =  re.sub(r'[^\w\s]', '', query)
-    f = open("API_keys.json")
-    data = json.load(f)
-
-    API_KEY = data["serp_api"]["api_key"]
-    SERP_endpoint = data["serp_api"]["SERP_endpoint"]
-    f.close()
-
-    serpapi_payload = {
-        "engine": "google",
-        "q": cleaned_query,
-        "num": 10,
-        "filter": 0,
-        "api_key": API_KEY
-        }
-    
-    serpapi_response = requests.get(url=SERP_endpoint, params=serpapi_payload)
-
-    serpapi_results = serpapi_response.json()
-    serpapi_query = serpapi_results["search_information"].get("showing_results_for", cleaned_query)
-
-    return cleaned_query, serpapi_query
+    # Keep only letters, digits, and spaces before sending query to the search engine
+    return re.sub(r'[^\w\s]', '', query)
 
 
 def load_user_topics(filepath='data/user_topics.csv'):
@@ -177,20 +155,8 @@ def result():
         query = request.args.get("query")
         page = int(request.args.get("page", 1))
     
-    url = "/ranking?query="
-    url_affix = "&rpp="
-    maxres = '100' # max 10 pages with max 10 results each
-    rpp = 10 # results per page; may be changed later
-    query, serpapi_query = sanitize_query(query)
-
-    end_query = db_url + url + serpapi_query + url_affix + maxres
-    
-    try:
-        response = requests.get(end_query)
-    except requests.ConnectionError:
-        return "Connection Error" 
-
-    search_results = response.json()
+    query = sanitize_query(query)
+    rpp = 10
 
     # Task reminder shown together with search results
     reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
@@ -268,44 +234,8 @@ def result():
     if len(search_results) == 0:
         return render_template("no_result.html", title="No results found", query=query, show_search=True, reminder=reminder)
     else:
-        total_results = len(search_results["itemlist"])
-        total_pages = min(10, math.ceil(total_results / rpp))
-        start = (page - 1) * rpp
-        end = start + rpp
-        return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, serpapi_query = serpapi_query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
-
-    # f = open("API_keys.json")
-    # data = json.load(f)
-
-    # API_KEY = data["serp_api"]["api_key"]
-    # SERP_endpoint = data["serp_api"]["SERP_endpoint"]
-    # f.close()
-
-    # print(API_KEY, SERP_endpoint)
-
-    # payload = {
-
-    #     "engine": "google",
-    #     "q": query,
-    #     "start": page * 10,
-    #     "num": 10,
-    #     "filter": 0,
-    #     "api_key": API_KEY
-
-    #     }
-
-    # SERP_response = requests.get(url=SERP_endpoint, params=payload)
-
-    # search_results = SERP_response.json()
-
-    # if len(search_results["organic_results"]) == 0:
-    #         return render_template("no_result.html", title="No results found", query= query, show_search=True, reminder=reminder)
-    # else:
-    #     total_results = len(search_results["organic_results"])
-    #     total_pages = min(10, math.ceil(total_results / rpp))
-    #     start = (page - 1) * rpp
-    #     end = start + rpp
-    #     return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
+        total_pages = min(10, math.ceil(total_results_estimate / rpp)) if total_results_estimate > 0 else 1
+        return render_template("search.html", title="Search Results", search_results=search_results, query=query, page=page, total_pages=total_pages, show_search=True, reminder=reminder)
     
 @app.route('/log_session', methods=['POST'])
 def log_session():
