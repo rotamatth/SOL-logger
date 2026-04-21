@@ -1,3 +1,4 @@
+from operator import index
 import os
 import pyterrier as pt
 from pyterrier_t5 import MonoT5ReRanker
@@ -17,7 +18,7 @@ import json
 # IDX_PATH = Path.cwd() / "index" / "kid-friend-en"
 
 # Current corpus and index location used by the search engine
-CORPUS = r'datasets/commonlit/docs.jsonl'
+CORPUS = 'datasets/commonlit/docs.jsonl'
 IDX_PATH = Path.cwd() / "index" / "commonlit"
 
 def read_corpus():
@@ -166,7 +167,8 @@ class Ranker(object):
             if self.idx is not None:
 
                 # Access stored metadata fields for indexed documents
-                meta_index = self.idx.getMetaIndex()
+                index = pt.IndexFactory.of(self.idx)
+                meta_index = index.getMetaIndex()
 
                 firstStageRetriever = pt.BatchRetrieve(self.idx, controls={"wmodel": self.firstRanker})
                 full_retriever_pipeline = firstStageRetriever >> pt.text.get_text(self.idx, "snippet") >> self.reranker
