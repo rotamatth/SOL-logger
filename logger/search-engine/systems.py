@@ -29,18 +29,17 @@ class Ranker(object):
     def __init__(self, wmodel):
         # Index handle; loaded or created later
         self.idx = None
-        # First stage retrieval modeel
         self.firstRanker = 'BM25'
-       # Reranker model; initialized once and used for all queries
-        self.reranker = MonoT5ReRanker(text_field='snippet', model = 'castorini/monot5-base-msmarco')
+        # self.reranker = MonoT5ReRanker(text_field='snippet', model = 'castorini/monot5-base-msmarco')
         self.dataset = read_corpus()
 
     def index(self):
-        ## reading corpus and Reload corpus from disk before indexing
+
+        ## reading corpus
         df_final = read_corpus()
         self.dataset = df_final
 
-        # Convert each DataFrame row into the dictionary format expected by PyTerrier
+        ### commonlit
         def df_iter():
             for i, row in df_final.iterrows():
                 yield {
@@ -54,6 +53,7 @@ class Ranker(object):
 
         # Build an indexer describing which fields are stored as metadata
         # and which field is actually indexed for retrieval
+        ### commonlit
         indexer = pt.IterDictIndexer(
             index_path = str(IDX_PATH),
             overwrite=True,
@@ -99,12 +99,25 @@ class Ranker(object):
                     >> self.reranker
                 )
 
+<<<<<<< HEAD
                 items = full_retriever_pipeline.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
                 itemlist = []
 
                 for i in items:
                     item = self.dataset.loc[self.dataset["docno"] == i]
                     itemlist.append(
+=======
+                firstStageRetriever = pt.BatchRetrieve(self.idx, controls={"wmodel": self.firstRanker})
+                # full_retriever_pipeline = firstStageRetriever >> pt.text.get_text(self.idx, "snippet") >> self.reranker
+                full_retriever_pipeline = firstStageRetriever
+                items = full_retriever_pipeline.search(query)['docno'][page*rpp:(page+1)*rpp].tolist()
+                itemlist = []  
+
+                ### commonlit
+                for i in items: 
+                    item =  self.dataset.loc[self.dataset["docno"]==i]
+                    itemlist.append(                                            # Adjust to the data fields that the collection you want to use provides (Corresponding don't have to be adjusted)
+>>>>>>> upstream/main
                         {
                             'title': item["title"].values[0],
                             'snippet': item["snippet"].values[0],
