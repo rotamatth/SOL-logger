@@ -9,6 +9,9 @@ import csv
 from datetime import datetime
 import re
 
+from google.cloud import discoveryengine_v1 as discoveryengine
+from google.api_core.client_options import ClientOptions
+
 
 app = Flask(__name__)
 
@@ -18,16 +21,50 @@ CORS(app)
 # Flask session configuration
 app.config['SECRET_KEY'] = 'OtulwLo7gQ'       # Please set a secret key
 app.config.update(
-    SESSION_COOKIE_SECURE=False,    
-    SESSION_COOKIE_SAMESITE='Lax', 
+    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_SAMESITE='Lax',
 )
 
-# Internal URL of the search engine service
-db_url = "http://search_engine:7002"
+# --- Vertex AI Search (Discovery Engine) configuration ---
+def load_vertex_config():
+    """Load Vertex AI Search config from API_keys.json or env vars."""
+    project = os.getenv('VERTEX_PROJECT_NUMBER')
+    location = os.getenv('VERTEX_LOCATION', 'global')
+    engine_id = os.getenv('VERTEX_ENGINE_ID')
+    language_code = os.getenv('VERTEX_LANGUAGE_CODE', 'it')
+
+    if not project or not engine_id:
+        config_path = os.path.join(os.path.dirname(__file__), 'API_keys.json')
+        if os.path.exists(config_path):
+            with open(config_path) as f:
+                data = json.load(f)
+            cfg = data.get('vertex_ai', {})
+            project = project or cfg.get('project_number')
+            location = cfg.get('location', location)
+            engine_id = engine_id or cfg.get('engine_id')
+            language_code = cfg.get('language_code', language_code)
+
+    return project, location, engine_id, language_code
+
+VERTEX_PROJECT, VERTEX_LOCATION, VERTEX_ENGINE_ID, VERTEX_LANGUAGE = load_vertex_config()
+
+# Build the serving config path used by the Discovery Engine API
+VERTEX_SERVING_CONFIG = (
+    f"projects/{VERTEX_PROJECT}/locations/{VERTEX_LOCATION}"
+    f"/collections/default_collection/engines/{VERTEX_ENGINE_ID}"
+    f"/servingConfigs/default_search"
+)
+
+# Initialize the Discovery Engine search client
+# Use global endpoint for global location, regional otherwise
+client_options = None
+if VERTEX_LOCATION and VERTEX_LOCATION != "global":
+    client_options = ClientOptions(api_endpoint=f"{VERTEX_LOCATION}-discoveryengine.googleapis.com")
+
+search_client = discoveryengine.SearchServiceClient(client_options=client_options)
 
 # Number of results shown per page in the UI
-# rpp = 20  # Results per Page (Default: 20) 
-rpp = 10  # Results per Page (Default: 20) 
+rpp = 10
 
 # Folder where interaction logs are saved
 LOG_DIR = 'logs'
@@ -68,24 +105,6 @@ def base():
 
 @app.route("/")
 def home():
-
-    ## uncomment when using datasets from ir_datasets
-    
-    # query = "vaccine"
-    # url = "/ranking?query="
-    # url_affix = "&rpp="
-    # maxres = '100' # max 10 pages with max 10 results each
-    # rpp = 10 # results per page; may be changed later
-    # query = sanitize_query(query)
-    # end_query = db_url + url + query + url_affix + maxres
-    
-    # try:
-    #     response = requests.get(end_query)
-    # except requests.ConnectionError:
-    #     return "Connection Error" 
-
-    # search_results = response.json()
-
     # Prevent access to the search page if the user has not started the study flow
     if 'user_id' not in session:
         return redirect(url_for('start_page'))
@@ -136,72 +155,88 @@ def result():
     else:
         query = request.args.get("query")
         page = int(request.args.get("page", 1))
-    
-    # Build request to the search engine service
-    url = "/ranking?query="
-    url_affix = "&rpp="
-    maxres = '100' # max 10 pages with max 10 results each
-    rpp = 10 # results per page; may be changed later
+
     query = sanitize_query(query)
-    end_query = db_url + url + query + url_affix + maxres
-    
-    try:
-        response = requests.get(end_query)
-        search_results = response.json()
-    except requests.ConnectionError:
-        return "Connection Error"
-    except Exception:
-        return "Search engine error — please rebuild the index and try again."
+    rpp = 10
 
     # Task reminder shown together with search results
     reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
-    
+
+    # --- Vertex AI Discovery Engine search ---
+    try:
+        search_request = discoveryengine.SearchRequest(
+            serving_config=VERTEX_SERVING_CONFIG,
+            query=query,
+            page_size=rpp,
+            offset=(page - 1) * rpp,
+            query_expansion_spec=discoveryengine.SearchRequest.QueryExpansionSpec(
+                condition=discoveryengine.SearchRequest.QueryExpansionSpec.Condition.AUTO,
+            ),
+            spell_correction_spec=discoveryengine.SearchRequest.SpellCorrectionSpec(
+                mode=discoveryengine.SearchRequest.SpellCorrectionSpec.Mode.AUTO,
+            ),
+            language_code=VERTEX_LANGUAGE,
+        )
+
+        response = search_client.search(search_request)
+
+    except Exception as e:
+        print(f"[Vertex AI Search Error] {e}")  # server log only
+        return f"Search error — please try again. ({type(e).__name__})"
+
+    # Map Vertex AI results to the format expected by search.html
+    search_results = []
+    total_results_estimate = response.total_size
+
+    for result_item in response.results:
+        doc_data = dict(result_item.document.derived_struct_data)
+
+        # Extract fields from the document's derived_struct_data
+        title = str(doc_data.get("title", ""))
+        link = str(doc_data.get("link", ""))
+        snippet = ""
+
+        # Snippets may be in 'snippets' array or 'snippet' field
+        snippets = doc_data.get("snippets")
+        if snippets:
+            snippet_list = list(snippets)
+            if snippet_list:
+                snippet_data = dict(snippet_list[0])
+                snippet = str(snippet_data.get("htmlSnippet", snippet_data.get("snippet", "")))
+        if not snippet:
+            snippet = str(doc_data.get("snippet", ""))
+
+        # Extract displayed link (domain)
+        displayed_link = link
+        if "://" in link:
+            displayed_link = link.split("://", 1)[1].split("/", 1)[0]
+
+        # Extract thumbnail if available from pagemap
+        thumbnail = None
+        pagemap = doc_data.get("pagemap")
+        if pagemap:
+            pagemap_dict = dict(pagemap)
+            cse_thumb = pagemap_dict.get("cse_thumbnail")
+            if cse_thumb:
+                thumb_list = list(cse_thumb)
+                if thumb_list:
+                    thumbnail = str(dict(thumb_list[0]).get("src", ""))
+
+        search_results.append({
+            "title": title,
+            "snippet": snippet,
+            "link": link,
+            "displayed_link": displayed_link,
+            "docid": str(result_item.document.id) if result_item.document.id else link,
+            "thumbnail": thumbnail,
+        })
+
     # Render a dedicated page when no results are returned
-    if len(search_results["itemlist"]) == 0:
-            return render_template("no_result.html", title="No results found", query= query, show_search=True, reminder=reminder)
+    if len(search_results) == 0:
+        return render_template("no_result.html", title="No results found", query=query, show_search=True, reminder=reminder)
     else:
-        # Paginate locally over the returned ranked list
-        total_results = len(search_results["itemlist"])
-        total_pages = min(10, math.ceil(total_results / rpp))
-        start = (page - 1) * rpp
-        end = start + rpp
-        return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
-
-
-    # Alternative Google/SERP API implementation kept for reference
-    
-    # f = open("API_keys.json")
-    # data = json.load(f)
-
-    # API_KEY = data["serp_api"]["api_key"]
-    # SERP_endpoint = data["serp_api"]["SERP_endpoint"]
-    # f.close()
-
-    # print(API_KEY, SERP_endpoint)
-
-    # payload = {
-
-    #     "engine": "google",
-    #     "q": query,
-    #     "start": page * 10,
-    #     "num": 10,
-    #     "filter": 0,
-    #     "api_key": API_KEY
-
-    #     }
-
-    # SERP_response = requests.get(url=SERP_endpoint, params=payload)
-
-    # search_results = SERP_response.json()
-
-    # if len(search_results["organic_results"]) == 0:
-    #         return render_template("no_result.html", title="No results found", query= query, show_search=True, reminder=reminder)
-    # else:
-    #     total_results = len(search_results["organic_results"])
-    #     total_pages = min(10, math.ceil(total_results / rpp))
-    #     start = (page - 1) * rpp
-    #     end = start + rpp
-    #     return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
+        total_pages = min(10, math.ceil(total_results_estimate / rpp)) if total_results_estimate > 0 else 1
+        return render_template("search.html", title="Search Results", search_results=search_results, query=query, page=page, total_pages=total_pages, show_search=True, reminder=reminder)
     
 @app.route('/log_session', methods=['POST'])
 def log_session():

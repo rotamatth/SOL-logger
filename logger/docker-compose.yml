@@ -1,32 +1,33 @@
-version: "3"
 services:
   search_app:
     build: ./search-app
-    depends_on:
-      - search_engine
     ports:
       - 7001:7001
     volumes:
       - ./search-app/templates/:/app/templates/   # ← Transferring HTML files
-      - ./search-app/static/:/app/static/   # ← Mount the static folder here
+      - ./search-app/static/:/app/static/         # ← Mount the static folder here
       - ./search-app/data/:/data/
+      - ./search-app/API_keys.json:/app/API_keys.json          # ← Vertex AI config
+      - ./search-app/service_account.json:/app/service_account.json  # ← GCP credentials
       - ./logs:/logs/
-    networks:
-      - frontend
-
-
-  search_engine:
-    build: ./search-engine
-    volumes:
-      - ./search-engine/index:/index/
-    tty: true
     environment:
-      WMODEL: BM25
-    ports:
-      - 7002:7002
-
+      GOOGLE_APPLICATION_CREDENTIALS: "/app/service_account.json"
+      PYTHONUNBUFFERED: "1"
     networks:
       - frontend
+
+  # PyTerrier search engine — kept for reference, no longer needed with Google CSE
+  # search_engine:
+  #   build: ./search-engine
+  #   volumes:
+  #     - ./search-engine/index:/index/
+  #   tty: true
+  #   environment:
+  #     WMODEL: BM25
+  #   ports:
+  #     - 7002:7002
+  #   networks:
+  #     - frontend
 
 networks:
   frontend:

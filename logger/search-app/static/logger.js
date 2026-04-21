@@ -322,9 +322,11 @@ window.addEventListener("pagehide", (e) => {
 
 // Log explicit return to the app home page
 const homeButton = document.getElementById("app-home");
-homeButton.addEventListener("click", ()=>{
-    studyLogger.logEvent("wentBackHome");
-});
+if (homeButton) {
+    homeButton.addEventListener("click", ()=>{
+        studyLogger.logEvent("wentBackHome");
+    });
+}
 
 // Log click on the "end task" entry action
 endtask = document.getElementById("end-task-btn")
