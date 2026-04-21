@@ -1,4 +1,5 @@
 logger/search-app/API_keys.json
+logger/search-engine/API_keys.json
 logger/search-engine/datasets/
 logger/old_logs/
 experiments/data/corpus

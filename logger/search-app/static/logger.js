@@ -153,6 +153,20 @@ function logSERP() {
     }
     else{
         studyLogger.addHistory(searchAppLocation);
+        const didYouMean = document.getElementById("did-you-mean");
+        if(didYouMean){
+            studyLogger.logEvent("Query suggestion generated", {
+                "user query": query,
+                "suggested query": didYouMean.textContent
+            });
+
+            didYouMean.addEventListener("click", (e) => {
+                studyLogger.logEvent("clickedQuerySuggestion", {
+                    "user query": query,
+                    "suggested query": didYouMean.textContent
+                });
+            });
+        }
         searchResults.forEach(result => {
             const query = result.getAttribute("query");
             const docid = result.getAttribute("base_ir");

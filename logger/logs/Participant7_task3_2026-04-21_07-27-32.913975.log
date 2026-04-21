@@ -1,0 +1,3 @@
+{"type": "ClickedEndTask", "timestamp": "2026-04-21T07:27:24.182Z", "sessionID": "c8f74ee5-cb77-4904-a1e0-6fa402fb970c"}
+{"type": "TaskEndConfirmed", "timestamp": "2026-04-21T07:27:25.513Z", "sessionID": "c8f74ee5-cb77-4904-a1e0-6fa402fb970c"}
+{"type": "TaskEnded", "timestamp": "2026-04-21T07:27:32.609Z", "sessionID": "c8f74ee5-cb77-4904-a1e0-6fa402fb970c", "answer": "books are awesome"}

@@ -33,7 +33,28 @@ os.makedirs(LOG_DIR, exist_ok=True)
 def sanitize_query(query):
     # Removes all characters except letters, numbers, and spaces
     # This is necessary for PyTerrier compatibility
-    return re.sub(r'[^\w\s]', '', query)
+    cleaned_query =  re.sub(r'[^\w\s]', '', query)
+    f = open("API_keys.json")
+    data = json.load(f)
+
+    API_KEY = data["serp_api"]["api_key"]
+    SERP_endpoint = data["serp_api"]["SERP_endpoint"]
+    f.close()
+
+    serpapi_payload = {
+        "engine": "google",
+        "q": cleaned_query,
+        "num": 10,
+        "filter": 0,
+        "api_key": API_KEY
+        }
+    
+    serpapi_response = requests.get(url=SERP_endpoint, params=serpapi_payload)
+
+    serpapi_results = serpapi_response.json()
+    serpapi_query = serpapi_results["search_information"].get("showing_results_for", cleaned_query)
+
+    return cleaned_query, serpapi_query
 
 
 def load_user_topics(filepath='data/user_topics.csv'):
@@ -125,8 +146,9 @@ def result():
     url_affix = "&rpp="
     maxres = '100' # max 10 pages with max 10 results each
     rpp = 10 # results per page; may be changed later
-    query = sanitize_query(query)
-    end_query = db_url + url + query + url_affix + maxres
+    query, serpapi_query = sanitize_query(query)
+
+    end_query = db_url + url + serpapi_query + url_affix + maxres
     
     try:
         response = requests.get(end_query)
@@ -144,7 +166,7 @@ def result():
         total_pages = min(10, math.ceil(total_results / rpp))
         start = (page - 1) * rpp
         end = start + rpp
-        return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
+        return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, serpapi_query = serpapi_query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
 
     # f = open("API_keys.json")
     # data = json.load(f)
