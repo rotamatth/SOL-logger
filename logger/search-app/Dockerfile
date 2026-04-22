@@ -22,9 +22,10 @@ RUN python3.9 --version && \
     which python3.9
 
 COPY requirements.txt requirements.txt
+RUN python3.9 -m pip install -r requirements.txt 
 
 # Install dependencies using Python 3.9 pip
-RUN python3.9 -m pip install --no-cache-dir -r requirements.txt
+# RUN python3.9 -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 

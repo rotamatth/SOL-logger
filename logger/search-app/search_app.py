@@ -1,4 +1,3 @@
-from urllib import response
 from flask import Flask, render_template, url_for, request, session, redirect, jsonify
 import requests, json
 from forms import SearchForm
@@ -11,6 +10,9 @@ import re
 
 from google.cloud import discoveryengine_v1 as discoveryengine
 from google.api_core.client_options import ClientOptions
+
+from spellchecker import SpellChecker
+from time import time
 
 
 app = Flask(__name__)
@@ -69,11 +71,55 @@ rpp = 10
 # Folder where interaction logs are saved
 LOG_DIR = 'logs'
 os.makedirs(LOG_DIR, exist_ok=True)
+spell = SpellChecker(language='en')
+# spell = SpellChecker(language='it') # uncomment this when switching to Italian
+
+
+with open("API_keys.json") as f:
+    API_KEY = json.load(f)["serp_api"]["api_key"]
+
+AUTOCOMPLETE_CACHE = {}
+CACHE_TTL = 600  # 10 minutes
+MAX_SUGGESTIONS = 6
+
 
 
 def sanitize_query(query):
-    # Keep only letters, digits, and spaces before sending query to the search engine
-    return re.sub(r'[^\w\s]', '', query)
+    # Removes all characters except letters, numbers, and spaces
+    # This is necessary for PyTerrier compatibility
+    cleaned_query =  re.sub(r'[^\w\s]', '', query)
+    
+    words = spell.split_words(cleaned_query)
+    misspelled = spell.unknown(words)
+    corrected_query = ''
+
+    for word in words:
+        if word in misspelled:
+            word = spell.correction(word)
+        corrected_query += word
+        corrected_query += ' '
+    
+    # f = open("API_keys.json")
+    # data = json.load(f)
+
+    # API_KEY = data["serp_api"]["api_key"]
+    # SERP_endpoint = data["serp_api"]["SERP_endpoint"]
+    # f.close()
+
+    # serpapi_payload = {
+    #     "engine": "google",
+    #     "q": cleaned_query,
+    #     "num": 10,
+    #     "filter": 0,
+    #     "api_key": API_KEY
+    #     }
+    
+    # serpapi_response = requests.get(url=SERP_endpoint, params=serpapi_payload)
+
+    # serpapi_results = serpapi_response.json()
+    # serpapi_query = serpapi_results["search_information"].get("showing_results_for", cleaned_query)
+
+    return cleaned_query, corrected_query.strip()
 
 
 def load_user_topics(filepath='data/user_topics.csv'):
@@ -131,6 +177,7 @@ def start_page():
         val_ids = [line.strip() for line in f if line.strip()]
     return render_template('start.html', show_search=False, valid_ids = val_ids)
 
+
 @app.route('/task', methods=['GET', 'POST'])
 def task():
     # Read current user and task information from the session
@@ -154,18 +201,23 @@ def result():
     else:
         query = request.args.get("query")
         page = int(request.args.get("page", 1))
-    
-    query = sanitize_query(query)
-    rpp = 10
-
+        
     # Task reminder shown together with search results
     reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
+
+    if not query:
+        return render_template("no_result.html", title="No results found", query="", show_search=True, reminder=reminder)
+
+    original_query = query
+    cleaned_query, corrected_query = sanitize_query(query)
+    search_query = corrected_query if corrected_query else cleaned_query
+    rpp = 10
 
     # --- Vertex AI Discovery Engine search ---
     try:
         search_request = discoveryengine.SearchRequest(
             serving_config=VERTEX_SERVING_CONFIG,
-            query=query,
+            query=search_query,
             page_size=rpp,
             offset=(page - 1) * rpp,
             query_expansion_spec=discoveryengine.SearchRequest.QueryExpansionSpec(
@@ -180,7 +232,7 @@ def result():
         response = search_client.search(search_request)
 
     except Exception as e:
-        print(f"[Vertex AI Search Error] {e}")  # server log only
+        print(f"[Vertex AI Search Error] {e}")
         return f"Search error — please try again. ({type(e).__name__})"
 
     # Map Vertex AI results to the format expected by search.html
@@ -190,12 +242,10 @@ def result():
     for result_item in response.results:
         doc_data = dict(result_item.document.derived_struct_data)
 
-        # Extract fields from the document's derived_struct_data
         title = str(doc_data.get("title", ""))
         link = str(doc_data.get("link", ""))
         snippet = ""
 
-        # Snippets may be in 'snippets' array or 'snippet' field
         snippets = doc_data.get("snippets")
         if snippets:
             snippet_list = list(snippets)
@@ -205,12 +255,10 @@ def result():
         if not snippet:
             snippet = str(doc_data.get("snippet", ""))
 
-        # Extract displayed link (domain)
         displayed_link = link
         if "://" in link:
             displayed_link = link.split("://", 1)[1].split("/", 1)[0]
 
-        # Extract thumbnail if available from pagemap
         thumbnail = None
         pagemap = doc_data.get("pagemap")
         if pagemap:
@@ -230,12 +278,72 @@ def result():
             "thumbnail": thumbnail,
         })
 
-    # Render a dedicated page when no results are returned
     if len(search_results) == 0:
-        return render_template("no_result.html", title="No results found", query=query, show_search=True, reminder=reminder)
+        return render_template(
+            "no_result.html",
+            title="No results found",
+            query=original_query,
+            show_search=True,
+            reminder=reminder
+        )
     else:
         total_pages = min(10, math.ceil(total_results_estimate / rpp)) if total_results_estimate > 0 else 1
-        return render_template("search.html", title="Search Results", search_results=search_results, query=query, page=page, total_pages=total_pages, show_search=True, reminder=reminder)
+        return render_template(
+            "search.html",
+            title="Search Results",
+            search_results=search_results,
+            query=original_query,
+            page=page,
+            total_pages=total_pages,
+            show_search=True,
+            reminder=reminder
+        )
+
+@app.route("/autocomplete", methods=['GET'])
+def autocomplete():
+    query = request.args.get("query")
+
+    if not query or len(query) < 3:
+        return jsonify([])
+
+    # ---- Cache lookup ----
+    cached = AUTOCOMPLETE_CACHE.get(query)
+    if cached and time() - cached["time"] < CACHE_TTL:
+        return jsonify(cached["data"])
+
+    try:
+        response = requests.get(
+            "https://serpapi.com/search.json",
+            params={
+                "engine": "google_autocomplete",
+                "q": query,
+                "api_key": API_KEY,
+                # optional tuning:
+                # "hl": "en",
+                # "gl": "nl",
+            },
+            timeout=5
+        )
+
+        response.raise_for_status()
+        data = response.json()
+
+        suggestions = [
+            s["value"] for s in data.get("suggestions", [])
+        ][:MAX_SUGGESTIONS]
+
+        # ---- Store in cache ----
+        AUTOCOMPLETE_CACHE[query] = {
+            "time": time(),
+            "data": suggestions
+        }
+
+        return jsonify(suggestions)
+
+    except requests.RequestException as e:
+        # graceful fallback (no retries)
+        return jsonify([]), 200    
+    
     
 @app.route('/log_session', methods=['POST'])
 def log_session():

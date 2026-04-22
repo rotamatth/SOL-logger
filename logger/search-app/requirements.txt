@@ -2,4 +2,5 @@ flask
 flask-cors
 requests
 Flask-WTF
+pyspellchecker
 google-cloud-discoveryengine

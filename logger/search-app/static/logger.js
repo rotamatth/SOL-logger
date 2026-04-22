@@ -124,6 +124,15 @@ if (searchbox) {
     searchbox.addEventListener("focus", () => {
         studyLogger.logEvent("queryBoxFocused");
     });
+
+    searchbox.addEventListener("change", ()=>{
+        const value = searchbox.value;
+        if(window.autoCompleteSuggestions && window.autoCompleteSuggestions.includes(value)){
+            studyLogger.logEvent("choseAutoCompleteSuggestion", {
+                "selectedSuggestion": value
+            });
+        }
+    });
 }
 
 // Log each submitted query before the search request is processed
@@ -152,7 +161,7 @@ function logSERP() {
     // Use the first result to recover page-level context
     const firstResult = document.querySelector("article.content-section");
     const query = firstResult.getAttribute("query");
-    const  page = firstResult.getAttribute("page");
+    const page = firstResult.getAttribute("page");
     const searchAppLocation = getSearchAppLocation(query, page);
 
     // If this SERP was revisited via back navigation, log it differently
@@ -170,13 +179,13 @@ function logSERP() {
         studyLogger.addHistory(searchAppLocation);
         const didYouMean = document.getElementById("did-you-mean");
         if(didYouMean){
-            studyLogger.logEvent("Query suggestion generated", {
+            studyLogger.logEvent("generatedDidYouMean", {
                 "user query": query,
                 "suggested query": didYouMean.textContent
             });
 
             didYouMean.addEventListener("click", (e) => {
-                studyLogger.logEvent("clickedQuerySuggestion", {
+                studyLogger.logEvent("clickedDidYouMeanSuggestion", {
                     "user query": query,
                     "suggested query": didYouMean.textContent
                 });
