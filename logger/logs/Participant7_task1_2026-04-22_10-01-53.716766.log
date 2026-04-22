@@ -1,0 +1,8 @@
+{"type": "TaskStarted", "timestamp": "2026-04-22T10:01:22.634Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de"}
+{"type": "idSubmitted", "timestamp": "2026-04-22T10:01:22.637Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de", "uid": "Participant7"}
+{"type": "queryBoxFocused", "timestamp": "2026-04-22T10:01:23.870Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de"}
+{"type": "queryBoxFocused", "timestamp": "2026-04-22T10:01:37.122Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de"}
+{"type": "queryBoxFocused", "timestamp": "2026-04-22T10:01:40.958Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de"}
+{"type": "ClickedEndTask", "timestamp": "2026-04-22T10:01:51.714Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de"}
+{"type": "TaskEndConfirmed", "timestamp": "2026-04-22T10:01:52.561Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de"}
+{"type": "TaskEnded", "timestamp": "2026-04-22T10:01:53.264Z", "sessionID": "6b7b2548-68bc-487c-a5ee-3486d4e5c0de", "answer": ""}

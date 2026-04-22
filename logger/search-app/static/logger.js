@@ -114,6 +114,15 @@ if (searchbox) {
     searchbox.addEventListener("focus", () => {
         studyLogger.logEvent("queryBoxFocused");
     });
+
+    searchbox.addEventListener("change", ()=>{
+        const value = searchbox.value;
+        if(window.autoCompleteSuggestions && window.autoCompleteSuggestions.includes(value)){
+            studyLogger.logEvent("choseAutoCompleteSuggestion", {
+                "selectedSuggestion": value
+            });
+        }
+    });
 }
 
 const searchbar = document.getElementById("search-bar")
@@ -139,7 +148,7 @@ function logSERP() {
 
     const firstResult = document.querySelector("article.content-section");
     const query = firstResult.getAttribute("query");
-    const  page = firstResult.getAttribute("page");
+    const page = firstResult.getAttribute("page");
     const searchAppLocation = getSearchAppLocation(query, page);
 
     if(studyLogger.checkHistory(searchAppLocation)){
@@ -155,13 +164,13 @@ function logSERP() {
         studyLogger.addHistory(searchAppLocation);
         const didYouMean = document.getElementById("did-you-mean");
         if(didYouMean){
-            studyLogger.logEvent("Query suggestion generated", {
+            studyLogger.logEvent("generatedDidYouMean", {
                 "user query": query,
                 "suggested query": didYouMean.textContent
             });
 
             didYouMean.addEventListener("click", (e) => {
-                studyLogger.logEvent("clickedQuerySuggestion", {
+                studyLogger.logEvent("clickedDidYouMeanSuggestion", {
                     "user query": query,
                     "suggested query": didYouMean.textContent
                 });

@@ -1,0 +1,3 @@
+{"type": "ClickedEndTask", "timestamp": "2026-04-22T09:53:22.268Z", "sessionID": "74ed0664-00a8-453b-8180-f87c0276af72"}
+{"type": "TaskEndConfirmed", "timestamp": "2026-04-22T09:53:22.921Z", "sessionID": "74ed0664-00a8-453b-8180-f87c0276af72"}
+{"type": "TaskEnded", "timestamp": "2026-04-22T09:53:23.609Z", "sessionID": "74ed0664-00a8-453b-8180-f87c0276af72", "answer": ""}

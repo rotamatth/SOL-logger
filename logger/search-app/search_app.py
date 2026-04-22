@@ -9,8 +9,8 @@ import os
 import csv
 from datetime import datetime
 import re
-import json
 from spellchecker import SpellChecker
+from time import time
 
 
 app = Flask(__name__)
@@ -31,6 +31,15 @@ LOG_DIR = 'logs'
 os.makedirs(LOG_DIR, exist_ok=True)
 spell = SpellChecker(language='en')
 # spell = SpellChecker(language='it') # uncomment this when switching to Italian
+
+
+with open("API_keys.json") as f:
+    API_KEY = json.load(f)["serp_api"]["api_key"]
+
+AUTOCOMPLETE_CACHE = {}
+CACHE_TTL = 600  # 10 minutes
+MAX_SUGGESTIONS = 6
+
 
 
 def sanitize_query(query):
@@ -214,7 +223,55 @@ def result():
     #     start = (page - 1) * rpp
     #     end = start + rpp
     #     return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
-    
+
+@app.route("/autocomplete")
+
+def autocomplete():
+    query = request.args.get("query")
+
+    if not query or len(query) < 3:
+        return jsonify([])
+
+    # ---- Cache lookup ----
+    cached = AUTOCOMPLETE_CACHE.get(query)
+    if cached and time() - cached["time"] < CACHE_TTL:
+        return jsonify(cached["data"])
+
+    try:
+        response = requests.get(
+            "https://serpapi.com/search.json",
+            params={
+                "engine": "google_autocomplete",
+                "q": query,
+                "api_key": API_KEY,
+                # optional tuning:
+                # "hl": "en",
+                # "gl": "nl",
+            },
+            timeout=5
+        )
+
+        response.raise_for_status()
+        data = response.json()
+
+        suggestions = [
+            s["value"] for s in data.get("suggestions", [])
+        ][:MAX_SUGGESTIONS]
+
+        # ---- Store in cache ----
+        AUTOCOMPLETE_CACHE[query] = {
+            "time": time(),
+            "data": suggestions
+        }
+
+        return jsonify(suggestions)
+
+    except requests.RequestException as e:
+        # graceful fallback (no retries)
+        return jsonify([]), 200
+
+
+
 @app.route('/log_session', methods=['POST'])
 def log_session():
     print("Received /log_session request")
