@@ -171,7 +171,7 @@ def result():
     rpp = 10 # results per page; may be changed later
     query, serpapi_query = sanitize_query(query)
 
-    end_query = db_url + url + serpapi_query + url_affix + maxres
+    end_query = db_url + url + query + url_affix + maxres
     
     try:
         response = requests.get(end_query)
@@ -183,7 +183,7 @@ def result():
     reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
     
     if len(search_results["itemlist"]) == 0:
-            return render_template("no_result.html", title="No results found", query= query, show_search=True, reminder=reminder)
+            return render_template("no_result.html", title="No results found", query= query, serpapi_query=serpapi_query, show_search=True, reminder=reminder)
     else:
         total_results = len(search_results["itemlist"])
         total_pages = min(10, math.ceil(total_results / rpp))

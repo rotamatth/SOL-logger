@@ -1,6 +1,11 @@
 
 {% extends "layout.html" %}
 {% block content %}
+ {% if query == serpapi_query %}
+<!-- <small class="container-info"><p>Search Results for: <b>{{ query|safe }}</b></small> -->
+  {% else %}
+  <small class="container-info"><p>Did you mean: <a id="did-you-mean" href="{{ url_for('result', query=serpapi_query, page=1)|safe }}"><b>{{ serpapi_query|safe }}</b></a></p></small>
+  {% endif %}
 
         <p> No search results for the query have been found!</p>
 
