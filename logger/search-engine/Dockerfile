@@ -21,8 +21,9 @@ RUN apt-get update && \
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
 
 COPY requirements.txt requirements.txt
-RUN python3.9 -m pip install -r requirements.txt && \
-    python3.9 -m pip install --upgrade git+https://github.com/terrierteam/pyterrier_t5.git
+RUN python3.9 -m pip install -r requirements.txt 
+
+# RUN python3.9 -m pip install --upgrade git+https://github.com/terrierteam/pyterrier_t5.git
 
 COPY . .
 

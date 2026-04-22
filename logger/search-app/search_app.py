@@ -10,6 +10,7 @@ import csv
 from datetime import datetime
 import re
 import json
+from spellchecker import SpellChecker
 
 
 app = Flask(__name__)
@@ -28,33 +29,46 @@ rpp = 10  # Results per Page (Default: 20)
 
 LOG_DIR = 'logs'
 os.makedirs(LOG_DIR, exist_ok=True)
+spell = SpellChecker(language='en')
+# spell = SpellChecker(language='it') # uncomment this when switching to Italian
 
 
 def sanitize_query(query):
     # Removes all characters except letters, numbers, and spaces
     # This is necessary for PyTerrier compatibility
     cleaned_query =  re.sub(r'[^\w\s]', '', query)
-    f = open("API_keys.json")
-    data = json.load(f)
-
-    API_KEY = data["serp_api"]["api_key"]
-    SERP_endpoint = data["serp_api"]["SERP_endpoint"]
-    f.close()
-
-    serpapi_payload = {
-        "engine": "google",
-        "q": cleaned_query,
-        "num": 10,
-        "filter": 0,
-        "api_key": API_KEY
-        }
     
-    serpapi_response = requests.get(url=SERP_endpoint, params=serpapi_payload)
+    words = spell.split_words(cleaned_query)
+    misspelled = spell.unknown(words)
+    corrected_query = ''
 
-    serpapi_results = serpapi_response.json()
-    serpapi_query = serpapi_results["search_information"].get("showing_results_for", cleaned_query)
+    for word in words:
+        if word in misspelled:
+            word = spell.correction(word)
+        corrected_query += word
+        corrected_query += ' '
+    
+    # f = open("API_keys.json")
+    # data = json.load(f)
 
-    return cleaned_query, serpapi_query
+    # API_KEY = data["serp_api"]["api_key"]
+    # SERP_endpoint = data["serp_api"]["SERP_endpoint"]
+    # f.close()
+
+    # serpapi_payload = {
+    #     "engine": "google",
+    #     "q": cleaned_query,
+    #     "num": 10,
+    #     "filter": 0,
+    #     "api_key": API_KEY
+    #     }
+    
+    # serpapi_response = requests.get(url=SERP_endpoint, params=serpapi_payload)
+
+    # serpapi_results = serpapi_response.json()
+    # serpapi_query = serpapi_results["search_information"].get("showing_results_for", cleaned_query)
+
+    return cleaned_query, corrected_query.strip()
 
 
 def load_user_topics(filepath='data/user_topics.csv'):

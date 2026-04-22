@@ -1,6 +1,6 @@
 import os
 import pyterrier as pt
-from pyterrier_t5 import MonoT5ReRanker
+# from pyterrier_t5 import MonoT5ReRanker
 import pandas as pd
 from pathlib import Path
 pt.init()
