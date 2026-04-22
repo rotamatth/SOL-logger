@@ -74,9 +74,12 @@ os.makedirs(LOG_DIR, exist_ok=True)
 spell = SpellChecker(language='en')
 # spell = SpellChecker(language='it') # uncomment this when switching to Italian
 
-
-with open("API_keys.json") as f:
-    API_KEY = json.load(f)["serp_api"]["api_key"]
+SERP_API_KEY = None
+try:
+    with open("API_keys.json") as f:
+        SERP_API_KEY = json.load(f).get("serp-ai", {}).get("api_key")
+except Exception:
+    pass
 
 AUTOCOMPLETE_CACHE = {}
 CACHE_TTL = 600  # 10 minutes
@@ -311,13 +314,16 @@ def autocomplete():
     if cached and time() - cached["time"] < CACHE_TTL:
         return jsonify(cached["data"])
 
+    if not SERP_API_KEY:
+        return jsonify([])  # autocomplete disabled — no SerpApi key configured
+
     try:
         response = requests.get(
             "https://serpapi.com/search.json",
             params={
                 "engine": "google_autocomplete",
                 "q": query,
-                "api_key": API_KEY,
+                "api_key": SERP_API_KEY,
                 # optional tuning:
                 # "hl": "en",
                 # "gl": "nl",
