@@ -196,3 +196,61 @@ textarea {
 
 .imageflex { display: flex; }
 .imageflexcontent { margin-left: 5px; margin-top: 0; }
+
+/* Anchor for the dropdown */
+.nav-searchbar {
+  position: relative;
+}
+
+/* Autocomplete list */
+#query-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 500px; /* match input width */
+  margin-top: 4px;
+  padding: 4px 0;
+
+  list-style: none;
+  background-color: #fff;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+
+  max-height: 260px;
+  overflow-y: auto;
+
+  z-index: 1050; /* above Bootstrap nav elements */
+
+  /* IMPORTANT: allow hover detection */
+  pointer-events: auto;
+}
+
+/* Hidden state — hover-safe */
+#query-suggestions.hidden {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Visible state */
+#query-suggestions:not(.hidden) {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Individual suggestions */
+#query-suggestions li {
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Hover + active state */
+#query-suggestions li:hover {
+  background-color: #f1f3f4;
+}
+
+/* Optional: smooth fade */
+#query-suggestions {
+  transition: opacity 120ms ease-in-out;
+}

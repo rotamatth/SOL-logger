@@ -109,21 +109,58 @@ if (taskbtn) {
     });
 }
 
-const searchbox = document.getElementById("search-box")
+const searchbox = document.getElementById("search-box");
 if (searchbox) {
     searchbox.addEventListener("focus", () => {
         studyLogger.logEvent("queryBoxFocused");
     });
 
-    searchbox.addEventListener("change", ()=>{
-        const value = searchbox.value;
-        if(window.autoCompleteSuggestions && window.autoCompleteSuggestions.includes(value)){
+    // searchbox.addEventListener("change", ()=>{
+    //     const value = searchbox.value;
+    //     if(window.autoCompleteSuggestions && window.autoCompleteSuggestions.includes(value)){
+    //         studyLogger.logEvent("choseAutoCompleteSuggestion", {
+    //             "selectedSuggestion": value
+    //         });
+    //     }
+    // });
+}
+
+const querySuggestionsList = document.getElementById("query-suggestions");
+if(querySuggestionsList){
+    querySuggestionsList.addEventListener("mouseover", (e) => {
+    const li = e.target.closest("li");
+    if (!li) return;
+
+    studyLogger.logEvent("hoverOverQuerySuggestions", {
+            query: searchbox?.value || "",
+            hoveredSuggestion: li.textContent,
+        });
+    });
+    
+    querySuggestionsList.addEventListener("pointerdown", (e) => {
+        const li = e.target.closest("li");
+        if (!li) return;
+
+        const value = li.textContent;
+
+        if (window.autoCompleteSuggestions && window.autoCompleteSuggestions.includes(value)) {
             studyLogger.logEvent("choseAutoCompleteSuggestion", {
-                "selectedSuggestion": value
+                selectedSuggestion: value
             });
         }
     });
+
 }
+
+
+// const querySuggestionsBox = document.getElementById("query-suggestions-box");
+// if(querySuggestionsBox){
+//     querySuggestionsBox.addEventListener("mouseenter", ()=>{
+//         studyLogger.logEvent("hoverOverQuerySuggestions", {
+//             query: "query"
+//         });
+//     });
+// } 
 
 const searchbar = document.getElementById("search-bar")
 if (searchbar) {
@@ -168,13 +205,6 @@ function logSERP() {
                 "user query": query,
                 "suggested query": didYouMean.textContent
             });
-
-            didYouMean.addEventListener("click", (e) => {
-                studyLogger.logEvent("clickedDidYouMeanSuggestion", {
-                    "user query": query,
-                    "suggested query": didYouMean.textContent
-                });
-            });
         }
         searchResults.forEach(result => {
             const query = result.getAttribute("query");
@@ -195,6 +225,23 @@ function logSERP() {
                 });
         });
     }
+
+    const didYouMean = document.getElementById("did-you-mean");
+    if(didYouMean){
+        didYouMean.addEventListener("mouseenter", (e) => {
+            studyLogger.logEvent("hoverOverDidYouMean", {
+                "user query": query,
+                "suggested query": didYouMean.textContent
+            });
+        });
+
+        didYouMean.addEventListener("click", (e) => {
+            studyLogger.logEvent("clickedDidYouMeanSuggestion", {
+                "user query": query,
+                "suggested query": didYouMean.textContent
+            });
+        });
+    }
 }
 
 function logMouseHovers(){
@@ -209,7 +256,7 @@ function logMouseHovers(){
             const searchAppLocation = getSearchAppLocation(query, page);
 
             result.addEventListener("mouseenter", ()=>{           
-                studyLogger.logEvent("cursorEnteredSnippet", {
+                studyLogger.logEvent("hoverOverSnippet", {
                     query: query,
                     docid: docid,
                     rank: rank,
@@ -220,17 +267,17 @@ function logMouseHovers(){
                 });
             });
 
-            result.addEventListener("mouseleave", ()=>{            
-                studyLogger.logEvent("cursorLeftSnippet", {
-                    query: query,
-                    docid: docid,
-                    rank: rank,
-                    page: page,
-                    url: url,
-                    windowLocation: searchAppLocation,
-                    // history: studyLogger.getHistory(),
-                });
-            });           
+            // result.addEventListener("mouseleave", ()=>{            
+            //     studyLogger.logEvent("cursorLeftSnippet", {
+            //         query: query,
+            //         docid: docid,
+            //         rank: rank,
+            //         page: page,
+            //         url: url,
+            //         windowLocation: searchAppLocation,
+            //         // history: studyLogger.getHistory(),
+            //     });
+            // });           
         });
     }
 }

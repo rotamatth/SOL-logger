@@ -38,7 +38,7 @@ with open("API_keys.json") as f:
 
 AUTOCOMPLETE_CACHE = {}
 CACHE_TTL = 600  # 10 minutes
-MAX_SUGGESTIONS = 6
+MAX_SUGGESTIONS = 5
 
 
 
@@ -47,15 +47,20 @@ def sanitize_query(query):
     # This is necessary for PyTerrier compatibility
     cleaned_query =  re.sub(r'[^\w\s]', '', query)
     
+    # try:
     words = spell.split_words(cleaned_query)
     misspelled = spell.unknown(words)
     corrected_query = ''
 
     for word in words:
         if word in misspelled:
-            word = spell.correction(word)
+            corrected_word = spell.correction(word)
+            if corrected_word is not None:
+                word = corrected_word
         corrected_query += word
         corrected_query += ' '
+    # except:
+    #     corrected_query = cleaned_query
     
     # f = open("API_keys.json")
     # data = json.load(f)
@@ -244,9 +249,8 @@ def autocomplete():
                 "engine": "google_autocomplete",
                 "q": query,
                 "api_key": API_KEY,
-                # optional tuning:
-                # "hl": "en",
-                # "gl": "nl",
+                # uncomment for italian:
+                # "hl": "it",
             },
             timeout=5
         )
