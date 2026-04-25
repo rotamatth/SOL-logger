@@ -1,8 +1,0 @@
-{"type": "TaskStarted", "timestamp": "2026-04-21T13:41:02.346Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f"}
-{"type": "idSubmitted", "timestamp": "2026-04-21T13:41:02.349Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f", "uid": "Participant7"}
-{"type": "queryBoxFocused", "timestamp": "2026-04-21T13:41:03.991Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f"}
-{"type": "querySubmitted", "timestamp": "2026-04-21T13:41:07.076Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f", "query": "atism"}
-{"type": "searchResultGenerated", "timestamp": "2026-04-21T13:41:08.389Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f", "query": "autism", "docid": "2615", "rank": "1", "page": "1", "url": "https://kids.frontiersin.org/article/10.3389/frym.2019.00129", "windowLocation": "http://localhost:7001/result?query=autism&page=1"}
-{"type": "ClickedEndTask", "timestamp": "2026-04-21T13:41:21.205Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f"}
-{"type": "TaskEndConfirmed", "timestamp": "2026-04-21T13:41:22.135Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f"}
-{"type": "TaskEnded", "timestamp": "2026-04-21T13:41:23.090Z", "sessionID": "5efa8714-6971-4bb5-9bf0-4b1bf3d7b35f", "answer": ""}
