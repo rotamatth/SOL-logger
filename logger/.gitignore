@@ -1,0 +1,16 @@
+logger/search-app/API_keys.json
+logger/search-app/service_account.json
+logger/search-engine/API_keys.json
+logger/search-engine/datasets/
+logger/old_logs/
+experiments/data/corpus
+.DS_Store
+**/.DS_Store
+logger/logs/
+logger/search-engine/index/commonlit/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+experiments/testfile.ipynb
+logger/search-engine/test.ipynb
