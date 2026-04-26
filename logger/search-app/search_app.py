@@ -109,9 +109,18 @@ def base():
     return dict(form=form)
 
 @app.route("/")
-def home():
+def welcome():
+    """Splash page — SOL Search logo + Start button."""
+    if 'user_id' in session:
+        return redirect(url_for('search_page'))
+    return render_template("welcome.html", show_search=False)
+
+
+@app.route("/search")
+def search_page():
+    """Search bar page — the main SOL Search interface."""
     if 'user_id' not in session:
-        return redirect(url_for('start_page'))
+        return redirect(url_for('welcome'))
 
     # Check session TTL — expire after 60 minutes of inactivity
     last_active = session.get('last_active')
@@ -119,16 +128,12 @@ def home():
         elapsed = (datetime.now() - datetime.fromisoformat(last_active)).total_seconds()
         if elapsed > 3600:  # 60 minutes
             session.clear()
-            return redirect(url_for('start_page'))
+            return redirect(url_for('welcome'))
     session['last_active'] = datetime.now().isoformat()
 
     form = SearchForm()
     reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
     return render_template("home.html", form=form, show_search=True, reminder=reminder)
-
-@app.route('/welcome', methods=['GET', 'POST'])
-def welcome():
-    return render_template("welcome.html", show_search=False)
 
 @app.route('/start', methods=['GET', 'POST'])
 def start_page():
@@ -144,13 +149,16 @@ def start_page():
 
 @app.route('/task', methods=['GET', 'POST'])
 def task():
+    if 'user_id' not in session:
+        return redirect(url_for('welcome'))
+
     user_id = session.get('user_id')
     task_number = session.get('task_number')
 
     topic = USER_TOPICS.get(user_id, {}).get(str(task_number)+'_full')
     topic_title = USER_TOPICS.get(user_id, {}).get(str(task_number)+'_short')
 
-    return render_template("task.html", show_search=False, task_number = task_number, topic = topic, topic_title = topic_title, user_id = user_id)
+    return render_template("task.html", show_search=False, task_number=task_number, topic=topic, topic_title=topic_title, user_id=user_id)
 
 
 @app.route("/result", methods=['GET', 'POST'])
@@ -237,7 +245,7 @@ def webpage():
     query = request.args.get("query", "")
     page = request.args.get("page", "1")
     if not url:
-        return redirect(url_for('home'))
+        return redirect(url_for('search_page'))
     return render_template("webpage.html", url=url, query=query, page=page, show_search=False)
 
 @app.route("/autocomplete")
@@ -261,7 +269,7 @@ def autocomplete():
                 "q": query,
                 "api_key": API_KEY,
                 # uncomment for italian:
-                # "hl": "it",
+                "hl": "it",
             },
             timeout=5
         )

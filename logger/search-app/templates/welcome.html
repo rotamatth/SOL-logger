@@ -1,11 +1,17 @@
 {% extends "layout.html" %}
 {% block title %}Welcome{% endblock %}
 {% block content %}
-<h2>Benvenuto</h2>
-<p>Benvenuto, e grazie per partecipare al nostro studio!</p>
-<p>Per iniziare, inserisci l’<b>ID utente</b> associato al tuo dispositivo per accedere al motore di ricerca.</p>
-<p></p>
-<form action=”{{ url_for(‘start_page’) }}” method=”get”>
-  <button type=”submit” class=”btn btn-primary”>Continua</button>
-</form>
+
+<div style="text-align:center;padding-top:10vh;">
+    <div style="font-size:6rem;font-weight:700;letter-spacing:-2px;margin-bottom:1.5em;line-height:1;">
+        <span style="color:#4285F4">S</span><span style="color:#EA4335">O</span><span style="color:#FBBC05">L</span>
+        <span style="color:#4285F4">S</span><span style="color:#EA4335">e</span><span style="color:#FBBC05">a</span><span style="color:#4285F4">r</span><span style="color:#34A853">c</span><span style="color:#EA4335">h</span>
+    </div>
+    <p style="color:#5f6368;font-size:1.1rem;margin-bottom:2em;">Benvenuto nello studio di ricerca</p>
+    <a href="{{ url_for('start_page') }}"
+       style="display:inline-block;padding:14px 52px;border-radius:24px;background:#4285F4;color:#fff;text-decoration:none;font-weight:500;font-size:1.1rem;border:none;cursor:pointer;">
+        Inizia
+    </a>
+</div>
+
 {% endblock %}

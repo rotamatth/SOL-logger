@@ -18,7 +18,7 @@
     <header class="site-header">
         <nav class="navbar navbar-expand-md navbar-light bg-steel fixed-top">
             <div class="container-fluid" style="padding-left: 1.25rem; padding-right: 1.25rem;">
-                <a class="navbar-brand me-2" href="/" id="app-home"><span style="color:#4285F4">S</span><span style="color:#EA4335">O</span><span style="color:#FBBC05">L</span> <span style="color:#4285F4">S</span><span style="color:#EA4335">e</span><span style="color:#FBBC05">a</span><span style="color:#4285F4">r</span><span style="color:#34A853">c</span><span style="color:#EA4335">h</span></a>
+                <a class="navbar-brand me-2" href="{{ url_for('search_page') }}" id="app-home"><span style="color:#4285F4">S</span><span style="color:#EA4335">O</span><span style="color:#FBBC05">L</span> <span style="color:#4285F4">S</span><span style="color:#EA4335">e</span><span style="color:#FBBC05">a</span><span style="color:#4285F4">r</span><span style="color:#34A853">c</span><span style="color:#EA4335">h</span></a>
 
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -95,9 +95,9 @@
 
         <div class="modal-buttons">
         <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
-        <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button>
+        <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Si, termina</button>
 
-        <button id = "no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, resume search</button>
+        <button id = "no-end-btn" onclick="closeEndTaskModal()" class="btn btn-outline-secondary">No, continua a cercare</button>
         </div>
     </div>
 
@@ -105,7 +105,7 @@
     <div class="modal-content-box">
 
         <span class="close" onclick="closeFeedbackModal();openEndTaskModal()">&times;</span>
-        <h2>Enter your answer below:</h2>
+        <h2>Inserisci la tua risposta qui sotto:</h2>
 
             <div id="feedback">
                 <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>

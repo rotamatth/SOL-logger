@@ -1,17 +1,17 @@
 {% extends "layout.html" %}
-{% block title %}Puzzle Piece Unlocked{% endblock %}
+{% block title %}Pezzo sbloccato{% endblock %}
 {% block content %}
 
 <div style="max-width:600px;margin:2em auto;text-align:center;">
-    <h2 style="font-size:1.8rem;color:#202124;margin-bottom:0.3em;">Piece Unlocked!</h2>
-    <p style="color:#5f6368;margin-bottom:1.5em;">You earned piece {{ pieces_earned|length }} of {{ total_tasks }}.</p>
+    <h2 style="font-size:1.8rem;color:#202124;margin-bottom:0.3em;">Pezzo sbloccato!</h2>
+    <p style="color:#5f6368;margin-bottom:1.5em;">Hai ottenuto il pezzo {{ pieces_earned|length }} di {{ total_tasks }}.</p>
 
     <!-- Puzzle progress: show all pieces, earned ones visible, future ones grayed -->
     <div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:2em;border:1px solid #ebebeb;border-radius:12px;overflow:hidden;max-width:400px;margin-left:auto;margin-right:auto;">
         {% for i in range(1, total_tasks + 1) %}
         <div style="width:100%;position:relative;">
             <img src="{{ url_for('static', filename='puzzle_pieces/piece_' ~ i ~ '.png') }}"
-                 alt="Puzzle piece {{ i }}"
+                 alt="Pezzo puzzle {{ i }}"
                  style="width:100%;display:block;{% if i|string not in pieces_earned %}filter:grayscale(100%) opacity(0.25);{% endif %}">
             {% if i|string not in pieces_earned %}
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9aa0a6;font-size:1.2rem;font-weight:600;">?</div>
@@ -21,16 +21,16 @@
     </div>
 
     {% if is_last %}
-    <p style="color:#34A853;font-weight:600;font-size:1.1rem;margin-bottom:1em;">You've completed all tasks!</p>
+    <p style="color:#34A853;font-weight:600;font-size:1.1rem;margin-bottom:1em;">Hai completato tutti i compiti!</p>
     <a href="{{ url_for('thank_you') }}"
        style="display:inline-block;padding:12px 36px;border-radius:24px;background:#34A853;color:#fff;text-decoration:none;font-weight:500;font-size:1rem;">
-        See the full picture
+        Vedi l'immagine completa
     </a>
     {% else %}
-    <p style="color:#5f6368;margin-bottom:1em;">Ready for the next question?</p>
+    <p style="color:#5f6368;margin-bottom:1em;">Pronto per la prossima domanda?</p>
     <a href="{{ url_for('next_task') }}" id="continue-btn"
        style="display:inline-block;padding:12px 36px;border-radius:24px;background:#4285F4;color:#fff;text-decoration:none;font-weight:500;font-size:1rem;">
-        Continue
+        Continua
     </a>
     {% endif %}
 </div>

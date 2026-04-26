@@ -1,16 +1,16 @@
 {% extends "layout.html" %}
-{% block title %}Task{% endblock %}
+{% block title %}Compito{% endblock %}
 {% block content %}
 
 <div style="max-width:700px;margin:2em auto;padding:0 1em;">
-    <h2 style="margin-bottom:0.8em;">Task {{ task_number }}: {{ topic_title }}</h2>
-    <p>Imagine you have to write an opinion essay on the following topic:</p>
+    <h2 style="margin-bottom:0.8em;">Compito {{ task_number }}: {{ topic_title }}</h2>
+    <p>Immagina di dover scrivere un saggio di opinione sul seguente argomento:</p>
     <p><b>{{ topic }}</b></p>
-    <p>An opinion essay presents your personal view on an issue and supports it with clear reasoning, while also addressing arguments from the other side.</p>
-    <p>To prepare, your task is to gather arguments that <b>both support and challenge</b> your position. This will help you present your ideas clearly while addressing possible counterarguments.</p>
-    <p>Look for arguments that are convincing, well-reasoned, and address different perspectives, such as social, ethical, legal, or practical aspects. Aim to find <b>multiple arguments</b> rather than stopping after the first relevant point you come across. You don't need to agree with all the arguments you find; the goal is to develop a well-rounded understanding of the issue.</p>
-    <p>Use the search system to explore and identify relevant arguments. <b>Mark relevant arguments</b> using the "pro" and "con" buttons on the right side of each argument.</p>
-    <p>You have 10 minutes for this task. Once you're done, or when time runs out, click the "End task" button to proceed.</p>
+    <p>Un saggio di opinione presenta il tuo punto di vista personale su una questione e lo supporta con ragionamenti chiari, affrontando anche gli argomenti della parte opposta.</p>
+    <p>Per prepararti, il tuo compito consiste nel raccogliere argomenti che <b>sostengano e mettano in discussione</b> la tua posizione. Questo ti aiutera a presentare le tue idee con chiarezza e ad affrontare possibili controargomentazioni.</p>
+    <p>Cerca argomenti convincenti, ben ragionati e che affrontino diverse prospettive, come aspetti sociali, etici, legali o pratici. Cerca di trovare <b>piu argomenti possibili</b> invece di fermarti al primo punto rilevante che trovi. Non devi essere d'accordo con tutti gli argomenti che trovi; l'obiettivo e sviluppare una comprensione completa della questione.</p>
+    <p>Usa il sistema di ricerca per esplorare e identificare argomenti pertinenti. <b>Segna gli argomenti rilevanti</b> usando i pulsanti "pro" e "contro" sul lato destro di ogni argomento.</p>
+    <p>Hai 10 minuti per questo compito. Quando hai finito, o quando scade il tempo, clicca il pulsante "Fine compito" per procedere.</p>
 
     <div id="task-wrapper"
          data-user-id="{{ user_id }}"
@@ -19,8 +19,8 @@
     </div>
 
     <div style="text-align:center;margin-top:2em;">
-        <form action="{{ url_for('home') }}" method="get">
-            <button id="task-btn" type="submit" class="btn btn-primary" style="padding:12px 48px;border-radius:24px;font-size:1rem;">Continue</button>
+        <form action="{{ url_for('search_page') }}" method="get">
+            <button id="task-btn" type="submit" class="btn btn-primary" style="padding:12px 48px;border-radius:24px;font-size:1rem;">Inizia compito {{ task_number }}</button>
         </form>
     </div>
 </div>
