@@ -110,27 +110,20 @@ def base():
 
 @app.route("/")
 def home():
-
-    ## uncomment when using datasets from ir_datasets
-    # query = "vaccine"
-    # url = "/ranking?query="
-    # url_affix = "&rpp="
-    # maxres = '100' # max 10 pages with max 10 results each
-    # rpp = 10 # results per page; may be changed later
-    # query = sanitize_query(query)
-    # end_query = db_url + url + query + url_affix + maxres
-    
-    # try:
-    #     response = requests.get(end_query)
-    # except requests.ConnectionError:
-    #     return "Connection Error" 
-
-    # search_results = response.json()
-
     if 'user_id' not in session:
         return redirect(url_for('start_page'))
+
+    # Check session TTL — expire after 60 minutes of inactivity
+    last_active = session.get('last_active')
+    if last_active:
+        elapsed = (datetime.now() - datetime.fromisoformat(last_active)).total_seconds()
+        if elapsed > 3600:  # 60 minutes
+            session.clear()
+            return redirect(url_for('start_page'))
+    session['last_active'] = datetime.now().isoformat()
+
     form = SearchForm()
-    reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')  # Change reminder here if needed (Reminder: shown in sidebar)
+    reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
     return render_template("home.html", form=form, show_search=True, reminder=reminder)
 
 @app.route('/welcome', methods=['GET', 'POST'])
@@ -367,7 +360,9 @@ def reward():
 def thank_you():
     pieces = session.get('pieces_earned', [])
     total_tasks = get_total_tasks(session.get('user_id'))
-    session.clear()
+    # Don't clear session yet — the "Finish Experiment" button needs
+    # user_id/task_number to send final logs via /log_session.
+    # Session will be cleared client-side via clearClientData().
     return render_template('end.html', show_search=False,
                            pieces_earned=pieces,
                            total_tasks=total_tasks)

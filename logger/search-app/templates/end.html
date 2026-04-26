@@ -22,7 +22,12 @@
     </a>
     </p> -->
 
-    <p style="color:#5f6368;">You may now close this window.</p>
+    <p id="end-status-msg" style="color:#5f6368;">Click below to save your session data and finish the experiment.</p>
+
+    <button id="finish-experiment-btn"
+            style="padding:14px 48px;border-radius:24px;background:#34A853;color:#fff;border:none;font-size:1rem;font-weight:500;cursor:pointer;margin-top:1em;">
+        Finish Experiment
+    </button>
 </div>
 
 <script>
@@ -31,5 +36,33 @@ if (window.studyLogger) {
         totalTasks: {{ total_tasks }}
     });
 }
+
+document.getElementById("finish-experiment-btn").addEventListener("click", async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    try {
+        if (window.studyLogger) {
+            studyLogger.logEvent("experimentFinished");
+            await studyLogger.sendLogs();
+        }
+
+        btn.textContent = "Saved!";
+        btn.style.background = "#5f6368";
+        document.getElementById("end-status-msg").textContent = "Your data has been saved. You may now close this window. Thank you!";
+
+        // Clear client-side data
+        if (typeof clearClientData === 'function') {
+            clearClientData();
+        }
+    } catch (err) {
+        console.error("Error saving final logs:", err);
+        btn.textContent = "Retry";
+        btn.disabled = false;
+        document.getElementById("end-status-msg").textContent = "There was an error saving. Please try again.";
+        document.getElementById("end-status-msg").style.color = "#EA4335";
+    }
+});
 </script>
 {% endblock %}
