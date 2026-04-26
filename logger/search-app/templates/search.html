@@ -20,21 +20,21 @@
       </div>
 
       <h4>
-        <a class="result-link" href="{{ s.link|safe }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}">{{ s.title|safe }}</a>
+        <a class="result-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link|safe }}">{{ s.title|safe }}</a>
       </h4>
 
       {% if s.thumbnail %}
       <div class="imageflex">
         <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
           {{ s.snippet|safe }}
-          <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" aria-hidden="true"></a>
+          <a class="result-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link|safe }}" aria-hidden="true"></a>
         </p>
         <img src="{{ s.thumbnail|safe }}" alt="Result thumbnail">
       </div>
       {% else %}
       <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
         {{ s.snippet|safe }}
-        <a class="result-link" href="{{ s.link|safe }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" aria-hidden="true"></a>
+        <a class="result-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link|safe }}" aria-hidden="true"></a>
       </p>
       {% endif %}
 

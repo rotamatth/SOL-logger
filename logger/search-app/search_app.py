@@ -143,8 +143,8 @@ def start_page():
         user_id = request.form.get('user_id')
         session['user_id'] = user_id
         session['task_number'] = '1'
-        # return redirect(url_for('task'))
-        return redirect(url_for('home'))
+        session['pieces_earned'] = []
+        return redirect(url_for('task'))
     with open("data/uids.txt") as f:
         val_ids = [line.strip() for line in f if line.strip()]
     return render_template('start.html', show_search=False, valid_ids = val_ids)
@@ -181,7 +181,9 @@ def result():
     try:
         response = requests.get(end_query)
     except requests.ConnectionError:
-        return "Connection Error" 
+        return render_template('error.html', show_search=False,
+                               error_title="Connection Error",
+                               error_message="Could not connect to the search engine. Please try again later."), 503 
 
     search_results = response.json()
 
@@ -228,6 +230,16 @@ def result():
     #     start = (page - 1) * rpp
     #     end = start + rpp
     #     return render_template("search.html", title="Search Results", search_results = search_results['itemlist'][start:end], query=query, page=page, total_pages = total_pages, show_search=True, reminder=reminder)
+
+@app.route("/webpage")
+def webpage():
+    """Embedded web viewer — renders external page in a sandboxed iframe."""
+    url = request.args.get("url", "")
+    query = request.args.get("query", "")
+    page = request.args.get("page", "1")
+    if not url:
+        return redirect(url_for('home'))
+    return render_template("webpage.html", url=url, query=query, page=page, show_search=False)
 
 @app.route("/autocomplete")
 
@@ -304,21 +316,73 @@ def log_session():
 @app.route('/end', methods=['POST'])
 def end_task():
     task_number = session.get('task_number')
-    if task_number == '1':
-        session['task_number'] = '2'
-        # return redirect(url_for('task'))
-        return redirect(url_for('home'))
-    elif task_number == '2':
-        session['task_number'] = '3'
-        # return redirect(url_for('task'))
-        return redirect(url_for('home'))
-    else:
-        session.clear()
-        return redirect(url_for('thank_you'))
-    
+
+    # Record the earned puzzle piece for the current task
+    pieces = session.get('pieces_earned', [])
+    if task_number not in pieces:
+        pieces.append(task_number)
+        session['pieces_earned'] = pieces
+
+    return redirect(url_for('reward'))
+
+
+def get_total_tasks(user_id):
+    """Return how many tasks this user has (count non-empty topic entries)."""
+    user = USER_TOPICS.get(user_id, {})
+    count = 0
+    for i in range(1, 10):  # support up to 9 tasks
+        if user.get(f'{i}_full'):
+            count += 1
+        else:
+            break
+    return count
+
+
+@app.route('/next_task')
+def next_task():
+    """Advance to the next task number and redirect to the Scenario Page."""
+    task_number = session.get('task_number')
+    next_num = str(int(task_number) + 1)
+    session['task_number'] = next_num
+    return redirect(url_for('task'))
+
+
+@app.route('/reward')
+def reward():
+    user_id = session.get('user_id')
+    task_number = session.get('task_number')
+    pieces = session.get('pieces_earned', [])
+    total_tasks = get_total_tasks(user_id)
+    is_last = len(pieces) >= total_tasks
+
+    return render_template('reward.html',
+                           show_search=False,
+                           task_number=task_number,
+                           pieces_earned=pieces,
+                           total_tasks=total_tasks,
+                           is_last=is_last)
+
+
 @app.route('/thank_you')
 def thank_you():
-    return render_template('end.html')
+    pieces = session.get('pieces_earned', [])
+    total_tasks = get_total_tasks(session.get('user_id'))
+    session.clear()
+    return render_template('end.html', show_search=False,
+                           pieces_earned=pieces,
+                           total_tasks=total_tasks)
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('error.html', show_search=False,
+                           error_title="Page Not Found",
+                           error_message="The page you are looking for does not exist."), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return render_template('error.html', show_search=False,
+                           error_title="Server Error",
+                           error_message="Something went wrong on our end. Please try again."), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7001, threaded=True, debug=True)

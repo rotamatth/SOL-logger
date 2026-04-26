@@ -1,5 +1,15 @@
 {% extends "layout.html" %}
 {% block content %}
+
+<!-- "Are you ready?" overlay — gates the search bar until confirmed -->
+<div id="readyOverlay" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,255,255,0.95);z-index:5000;display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;max-width:500px;padding:2em;">
+    <h2 style="font-size:1.8rem;color:#202124;margin-bottom:0.5em;">Are you ready to begin?</h2>
+    <p style="color:#5f6368;font-size:1rem;margin-bottom:1.5em;">Once you start, your search session will be logged. Take your time to read the task before proceeding.</p>
+    <button id="ready-btn" onclick="dismissReadyOverlay()" style="padding:12px 36px;border-radius:24px;border:1px solid #dadce0;background:#4285F4;color:#fff;font-size:1rem;font-weight:500;cursor:pointer;">I'm ready</button>
+  </div>
+</div>
+
 <div class="home-search-center">
     <div class="home-search-title">
       <span style="color:#4285F4">S</span><span style="color:#EA4335">O</span><span style="color:#FBBC05">L</span> <span style="color:#4285F4">S</span><span style="color:#EA4335">e</span><span style="color:#FBBC05">a</span><span style="color:#4285F4">r</span><span style="color:#34A853">c</span><span style="color:#EA4335">h</span>
@@ -17,4 +27,13 @@
         <button type="submit" name="submit-box" id="submit-box">Cerca</button>
     </form>
 </div>
+
+<script>
+function dismissReadyOverlay() {
+    document.getElementById('readyOverlay').style.display = 'none';
+    if (window.studyLogger) {
+        studyLogger.logEvent("readyToBeginConfirmed");
+    }
+}
+</script>
 {% endblock content %}

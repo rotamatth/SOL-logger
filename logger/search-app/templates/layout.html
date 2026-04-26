@@ -129,15 +129,7 @@
         let debounceTimer;
         window.autoCompleteSuggestions = [];
 
-        // input.addEventListener("focus", () => {
-        //     datalist.innerHTML = "";
-        //     validIDs.forEach(id => {
-        //     const option = document.createElement("option");
-        //     option.value = id;
-        //     datalist.appendChild(option);
-        //     });
-        // });
-
+        if (input) {
         input.addEventListener("input", () => {
             const query = input.value.trim();
             datalist.innerHTML = "";
@@ -150,6 +142,7 @@
             fetchSuggestions(query);
             }, 300);
         });
+        } // end if (input)
 
 
 

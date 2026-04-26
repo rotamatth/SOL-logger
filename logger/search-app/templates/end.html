@@ -1,12 +1,35 @@
 {% extends "layout.html" %}
 {% block title %}Thank You{% endblock %}
 {% block content %}
-<h2>Ecco fatto — grazie!</h2>
-<!-- <p>
-You have completed all tasks. Before closing this window, please take a moment to fill out our post-study questionnaire:<br>
-<a href="https://your-questionnaire-link.com" target="_blank" rel="noopener noreferrer">
-    Go to Poststudy Questionnaire
-</a>
-</p>
-<p>After submitting the questionnaire, you may close the window.</p> -->
+
+<div style="max-width:600px;margin:2em auto;text-align:center;">
+    <h2 style="font-size:1.8rem;color:#202124;margin-bottom:0.3em;">You completed the puzzle!</h2>
+    <p style="color:#5f6368;margin-bottom:1.5em;">All {{ total_tasks }} pieces collected. Thank you for participating!</p>
+
+    <!-- Assembled puzzle — all pieces stacked together -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:2em;border:1px solid #ebebeb;border-radius:12px;overflow:hidden;max-width:400px;margin-left:auto;margin-right:auto;">
+        {% for i in range(1, total_tasks + 1) %}
+        <img src="{{ url_for('static', filename='puzzle_pieces/piece_' ~ i ~ '.png') }}"
+             alt="Puzzle piece {{ i }}"
+             style="width:100%;display:block;">
+        {% endfor %}
+    </div>
+
+    <!-- <p>
+    Before closing this window, please take a moment to fill out our post-study questionnaire:<br>
+    <a href="https://your-questionnaire-link.com" target="_blank" rel="noopener noreferrer">
+        Go to Post-study Questionnaire
+    </a>
+    </p> -->
+
+    <p style="color:#5f6368;">You may now close this window.</p>
+</div>
+
+<script>
+if (window.studyLogger) {
+    studyLogger.logEvent("sessionCompleted", {
+        totalTasks: {{ total_tasks }}
+    });
+}
+</script>
 {% endblock %}

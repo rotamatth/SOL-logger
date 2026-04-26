@@ -374,9 +374,11 @@ window.addEventListener("pagehide", (e) => {
 });
 
 const homeButton = document.getElementById("app-home");
-homeButton.addEventListener("click", ()=>{
-    studyLogger.logEvent("wentBackHome");
-});
+if (homeButton) {
+    homeButton.addEventListener("click", ()=>{
+        studyLogger.logEvent("wentBackHome");
+    });
+}
 
 
 endtask = document.getElementById("end-task-btn")
