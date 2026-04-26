@@ -97,8 +97,10 @@ class Ranker(object):
                 itemlist = []  
 
                 ### commonlit
-                for i in items: 
+                for i in items:
                     item =  self.dataset.loc[self.dataset["docno"]==i]
+                    if item.empty:
+                        continue  # skip documents not found in metadata
                     itemlist.append(                                            # Adjust to the data fields that the collection you want to use provides (Corresponding don't have to be adjusted)
                         {
                             'title': item["title"].values[0],

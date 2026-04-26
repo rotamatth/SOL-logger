@@ -176,13 +176,19 @@ def result():
     except requests.ConnectionError:
         return render_template('error.html', show_search=False,
                                error_title="Connection Error",
-                               error_message="Could not connect to the search engine. Please try again later."), 503 
-
-    search_results = response.json()
+                               error_message="Could not connect to the search engine. Please try again later."), 503
 
     reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
-    
-    if len(search_results["itemlist"]) == 0:
+
+    if response.status_code != 200:
+        return render_template("no_result.html", title="No results found", query=query, serpapi_query=serpapi_query, show_search=True, reminder=reminder)
+
+    try:
+        search_results = response.json()
+    except (ValueError, KeyError):
+        return render_template("no_result.html", title="No results found", query=query, serpapi_query=serpapi_query, show_search=True, reminder=reminder)
+
+    if len(search_results.get("itemlist", [])) == 0:
             return render_template("no_result.html", title="No results found", query= query, serpapi_query=serpapi_query, show_search=True, reminder=reminder)
     else:
         total_results = len(search_results["itemlist"])
