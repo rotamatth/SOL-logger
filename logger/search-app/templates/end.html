@@ -2,23 +2,21 @@
 {% block title %}Grazie{% endblock %}
 {% block content %}
 
-<div style="max-width:600px;margin:2em auto;text-align:center;">
-    <h2 style="font-size:1.8rem;color:#202124;margin-bottom:0.3em;">Hai completato il puzzle!</h2>
-    <p style="color:#5f6368;margin-bottom:1.5em;">Tutti i {{ total_tasks }} pezzi raccolti. Grazie per aver partecipato!</p>
+<div class="completion-container">
+    <h2>Hai completato il puzzle!</h2>
+    <p>Tutti i {{ total_tasks }} pezzi raccolti. Grazie per aver partecipato!</p>
 
     <!-- Assembled puzzle — all pieces stacked together -->
-    <div style="display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:2em;border:1px solid #ebebeb;border-radius:12px;overflow:hidden;max-width:400px;margin-left:auto;margin-right:auto;">
+    <div class="puzzle-assembled">
         {% for i in range(1, total_tasks + 1) %}
         <img src="{{ url_for('static', filename='puzzle_pieces/piece_' ~ i ~ '.png') }}"
-             alt="Pezzo puzzle {{ i }}"
-             style="width:100%;display:block;">
+             alt="Pezzo puzzle {{ i }}">
         {% endfor %}
     </div>
 
-    <p id="end-status-msg" style="color:#5f6368;">Clicca qui sotto per salvare i dati della sessione e terminare l'esperimento.</p>
+    <p id="end-status-msg">Clicca qui sotto per salvare i dati della sessione e terminare l'esperimento.</p>
 
-    <button id="finish-experiment-btn"
-            style="padding:14px 48px;border-radius:24px;background:#34A853;color:#fff;border:none;font-size:1rem;font-weight:500;cursor:pointer;margin-top:1em;">
+    <button id="finish-experiment-btn">
         Termina esperimento
     </button>
 </div>

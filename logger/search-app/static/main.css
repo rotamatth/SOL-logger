@@ -304,7 +304,7 @@ main.container {
   width: 100vw;
   height: 100vh;
   background-color: rgba(32, 33, 36, 0.45);
-  display: flex;
+  display: none;
   justify-content: center;
   align-items: center;
   z-index: 9999;
@@ -476,4 +476,309 @@ hr {
   .home-search-title {
     font-size: 3.5rem;
   }
+}
+
+/* ─── Navbar ─────────────────────────────────────────────── */
+.site-header .container-fluid {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+/* SOL logo color spans */
+.sol-blue   { color: #4285F4; }
+.sol-red    { color: #EA4335; }
+.sol-yellow { color: #FBBC05; }
+.sol-green  { color: #34A853; }
+
+/* Submit button SVG icon */
+#submit-box svg {
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* ─── Ready overlay (home page) ──────────────────────────── */
+#readyOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-inner {
+  text-align: center;
+  max-width: 500px;
+  padding: 2em;
+}
+
+#readyOverlay h2 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5em;
+}
+
+#readyOverlay p {
+  color: #5f6368;
+  font-size: 1rem;
+  margin-bottom: 1.5em;
+}
+
+#ready-btn {
+  padding: 12px 36px;
+  border-radius: 24px;
+  border: 1px solid #dadce0;
+  background: #4285F4;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* ─── Task page ───────────────────────────────────────────── */
+.task-container {
+  max-width: 700px;
+  margin: 2em auto;
+  padding: 0 1em;
+}
+
+.task-container h2 {
+  margin-bottom: 0.8em;
+}
+
+.task-action {
+  text-align: center;
+  margin-top: 2em;
+}
+
+#task-btn {
+  padding: 12px 48px;
+  border-radius: 24px;
+  font-size: 1rem;
+}
+
+/* ─── Welcome page ────────────────────────────────────────── */
+.welcome-container {
+  text-align: center;
+  padding-top: 10vh;
+}
+
+.welcome-logo {
+  font-size: 6rem;
+  font-weight: 700;
+  letter-spacing: -2px;
+  margin-bottom: 1.5em;
+  line-height: 1;
+}
+
+.welcome-subtitle {
+  color: #5f6368;
+  font-size: 1.1rem;
+  margin-bottom: 2em;
+}
+
+.welcome-start-btn {
+  display: inline-block;
+  padding: 14px 52px;
+  border-radius: 24px;
+  background: #4285F4;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 1.1rem;
+  border: none;
+  cursor: pointer;
+}
+
+.welcome-start-btn:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ─── Completion page (end.html) ──────────────────────────── */
+.completion-container {
+  max-width: 600px;
+  margin: 2em auto;
+  text-align: center;
+}
+
+.completion-container h2 {
+  font-size: 1.8rem;
+  margin-bottom: 0.3em;
+}
+
+.completion-container > p {
+  color: #5f6368;
+  margin-bottom: 1.5em;
+}
+
+.puzzle-assembled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 2em;
+  border: 1px solid #ebebeb;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.puzzle-assembled img {
+  width: 100%;
+  display: block;
+}
+
+#end-status-msg {
+  color: #5f6368;
+}
+
+#finish-experiment-btn {
+  padding: 14px 48px;
+  border-radius: 24px;
+  background: #34A853;
+  color: #fff;
+  border: none;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 1em;
+}
+
+/* ─── Reward page ─────────────────────────────────────────── */
+.puzzle-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 2em;
+  border: 1px solid #ebebeb;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.puzzle-piece-wrapper {
+  width: 100%;
+  position: relative;
+}
+
+.puzzle-piece-img {
+  width: 100%;
+  display: block;
+}
+
+.puzzle-piece-locked {
+  filter: grayscale(100%) opacity(0.25);
+}
+
+.puzzle-piece-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #9aa0a6;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.reward-completed-msg {
+  color: #34A853;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 1em;
+}
+
+.reward-next-msg {
+  color: #5f6368;
+  margin-bottom: 1em;
+}
+
+.reward-continue-btn,
+.reward-final-btn {
+  display: inline-block;
+  padding: 12px 36px;
+  border-radius: 24px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.reward-continue-btn { background: #4285F4; }
+.reward-final-btn    { background: #34A853; }
+
+.reward-continue-btn:hover,
+.reward-final-btn:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ─── Error page ──────────────────────────────────────────── */
+.error-container {
+  max-width: 550px;
+  margin: 3em auto;
+  text-align: center;
+}
+
+.error-container h2 {
+  font-size: 1.6rem;
+}
+
+.error-container p {
+  color: #5f6368;
+  margin: 1em 0;
+}
+
+.error-back-btn {
+  display: inline-block;
+  padding: 10px 28px;
+  border-radius: 24px;
+  background: #4285F4;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.error-back-btn:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ─── Webpage viewer page ─────────────────────────────────── */
+.viewer-back-wrapper {
+  margin-bottom: 12px;
+}
+
+#viewer-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 24px;
+  border: 1px solid #dadce0;
+  background: #fff;
+  color: #202124;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+#viewer-back-btn:hover {
+  color: #202124;
+  text-decoration: none;
+}
+
+#webpage-frame {
+  width: 100%;
+  height: calc(100vh - 180px);
+  border: 1px solid #ebebeb;
+  border-radius: 12px;
 }

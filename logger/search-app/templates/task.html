@@ -2,8 +2,8 @@
 {% block title %}Compito{% endblock %}
 {% block content %}
 
-<div style="max-width:700px;margin:2em auto;padding:0 1em;">
-    <h2 style="margin-bottom:0.8em;">Compito {{ task_number }}: {{ topic_title }}</h2>
+<div class="task-container">
+    <h2>Compito {{ task_number }}: {{ topic_title }}</h2>
     <p>Immagina di dover scrivere un saggio di opinione sul seguente argomento:</p>
     <p><b>{{ topic }}</b></p>
     <p>Un saggio di opinione presenta il tuo punto di vista personale su una questione e lo supporta con ragionamenti chiari, affrontando anche gli argomenti della parte opposta.</p>
@@ -18,9 +18,9 @@
          data-topic="{{ topic }}">
     </div>
 
-    <div style="text-align:center;margin-top:2em;">
+    <div class="task-action">
         <form action="{{ url_for('search_page') }}" method="get">
-            <button id="task-btn" type="submit" class="btn btn-primary" style="padding:12px 48px;border-radius:24px;font-size:1rem;">Inizia compito {{ task_number }}</button>
+            <button id="task-btn" type="submit" class="btn btn-primary">Inizia compito {{ task_number }}</button>
         </form>
     </div>
 </div>

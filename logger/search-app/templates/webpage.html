@@ -2,9 +2,8 @@
 {% block title %}Web Page{% endblock %}
 {% block content %}
 
-<div style="margin-bottom:12px;">
-    <a href="{{ url_for('result', query=query, page=page) }}" id="viewer-back-btn"
-       style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border-radius:24px;border:1px solid #dadce0;background:#fff;color:#202124;text-decoration:none;font-weight:500;font-size:0.95rem;">
+<div class="viewer-back-wrapper">
+    <a href="{{ url_for('result', query=query, page=page) }}" id="viewer-back-btn">
         ← Torna ai risultati
     </a>
 </div>
@@ -13,7 +12,6 @@
     id="webpage-frame"
     src="{{ url }}"
     sandbox="allow-same-origin allow-scripts allow-forms"
-    style="width:100%;height:calc(100vh - 180px);border:1px solid #ebebeb;border-radius:12px;"
     title="Web page viewer">
 </iframe>
 
