@@ -1,9 +1,0 @@
-{"type": "TaskStarted", "timestamp": "2026-04-23T11:53:04.528Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6"}
-{"type": "idSubmitted", "timestamp": "2026-04-23T11:53:04.530Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6", "uid": "Participant1"}
-{"type": "queryBoxFocused", "timestamp": "2026-04-23T11:53:05.311Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6"}
-{"type": "querySubmitted", "timestamp": "2026-04-23T11:53:08.432Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6", "query": "duckduckgo"}
-{"type": "queryBoxFocused", "timestamp": "2026-04-23T11:59:56.986Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6"}
-{"type": "querySubmitted", "timestamp": "2026-04-23T11:59:59.480Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6", "query": "duckduckgo"}
-{"type": "ClickedEndTask", "timestamp": "2026-04-23T12:00:06.899Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6"}
-{"type": "TaskEndConfirmed", "timestamp": "2026-04-23T12:00:07.607Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6"}
-{"type": "TaskEnded", "timestamp": "2026-04-23T12:00:08.138Z", "sessionID": "731effb7-ac50-4e29-bd7a-d32734b8ead6", "answer": ""}

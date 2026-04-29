@@ -1,8 +1,0 @@
-{"type": "TaskStarted", "timestamp": "2026-04-23T11:00:40.268Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774"}
-{"type": "idSubmitted", "timestamp": "2026-04-23T11:00:40.270Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774", "uid": "Participant6"}
-{"type": "queryBoxFocused", "timestamp": "2026-04-23T11:00:41.539Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774"}
-{"type": "choseAutoCompleteSuggestion", "timestamp": "2026-04-23T11:01:04.459Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774", "selectedSuggestion": "roadside research"}
-{"type": "queryBoxFocused", "timestamp": "2026-04-23T11:01:07.685Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774"}
-{"type": "ClickedEndTask", "timestamp": "2026-04-23T11:01:17.858Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774"}
-{"type": "TaskEndConfirmed", "timestamp": "2026-04-23T11:01:18.599Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774"}
-{"type": "TaskEnded", "timestamp": "2026-04-23T11:01:19.260Z", "sessionID": "89fae2e1-a537-4bed-8a14-43e39c0a6774", "answer": ""}

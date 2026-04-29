@@ -1,6 +1,0 @@
-{"type": "TaskStarted", "timestamp": "2026-04-22T09:54:52.886Z", "sessionID": "550e6a05-04f8-4fb6-8338-f3f7ebf92f08"}
-{"type": "idSubmitted", "timestamp": "2026-04-22T09:54:52.890Z", "sessionID": "550e6a05-04f8-4fb6-8338-f3f7ebf92f08", "uid": "Participant6"}
-{"type": "queryBoxFocused", "timestamp": "2026-04-22T09:54:54.120Z", "sessionID": "550e6a05-04f8-4fb6-8338-f3f7ebf92f08"}
-{"type": "ClickedEndTask", "timestamp": "2026-04-22T09:55:25.496Z", "sessionID": "550e6a05-04f8-4fb6-8338-f3f7ebf92f08"}
-{"type": "TaskEndConfirmed", "timestamp": "2026-04-22T09:55:28.172Z", "sessionID": "550e6a05-04f8-4fb6-8338-f3f7ebf92f08"}
-{"type": "TaskEnded", "timestamp": "2026-04-22T09:55:28.805Z", "sessionID": "550e6a05-04f8-4fb6-8338-f3f7ebf92f08", "answer": ""}

@@ -9,3 +9,15 @@ __pycache__/
 .pytest_cache/
 experiments/testfile.ipynb
 logger/search-engine/test.ipynb
+# Local generated logs
+logger/logs/
+
+# Local secrets
+logger/search-app/service_account.json
+logger/search-engine/service_account.json
+logger/search-app/API_keys.json
+logger/search-engine/API_keys.json
+
+# macOS
+.DS_Store
+**/.DS_Store

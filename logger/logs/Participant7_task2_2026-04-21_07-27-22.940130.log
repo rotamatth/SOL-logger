@@ -1,3 +1,0 @@
-{"type": "ClickedEndTask", "timestamp": "2026-04-21T07:27:16.038Z", "sessionID": "50edcd56-f778-405e-847e-e9a812c28f5a"}
-{"type": "TaskEndConfirmed", "timestamp": "2026-04-21T07:27:17.495Z", "sessionID": "50edcd56-f778-405e-847e-e9a812c28f5a"}
-{"type": "TaskEnded", "timestamp": "2026-04-21T07:27:22.987Z", "sessionID": "50edcd56-f778-405e-847e-e9a812c28f5a", "answer": "parrot"}

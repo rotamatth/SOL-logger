@@ -1,18 +1,11 @@
 {% extends "layout.html" %}
 {% block title %}Welcome{% endblock %}
 {% block content %}
-<h2>Welcome</h2>
-<p>Welcome, and thank you for participating in our user study!</p>
-<p>To begin, please enter the <b>user id</b> attached to your device to access the search engine. </p>
-  <!-- you chose when completing the pre-questionnaire on the next page.</p> -->
-<!-- <p>You can then begin searching  <b>two tasks</b>.  -->
-<!-- Please read the instructions for each task carefully before starting your search.
-You have <b>ten minutes</b> per task, but you’re free to finish earlier by clicking the “End task” button on the left side of the page.
-Once you finish the first task, you will be redirected to the second one. Please wait with starting the second task until you are instructed to do so.</p>
-<p>We appreciate your time and effort. You can start now.</p> -->
+<h2>Benvenuto</h2>
+<p>Benvenuto, e grazie per partecipare al nostro studio!</p>
+<p>Per iniziare, inserisci l’<b>ID utente</b> associato al tuo dispositivo per accedere al motore di ricerca.</p>
 <p></p>
-<!-- <form action="{{ url_for('start_page') }}" method="get"> -->
-<form action="{{ url_for('start_page') }}" method="get">
-  <button type="submit" class="btn btn-primary">Continue</button>
+<form action=”{{ url_for(‘start_page’) }}” method=”get”>
+  <button type=”submit” class=”btn btn-primary”>Continua</button>
 </form>
 {% endblock %}
