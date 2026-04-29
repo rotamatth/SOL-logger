@@ -14,18 +14,10 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install pip specifically for Python 3.9
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
-
-# ---- Diagnostic check (safe to keep or remove) ----
-RUN python3.9 --version && \
-    python3.9 -m pip --version && \
-    which python3.9
+RUN curl -sS https://bootstrap.pypa.io/pip/3.9/get-pip.py | python3.9
 
 COPY requirements.txt requirements.txt
-RUN python3.9 -m pip install -r requirements.txt 
-
-# Install dependencies using Python 3.9 pip
-# RUN python3.9 -m pip install --no-cache-dir -r requirements.txt
+RUN python3.9 -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
