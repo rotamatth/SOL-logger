@@ -44,9 +44,7 @@ The vertex Ai or search agent has to be set up on google console.
 import os
 import json
 import requests
-from time import time
 from spellchecker import SpellChecker
-import re
 
 from google.cloud import discoveryengine_v1 as discoveryengine
 from google.api_core.client_options import ClientOptions
@@ -72,6 +70,7 @@ def serp_autocomplete_params(query):
         "api_key": SERP_API_KEY,
         "hl": SERP_AUTOCOMPLETE_HL,
         "gl": SERP_AUTOCOMPLETE_GL,
+        "client": "gws-wiz" ## adding client so that autocomplete suggestions are similar to what a user would get if they used Google 
     }
     if SERP_AUTOCOMPLETE_CLIENT:
         params["client"] = SERP_AUTOCOMPLETE_CLIENT
@@ -119,7 +118,6 @@ def load_vertex_config():
         language_code,
         autocomplete_query_model,
     )
-
 
 # ---------------------------------------------------------------------------
 # Lazy client factories
