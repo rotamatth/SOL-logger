@@ -22,6 +22,8 @@ expected user flow.
 ### Search input and autocomplete
 
 - `queryBoxFocused`: emitted when the search input receives focus.
+- `queryCleared`: emitted when the user empties the search input with the clear
+  button next to it.
 - `hoverOverQuerySuggestions`: emitted when the user hovers over an autocomplete suggestion.
 - `choseAutoCompleteSuggestion`: emitted when the user selects an autocomplete suggestion.
 - `querySubmitted`: emitted when a search query is submitted.
@@ -105,6 +107,7 @@ expected user flow.
 - `logoOnSerpClicked`
 - `pageNavigationClicked`
 - `queryBoxFocused`
+- `queryCleared`
 - `querySubmitted`
 - `resourceViewEnded`
 - `resourceViewStarted`

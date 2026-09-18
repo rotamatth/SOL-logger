@@ -33,15 +33,22 @@
                 data-task-number="{{ session.get('task_position', 0) + 1 }}"
                 aria-label="Mostra domanda del task">?</button>
         {% endif %}
-        <input
-            type="search"
-            name="query"
-            id="search-box"
-            placeholder="Cerca..."
-            aria-label="Cerca"
-            autocomplete="off"
-            list="query-suggestions"
-            value="{{ query if query is defined else '' }}">
+        <div class="search-field">
+          <input
+              type="search"
+              name="query"
+              id="search-box"
+              placeholder="Cerca..."
+              aria-label="Cerca"
+              autocomplete="off"
+              list="query-suggestions"
+              value="{{ query if query is defined else '' }}">
+          <button type="button"
+                  id="clear-search-btn"
+                  class="search-clear-btn is-hidden"
+                  disabled
+                  aria-label="Cancella la ricerca">&times;</button>
+        </div>
         <ul id="query-suggestions" class="hidden" role="listbox"></ul>
         <button type="submit" name="submit-box" id="submit-box" class="app-btn app-btn-primary">Cerca</button>
       </form>
