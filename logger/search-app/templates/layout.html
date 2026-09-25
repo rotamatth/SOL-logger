@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">    
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}?v=tablet-centering-20260515">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}?v=clear-button-20260918">
 
     {% if title %}
         <title>Search App - {{ title }}</title>
@@ -83,10 +83,14 @@
         (() => {
             const input = document.getElementById("search-box");
             const list = document.getElementById("query-suggestions");
+            const clearBtn = document.getElementById("clear-search-btn");
+            const form = document.getElementById("search-bar");
+            const submitBtn = document.getElementById("submit-box");
 
             let debounceTimer;
             let activeIndex = -1;
             let autocompleteRequestSequence = 0;
+            let searchSubmitted = false;
 
             function setAutocompleteContext(details = {}) {
                 const suggestions = Array.isArray(details.suggestions)
@@ -111,10 +115,47 @@
             input.setAttribute("aria-expanded", "false");
             input.setAttribute("aria-controls", list.id);
 
+            // The clear button sits outside the input, between it and "Cerca".
+            // It only shows while there is something to clear, but keeps its
+            // slot in the row so the layout never shifts.
+            function syncClearButton() {
+                if (!clearBtn) return;
+                const hasValue = input.value.length > 0;
+                clearBtn.classList.toggle("is-hidden", !hasValue);
+                clearBtn.disabled = !hasValue;
+            }
+
+            syncClearButton();
+
+            if (clearBtn) {
+                clearBtn.addEventListener("click", () => {
+                    const clearedQuery = input.value;
+                    if (!clearedQuery) return;
+
+                    input.value = "";
+                    list.innerHTML = "";
+                    activeIndex = -1;
+                    autocompleteRequestSequence += 1;
+                    clearTimeout(debounceTimer);
+                    setAutocompleteContext({ prefix: "" });
+                    hideList();
+                    syncClearButton();
+                    input.focus();
+
+                    if (window.studyLogger) {
+                        studyLogger.logEvent("queryCleared", {
+                            query: clearedQuery,
+                            trigger: "clear-button"
+                        });
+                    }
+                });
+            }
+
             input.addEventListener("input", () => {
                 const query = input.value.trim();
                 list.innerHTML = "";
                 activeIndex = -1;
+                syncClearButton();
 
                 if (query.length < 3) {
                     autocompleteRequestSequence += 1;
@@ -150,7 +191,9 @@
                 }
 
                 if (e.key === "Enter" && activeIndex >= 0) {
-                    e.preventDefault(); // don’t submit form yet
+                    // Take over the native submit so the highlighted
+                    // suggestion, not the typed prefix, is what gets searched.
+                    e.preventDefault();
                     select(items[activeIndex].textContent);
                 }
 
@@ -230,10 +273,56 @@
                 );
             }
 
+            // Picking a suggestion runs the search straight away, so the
+            // participant never has to press "Cerca" a second time.
             function select(value) {
                 input.value = value;
+                syncClearButton();
                 hideList();
+
+                // Drop any in-flight or pending suggestion request: the
+                // chosen value is final.
+                clearTimeout(debounceTimer);
+                autocompleteRequestSequence += 1;
+
+                submitSearch();
             }
+
+            function submitSearch() {
+                if (!form || searchSubmitted) return;
+                if (!input.value.trim()) return;
+
+                searchSubmitted = true;
+
+                // requestSubmit fires the form's submit event, which the
+                // study logger and the navigation loader both listen for.
+                // form.submit() would skip them, so it is not a fallback here.
+                if (typeof form.requestSubmit === "function") {
+                    if (submitBtn) {
+                        form.requestSubmit(submitBtn);
+                    } else {
+                        form.requestSubmit();
+                    }
+                } else if (submitBtn) {
+                    submitBtn.click();
+                }
+
+                // The submit normally navigates away and this page dies with
+                // the guard still set. If we are somehow still here, release
+                // it so the next suggestion can search again.
+                setTimeout(() => { searchSubmitted = false; }, 4000);
+            }
+
+            // Fires when the field is emptied without an "input" event,
+            // e.g. Escape in a search field or a browser-restored value.
+            input.addEventListener("search", syncClearButton);
+
+            // Back-navigation can restore this page from the bfcache with its
+            // JavaScript state intact, so release the submit guard.
+            window.addEventListener("pageshow", () => {
+                searchSubmitted = false;
+                syncClearButton();
+            });
 
             function showList() {
                 list.classList.remove("hidden");
