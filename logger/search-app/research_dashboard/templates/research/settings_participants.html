@@ -1,0 +1,69 @@
+<div class="settings-section-heading settings-heading-row">
+  <div><h2>{{ t('grade_' ~ history_grade) }}</h2><p class="muted">{{ t('participants_workspace_hint') if participants_mode == 'view' else t('edit_participants_hint') }}</p></div>
+  {% if participants_mode == 'view' and selected_summary %}<a class="button primary" href="{{ u('settings_page', section='participants', grade=history_grade, edit_participants='1') }}">{{ t('edit_participant_setup') }}</a>{% endif %}
+</div>
+{% if participants_mode != 'view' %}<ol class="setup-progress" aria-label="{{ t('participant_setup_steps') }}">
+  <li {% if participants_mode == 'edit' %}aria-current="step"{% else %}class="is-done"{% endif %}><span>1</span>{{ t('edit_setup') }}</li><li {% if participants_mode == 'review' %}aria-current="step"{% endif %}><span>2</span>{{ t('review_changes') }}</li><li><span>3</span>{{ t('confirm_setup') }}</li>
+</ol>{% endif %}
+{% if ranges_error %}<p class="notice warning" role="alert">{{ t(ranges_error) }}</p>{% endif %}
+{% if participants_mode == 'edit' %}
+<form class="panel participant-setup-form" method="post" action="{{ u('settings_page', section='participants', grade=history_grade) }}#participant-ids">
+  <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ range_form_revision }}"><input type="hidden" name="ranges_editor" value="1"><input type="hidden" name="range_grade" value="{{ history_grade }}">
+  {% set rule = selected_range %}
+  <div class="setup-form-section">
+    <h3>{{ t('participant_ids') }}</h3><p class="small muted">{{ t('participant_range_edit_hint') }}</p>
+    {% if rule.grade == '3' %}<label class="enrollment-toggle"><input type="checkbox" name="3_enabled" value="1" {% if rule.enabled %}checked{% endif %}>{{ t('enable_grade_roster') }}</label>{% endif %}
+    <div class="range-grid">{% for key in ('start','end') %}<div><label for="{{ rule.grade }}_{{ key }}">{{ t(key) }}</label><input id="{{ rule.grade }}_{{ key }}" name="{{ rule.grade }}_{{ key }}" value="{{ rule[key] }}" type="number" min="0" max="999999" step="1" required></div>{% endfor %}</div>
+    <details class="id-format" {% if rule.prefix or rule.width | string != '0' %}open{% endif %}><summary>{{ t('custom_id_format') }}</summary><div class="range-grid">
+      <div><label for="{{ rule.grade }}_prefix">{{ t('prefix') }}</label><input id="{{ rule.grade }}_prefix" name="{{ rule.grade }}_prefix" value="{{ rule.prefix }}" type="text" maxlength="24" pattern="[A-Za-z0-9_-]*"></div>
+      <div><label for="{{ rule.grade }}_width">{{ t('width') }}</label><input id="{{ rule.grade }}_width" name="{{ rule.grade }}_width" value="{{ rule.width }}" type="number" min="0" max="8" required></div>
+    </div></details>
+  </div>
+  <div class="setup-form-section">
+    <h3>{{ t('student_task_set') }}</h3><p class="small muted">{{ t('task_assignment_edit_hint') }}</p>
+    <label for="{{ rule.grade }}_task_set">{{ t('task_set') }}</label>
+    <select id="{{ rule.grade }}_task_set" name="{{ rule.grade }}_task_set">
+      <option value="existing" {% if rule.task_set == 'existing' %}selected{% endif %}>{{ t('keep_existing_tasks') }}</option>
+      {% if rule.assignment %}<option value="saved" {% if rule.task_set == 'saved' %}selected{% endif %}>{{ t('saved_task_assignment') }} · {{ rule.assignment.topics['1_short'] }}</option>{% endif %}
+      {% for task_set in task_catalog %}<option value="{{ task_set.id }}" {% if rule.task_set == task_set.id %}selected{% endif %}>{{ task_set.label }}</option>{% endfor %}
+    </select>
+    <label for="{{ rule.grade }}_assignment_mode">{{ t('assignment_applies_to') }}</label>
+    <select id="{{ rule.grade }}_assignment_mode" name="{{ rule.grade }}_assignment_mode">
+      <option value="missing" {% if rule.assignment_mode == 'missing' %}selected{% endif %}>{{ t('assign_missing_only') }}</option><option value="all" {% if rule.assignment_mode == 'all' %}selected{% endif %}>{{ t('assign_all_ids') }}</option>
+    </select>
+    <details class="task-set-reference technical-details"><summary>{{ t('review_available_tasks') }}</summary>
+      {% for task_set in task_catalog %}<div class="task-set-card"><h4>{{ task_set.label }}</h4><ol>{% for n in range(1, 4) %}<li>{{ task_set.topics[n ~ '_full'] }}</li>{% endfor %}</ol></div>{% else %}<p>{{ t('no_task_sets') }}</p>{% endfor %}
+    </details>
+  </div>
+  <div class="setup-form-footer"><p class="small muted">{{ t('review_before_save_hint') }}</p><div class="actions"><button class="primary" type="submit" name="action" value="preview_ranges">{{ t('review_changes') }} &rarr;</button><a class="button" href="{{ u('settings_page', section='participants', grade=history_grade) }}">{{ t('cancel') }}</a></div></div>
+</form>
+{% elif participants_mode == 'review' %}
+<div class="panel setup-review">
+  <div class="settings-section-heading"><h3>{{ t('review_changes') }}</h3><p class="muted" role="status">{{ t('ranges_preview') }}</p></div>
+  <dl class="setup-review-facts">
+    <div><dt>{{ t('participant_ids') }}</dt><dd>{% if selected_summary %}{{ selected_summary.first }}–{{ selected_summary.last }} <span class="muted small">({{ selected_summary.count }})</span>{% else %}{{ t('grade_roster_disabled') }}{% endif %}</dd></div>
+    <div><dt>{{ t('task_set') }}</dt><dd>{{ selected_task_label }}</dd></div>
+    {% if selected_range.task_set != 'existing' %}<div><dt>{{ t('task_assignment_scope') }}</dt><dd>{{ t('assign_all_ids') if selected_range.assignment_mode == 'all' else t('assign_missing_only') }}</dd></div>{% endif %}
+  </dl>
+  {% if selected_summary %}<p class="review-readiness"><span class="badge {% if selected_summary.ready == selected_summary.count %}completed{% else %}incomplete{% endif %}">{{ selected_summary.ready }} / {{ selected_summary.count }} {{ t('ready_to_start') }}</span>{% if selected_summary.missing %}<span class="small muted">{{ selected_summary.missing | length }} {{ t('needs_assignment') }}</span>{% endif %}</p>{% endif %}
+  <div class="assignment-impact" aria-label="{{ t('student_access_changes') }}">
+    {% for key in ('enabled', 'disabled', 'tasks_changed') %}<div><strong>{{ range_changes[key] | length }}</strong> {{ t('ids_' ~ key) }}{% if range_changes[key] %}<details class="technical-details"><summary>{{ t('show_ids') }}</summary><p>{{ range_changes[key] | join(', ') }}</p></details>{% endif %}</div>{% endfor %}
+  </div>
+  {% if range_changes.added or range_changes.removed or range_changes.moved %}<details class="technical-details review-roster-changes"><summary>{{ t('roster_changes') }}</summary><p>{{ range_changes.added | length }} {{ t('ids_added') }} · {{ range_changes.removed | length }} {{ t('ids_removed') }} · {{ range_changes.moved | length }} {{ t('ids_moved') }}</p>{% for key in ('added', 'removed', 'moved') %}{% if range_changes[key] %}<p><strong>{{ t('ids_' ~ key) }}</strong>: {{ range_changes[key] | join(', ') }}</p>{% endif %}{% endfor %}</details>{% endif %}
+  <form class="setup-form-footer" method="post" action="{{ u('settings_page', section='participants', grade=history_grade) }}#participant-ids">
+    <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ range_form_revision }}"><input type="hidden" name="ranges_editor" value="1"><input type="hidden" name="range_grade" value="{{ history_grade }}">
+    {% for key in ('start', 'end', 'prefix', 'width', 'task_set', 'assignment_mode') %}<input type="hidden" name="{{ history_grade }}_{{ key }}" value="{{ selected_range[key] }}">{% endfor %}{% if history_grade == '3' and selected_range.enabled %}<input type="hidden" name="3_enabled" value="1">{% endif %}
+    <p class="small muted">{{ t('new_runs_only_hint') }}</p><div class="actions"><button class="primary" type="submit" name="action" value="save_ranges">{{ t('save_changes') }}</button><button type="submit" name="action" value="edit_ranges">{{ t('back_to_editing') }}</button></div>
+  </form>
+</div>
+{% if selected_summary %}<details class="participant-assignment-list review-participant-list"><summary>{{ t('review_participant_assignments') }} ({{ selected_summary.count }})</summary>{% include 'research/settings_participant_table.html' %}</details>{% endif %}
+{% elif selected_summary %}
+<div class="enrollment-stats" aria-label="{{ t('participant_readiness') }}">
+  <div><strong>{{ selected_summary.count }}</strong><span>{{ t('configured_ids') }}</span></div><div><strong>{{ selected_summary.ready }}</strong><span>{{ t('ready_to_start') }}</span></div><a href="{{ u('settings_page', section='participants', grade=history_grade, status='missing') }}"><strong>{{ selected_summary.missing | length }}</strong><span>{{ t('needs_assignment') }}</span></a>
+</div>
+<div class="panel saved-participant-setup">
+  <div class="settings-table-heading"><p>{{ t('participant_ids') }} <strong>{{ selected_summary.first }}–{{ selected_summary.last }}</strong></p><nav class="participant-status-filter" aria-label="{{ t('student_access') }}"><a href="{{ u('settings_page', section='participants', grade=history_grade) }}" {% if participant_filter == 'all' %}aria-current="page"{% endif %}>{{ t('all') }}</a><a href="{{ u('settings_page', section='participants', grade=history_grade, status='missing') }}" {% if participant_filter == 'missing' %}aria-current="page"{% endif %}>{{ t('needs_assignment') }} ({{ selected_summary.missing | length }})</a></nav></div>
+  {% include 'research/settings_participant_table.html' %}
+  {% if roster_page_count > 1 %}<nav class="settings-pagination" aria-label="{{ t('overview') }}">{% if roster_page > 1 %}<a href="{{ u('settings_page', section='participants', grade=history_grade, status=participant_filter, roster_page=roster_page-1) }}">&larr; {{ t('previous') }}</a>{% endif %}<span class="small muted">{{ roster_page }} / {{ roster_page_count }}</span>{% if roster_page < roster_page_count %}<a href="{{ u('settings_page', section='participants', grade=history_grade, status=participant_filter, roster_page=roster_page+1) }}">{{ t('next') }} &rarr;</a>{% endif %}</nav>{% endif %}
+</div>
+{% else %}<div class="panel settings-empty"><h3>{{ t('grade_roster_disabled') }}</h3><p class="muted">{{ t('grade_roster_empty_hint') }}</p><a class="button primary" href="{{ u('settings_page', section='participants', grade=history_grade, edit_participants='1') }}">{{ t('set_up_participants') }}</a></div>{% endif %}

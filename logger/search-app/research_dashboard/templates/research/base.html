@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="{{ language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('dashboard') }} · SOL</title>
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='research.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{{ u('overview') }}"><img class="brand-mark" src="{{ url_for('static', filename='images/Logo.png') }}" alt="Cerca con SOL" width="72" height="56"><span>{{ t('private') }}</span></a>
+    <nav aria-label="Navigation">
+      {% if auth and auth.authenticated %}
+      <a href="{{ u('settings_page') }}">{{ t('settings') }}</a>
+      <a href="{{ u('trash_page') }}">{{ t('trash') }}</a>
+      {% endif %}
+      <span class="languages"><a href="{{ language_url('en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>EN</a><span>/</span><a href="{{ language_url('it') }}" lang="it" {% if language == 'it' %}aria-current="true"{% endif %}>IT</a></span>
+      {% if auth and auth.authenticated %}
+      <form method="post" action="{{ u('logout') }}"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><button class="quiet" type="submit">{{ t('logout') }}</button></form>
+      {% endif %}
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

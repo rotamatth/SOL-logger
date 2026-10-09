@@ -1,12 +1,19 @@
 services:
   search_app:
-    build: ./search-app
+    build:
+      context: ./search-app
+      args:
+        SOL_GIT_COMMIT: "${SOL_GIT_COMMIT:-unknown}"
+        SOL_APP_VERSION: "${SOL_APP_VERSION:-v2}"
     init: true
     ports:
       - "${HOST_BIND:-0.0.0.0}:${APP_PORT:-7001}:7001"
     volumes:
       - ./search-app/data:/app/data:ro
-      - ./logs:/app/logs
+      - ./logs-v2:/app/logs
+      - ./logs:/app/legacy_logs:ro
+      - ./research-state:/app/research_state
+      - ./research-secrets:/app/research-secrets:ro
       - ${API_KEYS_FILE:-./search-app/API_keys.json}:/app/API_keys.json:ro
       - ${GOOGLE_SERVICE_ACCOUNT_FILE:-./search-app/service_account.json}:/app/service_account.json:ro
     environment:
@@ -14,6 +21,12 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: "${GOOGLE_APPLICATION_CREDENTIALS:-/app/service_account.json}"
       FLASK_DEBUG: "${FLASK_DEBUG:-0}"
       FLASK_SECRET_KEY: "${FLASK_SECRET_KEY:-}"
+      SOL_LOG_DIR: "/app/logs"
+      RESEARCH_LEGACY_LOG_DIR: "/app/legacy_logs"
+      RESEARCH_STATE_DIR: "/app/research_state"
+      RESEARCH_PASSWORD_HASH_FILE: "/app/research-secrets/password.hash"
+      RESEARCH_COOKIE_SECURE: "${RESEARCH_COOKIE_SECURE:-0}"
+      SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-0}"
       VERTEX_PROJECT_NUMBER: "${VERTEX_PROJECT_NUMBER:-}"
       VERTEX_LOCATION: "${VERTEX_LOCATION:-global}"
       VERTEX_ENGINE_ID: "${VERTEX_ENGINE_ID:-}"

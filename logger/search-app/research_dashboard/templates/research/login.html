@@ -1,0 +1,15 @@
+{% extends 'research/base.html' %}
+{% block content %}
+<section class="panel login-panel">
+  <span class="eyebrow">SOL RESEARCH</span>
+  <h1>{{ t('login') }}</h1>
+  <p class="muted">{{ t('login_hint') }}</p>
+  {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}
+  <form method="post" action="{{ u('login') }}">
+    <input type="hidden" name="csrf" value="{{ auth.csrf }}">
+    <label for="password">{{ t('password') }}</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" autofocus>
+    <button class="primary" type="submit">{{ t('sign_in') }}</button>
+  </form>
+</section>
+{% endblock %}

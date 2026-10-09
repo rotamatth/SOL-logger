@@ -1,0 +1,23 @@
+<div class="table-scroll dashboard-table-scroll"><table>
+  <thead><tr>{% if is_roster_view %}<th class="selection-column"><span class="sr-only">{{ t('select_participants') }}</span></th>{% endif %}<th>{{ t('participant') }}</th>{% if grade == 'all' %}<th>{{ t('grade_at_collection') }}</th>{% endif %}{% if is_roster_view %}<th>{{ t('status') }}</th>{% endif %}<th class="actions-column">{{ t('actions') }}</th></tr></thead>
+  <tbody>
+  {% for person in people %}
+  <tr>
+    {% if is_roster_view %}<td class="selection-column">{% if person.has_downloadable_logs %}<input type="checkbox" form="selected-export" name="participant" value="{{ person.collection }}:{{ person.token }}" aria-label="{{ t('select_logs_for') }} {{ person.id }}{% if person.collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}">{% endif %}</td>{% endif %}
+    <th scope="row"><a class="participant-link" href="{{ u('participant', collection=person.collection, token=person.token) }}">{{ person.id }}</a>{% if person.collection == 'legacy' %}<small class="participant-context">{{ t('historical_records') }}</small>{% endif %}{% if person.school_years %}<small class="participant-context">{{ person.school_years|join(', ') }}</small>{% endif %}{% if person.current_grade and person.recorded_grades and person.recorded_grades != [person.current_grade] %}<small class="participant-context">{{ t('current_grade') }}: {{ t('grade_' ~ person.current_grade) }}</small>{% endif %}</th>
+    {% if grade == 'all' %}<td class="dashboard-grade-cell">{% for value in person.recorded_grades %}{{ t('grade_' ~ value) }}{% if not loop.last %}, {% endif %}{% else %}<span class="muted" title="{{ t('no_data') }}">—</span>{% endfor %}</td>{% endif %}
+    {% if is_roster_view %}<td class="dashboard-status-cell">{% if person.visible_runs %}<span class="badge {{ 'completed' if person.has_downloadable_logs else 'unknown' }}">{{ t('dashboard_logs_available') if person.has_downloadable_logs else t('dashboard_record_only') }}</span><small class="participant-context">{{ person.visible_runs|selectattr('status','equalto','completed')|list|length }}/{{ person.visible_runs|length }} {{ t('completed')|lower }}</small>{% else %}<span class="badge no_data">{{ t('dashboard_status_no_data') }}</span>{% endif %}</td>{% endif %}
+    <td class="actions-column">
+      {% if person.visible_runs %}
+      <div class="dashboard-row-actions">
+        <a class="dashboard-view" href="{{ u('participant', collection=person.collection, token=person.token, view='logs', grade=grade if grade in grades else None, school_year=selected_year, session=selected_session.id if selected_session else None) }}">{{ t('visualize_logs') }}</a>
+        <details class="dashboard-row-more"><summary aria-label="{{ t('dashboard_actions_for') }} {{ person.id }}{% if person.collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}"><span aria-hidden="true">•••</span></summary><div>
+          <a href="{{ u('participant', collection=person.collection, token=person.token, view='logs', manage='1', grade=grade if grade in grades else None, school_year=selected_year, session=selected_session.id if selected_session else None) }}">{{ t('manage_logs') }}</a>
+        </div></details>
+      </div>
+      {% else %}<span class="dashboard-no-actions muted">—</span>{% endif %}
+    </td>
+  </tr>
+  {% else %}<tr><td class="dashboard-empty" colspan="{{ 5 if grade == 'all' else 4 if is_roster_view else 2 }}"><strong>{{ t('dashboard_empty_scope') if selected_year or selected_session else t('dashboard_no_participants') }}</strong>{% if selected_year or selected_session %}<p>{{ t('dashboard_empty_scope_hint') }}</p><a class="button" href="{{ u('overview', collection=collection, grade=grade) }}">{{ t('dashboard_full_history') }}</a>{% elif is_roster_view %}<p>{{ t('grade_roster_empty_hint') }}</p><a class="button" href="{{ u('settings_page', section='participants', grade=grade if grade in grades else None) }}">{{ t('set_up_participants') }}</a>{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table></div>

@@ -1,0 +1,37 @@
+<div class="settings-section-heading settings-heading-row"><div><h2>{{ t('grade_' ~ history_grade) }}</h2><p class="muted">{{ t('sessions_workspace_hint') }}</p></div><span class="settings-count">{{ history_total }} {{ t('sessions') | lower }}</span></div>
+<details class="settings-new-session" id="new-session" {% if open_new %}open{% endif %}>
+  <summary>{{ t('new_session') }}</summary>
+  <div class="settings-new-session-body">
+    {% if next_numbers[history_grade] <= session_limit %}
+    <p class="small muted">{{ t('session') }} {{ next_numbers[history_grade] }} · {{ t('new_session_hint') }}</p>
+    <form class="new-session-form" method="post" action="{{ u('settings_page', section='sessions', grade=history_grade) }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="add_session"><input type="hidden" name="grade" value="{{ history_grade }}">
+      <div><label for="new-date">{{ t('date') }}</label><input id="new-date" name="date" type="date" value="{{ add_date }}" required></div>
+      <div><label for="new-name">{{ t('session_name_optional') }}</label><input id="new-name" name="name" type="text" maxlength="80" value="{{ add_name }}" placeholder="{{ t('session_name_example') }}"></div>
+      <button class="primary" type="submit">{{ t('create_session') }}</button>
+    </form>
+    {% else %}<p class="small muted">{{ t('session_limit_reached') }}</p>{% endif %}
+  </div>
+</details>
+<div class="settings-history-heading"><h3>{{ t('session_history') }}</h3><span class="small muted">{{ t('session_dates_hint') }}</span></div>
+{% if history_sessions %}
+<div class="settings-session-list">
+  {% for study_session in history_sessions %}
+  <details class="settings-session-item" id="{{ study_session.id }}" {% if edit_session_id == study_session.id %}open{% endif %}>
+    <summary><strong>{{ t('session') }} {{ study_session.number }}</strong><span class="settings-session-name">{{ study_session.name or '' }}</span><span class="small muted">{{ study_session.date or t('date_not_set') }}</span></summary>
+    <div class="settings-session-body">
+      <form class="new-session-form" method="post" action="{{ u('settings_page', section='sessions', grade=history_grade, page=history_page if history_page > 1 else None) }}">
+        <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="save_session"><input type="hidden" name="session_id" value="{{ study_session.id }}">
+        <div><label for="date_{{ study_session.id }}">{{ t('date') }}</label><input id="date_{{ study_session.id }}" name="date" type="date" value="{{ edit_date if error and edit_session_id == study_session.id else study_session.date }}"></div>
+        <div><label for="name_{{ study_session.id }}">{{ t('session_name_optional') }}</label><input id="name_{{ study_session.id }}" name="name" type="text" maxlength="80" value="{{ edit_name if error and edit_session_id == study_session.id else study_session.name or '' }}"></div>
+        <button class="primary" type="submit">{{ t('save_session') }}</button>
+      </form>
+      <a href="{{ u('overview', grade=history_grade, session=study_session.id) }}">{{ t('view_session') }} &rarr;</a>
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% if history_page_count > 1 %}<nav class="settings-pagination" aria-label="{{ t('session_history') }}">
+  {% if history_page < history_page_count %}<a href="{{ u('settings_page', section='sessions', grade=history_grade, page=history_page + 1) }}#session-history">{{ t('older_sessions') }}</a>{% endif %}<span class="small muted">{{ history_page }} / {{ history_page_count }}</span>{% if history_page > 1 %}<a href="{{ u('settings_page', section='sessions', grade=history_grade, page=history_page - 1) }}#session-history">{{ t('newer_sessions') }}</a>{% endif %}
+</nav>{% endif %}
+{% else %}<div class="settings-empty"><h3>{{ t('no_sessions_heading') }}</h3><p class="muted">{{ t('no_sessions_yet') }}</p></div>{% endif %}

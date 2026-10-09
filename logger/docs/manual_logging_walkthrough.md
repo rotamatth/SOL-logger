@@ -21,6 +21,8 @@ expected user flow.
 
 ### Search input and autocomplete
 
+- `autocompleteSuggestionsShown`: emitted when autocomplete suggestions are displayed.
+
 - `queryBoxFocused`: emitted when the search input receives focus.
 - `queryCleared`: emitted when the user empties the search input with the clear
   button next to it.
@@ -78,6 +80,7 @@ expected user flow.
 ## Event inventory
 
 <!-- event-inventory:start -->
+- `autocompleteSuggestionsShown`
 - `AnswerBoxClosed`
 - `ClickedEndTaskConfirmation`
 - `ClickedOnSendAndTerminateTask`

@@ -7,3 +7,10 @@ This repository accompanies the resource paper submission "LISP - A Rich Interac
 * `logs/`: Contains the log files of the user study and additional metadata from the Perceptual Speed Test and both questionnaires
 * `search-app/`: Contains the implementation of the front end of the search engine used in the user study
 * `search-engine/`: Contains the implementation of the search engine backend
+
+## Private research dashboard
+
+Researchers can use `/dashboard` with a shared server-configured password. See
+[setup, study rules, security and export documentation](docs/research_dashboard.md).
+V2 collection writes to a fresh directory; existing logs remain available separately
+under Legacy. The research roster defaults to IDs 1–20 (4th Grade) and 21–40 (5th Grade).

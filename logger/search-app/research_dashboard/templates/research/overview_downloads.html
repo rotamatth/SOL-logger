@@ -1,0 +1,17 @@
+{% if grade in grades %}
+<div class="dashboard-grade-download">
+  {% if grade_has_logs[grade] %}<a class="button" href="{{ u('export', scope='grade', collection=collection, grade=grade) }}" aria-label="{{ t('download_grade_' ~ grade) }}" title="{{ t('dashboard_grade_export_hint') }}">{{ icons.download() }} {{ t('download_grade_' ~ grade) }}</a>
+  {% else %}<button type="button" disabled title="{{ t('no_logs_available') }}">{{ icons.download() }} {{ t('download_grade_' ~ grade) }}</button>{% endif %}
+</div>
+{% else %}
+<details class="dashboard-grade-download">
+  <summary class="button">{{ icons.download() }} {{ t('dashboard_download_a_grade') }} <span aria-hidden="true">▾</span></summary>
+  <div class="dashboard-grade-download-menu">
+    <p>{{ t('dashboard_grade_export_hint') }}</p>
+    {% for value in grades %}
+    {% if grade_has_logs[value] %}<a href="{{ u('export', scope='grade', collection=collection, grade=value) }}" aria-label="{{ t('download_grade_' ~ value) }}">{{ t('download_grade_' ~ value) }}</a>
+    {% else %}<span aria-disabled="true">{{ t('download_grade_' ~ value) }}<small>{{ t('no_logs_available') }}</small></span>{% endif %}
+    {% endfor %}
+  </div>
+</details>
+{% endif %}

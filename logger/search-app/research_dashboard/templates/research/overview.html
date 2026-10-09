@@ -1,0 +1,58 @@
+{% extends 'research/base.html' %}
+{% import 'research/icons.html' as icons %}
+{% block content %}
+{% set is_roster_view = grade in grades or grade == 'all' %}
+<div class="dashboard-workspace">
+  <header class="dashboard-heading">
+    <div><h1>{{ t('dashboard') }}</h1><p>{{ t('dashboard_purpose') }}</p></div>
+    <form method="post" action="{{ u('refresh') }}" class="dashboard-refresh">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}">
+      <input type="hidden" name="grade" value="{{ grade }}"><input type="hidden" name="collection" value="{{ collection }}">
+      {% if selected_session %}<input type="hidden" name="session" value="{{ selected_session.id }}">{% endif %}
+      {% if selected_year %}<input type="hidden" name="school_year" value="{{ selected_year }}">{% endif %}
+      <button type="submit">{{ icons.refresh() }} {{ t('refresh') }}</button>
+      <small>{{ t('dashboard_updated') }} {{ when(scan.at) }}</small>
+    </form>
+  </header>
+
+  <div class="dashboard-navigation">
+    <nav class="dashboard-grades" aria-label="{{ t('grade') }}">
+      <a href="{{ u('overview', collection=collection, grade='all') }}" {% if grade == 'all' %}aria-current="page"{% endif %}>{{ t('all_participants') }}</a>
+      {% for value in grades %}<a href="{{ u('overview', collection=collection, grade=value) }}" {% if grade == value %}aria-current="page"{% endif %}>{{ t('grade_short_' ~ value) }}</a>{% endfor %}
+      {% if not is_roster_view %}<span aria-current="page">{{ t('historical_records') if grade == 'legacy' else t('unassigned') }}</span>{% endif %}
+    </nav>
+    {% if is_roster_view and collection in ('v2','study') %}{% include 'research/overview_downloads.html' %}{% endif %}
+  </div>
+  {% for issue in scan.problems %}<p class="notice warning" role="status">{{ t(issue.code) }}</p>{% endfor %}
+
+  {% if selected_session or selected_year %}
+  <div class="dashboard-scope-context">
+    <p>{% if selected_session %}<strong>{{ selected_session.name or (t('session') ~ ' ' ~ selected_session.number) }}</strong>{% if selected_session.date %} · {{ selected_session.date }}{% endif %}{% endif %}{% if selected_year %}{% if selected_session %} · {% endif %}{{ selected_year }}{% endif %}</p>
+    <div class="record-actions">
+      {% if selected_session and collection in ('v2','study') %}{% set selected_card = session_cards|selectattr('session.id','equalto',selected_session.id)|first %}{% if selected_card.runs|selectattr('log_file_count')|list %}<a href="{{ u('export', scope='grade_session', collection=collection, grade=grade, session=selected_session.id, school_year=selected_year) }}">{{ t('download_grade_session') }}</a>{% endif %}{% endif %}
+      <a href="{{ u('overview', collection=collection, grade=grade) }}">{{ t('dashboard_full_history') }} &rarr;</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <section class="panel dashboard-table-panel" aria-labelledby="participants-heading">
+    {% if is_roster_view %}
+    <form id="selected-export" method="post" action="{{ u('export_selection') }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="collection" value="{{ collection }}"><input type="hidden" name="grade" value="{{ grade }}">
+      {% if selected_year %}<input type="hidden" name="school_year" value="{{ selected_year }}">{% endif %}
+      {% if selected_session %}<input type="hidden" name="session" value="{{ selected_session.id }}">{% endif %}
+    </form>
+    {% endif %}
+    <div class="dashboard-table-heading">
+      <div><h2 id="participants-heading">{{ t('overview') }}{% if selected_session %} · {{ selected_session.name or (t('session') ~ ' ' ~ selected_session.number) }}{% endif %} <span class="count">{{ people|length }}</span></h2>{% if is_roster_view %}<p id="download-selection-hint">{{ t('dashboard_selection_hint') }}</p>{% endif %}</div>
+      {% if is_roster_view %}<div class="dashboard-selected-download">
+        <button class="dashboard-selection-ready" form="selected-export" type="submit" name="mode" value="selected" aria-describedby="download-selection-hint" {% if not downloadable_count %}disabled{% endif %}>{{ icons.download() }} {{ t('download_selected') }}</button>
+        <button class="dashboard-selection-empty" type="button" disabled aria-describedby="download-selection-hint">{{ icons.download() }} {{ t('download_selected') }}</button>
+      </div>{% endif %}
+    </div>
+    {% include 'research/overview_table.html' %}
+    <div class="dashboard-table-footer"><span>{{ t('dashboard_saved_hint') }}</span>{% if is_roster_view %}<div class="dashboard-settings-links"><a href="{{ u('settings_page', section='participants', grade=grade if grade in grades else None) }}">{{ t('manage_participants') }}</a><a href="{{ u('settings_page', section='sessions', grade=grade if grade in grades else None) }}#session-history">{{ t('session_history') }}</a><a href="{{ u('settings_page', section='sessions', grade=grade if grade in grades else None, new='1') }}#new-session">+ {{ t('new_session') }}</a></div>{% endif %}</div>
+  </section>
+  {% if unidentified %}<details class="panel dashboard-unidentified"><summary>{{ t('unidentified') }} <span class="count">{{ unidentified|length }}</span></summary><div>{% for run in unidentified %}<p><a href="{{ u('run_detail', key=run.id) }}">{{ t('run') }} {{ run.id[:12] }}</a> · {{ run.date or '—' }} · <span class="badge unknown">{{ t(run.status) }}</span></p>{% endfor %}</div></details>{% endif %}
+</div>
+{% endblock %}

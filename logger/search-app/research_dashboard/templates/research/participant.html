@@ -1,0 +1,66 @@
+{% extends 'research/base.html' %}
+{% import 'research/icons.html' as icons %}
+{% block content %}
+<p class="breadcrumbs"><a href="{{ u('overview', grade=grade, school_year=selected_year) }}">{{ t('grade_' ~ grade) if grade in grades else t('overview') }}</a> / {{ person.id }}{% if collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}{% if selected_year %} · {{ selected_year }}{% endif %}</p>
+<div class="page-heading">
+  <h1>{{ t('participant') }} {{ person.id }}</h1>
+  {% if person.runs %}<a class="button" href="{{ u('export', scope='participant', collection=collection, participant=person.token, grade=grade_filter, school_year=selected_year) }}" title="{{ t('participant_export_hint') }}">{{ icons.download() }} {{ t('download_participant') }}</a>{% endif %}
+</div>
+<form class="session-selector participant-session-selector" method="get" action="{{ u('participant', collection=collection, token=person.token) }}">
+  <input type="hidden" name="lang" value="{{ language }}">
+  <input type="hidden" name="view" value="logs">
+  {% if grade_filter %}<input type="hidden" name="grade" value="{{ grade_filter }}">{% endif %}
+  {% if selected_year %}<input type="hidden" name="school_year" value="{{ selected_year }}">{% endif %}
+  <label for="participant-session">{{ t('sessions') }}</label>
+  <select id="participant-session" name="session">
+    <option value="" {% if not selected_session %}selected{% endif %}>{{ t('all_sessions') }}</option>
+    {% for group in groups if group.session %}<option value="{{ group.session.id }}" {% if selected_session == group.session.id %}selected{% endif %}>{{ group.session.name or (t('session') ~ ' ' ~ group.session.number) }}{% if group.session.name %} · {{ t('session') }} {{ group.session.number }}{% endif %} · {{ t('grade_' ~ group.session.grade) }} · {{ group.session.date or t('date_not_set') }}</option>{% endfor %}
+  </select>
+  <button type="submit">{{ t('view') }}</button>
+</form>
+<section class="panel participant-sessions">
+  {% for group in display_groups %}
+  {% if group.session or group.runs %}
+  <div class="session-entry" id="{{ group.session.id if group.session else 'other-runs' }}">
+    {% if group.runs %}
+      <div class="session-header">
+        <span class="session-meta">
+        <span class="session-label">{% if group.session %}{{ group.session.name or (t('session') ~ ' ' ~ group.session.number) }}{% if group.session.name %}<small class="muted">{{ t('session') }} {{ group.session.number }}</small>{% endif %}{% else %}{{ t('other_saved_runs') }}{% endif %}{% if group.session and person.grades|length > 1 %}<small class="muted">{{ t('grade_' ~ group.session.grade) }}</small>{% endif %}</span>
+        <span class="session-date muted">{{ group.session.date if group.session else '' }}</span>
+        <span class="badge {{ 'completed' if group.runs|selectattr('status','equalto','completed')|list|length == group.runs|length else 'incomplete' }}">{{ group.runs|selectattr('status','equalto','completed')|list|length }}/{{ group.runs|length }} {{ t('completed')|lower }}</span>
+        </span>
+        <div class="record-actions">
+          {% if not open_logs %}<a class="button compact" href="{{ u('participant', collection=collection, token=person.token, view='logs', grade=grade_filter, school_year=selected_year, session=group.session.id if group.session else None) }}#{{ group.session.id if group.session else 'other-runs' }}">{{ t('visualize_logs') }}</a>{% endif %}
+          {% if group.session %}<a class="button compact" href="{{ u('export', scope='session', collection=collection, participant=person.token, session=group.session.id, school_year=selected_year) }}" aria-label="{{ t('download_session') }} {{ group.session.number }}" title="{{ t('user_session_export_hint') }}">{{ icons.download() }} {{ t('download') }}</a>{% endif %}
+        </div>
+      </div>
+      {% if open_logs and (not selected_session or group.session and group.session.id == selected_session) %}
+      <div class="session-content">
+        {% for run in group.runs %}
+        <article class="run-row">
+          <strong>{{ t('run') }} {{ loop.index }}</strong>
+          {% if manage %}<span class="mono small muted">{{ run.id[:12] }}</span>{% endif %}
+          <span class="muted small">{{ run.started_at or run.date or '—' }}</span>
+          {% if run.grade %}<span class="muted small">{{ t('grade_' ~ run.grade) }}{% if run.school_year %} · {{ run.school_year }}{% endif %}</span>{% endif %}
+          <span class="badge {{ run.status }}">{{ t(run.status) }}</span>
+          {% if run.issue_count %}<span class="muted small">{{ t('issues') }}: {{ run.issue_count }}</span>{% endif %}
+          <div class="record-actions">
+            <a class="button compact" href="{{ u('run_detail', key=run.id) }}">{{ t('visualize_logs') }}</a>
+            <a class="button compact" href="{{ u('export', scope='run', collection=collection, run=run.id) }}" aria-label="{{ t('download_run') }} {{ loop.index }}">{{ icons.download() }} {{ t('download') }}</a>
+          </div>
+          {% if manage %}<details class="run-trash"><summary>{{ t('move_to_trash') }}</summary><p class="small muted">{{ t('trash_explanation') }}</p><form method="post" action="{{ u('trash_run', key=run.id) }}"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><button type="submit">{{ t('confirm_move_to_trash') }}</button></form></details>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% else %}
+    <div class="empty-session-row">
+      <span class="session-label">{{ group.session.name or (t('session') ~ ' ' ~ group.session.number) }}{% if group.session.name %}<small class="muted">{{ t('session') }} {{ group.session.number }}</small>{% endif %}</span>
+      <span class="session-date muted">{{ group.session.date }}</span>
+      <span class="muted small">{{ t('no_data') }}</span>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}{% else %}<p class="muted participant-empty">{{ t('no_data') }}</p>{% endfor %}
+</section>
+{% endblock %}

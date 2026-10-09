@@ -102,7 +102,9 @@ def test_webpage_closed_has_duration_exit_reason_guard_and_fallback():
     assert "window.logOpenWebpageClosed = (reason) =>" in source
     assert 'emitClosed(reason || "end-task-button", "end-task")' in source
     assert 'emitClosed("back-button", "custom-back")' in source
-    assert 'window.addEventListener("pagehide", () => emitClosed("pagehide", "page-unload"))' in source
+    # The handler also hides the iframe loader; verify the close behavior inside it.
+    pagehide_handler = source[source.index('window.addEventListener("pagehide"'):]
+    assert 'emitClosed("pagehide", "page-unload")' in pagehide_handler
 
 
 def test_answer_submission_closes_open_webpage_before_task_ended():

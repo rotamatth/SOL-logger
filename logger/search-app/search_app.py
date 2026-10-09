@@ -9,6 +9,7 @@ import search_backend
 import uuid
 import random
 import traceback
+import sqlite3
 from time import time
 
 from urllib import response
@@ -19,6 +20,9 @@ from forms import SearchForm
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
+from research_dashboard import init_dashboard
+from research_dashboard.collection import record_run
+from research_dashboard.student_config import eligible_students
 
 app = Flask(__name__)
 
@@ -28,7 +32,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or "OtulwLo7gQ"
 
 app.config.update(
-    SESSION_COOKIE_SECURE=False,      # True in production with HTTPS
+    SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
@@ -42,7 +46,7 @@ Session(app)
 # -------------------------------------------------
 # 2. Enable CORS LAST
 # -------------------------------------------------
-CORS(app, supports_credentials=True)
+CORS(app, resources={r"/(?!dashboard(?:/|$)).*": {"origins": "*"}}, supports_credentials=True)
 rpp = 10  # results per page for pagination; may be changed later
 
 # cache storage for query autocomplete suggestions
@@ -50,7 +54,7 @@ AUTOCOMPLETE_CACHE = {}
 CACHE_TTL = 600  # 10 minutes
 SEARCH_BACKEND = os.getenv("SEARCH_BACKEND", "vertex").lower()
 
-LOG_DIR = 'logs'
+LOG_DIR = os.getenv("SOL_LOG_DIR", "logs_v2")
 LOG_TIME_ZONE = ZoneInfo("Europe/Zurich")
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_REGISTRY_PATH = os.path.join(LOG_DIR, 'log_registry.jsonl')
@@ -104,6 +108,8 @@ def load_user_topics(filepath='data/user_topics.csv'):
     return topics
 
 USER_TOPICS = load_user_topics()
+app.config["STUDENT_TOPICS"] = USER_TOPICS
+RESEARCH_STATE = init_dashboard(app)
 PUZZLE_ASSET_DIR = 'puzzle_pieces'
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -116,7 +122,7 @@ ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING = False
 
 def get_total_tasks(user_id):
     """Return how many tasks this user has (count non-empty topic entries)."""
-    user = USER_TOPICS.get(user_id, {})
+    user = get_user_config(user_id)
     count = 0
     for i in range(1, 10):
         if user.get(f'{i}_full'):
@@ -217,10 +223,12 @@ def render_puzzle_config_error(message):
                            error_message=message), 500
 
 def get_user_config(user_id):
-    user = USER_TOPICS.get(user_id)
+    user = session.get('task_config') if session.get('user_id') == user_id else None
+    if not user:
+        user = eligible_students(app, RESEARCH_STATE.settings()).get(user_id)
     if not user:
         raise PuzzleConfigError(
-            f"No topic configuration found in data/user_topics.csv for user '{user_id}'."
+            f"No complete student task assignment found for user '{user_id}'."
         )
     return user
 
@@ -313,15 +321,22 @@ def search_page():
         session['tasks_started'] = tasks_started
 
     form = SearchForm()
-    reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
+    reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
     return render_template(HOME_URL, form=form, show_search=True, reminder=reminder)
 
 @app.route('/start', methods=['GET', 'POST'])
 def start_page():
+    enrollment_settings = RESEARCH_STATE.settings()
+    student_configs = eligible_students(app, enrollment_settings)
+    val_ids = list(student_configs)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
+        if user_id not in student_configs:
+            return render_template('start.html', show_search=False, valid_ids=val_ids,
+                                   start_error="Questo ID non è disponibile. Chiedi al ricercatore di controllare l'assegnazione dei compiti."), 400
         session.clear()
         session['user_id'] = user_id
+        session['task_config'] = dict(student_configs[user_id])
         session['session_id'] = str(uuid.uuid4())
         session['log_id'] = generate_log_id()
         session['pieces_earned'] = []
@@ -330,14 +345,20 @@ def start_page():
         session['last_active'] = datetime.now().isoformat()
         
         assign_random_task_order(user_id)
+
+        try:
+            record_run(LOG_DIR, RESEARCH_STATE, user_id, session['session_id'],
+                       session['log_id'], session['task_order'], session['task_config'],
+                       settings=enrollment_settings)
+        except (OSError, ValueError, sqlite3.Error):
+            # Research metadata failure must not discard student interaction logs.
+            app.logger.warning("Could not record research run metadata", exc_info=True)
         
         return redirect(url_for('task'))
 
     if current_phase() != 'pre_id':
         return redirect(phase_redirect_url())
     
-    with open("data/uids.txt") as f:
-        val_ids = [line.strip() for line in f if line.strip()]
     return render_template('start.html', show_search=False, valid_ids=val_ids)
 
 @app.route('/task', methods=['GET', 'POST'])
@@ -375,7 +396,7 @@ def result():
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
 
-    reminder = USER_TOPICS.get(session.get('user_id'), {}).get(str(session.get('task_number'))+'_full')
+    reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
     form = SearchForm()
     page = 1
 

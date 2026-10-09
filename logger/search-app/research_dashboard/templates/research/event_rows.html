@@ -1,0 +1,7 @@
+{% for row in events %}
+<details class="event-row">
+  <summary><span class="mono">{{ row.event.type if row.event else t('unknown') }}</span><span class="muted small">{{ row.event.timestamp if row.event else '' }} · {{ t('line') }} {{ row.line }}</span></summary>
+  <p class="small muted">{{ row.file }}</p>
+  {% if row.problem %}<p class="notice warning">{{ t(row.problem) }}</p>{% else %}<pre>{{ pretty(row.event) }}</pre>{% endif %}
+</details>
+{% else %}<p class="muted">{{ t('no_data') }}</p>{% endfor %}

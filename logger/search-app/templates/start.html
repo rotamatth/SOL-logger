@@ -16,6 +16,7 @@
             {% endfor %}
         </select>
         <p id="error-message" class="form-error" style="display: none;">Seleziona un numero</p>
+        {% if start_error %}<p class="form-error" role="alert">{{ start_error }}</p>{% endif %}
         <button class="app-btn app-btn-primary" id="continue-btn" type="submit">Continua</button>
     </form>
     </div>

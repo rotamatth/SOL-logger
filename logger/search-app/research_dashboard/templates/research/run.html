@@ -1,0 +1,76 @@
+{% extends 'research/base.html' %}
+{% import 'research/icons.html' as icons %}
+{% block content %}
+<p class="breadcrumbs"><a href="{{ u('overview', collection=run.collection, grade=run.grade or 'unassigned') }}">{{ t('overview') }}</a> / {% if run.participant_token %}<a href="{{ u('participant', collection=run.collection, token=run.participant_token) }}">{{ t('participant') }} {{ run.participant_id }}</a> / {% endif %}{{ t('run') }} {{ run.id[:12] }}</p>
+<div class="page-heading">
+  <div><h1>{{ t('task') ~ ' ' ~ task if task else t('full_task') }}</h1></div>
+  <div class="record-actions">
+    <a class="button" href="#events">{{ t('visualize_logs') }}</a>
+    {% if not task %}<a class="button" href="{{ u('export', scope='run', collection=run.collection, run=run.id) }}">{{ icons.download() }} {{ t('download_run') }}</a>{% endif %}
+  </div>
+</div>
+<nav class="tabs" aria-label="{{ t('task') }}">
+  <a {% if not task %}aria-current="page"{% endif %} href="{{ u('run_detail', key=run.id) }}">{{ t('full_task') }}</a>
+  {% for n in ('1','2','3') %}<a {% if task == n %}aria-current="page"{% endif %} href="{{ u('run_detail', key=run.id, task=n) }}">{{ t('task') }} {{ n }}</a>{% endfor %}
+</nav>
+{% if not task %}<p class="muted small">{{ t('full_hint') }}</p>{% endif %}
+<section class="panel">
+  <div class="section-heading"><h2>{{ t('run') }} {{ run.id[:12] }}</h2><span class="badge {{ run.status }}">{{ t(run.status) }}</span></div>
+  <dl class="facts">
+    <div><dt>{{ t('grade_at_collection') }}</dt><dd>{{ t('grade_' ~ run.grade) if run.grade else '—' }}</dd></div>
+    <div><dt>{{ t('school_year') }}</dt><dd>{{ run.school_year or '—' }}</dd></div>
+    <div><dt>{{ t('grade_source') }}</dt><dd>{{ t(run.grade_source) }}</dd></div>
+    {% if run.current_grade and run.current_grade != run.grade %}<div><dt>{{ t('current_grade') }}</dt><dd>{{ t('grade_' ~ run.current_grade) }}</dd></div>{% endif %}
+    <div><dt>{{ t('session') }}</dt><dd>{% if run.study_session %}{{ run.study_session.name or (t('session') ~ ' ' ~ run.study_session.number) }}{% if run.study_session.name %} · {{ t('session') }} {{ run.study_session.number }}{% endif %}{% else %}—{% endif %}</dd></div>
+    <div><dt>{{ t('date') }}</dt><dd>{{ run.date or t('unknown') }}</dd></div>
+    <div><dt>{{ t('answers_count') }}</dt><dd>{{ run.answered_tasks }} / 3</dd></div>
+    <div><dt>{{ t('final_save') }}</dt><dd>{{ t('yes') if run.finished else t('no') }}</dd></div>
+  </dl>
+  <details class="technical-details">
+    <summary>{{ t('technical_details') }}</summary>
+    <dl class="facts">
+      <div><dt>{{ t('version') }}</dt><dd>{{ run.app_version or t('unknown') }}</dd></div>
+      <div><dt>{{ t('commit') }}</dt><dd class="mono">{{ run.git_commit or t('unknown') }}</dd></div>
+      <div><dt>{{ t('technical_session') }}</dt><dd class="mono">{{ run.technical_session_ids|join(', ') or t('unknown') }}</dd></div>
+      <div><dt>{{ t('log_id') }}</dt><dd class="mono">{{ run.log_id or t('unknown') }}</dd></div>
+    </dl>
+    <p class="muted small">{{ t('last_saved') }}: {{ when(run.last_saved) }}</p>
+  </details>
+  {% if run.issues %}<details class="issues"><summary>{{ t('issues') }} ({{ run.issues|length }})</summary><ul>{% for issue in run.issues %}<li class="mono small">{{ t(issue) }}</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% for item in tasks %}
+<section class="panel">
+  <div class="section-heading"><h2>{{ t('task') }} {{ item.number }}</h2><span class="badge {{ item.status }}">{{ t(item.status) }}</span></div>
+  <p class="muted small">{{ t('topic') }}: <strong>{{ item.topics|join(', ') or t('unknown') }}</strong></p>
+  <h3>{{ t('question') }}</h3>{% for question in item.questions %}<p class="preserve">{{ question }}</p>{% else %}<p class="muted">{{ t('question_missing') }}</p>{% endfor %}
+  <h3>{{ t('answer') }}</h3>
+  {% for answer in item.answers %}
+  <div class="answer">{% if not answer.present %}<p class="muted">{{ t('answer_field_missing') }}</p>{% elif answer.value == '' %}<p class="muted">{{ t('answer_empty') }}</p>{% elif answer.value is string %}<p class="preserve">{{ answer.value }}</p>{% else %}<pre>{{ pretty(answer.value) }}</pre>{% endif %}<small class="muted">{{ answer.timestamp or t('unknown') }} · {{ t('line') }} {{ answer.line }}</small></div>
+  {% else %}<p class="muted">{{ t('answer_missing') }}</p>{% endfor %}
+</section>
+{% endfor %}
+<section class="panel log-panel">
+  <div class="section-heading"><h2>{{ t('original_logs') }}</h2></div>
+  <p class="muted small">{{ t('original_logs_hint') }}</p>
+  {% if sources %}
+  <div class="table-scroll"><table>
+    <thead><tr><th>{{ t('file') }}</th><th>{{ t('size') }}</th><th>{{ t('actions') }}</th></tr></thead>
+    <tbody>{% for source in sources %}
+    <tr>
+      <td><strong>{% if source.kind == 'full' %}{{ t('full_log') }}{% elif source.kind == 'task' %}{{ t('task') }} {{ source.position }}{% elif source.kind == 'recovery' %}{{ t('recovery_log') }}{% else %}{{ t('other_log') }}{% endif %}</strong><br><small class="muted source-name">{{ source.name }}</small></td>
+      <td class="muted small">{{ '%.1f'|format(source.size / 1024) }} KB</td>
+      <td>{% if source.sha256 %}<div class="record-actions">
+        <a class="button compact" href="{{ u('visualize_log', key=run.id, source_id=source.id) }}" aria-label="{{ t('visualize_logs') }}: {{ source.name }}">{{ t('visualize_logs') }}</a>
+        <a class="button compact" href="{{ u('download_log', key=run.id, source_id=source.id) }}" aria-label="{{ t('download_log') }}: {{ source.name }}">{{ icons.download() }} {{ t('download_log') }}</a>
+      </div>{% else %}<small class="muted">{{ t('source_unavailable') }}</small>{% endif %}</td>
+    </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">{{ t('original_log_missing') }}</p>{% endif %}
+</section>
+<section class="panel" id="events">
+  <div class="section-heading"><h2>{{ t('events') }}</h2><span class="muted">{{ total }} · {{ t('page') }} {{ page_number }}</span></div>
+  {% include 'research/event_rows.html' %}
+  <nav class="pagination">{% if page_number > 1 %}<a class="button" href="{{ u('run_detail', key=run.id, task=task, page=page_number-1) }}#events">{{ t('previous') }}</a>{% endif %}{% if page_number * 100 < total %}<a class="button" href="{{ u('run_detail', key=run.id, task=task, page=page_number+1) }}#events">{{ t('next') }}</a>{% endif %}</nav>
+</section>
+{% endblock %}

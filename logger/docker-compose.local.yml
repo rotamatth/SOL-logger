@@ -20,12 +20,17 @@ services:
       - ./search-app/search_app.py:/app/search_app.py:ro
       - ./search-app/search_backend.py:/app/search_backend.py:ro
       - ./search-app/forms.py:/app/forms.py:ro
+      - ./search-app/research_dashboard:/app/research_dashboard:ro
       - ./search-app/templates:/app/templates:ro
       - ./search-app/static:/app/static:ro
-      - ui_logs:/app/logs
+      - ui_v2_logs:/app/logs
+      - ui_logs:/app/legacy_logs:ro
+      - ui_research_state:/app/research_state
       - ui_sessions:/app/flask_session
     restart: "no"
 
 volumes:
   ui_logs:
+  ui_v2_logs:
+  ui_research_state:
   ui_sessions:

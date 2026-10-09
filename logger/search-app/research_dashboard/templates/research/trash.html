@@ -1,0 +1,21 @@
+{% extends 'research/base.html' %}
+{% block content %}
+<div class="page-heading"><h1>{{ t('trash') }}</h1></div>
+<p class="small muted">{{ t('trash_explanation') }}</p>
+{% if request.args.get('restored') == '1' %}<p class="notice success" role="status">{{ t('restored_from_trash') }}</p>{% endif %}
+{% if request.args.get('trashed') == '1' %}<p class="notice success" role="status">{{ t('moved_to_trash') }}</p>{% endif %}
+<section class="panel table-panel">
+  {% if entries %}
+  <div class="table-scroll"><table>
+    <thead><tr><th>{{ t('run') }}</th><th>{{ t('participant') }}</th><th>{{ t('grade') }}</th><th>{{ t('date') }}</th><th>{{ t('actions') }}</th></tr></thead>
+    <tbody>{% for entry in entries %}<tr>
+      <th scope="row" class="mono small">{{ entry.run_id[:12] }}</th>
+      <td>{{ entry.run.participant_id if entry.run and entry.run.participant_id else '—' }}</td>
+      <td>{{ t('grade_' ~ entry.run.grade) if entry.run and entry.run.grade else '—' }}</td>
+      <td>{{ entry.run.date if entry.run else '—' }}</td>
+      <td><form method="post" action="{{ u('restore_run', key=entry.run_id) }}"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><button type="submit">{{ t('restore') }}</button></form></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">{{ t('trash_empty') }}</p>{% endif %}
+</section>
+{% endblock %}

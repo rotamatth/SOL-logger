@@ -1,0 +1,36 @@
+{% extends 'research/base.html' %}
+{% block content %}
+<div class="settings-workspace">
+  <div class="settings-page-heading">
+    <div><a class="settings-back" href="{{ u('overview') }}">&larr; {{ t('back_to_participants') }}</a><h1>{{ t('settings') }}</h1><p class="muted">{{ t('settings_workspace_hint') }}</p></div>
+    {% if settings.current_school_year %}<span class="settings-year-tag">{{ settings.current_school_year }}</span>{% endif %}
+  </div>
+  <nav class="settings-tabs" aria-label="{{ t('settings') }}">
+    {% for section, label in (('year', 'school_year'), ('sessions', 'sessions'), ('participants', 'overview')) %}
+    <a href="{{ u('settings_page', section=section, grade=history_grade) }}" {% if active_section == section %}aria-current="page"{% endif %}>{{ t(label) }}</a>
+    {% endfor %}
+  </nav>
+  {% if request.args.get('saved') == '1' %}<p class="notice success settings-notice" role="status">{{ t('participants_saved') if request.args.get('saved_action') == 'save_ranges' else t('school_year_saved') if request.args.get('saved_action') == 'save_year' else t('session_saved') if request.args.get('saved_action') in ('save_session', 'save_dates') else t('saved') }}</p>{% endif %}
+  {% if error and not ranges_error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}
+  {% if error == 'settings_changed' %}<p><a class="button" href="{{ u('settings_page', section=active_section, grade=history_grade, edit_participants='1' if active_section == 'participants' else None) }}">{{ t('reload_saved_settings') }}</a></p>{% endif %}
+  <section class="panel settings-card settings-year-card" id="school-year" {% if active_section != 'year' %}hidden{% endif %}>
+    <div class="settings-section-heading"><h2>{{ t('current_school_year') }}</h2><p class="muted">{{ t('school_year_explanation') }}</p></div>
+    <form method="post" action="{{ u('settings_page', section='year', grade=history_grade) }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="save_year">
+      <label for="current-school-year">{{ t('school_year') }}</label>
+      <input id="current-school-year" name="current_school_year" value="{{ school_year_value }}" placeholder="2026/2027" pattern="[0-9]{4}/[0-9]{4}" aria-describedby="school-year-help">
+      <p class="small muted" id="school-year-help">{{ t('school_year_format_hint') }}</p>
+      <button class="primary" type="submit">{{ t('save_school_year') }}</button>
+    </form>
+    <div class="settings-next"><span class="small muted">{{ t('continue_setup') }}</span><a href="{{ u('settings_page', section='sessions', grade=history_grade) }}">{{ t('manage_sessions') }} &rarr;</a><a href="{{ u('settings_page', section='participants', grade=history_grade) }}">{{ t('manage_participants') }} &rarr;</a></div>
+  </section>
+  <section class="settings-section" id="session-history" {% if active_section != 'sessions' %}hidden{% endif %}>
+    {% include 'research/settings_grade_nav.html' %}
+    {% include 'research/settings_sessions.html' %}
+  </section>
+  <section class="settings-section" id="participant-ids" {% if active_section != 'participants' %}hidden{% endif %}>
+    {% if participants_mode == 'view' %}{% include 'research/settings_grade_nav.html' %}{% endif %}
+    {% include 'research/settings_participants.html' %}
+  </section>
+</div>
+{% endblock %}

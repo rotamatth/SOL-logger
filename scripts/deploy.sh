@@ -52,6 +52,12 @@ done
 
 chmod 600 logger/search-app/API_keys.json logger/search-app/service_account.json
 mkdir -p logger/logs
+mkdir -p logger/logs-v2 logger/research-state logger/research-secrets
+# Stamp new run metadata with the revision actually built on the server.
+export SOL_GIT_COMMIT="$(git rev-parse HEAD)"
+if [ -n "$(git status --porcelain --untracked-files=normal)" ]; then
+    export SOL_GIT_COMMIT="${SOL_GIT_COMMIT}-dirty"
+fi
 
 echo "==> Building and restarting containers"
 cd logger
@@ -64,6 +70,7 @@ echo "==> Deploy complete."
 echo ""
 echo "Smoke-test from your laptop while on VPN:"
 echo "    curl -I http://solar.usilu.net:7001/welcome"
+echo "    Research dashboard: http://solar.usilu.net:7001/dashboard"
 echo ""
 echo "Tail live logs:"
 echo "    ssh $SERVER_USER@$SERVER_HOST 'cd ~/$SERVER_REPO/logger && docker compose logs -f search_app'"

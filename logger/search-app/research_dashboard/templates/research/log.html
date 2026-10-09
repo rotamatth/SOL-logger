@@ -1,0 +1,20 @@
+{% extends 'research/base.html' %}
+{% import 'research/icons.html' as icons %}
+{% block content %}
+<p class="breadcrumbs"><a href="{{ u('overview', collection=run.collection, grade=run.grade or 'unassigned') }}">{{ t('overview') }}</a> / {% if run.participant_token %}<a href="{{ u('participant', collection=run.collection, token=run.participant_token, view='logs') }}">{{ t('participant') }} {{ run.participant_id }}</a> / {% endif %}<a href="{{ u('run_detail', key=run.id) }}">{{ t('run') }} {{ run.id[:12] }}</a></p>
+<div class="page-heading">
+  <div>
+    <h1>{{ t('visualize_logs') }}</h1>
+    <p class="muted small source-name">{{ source.name }}</p>
+  </div>
+  {% if source.sha256 %}<a class="button" href="{{ u('download_log', key=run.id, source_id=source.id) }}">{{ icons.download() }} {{ t('download_log') }}</a>{% endif %}
+</div>
+<section class="panel" id="events">
+  <div class="section-heading"><h2>{{ t('events') }}</h2><span class="muted">{{ total }} · {{ t('page') }} {{ page_number }}</span></div>
+  {% include 'research/event_rows.html' %}
+  <nav class="pagination">
+    {% if page_number > 1 %}<a class="button" href="{{ u('visualize_log', key=run.id, source_id=source.id, task=task, page=page_number-1) }}#events">{{ t('previous') }}</a>{% endif %}
+    {% if page_number * 100 < total %}<a class="button" href="{{ u('visualize_log', key=run.id, source_id=source.id, task=task, page=page_number+1) }}#events">{{ t('next') }}</a>{% endif %}
+  </nav>
+</section>
+{% endblock %}
