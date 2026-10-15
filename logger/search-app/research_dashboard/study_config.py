@@ -209,7 +209,7 @@ def question_library(app, settings=None):
         settings = research["state"].settings() if "state" in research else {"sessions": []}
     catalog = {}
 
-    def add(question_set):
+    def add(question_set, label=None):
         if not question_set or not question_set.get("questions"):
             return
         if any(not question.get("topic", "").strip() or not question.get("question", "").strip()
@@ -219,19 +219,39 @@ def question_library(app, settings=None):
         draft["approved"] = False
         token = _content_id(draft)
         catalog[token] = {"id": token,
-                          "label": draft.get("theme") or draft["questions"][0]["topic"],
+                          "label": label or draft.get("theme") or draft["questions"][0]["topic"],
                           "question_set": draft}
 
-    for topics in app.config.get("STUDENT_TOPICS", {}).values():
+    for uid, topics in app.config.get("STUDENT_TOPICS", {}).items():
+        source_metadata = deepcopy(app.config.get("STUDENT_TOPIC_METADATA", {}).get(uid, {}))
+        high_interest = {"first": 1, "second": 2, "third": 3}.get(
+            source_metadata.get("high_interest_topic_column"))
         questions = []
+        high_interest_question_id = None
         for number in range(1, 4):
             topic, question = topics.get(f"{number}_short", ""), topics.get(f"{number}_full", "")
             if not isinstance(topic, str) or not isinstance(question, str) or not topic.strip() or not question.strip():
                 continue
-            questions.append({"id": _content_id({"topic": topic, "question": question}),
+            question_id = _content_id({"topic": topic, "question": question})
+            question_metadata = {"legacy_topic_id": str(number), "source_question_id": question_id}
+            if high_interest is not None:
+                question_metadata["high_interest"] = number == high_interest
+                if number == high_interest:
+                    high_interest_question_id = question_id
+            questions.append({"id": question_id,
                               "topic": topic, "question": question,
-                              "metadata": {"legacy_topic_id": str(number)}})
-        add({"questions": questions, "theme": "", "metadata": {"origin": "legacy"}})
+                              "metadata": question_metadata})
+        metadata = {**source_metadata, "origin": "legacy"}
+        if "origin" in source_metadata:
+            metadata["source_origin"] = source_metadata["origin"]
+        if high_interest_question_id is not None:
+            metadata["high_interest_question_id"] = high_interest_question_id
+        if questions:
+            label = questions[0]["topic"]
+            condition = ", ".join(f"{key}={value}" for key, value in sorted(source_metadata.items()) if value)
+            if condition:
+                label += f" · {condition}"
+            add({"questions": questions, "theme": "", "metadata": metadata}, label)
     for study_session in settings["sessions"]:
         add(study_session.get("question_set"))
         for question_set in study_session.get("participant_questions", {}).values():
