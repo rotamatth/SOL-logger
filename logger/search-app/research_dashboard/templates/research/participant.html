@@ -41,6 +41,7 @@
           <strong>{{ t('run') }} {{ loop.index }}</strong>
           {% if manage %}<span class="mono small muted">{{ run.id[:12] }}</span>{% endif %}
           <span class="muted small">{{ run.started_at or run.date or '—' }}</span>
+          {% if run.study_session %}<span class="muted small">{{ run.study_session.name or (t('session') ~ ' ' ~ run.study_session.number) }}{% if run.study_session.date %} · {{ run.study_session.date }}{% endif %}</span>{% endif %}
           {% if run.grade %}<span class="muted small">{{ t('grade_' ~ run.grade) }}{% if run.school_year %} · {{ run.school_year }}{% endif %}</span>{% endif %}
           <span class="badge {{ run.status }}">{{ t(run.status) }}</span>
           {% if run.issue_count %}<span class="muted small">{{ t('issues') }}: {{ run.issue_count }}</span>{% endif %}

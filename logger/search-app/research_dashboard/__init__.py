@@ -8,6 +8,7 @@ import secrets
 import sqlite3
 
 from flask import Blueprint, abort, g, jsonify, redirect, render_template, request, send_file, url_for
+from itsdangerous import BadSignature, URLSafeSerializer
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -15,10 +16,30 @@ from .exports import SourceSnapshotError, build_export, capture_log
 from .i18n import translate
 from .index import Index
 from .state import DEFAULT_STUDY_ID, GRADES, SETTING_FIELDS, MAX_STUDY_SESSIONS, State, identity, normalize_session_name, roster, validate_settings
-from .student_config import configure_students, eligible_students, range_summary, task_catalog, topics_ready
+from .student_config import configure_students, range_summary, task_catalog, topics_ready
+from .study_config import assignment_for, question_library, session_readiness, validate_question_set
 
 PREFIX = "/dashboard"
 COOKIE = "sol_research"
+
+
+def display_session(configured_session, runs):
+    """Label collected sessions with their recorded names and dates."""
+    fields = ("id", "grade", "number", "name", "date", "theme")
+
+    def label(study_session):
+        return {key: deepcopy(study_session.get(key, "")) for key in fields}
+
+    snapshots = [label(run["study_session"]) for run in runs
+                 if run.get("study_session")
+                 and run["study_session"]["id"] == configured_session["id"]]
+    if not snapshots:
+        return label(configured_session)
+    if len({json.dumps(snapshot, sort_keys=True) for snapshot in snapshots}) == 1:
+        return snapshots[0]
+    # Repeated attempts can have different recorded labels for the same ID.
+    # Their individual rows show those labels; the common group stays neutral.
+    return {**label(configured_session), "name": "", "date": "", "theme": ""}
 
 
 def init_dashboard(app):
@@ -69,7 +90,8 @@ def init_dashboard(app):
         g.research_lang = "it" if request.args.get("lang") == "it" else "en"
         g.research_auth = None
         g.research_cookie = request.cookies.get(COOKIE, "")
-        request.max_content_length = 64 * 1024
+        # Question forms carry signed copies of four bounded metadata objects.
+        request.max_content_length = 4 * 1024 * 1024 if request.endpoint == "research.session_questions" else 64 * 1024
         if request.endpoint == "research.static":
             return None
         g.research_hash = password_hash()
@@ -228,9 +250,15 @@ def init_dashboard(app):
         school_years = sorted({r["school_year"] for r in collection_runs(runs, collection) if r["school_year"]}, reverse=True)
         if selected_year and selected_year not in school_years:
             abort(404)
-        session_cards = [{"session": s, "runs": [r for r in collection_runs(runs, collection)
-                         if r["study_session"] and r["study_session"]["id"] == s["id"]
-                         and (not selected_year or r["school_year"] == selected_year)]} for s in sessions]
+        scoped_runs = [run for run in collection_runs(runs, collection)
+                       if not selected_year or run["school_year"] == selected_year]
+        session_cards = []
+        for study_session in sessions:
+            matching_runs = [run for run in scoped_runs if run["study_session"]
+                             and run["study_session"]["id"] == study_session["id"]]
+            session_cards.append({"session": display_session(study_session, matching_runs), "runs": matching_runs})
+        if selected_session:
+            selected_session = display_session(selected_session, scoped_runs)
         people = scoped_people(settings, runs, collection, grade, selected_year, selected_session)
         unidentified = [r for r in collection_runs(runs, collection) if r["collection"] == collection
                         and r["participant_id"] is None]
@@ -268,7 +296,9 @@ def init_dashboard(app):
         if collection in ("v2", "legacy"):
             for session in settings["sessions"]:
                 if session["grade"] in person["grades"] and (not grade_filter or session["grade"] == grade_filter):
-                    groups.append({"session": session, "runs": [r for r in person["runs"] if r["study_session"] and r["study_session"]["id"] == session["id"]]})
+                    matching_runs = [run for run in person["runs"] if run["study_session"]
+                                     and run["study_session"]["id"] == session["id"]]
+                    groups.append({"session": display_session(session, matching_runs), "runs": matching_runs})
         groups.append({"session": None, "runs": [r for r in person["runs"] if not r["study_session"]]})
         for group in groups:
             group["runs"].sort(key=lambda r: (r["date"] or "", r["started_at"] or "", r["id"]))
@@ -576,14 +606,35 @@ def init_dashboard(app):
                 if request.form.get("ranges_editor") == "1" and grade == "3" and range_scope in (None, "3"):
                     fields["enabled"] = request.form.get("3_enabled") == "1"
             range_forms.append(fields)
-        summaries = [range_summary(app, rule) for rule in range_draft["ranges"]]
+        participant_sessions = [s for s in range_draft["sessions"] if s["grade"] == history_grade]
+        participant_session_id = request.args.get("participant_session") or (participant_sessions[0]["id"] if participant_sessions else None)
+        participant_session = next((s for s in participant_sessions if s["id"] == participant_session_id), None)
+        if participant_session_id and participant_session is None:
+            abort(404)
+        summaries = []
+        for rule in range_draft["ranges"]:
+            summary = range_summary(app, rule)
+            study_session = participant_session if rule["grade"] == history_grade else next(
+                (s for s in range_draft["sessions"] if s["grade"] == rule["grade"]), None)
+            if study_session:
+                summary.update(session_readiness(range_draft, study_session))
+            else:
+                summary.update(ready=0, missing=summary["ids"], participants=[
+                    {"id": uid, "ready": False, "problem": "session_date_missing", "questions": [], "titles": []}
+                    for uid in summary["ids"]])
+            summaries.append(summary)
         old_roster, proposed_roster = roster(current), roster(range_draft)
         range_changes = {"added": sorted(set(proposed_roster) - set(old_roster)),
                          "removed": sorted(set(old_roster) - set(proposed_roster)),
                          "moved": sorted(uid for uid in set(old_roster) & set(proposed_roster)
                                          if old_roster[uid] != proposed_roster[uid])}
-        previous_students = eligible_students(app, current)
-        proposed_students = eligible_students(app, range_draft)
+        def ready_assignments(configuration):
+            return {uid: resolved["question_set"] for uid in roster(configuration)
+                    if participant_session_id
+                    and (resolved := assignment_for(configuration, uid, participant_session_id))
+                    and resolved["ready"]}
+        previous_students = ready_assignments(current)
+        proposed_students = ready_assignments(range_draft)
         range_changes.update({
             "enabled": sorted(set(proposed_students) - set(previous_students)),
             "disabled": sorted(set(previous_students) - set(proposed_students)),
@@ -623,10 +674,12 @@ def init_dashboard(app):
             selected_task_label = selected_range["assignment"]["topics"]["1_short"]
         else:
             selected_task_label = next((item["label"] for item in catalog if item["id"] == selected_range["task_set"]), selected_task_label)
-        return page("settings", settings=current, error=error,
+        readiness = {s["id"]: session_readiness(current, s) for s in history_sessions}
+        return page("settings", settings=current, error=error, session_readiness=readiness,
                     form_revision=request.form.get("revision", current["revision"])
                     if error == "settings_changed" else current["revision"],
                     active_section=active_section, participants_mode=participants_mode,
+                    participant_sessions=participant_sessions, participant_session=participant_session,
                     selected_range=selected_range, selected_summary=selected_summary,
                     selected_task_label=selected_task_label,
                     participant_rows=participant_rows, participant_filter=participant_filter,
@@ -646,6 +699,93 @@ def init_dashboard(app):
                     session_limit=MAX_STUDY_SESSIONS, add_date=add_date, add_name=add_name,
                     open_new=request.args.get("new") == "1" or action == "add_session" and error is not None,
                     edit_session_id=edit_session_id, edit_name=edit_name, edit_date=edit_date), 400 if error else 200
+
+    @bp.route("/settings/questions/<session_id>", methods=["GET", "POST"])
+    def session_questions(session_id):
+        settings = state.settings()
+        study_session = next((s for s in settings["sessions"] if s["id"] == session_id), None)
+        if study_session is None:
+            abort(404)
+        uid = request.args.get("participant", "")
+        if uid and roster(settings).get(uid) != study_session["grade"]:
+            abort(404)
+        exceptions = study_session.get("participant_questions", {})
+        saved = exceptions.get(uid) if uid else study_session.get("question_set")
+        # A new exception starts with a copy of the shared draft, never a legacy ID assignment.
+        draft = deepcopy(saved or (study_session.get("question_set") if uid else None)
+                         or {"questions": [], "approved": False, "theme": ""})
+        if uid and saved is None:
+            draft["approved"] = False
+        library = question_library(app, settings)
+        choices = {f"{item['id']}:{slot}": question
+                   for item in library for slot, question in enumerate(item["question_set"]["questions"])}
+        error = None
+        revision = settings["revision"]
+        signer = URLSafeSerializer(g.research_hash, salt="sol-question-draft")
+        if request.method == "POST":
+            action = request.form.get("action", "save_questions")
+            try:
+                revision = int(request.form["revision"])
+                if request.form.get("draft_token"):
+                    payload = signer.loads(request.form["draft_token"])
+                    if (payload.get("session_id") != session_id or payload.get("participant") != uid
+                            or payload.get("revision") != revision):
+                        raise ValueError("invalid_question_set")
+                    # The signed draft may contain an earlier validation error.
+                    # Apply corrections before validating the final assignment.
+                    draft = deepcopy(payload["question_set"])
+                old_questions = draft.get("questions", [])
+                questions = []
+                for slot in range(3):
+                    old = old_questions[slot] if slot < len(old_questions) else {}
+                    question = deepcopy(old)
+                    question.update(id=old.get("id") or secrets.token_hex(12),
+                                    topic=request.form.get(f"topic_{slot}", "").strip(),
+                                    question=request.form.get(f"question_{slot}", "").strip())
+                    if action == "load_questions" and request.form.get(f"library_question_{slot}"):
+                        selected = choices.get(request.form[f"library_question_{slot}"])
+                        if selected is None:
+                            raise ValueError("invalid_question_set")
+                        question = deepcopy(selected)
+                    questions.append(question)
+                draft.update(questions=questions, theme=request.form.get("theme", "").strip(),
+                             approved=request.form.get("approved") == "1")
+                if revision != settings["revision"]:
+                    raise ValueError("settings_changed")
+                if action == "load_set":
+                    selected = next((item for item in library if item["id"] == request.form.get("library_set")), None)
+                    if selected is None:
+                        raise ValueError("invalid_question_set")
+                    draft = deepcopy(selected["question_set"])
+                    draft["approved"] = False
+                elif action == "load_questions":
+                    draft["approved"] = False
+                elif action == "remove_exception" and uid:
+                    updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
+                    target = next(s for s in updated["sessions"] if s["id"] == session_id)
+                    target.get("participant_questions", {}).pop(uid, None)
+                    state.save_settings(updated, revision)
+                    return redirect(u("session_questions", session_id=session_id, saved="1"))
+                elif action == "save_questions":
+                    validate_question_set(draft, require_ready=draft["approved"])
+                    updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
+                    target = next(s for s in updated["sessions"] if s["id"] == session_id)
+                    if uid:
+                        target.setdefault("participant_questions", {})[uid] = draft
+                    else:
+                        target["question_set"] = draft
+                    state.save_settings(updated, revision)
+                    return redirect(u("session_questions", session_id=session_id, participant=uid or None, saved="1"))
+                else:
+                    raise ValueError("invalid_question_set")
+            except (ValueError, KeyError, BadSignature) as exc:
+                error = str(exc) if str(exc) in {"settings_changed", "questions_incomplete", "questions_unapproved"} else "invalid_question_set"
+        return page("session_questions", settings=settings, study_session=study_session,
+                    participant=uid, draft=draft, has_exception=uid in exceptions,
+                    readiness=session_readiness(settings, study_session), library=library,
+                    draft_token=signer.dumps({"session_id": session_id, "participant": uid,
+                                             "revision": revision, "question_set": draft}),
+                    form_revision=revision, error=error), 400 if error else 200
 
     @bp.get("/exports/<scope>")
     def export(scope):

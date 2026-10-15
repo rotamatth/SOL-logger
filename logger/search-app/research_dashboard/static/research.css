@@ -2133,3 +2133,7 @@ select {
     gap:12px
   }
 }
+.question-editor { display: grid; gap: 1rem; }
+.question-editor fieldset { min-width: 0; border: 1px solid var(--border, #dce2e9); border-radius: .6rem; padding: 1rem; display: grid; gap: .6rem; }
+.question-editor textarea { width: 100%; box-sizing: border-box; font: inherit; padding: .65rem; border: 1px solid #b7c3ce; border-radius: .4rem; }
+.question-editor select { max-width: 100%; }

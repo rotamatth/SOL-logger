@@ -20,6 +20,7 @@
   <details class="settings-session-item" id="{{ study_session.id }}" {% if edit_session_id == study_session.id %}open{% endif %}>
     <summary><strong>{{ t('session') }} {{ study_session.number }}</strong><span class="settings-session-name">{{ study_session.name or '' }}</span><span class="small muted">{{ study_session.date or t('date_not_set') }}</span></summary>
     <div class="settings-session-body">
+      <p><span class="badge {% if session_readiness[study_session.id].complete %}completed{% else %}incomplete{% endif %}">{{ session_readiness[study_session.id].ready }} / {{ session_readiness[study_session.id].count }} {{ t('ready_to_start') }}</span> <a href="{{ u('session_questions', session_id=study_session.id) }}">{{ t('configure_questions') }} &rarr;</a></p>
       <form class="new-session-form" method="post" action="{{ u('settings_page', section='sessions', grade=history_grade, page=history_page if history_page > 1 else None) }}">
         <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="save_session"><input type="hidden" name="session_id" value="{{ study_session.id }}">
         <div><label for="date_{{ study_session.id }}">{{ t('date') }}</label><input id="date_{{ study_session.id }}" name="date" type="date" value="{{ edit_date if error and edit_session_id == study_session.id else study_session.date }}"></div>

@@ -12,7 +12,7 @@ import sqlite3
 import stat
 import time
 
-from .state import DEFAULT_STUDY_ID, GRADES, historical_grade, identity, roster, valid_school_year
+from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
 
 MAX_LINE = 1024 * 1024
 MODULUS = 2 ** 256
@@ -301,6 +301,11 @@ class Index:
                    "log_id": meta.get("log_id") or (filename_log_id[1] if filename_log_id else None),
                    "log_id_source": "metadata" if meta.get("log_id") else "filename" if filename_log_id else None,
                    "started_at": meta.get("started_at")}
+        # Missing predates session recording; explicit null records that no session
+        # was selected. Preserve the distinction when rebuilding the file index.
+        for key in ("study_session_at_collection", "study_session_snapshot"):
+            if key in meta:
+                summary[key] = meta[key]
         detail = {**summary, "files": files, "tasks": tasks, "issues": issues,
                   "metadata": meta, "canonical_files": [f["id"] for f in canonical]}
         return summary, detail
@@ -359,6 +364,35 @@ class Index:
         return result, total
 
 
+def _study_session_for_run(run, settings, study_id, grade, issues):
+    if study_id != DEFAULT_STUDY_ID:
+        return None
+    if run["collection"] == "v2" and "study_session_at_collection" in run:
+        session_id = run["study_session_at_collection"]
+        if session_id is None:
+            return None
+        if not isinstance(session_id, str):
+            issues.append("invalid_recorded_study_session")
+            return None
+        snapshot = run.get("study_session_snapshot")
+        if snapshot is not None:
+            if (isinstance(snapshot, dict) and snapshot.get("id") == session_id
+                    and snapshot.get("grade") in GRADES
+                    and type(snapshot.get("number")) is int and 1 <= snapshot["number"] <= MAX_STUDY_SESSIONS
+                    and session_id == f"grade-{snapshot['grade']}-session-{snapshot['number']}"
+                    and isinstance(snapshot.get("name", ""), str)
+                    and isinstance(snapshot.get("theme", ""), str)
+                    and isinstance(snapshot.get("date"), str)
+                    and (not snapshot["date"] or date_of(snapshot["date"]) == snapshot["date"])):
+                return dict(snapshot)
+            issues.append("invalid_recorded_study_session_snapshot")
+        # Older sidecars recorded the ID only. A moved calendar date must not
+        # silently attach these runs to a different session.
+        return next((s for s in settings["sessions"] if s["id"] == session_id), None)
+    return next((s for s in settings["sessions"] if s["grade"] == grade
+                 and s["date"] and s["date"] == run["date"]), None)
+
+
 def classify(run, settings):
     grade, school_year, source, rule_id, current_grade = None, None, "unknown", None, None
     issues = list(run.get("issues", []))
@@ -393,9 +427,7 @@ def classify(run, settings):
                 issues.append("historical_school_year_conflict")
             elif not school_year:
                 school_year, year_source = rule["school_year"], "historical_assignment"
-    study_session = next((s for s in settings["sessions"]
-                          if study_id == DEFAULT_STUDY_ID and s["grade"] == grade
-                          and s["date"] and s["date"] == run["date"]), None)
+    study_session = _study_session_for_run(run, settings, study_id, grade, issues)
     return {**run, "study_id": study_id, "grade": grade, "study_session": study_session,
             "school_year": school_year, "grade_source": source, "historical_assignment_id": rule_id,
             "school_year_source": year_source,

@@ -1,0 +1,39 @@
+{% extends 'research/base.html' %}
+{% block content %}
+<a href="{{ u('settings_page', section='sessions', grade=study_session.grade, edit=study_session.id) }}#{{ study_session.id }}">&larr; {{ t('manage_sessions') }}</a>
+<h1>{{ t('grade_' ~ study_session.grade) }} · {{ t('session') }} {{ study_session.number }}</h1>
+<p>{{ study_session.name or '' }} · {{ study_session.date or t('date_not_set') }} · Europe/Zurich</p>
+<p class="muted">{{ t('v2_questions_hint') }}</p>
+{% if request.args.get('saved') %}<p class="notice" role="status">{{ t('questions_saved') }}</p>{% endif %}
+{% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<p><a href="{{ u('session_questions', session_id=study_session.id, participant=participant or None) }}">{{ t('reload_saved_settings') }}</a></p>{% endif %}{% endif %}
+<nav class="actions" aria-label="{{ t('question_assignment') }}"><a class="button" href="{{ u('session_questions', session_id=study_session.id) }}" {% if not participant %}aria-current="page"{% endif %}>{{ t('shared_questions') }}</a>{% if participant %}<strong>{{ t('participant') }} {{ participant }}</strong>{% endif %}</nav>
+<div class="panel">
+  <h2>{{ t('participant_exception') ~ ' · ' ~ participant if participant else t('shared_questions') }}</h2>
+  {% if participant and not has_exception %}<p class="small muted">{{ t('new_exception_hint') }}</p>{% endif %}
+  <form method="post" class="question-editor">
+    <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="draft_token" value="{{ draft_token }}">
+    <details class="technical-details"><summary>{{ t('reuse_question_set') }}</summary>
+      <label for="library-set">{{ t('question_library') }}</label><select name="library_set" id="library-set"><option value="">{{ t('choose_question_set') }}</option>{% for item in library %}<option value="{{ item.id }}">{{ item.label }}</option>{% endfor %}</select>
+      <button type="submit" name="action" value="load_set">{{ t('load_question_set') }}</button><p class="small muted">{{ t('library_load_hint') }}</p>
+    </details>
+    <label for="question-theme">{{ t('question_theme') }}</label><input id="question-theme" name="theme" value="{{ draft.get('theme', '') }}" maxlength="200">
+    {% for slot in range(3) %}{% set question = draft.questions[slot] if slot < draft.questions | length else {} %}
+    <fieldset><legend>{{ t('editable_question') }} {{ slot + 1 }}</legend>
+      <label for="topic-{{ slot }}">{{ t('question_topic') }}</label><input id="topic-{{ slot }}" name="topic_{{ slot }}" value="{{ question.get('topic', '') }}" maxlength="200">
+      <label for="question-{{ slot }}">{{ t('question_text') }}</label><textarea id="question-{{ slot }}" name="question_{{ slot }}" rows="3" maxlength="2000">{{ question.get('question', '') }}</textarea>
+      <details class="technical-details"><summary>{{ t('reuse_question') }}</summary><label for="library-question-{{ slot }}">{{ t('question_library') }}</label><select name="library_question_{{ slot }}" id="library-question-{{ slot }}"><option value="">{{ t('keep_question') }}</option>{% for item in library %}{% for previous in item.question_set.questions %}<option value="{{ item.id }}:{{ loop.index0 }}">{{ previous.topic }} · {{ previous.question }}</option>{% endfor %}{% endfor %}</select></details>
+    </fieldset>
+    {% endfor %}
+    <button type="submit" name="action" value="load_questions">{{ t('apply_question_selections') }}</button>
+    <label class="enrollment-toggle"><input type="checkbox" name="approved" value="1" {% if draft.get('approved') %}checked{% endif %}>{{ t('approve_questions') }}</label>
+    <p class="small muted">{{ t('questions_draft_hint') }}</p>
+    <div class="actions"><button class="primary" type="submit" name="action" value="save_questions">{{ t('save_questions') }}</button>{% if participant and has_exception %}<button type="submit" name="action" value="remove_exception">{{ t('use_shared_questions') }}</button>{% endif %}</div>
+  </form>
+</div>
+<div class="panel">
+  <h2>{{ t('participant_readiness') }} · {{ readiness.ready }} / {{ readiness.count }}</h2><p class="small muted">{{ t('session_readiness_hint') }}</p>
+  <div class="assignment-table-wrap"><table><thead><tr><th>{{ t('participant') }}</th><th>{{ t('question_assignment') }}</th><th>{{ t('participant_readiness') }}</th><th>{{ t('actions') }}</th></tr></thead><tbody>
+  {% for person in readiness.participants %}<tr><th scope="row">{{ person.id }}</th><td>{{ t('participant_exception') if person.source == 'participant' else t('shared_questions') }}</td><td><span class="badge {{ 'completed' if person.ready else 'incomplete' }}">{{ t('ready_to_start') if person.ready else t(person.problem) }}</span></td><td><a href="{{ u('session_questions', session_id=study_session.id, participant=person.id) }}">{{ t('edit_exception') }}</a></td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+{% endblock %}
