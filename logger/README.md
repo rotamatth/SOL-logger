@@ -14,3 +14,8 @@ Researchers can use `/dashboard` with a shared server-configured password. See
 [setup, study rules, security and export documentation](docs/research_dashboard.md).
 V2 collection writes to a fresh directory; existing logs remain available separately
 under Legacy. The research roster defaults to IDs 1–20 (4th Grade) and 21–40 (5th Grade).
+
+Prepare V2 session dates and explicitly approve three questions for each grade/session
+in **Study settings → Sessions → Configure questions**. Legacy questions remain a
+library; student eligibility uses the scheduled Zurich date and fresh assignments.
+Puzzle assets are optional.

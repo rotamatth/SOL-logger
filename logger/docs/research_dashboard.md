@@ -37,14 +37,22 @@ or reuse research access. The research pages never load the student logger.
    its name or date and save that session. Use **New session** in the same grade view
    to add a dated session with an optional name, up to 100 per grade. History shows
    ten sessions at a time, newest first, with older pages available. Dates use Europe/Zurich.
-   Unknown dates may remain blank on existing sessions. Dates can be entered after collection.
+   Prepare the three V2 sessions per grade with explicit dates; no monthly spacing is required.
+   Use **Configure questions** for each session to enter three topics/questions or explicitly
+   load previous questions from the library, edit them, and approve the assignment.
+   Blank dates and incomplete/unapproved drafts stay unavailable to students.
+   The library remains available without puzzle files. No old per-ID assignment is carried
+   into V2 Session 1. Existing extra sessions and their history remain accessible.
    3rd Grade starts without any numbered sessions. Saved historical assignments
    remain active, but their editing controls are currently hidden.
 5. Verify a test run, its question/answer association and a task/participant ZIP
-   before classroom collection. **Participant ID ranges** now controls student
-   enrollment as well as the dashboard roster. IDs 1–18 retain their original
-   assignments from `data/uids.txt` and `data/user_topics.csv`. Other IDs need a
-   question/puzzle set selected in the dashboard before they can start.
+   before classroom collection. **Participants** controls the shared roster. Its session
+   selector shows readiness for the chosen session. All IDs use that grade/session
+   shared question set unless **Set individual questions** saves an exception for that ID.
+   Removing an exception returns that ID to the shared set. A saved incomplete exception
+   blocks that participant rather than falling back to shared or legacy questions.
+   Students can start only on the configured date in Europe/Zurich; otherwise the app
+   displays **Session not available**. Missing an earlier session does not block today.
    Each child must retain the same ID across all study sessions; a tablet number
    may serve as that ID only if the assignment to the child is maintained.
 
@@ -112,8 +120,11 @@ explicitly excludes `/dashboard` and its descendants.
 
 - A **study session** is the configured grade/date classroom experiment. It is
   separate from the technical session UUID, log ID and application run.
-- Run start dates determine date assignment in Europe/Zurich. Crossing midnight
-  does not silently create a second numbered session. Every restart/run is retained;
+- New runs snapshot the explicitly selected session ID, name, date, question theme,
+  stable question IDs, wording, metadata and randomized order. Editing the calendar or
+  assignment does not change those snapshots or reclassify recorded runs. Older
+  sidecars with a session ID keep that ID; records without an ID retain date-based
+  historical classification. Crossing midnight does not change the chosen session. Every restart/run is retained;
   repeated runs appear separately and are never merged into one answer set.
 - The roster preserves exact strings, including configured prefixes and digit
   padding. `01` and `1` are different. Overlapping generated IDs and duplicate dates
@@ -252,23 +263,19 @@ which runs belong to that session. **Session history** shows ten sessions per pa
 newest first. Expand a session to edit its name or date with **Save session** or to open
 its dashboard results. Older pages keep all 100 sessions accessible. **Participants**
 opens a saved setup view with readiness counts and ten participants per page.
-**Need tasks** filters the IDs that cannot start. Choose **Edit setup** to edit only
-the selected grade's ID range and question/puzzle assignment; custom ID formatting
+**Need tasks** filters IDs whose selected session configuration is incomplete.
+Choose **Edit setup** to edit only the selected grade's ID range; custom ID formatting
 is optional. **Review changes** validates the draft without saving and opens a review
-screen showing the proposed IDs, readiness and assignment. **Back to editing** retains
+screen showing the proposed IDs and readiness for the selected session. **Back to editing** retains
 the draft; **Save changes** applies it and returns to the saved setup view.
 The other grades, school year and session calendars are preserved.
-It also identifies IDs becoming available in student login, losing access for new
-runs, or receiving different questions/rewards. Each grade's participant assignment
-list shows the exact IDs, their questions, readiness and the reason an ID cannot start.
-Choose an existing three-question/puzzle set for participants without a complete
-individual assignment, or explicitly apply that set to everyone in the grade.
-Original individual assignments remain the default. A 3rd-grade roster is optional.
-Only IDs in the saved roster with all three questions and reward assets appear in
-student login; the server rejects unavailable IDs before creating a run.
-Assignments are stored as snapshots in the shared settings database and take effect
-for new runs across workers without restarting the app. Each started student session
-keeps its questions and rewards if enrollment settings later change.
+The review identifies IDs gaining or losing a complete assignment for the selected
+session. The participant list shows exact IDs, assigned questions and any missing
+date, incomplete questions or pending approval. A 3rd-grade roster is optional.
+Student login lists roster IDs; the server checks the current Zurich date and that
+participant's approved session assignment before creating a run. Configuration is
+shared across workers without an app restart. Started runs keep their questions,
+metadata and order if settings later change.
 Removing IDs from the current roster does not delete their collected logs.
 Each save changes only its named setting, so editing a session does not change
 the year or participant ranges.
@@ -415,10 +422,79 @@ Run from the repository root in an environment with Flask, Flask-Cors, Flask-Ses
 Flask-WTF, cachelib, requests, pytest and Node installed:
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider logger/search-app/tests/test_research_dashboard.py logger/search-app/tests/test_logging_contract.py logger/search-app/tests/test_manual_logging_walkthrough.py
+python -m pytest -q logger/search-app/tests --ignore=logger/search-app/tests/test_back_navigation.py --ignore=logger/search-app/tests/test_bfcache_simulation.py
 ```
 
 Research tests use temporary synthetic data and stub the search backend when testing
 student integration. No real participant files, credentials or external searches
 are used or changed. Existing Selenium suites additionally require a running app,
 browser driver and a configured test participant.
+
+
+## Session question contract for progress saving (#6)
+
+The additive configuration keeps `schema_version: 1` and the existing append-only
+SQLite settings revisions. Each `sessions` entry may contain:
+
+```json
+{
+  "id": "grade-4-session-1",
+  "grade": "4",
+  "number": 1,
+  "date": "2026-10-15",
+  "name": "Nature",
+  "question_set": {
+    "theme": "Rivers",
+    "approved": true,
+    "metadata": {"condition": "shared"},
+    "questions": [
+      {"id": "river-name", "topic": "River names", "question": "Name a river."},
+      {"id": "river-source", "topic": "River sources", "question": "Where does it begin?"},
+      {"id": "river-mouth", "topic": "River mouths", "question": "Where does it end?"}
+    ]
+  },
+  "participant_questions": {}
+}
+```
+
+`participant_questions` maps exact participant ID strings to full question-set
+objects of the same shape. Absent exceptions inherit the shared set; an explicit
+incomplete exception never inherits it. Question IDs are stable source identities;
+`presented_number` and existing positional `topic_id` remain distinct. Optional
+set/question `metadata` objects preserve experimental conditions. Loading a legacy
+library set preserves its condition columns and source question identity; it never
+copies the old participant ID or approves the assignment automatically.
+
+Use `research_dashboard.study_config.assignment_for(settings, uid, session_id)` to
+inspect an assignment and its `ready`/`problem` fields. Use
+`scheduled_assignment(settings, uid, now=None)` for student eligibility. It returns
+only today's approved assignment in Europe/Zurich, including copied `session`,
+`question_set`, renderer `topics`, `source`, and `settings_revision`. It reads no
+process-local cache: callers obtain the latest `State.settings()` revision per
+operation. Settings saves use atomic SQLite revision checks; a stale editor must
+reload and retains its draft without overwriting another researcher's save.
+
+The authenticated editor lives at `/dashboard/settings/questions/<session_id>`;
+`?participant=<exact ID>` edits an individual exception. Library loading is an
+unsaved draft. Signed form drafts preserve selected IDs and metadata across workers.
+Only saving creates a settings revision. Approval requires three complete questions;
+puzzle media are optional and missing media use the ordinary completion controls.
+Student pages receive only their current question, never future session assignments.
+Question editor POSTs allow up to 4 MiB for signed metadata drafts; other dashboard
+forms retain their 64 KiB limit. Each metadata object remains limited to 32,000
+serialized characters and is validated before saving.
+
+New `.run.json` sidecars include `study_session_snapshot`, `question_set_snapshot`,
+`assignment_source`, stable per-task `question_id` and `question_metadata`, alongside
+the existing `tasks`, `task_order` and log identity. These snapshots are immutable.
+#6 should copy them into its durable attempt records at START; #15's authorized
+reset/repeat must reuse the source attempt's original snapshot/order instead of
+resolving the latest settings. Durable resume, repeat authorization and completion
+gating belong to #6/#15 and are not supplied by this configuration change.
+
+Issue #14 validation: 212 automated tests passed, including settings races, stale
+and tampered drafts, library provenance, metadata boundaries, student flow,
+historical snapshots and existing logging contracts. The offline checker reported
+no warnings on synthetic FULL/per-task logs from complete three-question runs.
+The editor and readiness were also checked in a browser using synthetic data.
+The two pre-existing Selenium suites were not run; external search was stubbed.

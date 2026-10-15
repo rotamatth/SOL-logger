@@ -65,6 +65,41 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-15 — Configure dated V2 session questions and participant exceptions
+
+**Type:** feature · **Area:** session, task-flow, reward, logging, data, docs, tests
+
+**Files**
+- `search-app/research_dashboard/study_config.py`, `state.py`, `student_config.py` — question sets, approval, readiness and legacy metadata library.
+- `search-app/research_dashboard/__init__.py`, templates and styles — shared/individual editors and session readiness.
+- `search-app/search_app.py`, reward/end templates — dated access and completion without puzzle media.
+- `search-app/research_dashboard/collection.py`, `index.py` — immutable question/session metadata and historical grouping.
+- Configuration, editor, student, history and metadata tests; setup instructions.
+
+**What changed for the participant**
+Only today's configured Zurich session can start, using approved shared questions
+or an individual exception. Missing an earlier session does not block today. Puzzle
+files are optional. Unavailable sessions show “Session not available”.
+
+**How it works**
+Fresh assignments live inside append-only SQLite settings revisions. The editor
+keeps imported IDs and experiment metadata in signed drafts. New runs snapshot
+questions, session identity and randomized order; edits apply to new runs.
+
+**If something looks wrong after this, check**
+- Student cannot start → session date, exact roster ID, approval and three complete questions.
+- Interest condition differs → selected library variant and saved metadata.
+- Old session label differs → recorded sidecar snapshot and index refresh.
+
+**Left alone**
+Search retrieval, interaction event formats, authentication, archived source logs
+and school-year rules. Durable progress and authorized repeat/reset remain #6/#15.
+
+**Verified**
+Automated tests use isolated synthetic settings/logs and stub search. Browser checks
+cover the editor and readiness. Existing Selenium back/BFCache suites require their
+separate live-app/browser environment.
+
 ## 2026-09-18 — Search bar: external clear button + instant search on suggestion pick
 
 **Commit:** `cdac79f` · **Type:** feature · **Area:** search-bar, autocomplete, styling, logging, infra
