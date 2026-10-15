@@ -1,14 +1,19 @@
 {% extends "layout.html" %}
-{% block title %}Pezzo sbloccato{% endblock %}
+{% block title %}{% if unlocked_piece %}Pezzo sbloccato{% else %}Domanda completata{% endif %}{% endblock %}
 {% block content %}
 
 <div class="app-page reward-page">
     <div class="app-toolbar"></div>
     <section class="app-panel reward-panel">
         <div class="reward-copy">
+            {% if unlocked_piece %}
             <h2>Avete sbloccato {% if is_last %}l'{{ unlocked_piece.label }}{% else %}il {{ unlocked_piece.label }}{% endif %} pezzo del puzzle!</h2>
+            {% else %}
+            <h2>Avete completato la domanda {{ task_number }}!</h2>
+            {% endif %}
         </div>
 
+        {% if unlocked_piece %}
         <div class="reward-media-stage">
             <img src="{{ url_for('static', filename=unlocked_piece.static_filename) }}"
                  alt="Pezzo puzzle {{ unlocked_piece.task_num }}"
@@ -19,15 +24,16 @@
                 <div class="sol-loader__text">Caricamento…</div>
             </div>
         </div>
+        {% endif %}
 
         <div class="reward-actions">
         {% if is_last %}
-        <p>Continuate per vedere tutto il puzzle completo</p>
+        <p>{% if unlocked_piece %}Continuate per vedere tutto il puzzle completo{% else %}Avete risposto a tutte le domande. Continuate per salvare la sessione.{% endif %}</p>
         <a href="{{ url_for('thank_you') }}" class="app-btn app-btn-primary reward-final-btn">
             Continua
         </a>
         {% else %}
-        <p>Scoprite gli altri pezzi rispondendo alle prossime domande.</p>
+        <p>{% if unlocked_piece %}Scoprite gli altri pezzi rispondendo alle prossime domande.{% else %}Continuate con la prossima domanda.{% endif %}</p>
         <a href="{{ url_for('next_task') }}" id="continue-btn" class="app-btn app-btn-primary reward-continue-btn">
             Prossima domanda
         </a>

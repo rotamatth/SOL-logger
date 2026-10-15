@@ -8,6 +8,7 @@ import ipaddress
 import search_backend
 import uuid
 import random
+from copy import deepcopy
 import traceback
 import sqlite3
 from time import time
@@ -22,7 +23,8 @@ from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 from research_dashboard import init_dashboard
 from research_dashboard.collection import record_run
-from research_dashboard.student_config import eligible_students
+from research_dashboard.state import roster
+from research_dashboard.study_config import scheduled_assignment
 
 app = Flask(__name__)
 
@@ -225,12 +227,26 @@ def render_puzzle_config_error(message):
 def get_user_config(user_id):
     user = session.get('task_config') if session.get('user_id') == user_id else None
     if not user:
-        user = eligible_students(app, RESEARCH_STATE.settings()).get(user_id)
+        assignment = scheduled_assignment(RESEARCH_STATE.settings(), user_id)
+        user = assignment['topics'] if assignment else None
     if not user:
         raise PuzzleConfigError(
             f"No complete student task assignment found for user '{user_id}'."
         )
     return user
+
+
+def optional_reward_asset(user_id, field, allow_video=False):
+    """A question set can be collected without a puzzle or other reward media."""
+    user = get_user_config(user_id)
+    filename = user.get(field, '').strip()
+    allowed = ('.gif', '.mp4') if allow_video else ('.gif',)
+    if (not filename or os.path.basename(filename) != filename
+            or not filename.lower().endswith(allowed)):
+        return None
+    if not os.path.isfile(os.path.join(app.static_folder, PUZZLE_ASSET_DIR, filename)):
+        return None
+    return f'{PUZZLE_ASSET_DIR}/{filename}'
 
 def validate_reward_asset(user_id, csv_field, allow_video=False):
     user = get_user_config(user_id)
@@ -327,16 +343,21 @@ def search_page():
 @app.route('/start', methods=['GET', 'POST'])
 def start_page():
     enrollment_settings = RESEARCH_STATE.settings()
-    student_configs = eligible_students(app, enrollment_settings)
-    val_ids = list(student_configs)
+    val_ids = list(roster(enrollment_settings))
     if request.method == 'POST':
         user_id = request.form.get('user_id')
-        if user_id not in student_configs:
+        assignment = scheduled_assignment(enrollment_settings, user_id)
+        if assignment is None:
             return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                   start_error="Questo ID non è disponibile. Chiedi al ricercatore di controllare l'assegnazione dei compiti."), 400
+                                   start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare la data e le domande."), 400
         session.clear()
         session['user_id'] = user_id
-        session['task_config'] = dict(student_configs[user_id])
+        session['task_config'] = deepcopy(assignment['topics'])
+        session['question_set'] = deepcopy(assignment['question_set'])
+        session['study_session'] = {key: deepcopy(assignment['session'][key])
+                                    for key in ('id', 'name', 'date', 'theme', 'grade', 'number')
+                                    if key in assignment['session']}
+        session['assignment_source'] = assignment['source']
         session['session_id'] = str(uuid.uuid4())
         session['log_id'] = generate_log_id()
         session['pieces_earned'] = []
@@ -349,7 +370,10 @@ def start_page():
         try:
             record_run(LOG_DIR, RESEARCH_STATE, user_id, session['session_id'],
                        session['log_id'], session['task_order'], session['task_config'],
-                       settings=enrollment_settings)
+                       settings=enrollment_settings,
+                       study_session=session['study_session'],
+                       question_set=session['question_set'],
+                       assignment_source=session['assignment_source'])
         except (OSError, ValueError, sqlite3.Error):
             # Research metadata failure must not discard student interaction logs.
             app.logger.warning("Could not record research run metadata", exc_info=True)
@@ -953,10 +977,12 @@ def reward():
     display_task_number = session.get("task_position", 0) + 1
     reward_log_key = f"{display_task_number}:{task_number}"
     reward_shown_logged = session.get('reward_shown_logged', [])
-    try:
-        unlocked_piece = get_unlocked_piece(user_id, task_number, display_task_number)
-    except PuzzleConfigError as err:
-        return render_puzzle_config_error(str(err))
+    reward_asset = optional_reward_asset(user_id, f'{task_number}_gif')
+    unlocked_piece = None
+    if reward_asset:
+        unlocked_piece = {'task_num': task_number,
+                          'label': {1: 'primo', 2: 'secondo', 3: 'ultimo'}.get(display_task_number, str(display_task_number)),
+                          'static_filename': reward_asset}
 
     log_id = session.get('log_id')
     if log_id and user_id and reward_log_key not in reward_shown_logged:
@@ -1003,10 +1029,7 @@ def thank_you():
     user_id = session.get('user_id')
     pieces = session.get('pieces_earned', [])
     total_tasks = get_total_tasks(user_id)
-    try:
-        full_puzzle_static_filename = validate_reward_asset(user_id, 'full_gif', allow_video=True)
-    except PuzzleConfigError as err:
-        return render_puzzle_config_error(str(err))
+    full_puzzle_static_filename = optional_reward_asset(user_id, 'full_gif', allow_video=True)
     # Don't clear session yet — the "Finish Experiment" button needs
     # user_id/task_number to send final logs via /log_session.
     # Session will be cleared client-side via clearClientData().

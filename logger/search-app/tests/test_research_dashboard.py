@@ -550,6 +550,9 @@ def test_deeply_nested_and_oversized_bad_lines_do_not_hide_other_runs(app):
 
 
 def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
     # Real Flask routes and logger, with external search calls replaced by a stub.
     monkeypatch.chdir(APP_ROOT)
     monkeypatch.setenv("SOL_LOG_DIR", str(tmp_path / "v2"))
@@ -571,6 +574,15 @@ def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monke
     module.app.config["RESEARCH_PASSWORD_HASH"] = generate_password_hash(PASSWORD, method="pbkdf2:sha256:1000")
     client = module.app.test_client()
     login(client)
+    settings = module.RESEARCH_STATE.settings()
+    study_session = next(item for item in settings["sessions"] if item["id"] == "grade-4-session-1")
+    study_session.update(date=datetime.now(ZoneInfo("Europe/Zurich")).date().isoformat(),
+                         question_set={"approved": True, "questions": [
+                             {"id": f"explicit-{number}",
+                              "topic": module.USER_TOPICS["1"][f"{number}_short"],
+                              "question": module.USER_TOPICS["1"][f"{number}_full"]}
+                             for number in range(1, 4)]})
+    module.RESEARCH_STATE.save_settings(settings, settings["revision"])
     assert client.post("/start", data={"user_id":"1"}).status_code == 302
     assert client.get("/dashboard").status_code == 200
     assert client.get("/task").status_code == 200
@@ -584,6 +596,8 @@ def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monke
     assert (root / response.json["combined_file"]).read_bytes() == (root / response.json["task_file"]).read_bytes()
     metadata = json.loads(next(root.glob("*.run.json")).read_text())
     assert metadata["tasks"][0]["question"] == module.USER_TOPICS["1"][f"{topic}_full"]
+    assert metadata["tasks"][0]["question_id"] == f"explicit-{topic}"
+    assert metadata["study_session_at_collection"] == "grade-4-session-1"
     assert metadata["git_commit"] == "integration-commit"
     assert client.get("/welcome?reset=1").status_code == 200
     assert client.get("/dashboard").status_code == 200
