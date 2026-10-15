@@ -10,6 +10,7 @@ import sqlite3
 import time
 
 from .student_config import validate_topics
+from .study_config import validate_question_set
 
 MAX_STUDY_SESSIONS = 100
 DEFAULT_STUDY_ID = "sol-longitudinal"
@@ -124,6 +125,16 @@ def validate_settings(value):
             raise ValueError("invalid_sessions")
         if normalize_session_name(s.get("name", "")) != s.get("name", ""):
             raise ValueError("invalid_session_name")
+        if "question_set" in s:
+            validate_question_set(s["question_set"])
+        if "participant_questions" in s:
+            overrides = s["participant_questions"]
+            if (not isinstance(overrides, dict) or len(overrides) > 3000
+                    or any(not isinstance(uid, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", uid)
+                           for uid in overrides)):
+                raise ValueError("invalid_participant_questions")
+            for question_set in overrides.values():
+                validate_question_set(question_set)
         if not isinstance(s.get("date"), str):
             raise ValueError("invalid_date")
         if s["date"]:
