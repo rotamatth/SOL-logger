@@ -58,7 +58,7 @@
       </div>{% endif %}
     </div>
     {% include 'research/overview_table.html' %}
-    <div class="dashboard-table-footer"><span>{{ t('dashboard_saved_hint') }}</span>{% if is_roster_view %}<div class="dashboard-settings-links"><a href="{{ u('settings_page', section='participants', grade=grade if grade in grades else None) }}">{{ t('manage_participants') }}</a><a href="{{ u('settings_page', section='sessions', grade=grade if grade in grades else None) }}#session-history">{{ t('session_history') }}</a><a href="{{ u('settings_page', section='sessions', grade=grade if grade in grades else None, new='1') }}#new-session">+ {{ t('new_session') }}</a></div>{% endif %}</div>
+    <div class="dashboard-table-footer"><span>{{ t('dashboard_saved_hint') }}</span>{% if is_roster_view %}<div class="dashboard-settings-links"><a href="{{ u('enrollment_page', grade=grade if grade in grades else None) }}">{{ t('manage_participants') }}</a><a href="{{ u('settings_page', section='sessions', grade=grade if grade in grades else None) }}#session-history">{{ t('session_history') }}</a><a href="{{ u('settings_page', section='sessions', grade=grade if grade in grades else None, new='1') }}#new-session">+ {{ t('new_session') }}</a></div>{% endif %}</div>
   </section>
   {% if unidentified %}<details class="panel dashboard-unidentified"><summary>{{ t('unidentified') }} <span class="count">{{ unidentified|length }}</span></summary><div>{% for run in unidentified %}<p><a href="{{ u('run_detail', key=run.id) }}">{{ t('run') }} {{ run.id[:12] }}</a> · {{ run.date or '—' }} · <span class="badge unknown">{{ t(run.status) }}</span></p>{% endfor %}</div></details>{% endif %}
 </div>

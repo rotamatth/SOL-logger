@@ -106,7 +106,7 @@ def test_overview_keeps_visualization_selection_and_grade_downloads_without_filt
     assert all(f'form="{form_id}"' in checkbox and 'name="participant"' in checkbox
                and "disabled" not in checkbox for checkbox in checkboxes)
     assert {re.search(r'value="([^"]+)"', checkbox).group(1) for checkbox in checkboxes} == {
-        "v2:" + identity("1"), "v2:" + identity("2")}
+        "study:" + identity("1"), "study:" + identity("2")}
     for row in re.findall(r"<tr>(.*?)</tr>", response.text, re.S):
         if 'type="checkbox"' not in row:
             continue
@@ -138,7 +138,7 @@ def test_multiple_selected_participants_download_only_their_logs_and_keep_origin
     assert {name: fields[name] for name in ("collection", "grade", "school_year", "session")} == {
         "collection": "study", "grade": "4", "school_year": "2026/2027", "session": "grade-4-session-1"}
     assert not {"q", "status"}.intersection(fields)
-    fields.update(mode="selected", participant=["v2:" + identity("1"), "v2:" + identity("11")])
+    fields.update(mode="selected", participant=["study:" + identity("1"), "study:" + identity("11")])
     selected_zip, selected = archive(client.post("/dashboard/exports/selection", data=fields))
     assert {run["run_id"] for run in selected["runs"]} == {first, eleventh}
     assert selected["selection"] == {
@@ -168,11 +168,11 @@ def test_obsolete_filter_fields_do_not_narrow_or_reject_exports(app, mode):
     client = app.test_client()
     login(client)
     form = {"csrf": csrf(client.get("/dashboard")), "collection": "study", "grade": "4",
-            "mode": mode, "participant": "v2:" + identity("2"), "q": "2026", "status": "obsolete"}
+            "mode": mode, "participant": "study:" + identity("2"), "q": "2026", "status": "obsolete"}
     _, manifest = archive(client.post("/dashboard/exports/selection", data=form))
     assert {run["run_id"] for run in manifest["runs"]} == ({second} if mode == "selected" else {first, second})
     assert not {"q", "status"}.intersection(manifest["selection"])
-    form.update(mode="selected", participant="v2:" + identity("21"))
+    form.update(mode="selected", participant="study:" + identity("21"))
     assert client.post("/dashboard/exports/selection", data=form).status_code == 400
 
 

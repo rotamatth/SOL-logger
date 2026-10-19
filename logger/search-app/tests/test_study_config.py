@@ -5,6 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 import sys
 
+from .enrollment_helpers import enroll_initial_roster, school_year
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -24,14 +26,14 @@ def question_set(theme="New theme", approved=True):
 
 
 def configured_settings():
-    settings = default_settings()
+    settings = enroll_initial_roster(default_settings())
     settings["revision"] = 9
     settings["sessions"][0].update(date="2026-10-15", question_set=question_set())
     return settings
 
 
 def test_existing_settings_and_legacy_range_assignment_create_no_session_questions():
-    settings = default_settings()
+    settings = enroll_initial_roster(default_settings())
     old_topics = {f"{number}_{field}": f"old {field}" for number in range(1, 4)
                   for field in ("short", "full", "gif")}
     for number in range(1, 4):
@@ -185,6 +187,7 @@ def test_additive_settings_roundtrip_preserves_hundred_sessions_and_history(tmp_
                             for grade in ("4", "5") for number in range(1, 101)]
     settings["sessions"][99].update(date="2026-10-15", question_set=question_set())
     settings["sessions"][99]["participant_questions"] = {"1": question_set("Individual")}
+    enroll_initial_roster(settings)
     state.save_settings(settings, settings["revision"])
     saved = state.settings()
     assert saved["schema_version"] == 1 and len(saved["sessions"]) == 200

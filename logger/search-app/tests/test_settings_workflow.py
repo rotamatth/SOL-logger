@@ -46,7 +46,7 @@ def test_participant_view_has_no_setup_fields_and_filters_missing_tasks(app):
     view = participant_section(client.get("/dashboard/settings?section=participants&grade=4"))
     assert "Edit setup" in view and "first number" not in view.lower()
     assert 'name="4_start"' not in view and 'name="4_task_set"' not in view
-    assert "Session date missing" in view
+    assert "Session school year missing" in view
     state = app.extensions["research"]["state"]
     settings = configure_session_questions(app, grades=("4",))
     settings["sessions"][0]["participant_questions"] = {

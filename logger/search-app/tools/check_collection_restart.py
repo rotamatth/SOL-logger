@@ -34,9 +34,11 @@ def seed(root):
     root.mkdir(mode=0o700)
     module = load_app(root)
     settings = module.RESEARCH_STATE.settings()
-    settings["current_school_year"] = "2026/2027"
-    settings["sessions"][0].update(
-        date=datetime.now(ZoneInfo("Europe/Zurich")).date().isoformat(),
+    today = datetime.now(ZoneInfo("Europe/Zurich")).date()
+    start_year = today.year if today.month >= 9 else today.year - 1
+    settings["current_school_year"] = f"{start_year}/{start_year + 1}"
+    settings["sessions"][0].update(school_year=settings["current_school_year"],
+        date=today.isoformat(),
         question_set={"approved": True, "questions": [
             {"id": f"synthetic-{n}", "topic": f"Test topic {n}", "question": f"Test question {n}"}
             for n in range(1, 4)]})
@@ -54,7 +56,9 @@ def seed(root):
     assert client.get("/next_task").status_code == 302
     evidence = {"cookie": client.get_cookie("session").value, "body": body,
                 "receipt": response.json, "questions": questions,
-                "snapshot": module.RESEARCH_STATE.attempt_metadata(sid)}
+                "snapshot": module.RESEARCH_STATE.attempt_metadata(sid),
+                "registry": module.RESEARCH_STATE.settings()["participant_registry"],
+                "enrollments": module.RESEARCH_STATE.settings()["enrollments"]}
     (root / "research-state/synthetic-restart.json").write_text(json.dumps(evidence))
     (root / "research-state/synthetic-restart.json").chmod(0o600)
 
@@ -70,6 +74,10 @@ def verify(root):
         assert active["task_position"] == 1
     assert client.post("/log_session", json=evidence["body"]).json == evidence["receipt"]
     assert module.RESEARCH_STATE.attempt_metadata(evidence["body"]["session_id"]) == evidence["snapshot"]
+    settings = module.RESEARCH_STATE.settings()
+    assert settings["participant_registry"] == evidence["registry"]
+    assert settings["enrollments"] == evidence["enrollments"]
+    assert evidence["snapshot"]["participant_key"] == settings["participant_registry"]["1"]["key"]
     records = [json.loads(line) for line in next((root / "logs-v2").glob("*_FULL.log")).read_text().splitlines()]
     assert len([entry for entry in records if entry["type"] == "TaskEnded"]) == 1
     assert not list((root / "logs-v2").glob("*_task2_*.log"))

@@ -22,6 +22,7 @@ from forms import SearchForm
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
+from research_dashboard.participants import participant_sort_key
 from research_dashboard import init_dashboard
 from research_dashboard.collection import record_run, publish_metadata
 from research_dashboard.log_store import LogStore, UploadConflict
@@ -373,20 +374,20 @@ def search_page():
 @app.route('/start', methods=['GET', 'POST'])
 def start_page():
     enrollment_settings = RESEARCH_STATE.settings()
-    val_ids = list(roster(enrollment_settings))
+    val_ids = sorted((uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']), key=participant_sort_key)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         assignment = scheduled_assignment(enrollment_settings, user_id)
         if assignment is None:
             return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                   start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare la data e le domande."), 400
+                                   start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
         previous_session = dict(session)
         session.clear()
         session['user_id'] = user_id
         session['task_config'] = deepcopy(assignment['topics'])
         session['question_set'] = deepcopy(assignment['question_set'])
         session['study_session'] = {key: deepcopy(assignment['session'][key])
-                                    for key in ('id', 'name', 'date', 'theme', 'grade', 'number')
+                                    for key in ('id', 'name', 'date', 'theme', 'grade', 'number', 'school_year')
                                     if key in assignment['session']}
         session['assignment_source'] = assignment['source']
         session['session_id'] = str(uuid.uuid4())

@@ -1,3 +1,4 @@
+<p class="notice"><a href="{{ u('enrollment_page',grade=history_grade) }}">{{ t('permanent_participants') }} &rarr;</a> {{ t('range_editor_hint') }}</p>
 <div class="settings-section-heading settings-heading-row">
   <div><h2>{{ t('grade_' ~ history_grade) }}</h2><p class="muted">{{ t('participants_workspace_hint') if participants_mode == 'view' else t('edit_participants_hint') }}</p></div>
   {% if participants_mode == 'view' and selected_summary %}<a class="button primary" href="{{ u('settings_page', section='participants', grade=history_grade, edit_participants='1', participant_session=participant_session.id if participant_session else None) }}">{{ t('edit_participant_setup') }}</a>{% endif %}

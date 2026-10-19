@@ -11,10 +11,11 @@ import time
 
 from .student_config import validate_topics
 from .study_config import validate_question_set
+from . import participants as identities
+from .participants import GRADES, roster, valid_school_year
 
 MAX_STUDY_SESSIONS = 100
 DEFAULT_STUDY_ID = "sol-longitudinal"
-GRADES = ("3", "4", "5")
 SETTING_FIELDS = ("schema_version", "ranges", "sessions", "historical_grades", "current_school_year")
 
 
@@ -43,13 +44,6 @@ def default_settings():
     }
 
 
-def roster(settings):
-    return {
-        rule["prefix"] + str(n).zfill(rule["width"]): rule["grade"]
-        for rule in settings["ranges"]
-        for n in range(rule["start"], rule["end"] + 1)
-    }
-
 def participant_matches(rule, uid):
     if not isinstance(uid, str) or not uid.startswith(rule["prefix"]):
         return False
@@ -66,11 +60,6 @@ def historical_grade(settings, collection, uid, study_date):
     return next((rule for rule in settings.get("historical_grades", [])
                  if rule["collection"] == collection and rule["date_from"] <= study_date <= rule["date_to"]
                  and participant_matches(rule, uid)), None)
-
-
-def valid_school_year(value):
-    return (isinstance(value, str) and bool(re.fullmatch(r"[0-9]{4}/[0-9]{4}", value))
-            and 1 <= int(value[:4]) < 9999 and int(value[5:]) == int(value[:4]) + 1)
 
 
 def normalize_session_name(value):
@@ -123,6 +112,8 @@ def validate_settings(value):
         numbers[s["grade"]].add(s["number"])
         if s.get("id") != f"grade-{s['grade']}-session-{s['number']}":
             raise ValueError("invalid_sessions")
+        if s.get("school_year") and not valid_school_year(s["school_year"]):
+            raise ValueError("invalid_school_year")
         if type(s.get("removed", False)) is not bool:
             raise ValueError("invalid_sessions")
         if normalize_session_name(s.get("name", "")) != s.get("name", ""):
@@ -145,6 +136,8 @@ def validate_settings(value):
                     raise ValueError()
             except ValueError:
                 raise ValueError("invalid_date") from None
+            if s.get("school_year") and not identities.year_contains(s["school_year"], s["date"]):
+                raise ValueError("session_year_mismatch")
             key = (s["grade"], s["date"])
             if not s.get("removed") and key in dates:
                 raise ValueError("overlapping_dates")
@@ -208,31 +201,49 @@ class State:
                     published INTEGER NOT NULL DEFAULT 0);
                 CREATE INDEX IF NOT EXISTS study_attempt_session ON study_attempts(study_session_id);
             """)
-            if db.execute("PRAGMA user_version").fetchone()[0] > 1:
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            if version > identities.SCHEMA_VERSION:
                 raise RuntimeError("Research database requires a newer application version")
-            db.execute("PRAGMA user_version=1")
             if not db.execute("SELECT 1 FROM settings LIMIT 1").fetchone():
                 db.execute("INSERT INTO settings(updated_at, body) VALUES (?, ?)",
                            (utc_now(), json.dumps(default_settings())))
+            if version < 2:
+                latest = json.loads(db.execute("SELECT body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()[0])
+                identities.migrate(db, latest)
+                for item in latest["sessions"]:
+                    item["school_year"] = self._initial_session_year(item, latest)
+                db.execute("INSERT INTO settings(updated_at, body) VALUES (?,?)", (utc_now(), json.dumps(latest)))
+            db.execute("PRAGMA user_version=2")
         self.path.chmod(0o600)
 
     @contextmanager
     def connect(self):
         db = sqlite3.connect(self.path, timeout=30)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys=ON")
         try:
             with db:
                 yield db
         finally:
             db.close()
 
+    @staticmethod
+    def _initial_session_year(item, settings):
+        year = settings.get("current_school_year", "")
+        return year if year and (not item.get("date") or identities.year_contains(year, item["date"])) else ""
+
     def settings(self):
         with self.connect() as db:
+            db.execute("BEGIN")
             row = db.execute("SELECT * FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
-        value = validate_settings(json.loads(row["body"]))
-        return {**value, "revision": row["revision"], "updated_at": row["updated_at"]}
+            value = validate_settings(json.loads(row["body"]))
+            registry = identities.projection(db)
+        return {**value, **registry, "revision": row["revision"], "updated_at": row["updated_at"]}
 
     def save_settings(self, value, expected_revision):
+        value = json.loads(json.dumps({key: value[key] for key in SETTING_FIELDS}))
+        for item in value["sessions"]:
+            item.setdefault("school_year", self._initial_session_year(item, value))
         value = validate_settings(value)
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -240,13 +251,64 @@ class State:
             if revision != expected_revision:
                 raise ValueError("settings_changed")
             previous = json.loads(db.execute("SELECT body FROM settings WHERE revision=?", (revision,)).fetchone()[0])
+            if previous.get("current_school_year") and not value.get("current_school_year"):
+                raise ValueError("school_year_required")
             removed_before = {item["id"] for item in previous["sessions"] if item.get("removed")}
+            previous_sessions = {item["id"]: item for item in previous["sessions"]}
             for item in value["sessions"]:
+                prior = previous_sessions.get(item["id"], {})
+                if prior.get("school_year") != item.get("school_year"):
+                    if db.execute("SELECT 1 FROM study_attempts WHERE study_session_id=? LIMIT 1", (item["id"],)).fetchone():
+                        raise ValueError("session_has_records")
                 if item.get("removed") and item["id"] not in removed_before:
                     if db.execute("SELECT 1 FROM study_attempts WHERE study_session_id=? LIMIT 1", (item["id"],)).fetchone():
                         raise ValueError("session_has_records")
-            db.execute("INSERT INTO settings(updated_at, body) VALUES (?, ?)",
-                       (utc_now(), json.dumps(value)))
+            saved = db.execute("INSERT INTO settings(updated_at, body) VALUES (?, ?)",
+                               (utc_now(), json.dumps(value))).lastrowid
+            identities.sync_range_edits(db, previous, value, saved)
+
+    def change_participants(self, operation, arguments, expected_revision, *, dry_run=False):
+        """The public write boundary for enrollment and reviewed identity links."""
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
+            if row["revision"] != expected_revision:
+                raise ValueError("settings_changed")
+            settings = json.loads(row["body"])
+            projected = {**settings, **identities.projection(db)}
+            if operation == "promote":
+                settings["current_school_year"] = arguments["target_year"]
+            revision = db.execute("INSERT INTO settings(updated_at,body) VALUES (?,?)",
+                                  (utc_now(), json.dumps(settings))).lastrowid
+            if operation == "add":
+                details = identities.add_participants(db, **arguments)
+            elif operation == "update":
+                details = identities.update_participant(db, **arguments)
+            elif operation == "promote":
+                details = identities.promote(db, projected, **arguments)
+            elif operation == "link":
+                details = identities.link_legacy(db, **arguments, revision=revision)
+            elif operation == "unlink":
+                link = db.execute("SELECT * FROM participant_links WHERE id=? AND revoked_at IS NULL",
+                                  (arguments["link_id"],)).fetchone()
+                if not link:
+                    raise ValueError("invalid_identity_link")
+                details = dict(link)
+                db.execute("UPDATE participant_links SET revoked_at=? WHERE id=?", (utc_now(), link["id"]))
+            else:
+                raise ValueError("invalid_enrollment")
+            identities.audit(db, revision, operation, details)
+            if dry_run:
+                db.rollback()
+        return details
+
+    def participant_changes(self, limit=20):
+        """Recent audit headers for the researcher view; full details remain in SQLite."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("invalid_audit_limit")
+        with self.connect() as db:
+            return [dict(row) for row in db.execute(
+                "SELECT revision,at,operation FROM participant_audit ORDER BY id DESC LIMIT ?", (limit,))]
 
     def admit_attempt(self, metadata):
         """Serialize eligibility and immutable attempt creation with settings edits."""
@@ -256,10 +318,15 @@ class State:
             row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
             if row["revision"] != metadata["settings_revision_at_collection"]:
                 raise ValueError("settings_changed")
-            configuration = json.loads(row["body"])
+            configuration = {**json.loads(row["body"]), **identities.projection(db)}
             selected = scheduled_assignment(configuration, metadata["participant_id"])
             if not selected or selected["session"]["id"] != metadata["study_session_at_collection"]:
                 raise ValueError("session_unavailable")
+            context = selected.get("enrollment")
+            if not context or any(metadata.get(key) != context[field] for key, field in (
+                    ("participant_key", "participant_key"), ("enrollment_id", "enrollment_id"),
+                    ("school_year_at_collection", "school_year"), ("grade_at_collection", "grade"))):
+                raise ValueError("invalid_enrollment")
             db.execute("""INSERT INTO study_attempts
                        (technical_session_id,study_session_id,participant_id,metadata,published)
                        VALUES (?,?,?,?,0)""",
@@ -279,7 +346,7 @@ class State:
         with self.connect() as db:
             db.execute("UPDATE study_attempts SET published=1 WHERE technical_session_id=?", (technical_session_id,))
 
-    def add_study_session(self, grade, study_date, expected_revision, name=""):
+    def add_study_session(self, grade, study_date, expected_revision, name="", school_year=None):
         current = self.settings()
         if current["revision"] != expected_revision:
             raise ValueError("settings_changed")
@@ -291,7 +358,10 @@ class State:
         if not study_date:
             raise ValueError("invalid_date")
         study_session = {"id": f"grade-{grade}-session-{number}", "grade": grade,
-                         "number": number, "date": study_date, "name": normalize_session_name(name)}
+                         "number": number, "date": study_date, "name": normalize_session_name(name),
+                         "school_year": current.get("current_school_year", "") if school_year is None else school_year}
+        if not valid_school_year(study_session["school_year"]):
+            raise ValueError("school_year_required")
         current["sessions"].append(study_session)
         self.save_settings({key: current[key] for key in SETTING_FIELDS}, expected_revision)
         return study_session

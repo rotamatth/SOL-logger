@@ -367,6 +367,133 @@ TEXT = {
 }
 
 
+TEXT.update({'op_initial_enrollment': ('Confirm initial school-year enrollment',
+                           'Conferma delle iscrizioni al primo anno scolastico'),
+ 'range_editor_retired': ('Use the permanent register to edit annual enrollments. Initial ranges cannot be '
+                          'changed after multiple school years are recorded.',
+                          'Usa il registro permanente per modificare le iscrizioni annuali. Gli intervalli '
+                          'iniziali non possono essere modificati dopo aver registrato più anni scolastici.'),
+ 'permanent_participants': ('Permanent participants', 'Partecipanti permanenti'),
+ 'participant_registry': ('Participant register', 'Registro dei partecipanti'),
+ 'permanent_ids_hint': ('Each ID belongs to one child for the whole study. Enrollment records the grade for '
+                        'each school year. IDs are never reassigned.',
+                        'Ogni ID appartiene a un solo bambino per tutto lo studio. L’iscrizione registra la '
+                        'classe per ogni anno scolastico. Gli ID non vengono mai riassegnati.'),
+ 'promote_year': ('Prepare the next school year', 'Prepara il prossimo anno scolastico'),
+ 'legacy_identity_links': ('Link historical records', 'Collega i dati storici'),
+ 'review_enrollment': ('Review changes', 'Rivedi le modifiche'),
+ 'confirm_enrollment': ('Confirm these changes', 'Conferma queste modifiche'),
+ 'enrollment_saved': ('Participant changes saved. Previous records and started attempts are preserved.',
+                      'Modifiche ai partecipanti salvate. I dati precedenti e i tentativi già iniziati sono '
+                      'conservati.'),
+ 'promotion_hint': ('Review promotion from grade 3 to 4 and 4 to 5. Grade 5 IDs remain reserved without '
+                    'enrollment in the next year. Confirmation selects the next year for planning; earlier '
+                    'enrollments and sessions keep their own year.',
+                    'Rivedi il passaggio dalla terza alla quarta e dalla quarta alla quinta. Gli ID della '
+                    'quinta restano riservati senza iscrizione nell’anno successivo. La conferma seleziona '
+                    'il nuovo anno per la pianificazione; iscrizioni e sessioni precedenti mantengono il '
+                    'proprio anno.'),
+ 'inactive_hint': ('Inactive participants cannot start new attempts. Their ID, previous enrollments and '
+                   'records remain available. Reactivate only for the same child. Started attempts retain '
+                   'their original setup.',
+                   'I partecipanti non attivi non possono iniziare nuovi tentativi. L’ID, le iscrizioni e i '
+                   'dati precedenti restano disponibili. Riattiva solo per lo stesso bambino. I tentativi '
+                   'iniziati mantengono la configurazione originale.'),
+ 'legacy_link_hint': ('Confirm identity using your study register. Equal numbers alone do not identify the '
+                      'same child. Links apply only to the selected dates and can be revoked; original files '
+                      'and source IDs are preserved.',
+                      'Conferma l’identità usando il registro dello studio. Numeri uguali da soli non '
+                      'identificano lo stesso bambino. I collegamenti valgono solo per le date scelte e '
+                      'possono essere revocati; i file e gli ID originali vengono conservati.'),
+ 'from_grade': ('Previous grade', 'Classe precedente'),
+ 'to_grade': ('Next grade', 'Classe successiva'),
+ 'no_next_enrollment': ('ID retained; no next-year enrollment',
+                        'ID conservato; nessuna iscrizione al nuovo anno'),
+ 'active': ('Active', 'Attivo'),
+ 'inactive': ('Inactive', 'Non attivo'),
+ 'not_enrolled': ('Not enrolled for this year', 'Non iscritto per questo anno'),
+ 'edit_enrollment': ('Edit enrollment', 'Modifica iscrizione'),
+ 'enrollment_history': ('Enrollment history', 'Storico iscrizioni'),
+ 'add_participants': ('Add new participants', 'Aggiungi nuovi partecipanti'),
+ 'exact_participant_ids': ('New IDs', 'Nuovi ID'),
+ 'exact_ids_hint': ('Enter each exact ID, separated by spaces or commas, for example: 41, 42, 43. Ranges are '
+                    'not expanded. Use only letters, numbers, hyphens or underscores; do not enter names. '
+                    'Existing IDs cannot be reused.',
+                    'Inserisci ogni ID esatto, separato da spazi o virgole, ad esempio: 41, 42, 43. Gli '
+                    'intervalli non vengono espansi. Usa solo lettere, numeri, trattini o trattini bassi; '
+                    'non inserire nomi. Gli ID esistenti non possono essere riutilizzati.'),
+ 'from_year': ('Previous school year', 'Anno scolastico precedente'),
+ 'to_year': ('Next school year', 'Anno scolastico successivo'),
+ 'from_date': ('From date', 'Dalla data'),
+ 'to_date': ('Through date', 'Alla data'),
+ 'legacy_source_id': ('ID in historical collection', 'ID nella raccolta storica'),
+ 'permanent_id': ('Permanent study ID', 'ID permanente dello studio'),
+ 'link_confirmation_note': ('Reason for confirming this identity (no names)',
+                            'Motivo della conferma dell’identità (senza nomi)'),
+ 'revoke_link': ('Review removal of this link', 'Rivedi la rimozione del collegamento'),
+ 'recent_enrollment_changes': ('Recent participant changes', 'Modifiche recenti ai partecipanti'),
+ 'revision': ('Revision', 'Revisione'),
+ 'op_add': ('Add participants', 'Aggiunta di partecipanti'),
+ 'op_update': ('Update enrollment or status', 'Modifica di iscrizione o stato'),
+ 'op_promote': ('Promote participants to the next year', 'Passaggio dei partecipanti al prossimo anno'),
+ 'op_link': ('Confirm historical identity link', 'Conferma di un collegamento storico'),
+ 'op_unlink': ('Revoke historical identity link', 'Revoca di un collegamento storico'),
+ 'op_migration': ('Initialize permanent register', 'Inizializzazione del registro permanente'),
+ 'op_range_edit': ('Update initial ID ranges', 'Modifica degli intervalli ID iniziali'),
+ 'range_editor_hint': ('Use the permanent register for annual enrollment and individual changes. This older '
+                       'editor changes the initial ranges.',
+                       'Usa il registro permanente per le iscrizioni annuali e le modifiche individuali. '
+                       'Questo editor precedente modifica gli intervalli iniziali.'),
+ 'school_year_required': ('Choose a school year in the format 2026/2027 (September through August).',
+                          'Scegli un anno scolastico nel formato 2026/2027 (da settembre ad agosto).'),
+ 'session_year_missing': ('Session school year missing', 'Anno scolastico della sessione mancante'),
+ 'session_year_mismatch': ('The session date must fall between September and August of its school year.',
+                           'La data della sessione deve essere compresa tra settembre e agosto del suo anno '
+                           'scolastico.'),
+ 'invalid_enrollment': ('Unable to apply this enrollment change. Check the participant, year and grade, then '
+                        'review again.',
+                        'Impossibile applicare la modifica. Controlla partecipante, anno e classe, poi '
+                        'rivedi le modifiche.'),
+ 'invalid_participant_ids': ('Enter unique IDs of 1–32 characters using letters, numbers, hyphens or '
+                             'underscores (at most 1000 at a time).',
+                             'Inserisci ID unici da 1 a 32 caratteri usando lettere, numeri, trattini o '
+                             'trattini bassi (massimo 1000 alla volta).'),
+ 'participant_id_reserved': ('An ID is already registered. Edit its enrollment for the same child, or choose '
+                             'a new ID for a new child.',
+                             'Un ID è già registrato. Modifica l’iscrizione per lo stesso bambino oppure '
+                             'scegli un nuovo ID per un nuovo bambino.'),
+ 'participant_inactive': ('This ID is reserved for an inactive participant. Use the permanent register to '
+                          'reactivate the same child.',
+                          'Questo ID è riservato a un partecipante non attivo. Usa il registro permanente '
+                          'per riattivare lo stesso bambino.'),
+ 'invalid_promotion_year': ('Choose two consecutive school years, such as 2026/2027 and 2027/2028.',
+                            'Scegli due anni scolastici consecutivi, ad esempio 2026/2027 e 2027/2028.'),
+ 'enrollment_conflict': ('A participant already has a different enrollment in the next year. Review '
+                         'individual enrollments before promotion. No changes were saved.',
+                         'Un partecipante ha già un’iscrizione diversa nel prossimo anno. Controlla le '
+                         'iscrizioni individuali prima del passaggio. Nessuna modifica salvata.'),
+ 'empty_promotion': ('No active participants are enrolled in the selected source year.',
+                     'Nessun partecipante attivo è iscritto nell’anno di partenza selezionato.'),
+ 'invalid_identity_link': ('Choose an existing historical ID and date interval containing its records, a '
+                           'permanent participant, and a confirmation note.',
+                           'Scegli un ID storico esistente e un intervallo di date contenente i suoi dati, '
+                           'un partecipante permanente e una nota di conferma.'),
+ 'identity_link_conflict': ('This historical ID already has a link overlapping those dates. Review or revoke '
+                            'that link first.',
+                            'Questo ID storico ha già un collegamento che si sovrappone alle date scelte. '
+                            'Rivedi o revoca prima quel collegamento.'),
+ 'apply_filters': ('Apply filters', 'Applica filtri'),
+ 'cancel': ('Cancel', 'Annulla'),
+ 'all': ('All', 'Tutti'),
+ 'school_year_explanation': ('September through August. The first confirmation enrolls the initial roster. '
+                             'Changing this planning year does not move participants or relabel sessions: '
+                             'use yearly promotion and set each session’s own year.',
+                             'Da settembre ad agosto. La prima conferma iscrive l’elenco iniziale. Cambiare '
+                             'l’anno di pianificazione non sposta i partecipanti e non riassegna le '
+                             'sessioni: usa il passaggio annuale e imposta l’anno di ogni sessione.'),
+ 'enrollment': ('Confirmed annual enrollment', 'Iscrizione annuale confermata')})
+
+
 def translate(key, language):
     pair = TEXT.get(key)
     return pair[1 if language == "it" else 0] if pair else key

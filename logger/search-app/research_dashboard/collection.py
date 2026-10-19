@@ -9,6 +9,7 @@ import re
 
 from .state import DEFAULT_STUDY_ID, roster
 from .runtime import sync_directory
+from .participants import enrollment
 
 
 def record_run(directory, state, user_id, session_id, log_id, order, topics, settings=None,
@@ -19,8 +20,11 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
     chosen_session = study_session if study_session is not None else next(
         (s for s in settings["sessions"]
          if s["grade"] == grade and s["date"] == started.date().isoformat()), None)
+    year = chosen_session.get("school_year") if chosen_session else settings.get("current_school_year")
+    context = enrollment(settings, user_id, year)
+    grade = context["grade"] if context else grade
     session_snapshot = ({key: deepcopy(chosen_session[key])
-                         for key in ("id", "name", "date", "theme", "grade", "number")
+                         for key in ("id", "name", "date", "theme", "grade", "number", "school_year")
                          if key in chosen_session} if chosen_session else None)
     if session_snapshot is not None and question_set and question_set.get("theme"):
         session_snapshot.setdefault("theme", question_set["theme"])
@@ -44,7 +48,9 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
         "grade_at_collection": grade,
         "study_session_at_collection": chosen_session["id"] if chosen_session else None,
         "study_session_snapshot": session_snapshot,
-        "school_year_at_collection": settings.get("current_school_year") or None,
+        "school_year_at_collection": year or None,
+        "participant_key": context["participant_key"] if context else None,
+        "enrollment_id": context["enrollment_id"] if context else None,
         "settings_revision_at_collection": settings["revision"],
         "app_version": os.getenv("SOL_APP_VERSION") or None,
         "git_commit": os.getenv("SOL_GIT_COMMIT") or None,

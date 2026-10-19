@@ -14,7 +14,7 @@ Back up these directories together while collection is stopped:
 | --- | --- |
 | `logs` | Original read-only legacy collection |
 | `logs-v2` | Original FULL/per-task logs, immutable `.run.json` snapshots, **hidden `.uploads.sqlite3` receipt journal** |
-| `research-state` | `research.sqlite3`: settings revisions, immutable admitted attempts, authentication and research annotations |
+| `research-state` | `research.sqlite3`: settings revisions, permanent registry/enrollments, identity links/audit, immutable admitted attempts and authentication |
 | `research-secrets` | Dashboard password hash and private persistent `student-secret` |
 | `student-sessions` | Student session files, frozen questions/order, current phase |
 
@@ -129,8 +129,10 @@ Keep the matching image tag/Git revision with the backup record. Start that imag
 check readiness, log in, and verify a synthetic attempt before reopening collection.
 Never roll the database back while retaining newer upload files or receipt journals.
 
-This release upgrades `research.sqlite3` from unversioned schema 0 to schema 1 in
-one transaction, adding `study_attempts` and retaining existing settings/history.
+This release upgrades `research.sqlite3` from schema 0/1 to schema 2 in
+one transaction, adding durable attempts where needed, permanent identities, annual
+enrollments, reviewed identity links and their audit history. Earlier settings rows
+and admitted snapshots are retained. See [the integration and migration guide](dashboard_integration.md).
 Newer schema versions are refused. A future incompatible migration must provide its
 own restore plan; image rollback alone is not enough. Original log formats remain
 unchanged. Backups are recovery artifacts, not the dashboard's research export ZIPs.
@@ -163,9 +165,8 @@ recorded one answer and the run recorded one final completion event. The two old
 Selenium suites require separate setup and are not part of this automated command.
 
 Extend `study_attempts` for #6's progress state; preserve admitted question IDs,
-order, provenance and settings revision. Extend this admission transaction for #19's
-permanent registry and session-owned school years, without deriving historical
-identity merely from matching numbers. Publish #17's monitoring updates only after
+order, provenance and settings revision. Reuse #19's permanent registry and session-owned school years in this admission
+transaction; see [the source integration contract](dashboard_integration.md). Publish #17's monitoring updates only after
 an upload receipt is committed; a live connection must not become the source of
 research records. Multiple servers will require a coordinated database and storage
 strategy in place of local filesystem locks.
@@ -173,5 +174,5 @@ strategy in place of local filesystem locks.
 Local checks do not establish production readiness by themselves. Before each
 classroom release, rehearse restore and rollback on staging, verify external search,
 complete a three-question run on the actual tablet/browser, and inspect its export.
-Permanent enrollment protections (#19), durable resume/reset authorization (#6/#15)
-and real-time monitoring (#17) are not claimed by this release.
+Permanent enrollment protections (#19) are implemented in this foundation. Durable
+resume/reset authorization (#6/#15) and real-time monitoring (#17) remain separate work.

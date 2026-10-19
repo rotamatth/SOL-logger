@@ -208,6 +208,6 @@ def test_session_display_labels_exclude_question_assignments():
                   "date": "2026-10-15", "question_set": {"questions": ["Future question"]},
                   "participant_questions": {"1": {"questions": ["Individual question"]}}}
     label = display_session(configured, [])
-    assert set(label) == {"id", "grade", "number", "name", "date", "theme"}
+    assert set(label) == {"id", "grade", "number", "name", "date", "theme", "school_year"}
     assert label["name"] == configured["name"]
     assert "Future question" not in json.dumps(label) and "Individual question" not in json.dumps(label)

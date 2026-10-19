@@ -17,6 +17,7 @@ from .collection import publish_pending_runs
 from .i18n import translate
 from .index import Index
 from .session_lifecycle import session_removal_problem
+from .enrollment_views import register_enrollment_routes
 from .state import DEFAULT_STUDY_ID, GRADES, SETTING_FIELDS, MAX_STUDY_SESSIONS, State, identity, normalize_session_name, roster, validate_settings
 from .student_config import configure_students, range_summary, task_catalog, topics_ready
 from .study_config import assignment_for, question_choices, question_library, question_set_problem, session_readiness, validate_question_set
@@ -27,7 +28,7 @@ COOKIE = "sol_research"
 
 def display_session(configured_session, runs):
     """Label collected sessions with their recorded names and dates."""
-    fields = ("id", "grade", "number", "name", "date", "theme")
+    fields = ("id", "grade", "number", "name", "date", "theme", "school_year")
 
     def label(study_session):
         return {key: deepcopy(study_session.get(key, "")) for key in fields}
@@ -205,19 +206,30 @@ def init_dashboard(app):
         return [run for run in summaries if run["id"] not in g.research_trashed_run_ids
                 and run["study_id"] in (DEFAULT_STUDY_ID, None) and (
             run["collection"] == collection or collection == "study" and (
-            run["collection"] == "v2" or run["grade"] in GRADES))]
+            run["collection"] == "v2" or run["grade"] in GRADES or run.get("study_participant_id")))]
 
     def participants(settings, summaries, collection):
         people = {}
+        current_roster = roster(settings)
+        enrollment_grades = {}
+        for members in settings["enrollments"].values():
+            for uid, item in members.items():
+                enrollment_grades.setdefault(uid, set()).add(item["grade"])
         if collection in ("v2", "study"):
-            for uid, grade in roster(settings).items():
-                people[("v2", uid)] = {"id": uid, "token": identity(uid), "collection": "v2", "grades": {grade}, "runs": []}
+            for uid, person in settings["participant_registry"].items():
+                grades = set(enrollment_grades.get(uid, ()))
+                if not grades and uid in current_roster:
+                    grades.add(current_roster[uid])
+                people[(collection, uid)] = {"id": uid, "token": identity(uid), "collection": collection, "grades": grades, "runs": []}
         for run in collection_runs(summaries, collection):
             if run["participant_id"] is None:
                 continue
-            uid = run["participant_id"]
-            p = people.setdefault((run["collection"], uid), {"id": uid, "token": identity(uid),
-                                  "collection": run["collection"], "grades": set(), "runs": []})
+            linked = collection == "study" and run.get("study_participant_id")
+            uid = run["study_participant_id"] if linked else run["participant_id"]
+            source = "study" if linked else run["collection"]
+            # Unlinked sources retain separate namespaces even when numbers match.
+            p = people.setdefault((source, uid), {"id": uid, "token": identity(uid),
+                                  "collection": source, "grades": set(), "runs": []})
             if run["grade"]:
                 p["grades"].add(run["grade"])
             p["runs"].append(run)
@@ -239,7 +251,7 @@ def init_dashboard(app):
                 "completed" if all(run["status"] == "completed" for run in p["visible_runs"]) else "incomplete")
             p["recorded_grades"] = sorted({run["grade"] for run in p["visible_runs"] if run["grade"]})
             p["school_years"] = sorted({run["school_year"] for run in p["visible_runs"] if run["school_year"]}, reverse=True)
-            p["current_grade"] = current_roster.get(p["id"]) if p["collection"] == "v2" else None
+            p["current_grade"] = current_roster.get(p["id"]) if p["collection"] in ("v2", "study") else None
         return [person for person in people if person["visible_runs"]] if selected_year else people
 
     @bp.get("/")
@@ -295,7 +307,7 @@ def init_dashboard(app):
 
     @bp.get("/participants/<collection>/<token>")
     def participant(collection, token):
-        if collection not in index.roots:
+        if collection not in (*index.roots, "study"):
             abort(404)
         settings, runs = data()
         person = next((p for p in participants(settings, runs, collection) if p["token"] == token), None)
@@ -310,7 +322,7 @@ def init_dashboard(app):
         if year_filter and not person["runs"]:
             abort(404)
         groups = []
-        if collection in ("v2", "legacy"):
+        if collection in ("v2", "legacy", "study"):
             for session in settings["sessions"]:
                 if session["grade"] in person["grades"] and (not grade_filter or session["grade"] == grade_filter):
                     matching_runs = [run for run in person["runs"] if run["study_session"]
@@ -545,7 +557,7 @@ def init_dashboard(app):
                         history_grade = add_grade
                     add_date = request.form.get("date", "")
                     add_name = request.form.get("name", "")
-                    study_session = state.add_study_session(add_grade, add_date, revision, add_name)
+                    study_session = state.add_study_session(add_grade, add_date, revision, add_name, request.form.get("school_year"))
                     return redirect(u("overview", grade=add_grade, session=study_session["id"]))
                 if action not in ("save", "save_year", "save_dates", "save_session", "save_ranges", "preview_ranges", "edit_ranges"):
                     raise ValueError("invalid_settings")
@@ -613,6 +625,7 @@ def init_dashboard(app):
                         raise ValueError("invalid_sessions")
                     study_session["name"] = normalize_session_name(edit_name)
                     study_session["date"] = edit_date
+                    study_session["school_year"] = request.form.get("school_year", study_session.get("school_year", ""))
                 if action in ("save", "save_dates"):
                     for s in updated["sessions"]:
                         if s["id"] in request.form:
@@ -630,7 +643,7 @@ def init_dashboard(app):
                                       edit=edit_session_id if action == "save_session" else None,
                                       _anchor=anchor))
             except (ValueError, KeyError) as exc:
-                error = str(exc) if str(exc) in {"invalid_ranges", "overlapping_ranges", "invalid_task_assignment", "invalid_sessions", "invalid_date", "invalid_session_name", "overlapping_dates", "settings_changed", "session_limit", "invalid_school_year", "invalid_historical_grade", "overlapping_historical_grades", "session_has_records", "session_usage_unavailable", "session_removal_confirmation"} else "invalid_settings"
+                error = str(exc) if str(exc) in {"invalid_ranges", "overlapping_ranges", "invalid_task_assignment", "invalid_sessions", "invalid_date", "invalid_session_name", "overlapping_dates", "settings_changed", "session_limit", "invalid_school_year", "school_year_required", "session_year_mismatch", "participant_inactive", "range_editor_retired", "invalid_historical_grade", "overlapping_historical_grades", "session_has_records", "session_usage_unavailable", "session_removal_confirmation"} else "invalid_settings"
         ranges_submitted = action in ("save_ranges", "preview_ranges", "edit_ranges")
         range_forms = []
         for grade in ("4", "5", "3"):
@@ -750,7 +763,7 @@ def init_dashboard(app):
         if study_session is None or study_session.get("removed"):
             abort(404)
         uid = request.args.get("participant", "")
-        if uid and roster(settings).get(uid) != study_session["grade"]:
+        if uid and roster(settings, study_session.get("school_year")).get(uid) != study_session["grade"]:
             abort(404)
         exceptions = study_session.get("participant_questions", {})
         saved = exceptions.get(uid) if uid else study_session.get("question_set")
@@ -859,8 +872,6 @@ def init_dashboard(app):
         collection = request.args.get("collection", "v2")
         if collection not in (*index.roots, "study"):
             abort(404)
-        if collection == "study" and scope in ("participant", "session"):
-            abort(404)
         selected = collection_runs(summaries, collection)
         task = None
         selection = {"collection": collection}
@@ -875,7 +886,9 @@ def init_dashboard(app):
             label = f"run-{request.args.get('run', '')[:12]}" + (f"-task-{task}" if task else "")
         elif scope in ("participant", "session"):
             token = request.args.get("participant")
-            selected = [r for r in selected if r["participant_token"] is not None and r["participant_token"] == token]
+            selected = [r for r in selected if
+                        (identity(r["study_participant_id"]) if collection == "study" and r.get("study_participant_id")
+                         else r["participant_token"] if collection != "study" else None) == token and token]
             selection["participant_token"] = token
             if request.args.get("grade"):
                 grade = request.args["grade"]
@@ -933,5 +946,6 @@ def init_dashboard(app):
     def storage_error(_):
         return problem("storage_error", 503)
 
+    register_enrollment_routes(bp, state, index, page, u)
     app.register_blueprint(bp)
     return state

@@ -7,6 +7,8 @@ import json
 import sys
 import types
 
+from .enrollment_helpers import enroll_initial_roster, school_year
+
 import pytest
 from werkzeug.security import generate_password_hash
 
@@ -23,6 +25,7 @@ def configure_session_questions(app, grades=("4", "5")):
         if study_session["grade"] in grades and study_session["number"] == 1:
             study_session["date"] = datetime.now(ZoneInfo("Europe/Zurich")).date().isoformat()
             study_session["question_set"] = question_set(f"Grade {study_session['grade']}")
+    enroll_initial_roster(settings, school_year(datetime.now(ZoneInfo("Europe/Zurich")).date()))
     state.save_settings(settings, settings["revision"])
     return state.settings()
 
@@ -200,6 +203,7 @@ def test_saving_assignment_enables_new_student_and_snapshots_running_tasks(stude
     settings = state.settings()
     study_session = next(item for item in settings["sessions"] if item["id"] == "grade-5-session-1")
     study_session["date"] = datetime.now(ZoneInfo("Europe/Zurich")).date().isoformat()
+    enroll_initial_roster(settings, school_year(study_session["date"]))
     state.save_settings(settings, settings["revision"])
     path = "/dashboard/settings/questions/grade-5-session-1"
 
@@ -249,6 +253,7 @@ def test_removing_ids_blocks_new_runs_and_keeps_in_progress_run(student_app):
                          question_set={"approved": True, "questions": [
                              {"id": f"configured-{number}", "topic": f"Topic {number}", "question": f"Question {number}"}
                              for number in range(1, 4)]})
+    enroll_initial_roster(settings, school_year(study_session["date"]))
     student_app.RESEARCH_STATE.save_settings(settings, settings["revision"])
     assert student.post("/start", data={"user_id": "1"}).status_code == 302
     assert researcher.post("/dashboard/settings", data=ranges_form(

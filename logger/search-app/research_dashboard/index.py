@@ -14,6 +14,7 @@ import time
 import fcntl
 import uuid
 
+from .participants import resolve_identity, school_year_for
 from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
 
 MAX_LINE = 1024 * 1024
@@ -89,6 +90,9 @@ class Index:
                         error = sqlite3.DatabaseError("Corrupt reporting cache")
                         error.sqlite_errorcode = sqlite3.SQLITE_CORRUPT
                         raise error
+                    if db.execute("PRAGMA user_version").fetchone()[0] < 2:
+                        db.execute("DELETE FROM scan")
+                        db.execute("PRAGMA user_version=2")
                     db.commit()
                     self.path.chmod(0o600)
                     self._initialized = True
@@ -328,6 +332,8 @@ class Index:
                    "participant_id": uid, "participant_token": identity(uid) if uid is not None else None,
                    "date": date, "study_id_at_collection": meta.get("study_id_at_collection"),
                    "grade_at_collection": meta.get("grade_at_collection"),
+                   "participant_key_at_collection": meta.get("participant_key"),
+                   "enrollment_id": meta.get("enrollment_id"),
                    "school_year_at_collection": meta.get("school_year_at_collection"),
                    "app_version": meta.get("app_version"), "git_commit": meta.get("git_commit"),
                    "status": "unknown" if uid is None else "completed" if complete else "incomplete",
@@ -458,16 +464,34 @@ def classify(run, settings):
                 issues.append("historical_grade_conflict")
         elif rule:
             grade, source = rule["grade"], "historical_assignment"
-        elif current_grade:
-            grade, source = current_grade, "current_roster"
+
         if rule and rule["grade"] == grade:
             if school_year and school_year != rule["school_year"]:
                 issues.append("historical_school_year_conflict")
             elif not school_year:
                 school_year, year_source = rule["school_year"], "historical_assignment"
+    canonical = resolve_identity(settings, run["collection"], run["participant_id"], run["date"]) if study_id == DEFAULT_STUDY_ID else None
+    if canonical and run.get("participant_key_at_collection") not in (None, canonical["key"]):
+        issues.append("participant_identity_conflict")
+        canonical = None
+    enrolled = None
+    if canonical:
+        dated_year = school_year_for(run["date"])
+        enrolled = settings.get("enrollments", {}).get(dated_year, {}).get(canonical["id"])
+        current_grade = roster(settings).get(canonical["id"])
+        if enrolled and grade is None:
+            grade, source = enrolled["grade"], "enrollment"
+        if enrolled and not school_year and grade == enrolled["grade"]:
+            school_year, year_source = dated_year, "enrollment"
     study_session = _study_session_for_run(run, settings, study_id, grade, issues)
     return {**run, "study_id": study_id, "grade": grade, "study_session": study_session,
-            "school_year": school_year, "grade_source": source, "historical_assignment_id": rule_id,
+            "school_year": school_year, "grade_source": source,
+            "study_participant_id": canonical["id"] if canonical else None,
+            "enrollment_id": run.get("enrollment_id") or (enrolled["id"] if enrolled else None),
+            "participant_key": canonical["key"] if canonical else None,
+            "identity_source": canonical["source"] if canonical else "unlinked",
+            "identity_link_id": canonical.get("link_id") if canonical else None,
+            "identity_link_revision": canonical.get("link_revision") if canonical else None, "historical_assignment_id": rule_id,
             "school_year_source": year_source,
             "current_grade": current_grade, "issues": issues,
             "issue_count": run["issue_count"] + len(issues) - len(run.get("issues", [])),

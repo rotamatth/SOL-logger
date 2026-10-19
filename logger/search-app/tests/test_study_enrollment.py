@@ -8,6 +8,8 @@ import json
 import sys
 import types
 
+from .enrollment_helpers import enroll_initial_roster, school_year
+
 import pytest
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +62,7 @@ def schedule(module, shared=None, override=None):
         if study_session["grade"] == "4" and study_session["number"] == 2:
             study_session["question_set"] = deepcopy(shared or question_set())
             study_session["participant_questions"] = {"1": deepcopy(override)} if override else {}
+    enroll_initial_roster(settings, school_year(today))
     state.save_settings(settings, settings["revision"])
     return state.settings()
 

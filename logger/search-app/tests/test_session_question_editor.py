@@ -2,6 +2,8 @@
 from copy import deepcopy
 from html.parser import HTMLParser
 
+from .enrollment_helpers import enroll_initial_roster, school_year
+
 import pytest
 
 from .test_research_dashboard import app, csrf, login
@@ -65,6 +67,7 @@ def configured(app, **changes):
     state = app.extensions["research"]["state"]
     settings = state.settings()
     settings["sessions"][0].update(date="2026-10-15", **changes)
+    enroll_initial_roster(settings)
     state.save_settings(settings, settings["revision"])
     return state.settings()
 
@@ -89,7 +92,7 @@ def test_editor_starts_with_empty_fields_and_no_legacy_assignment_carryover(app)
     fields = EditorFields(response).fields
     assert fields["theme"] == "" and "approved" not in fields
     assert all(fields[f"topic_{slot}"] == fields[f"question_{slot}"] == "" for slot in range(3))
-    assert "Session date missing" in response.text
+    assert "Session school year missing" in response.text
     assert "0 / 20" in response.text
     assert state.settings() == before
     assert client.get("/dashboard/settings?section=sessions&grade=4").text.count("Configure questions") >= 3

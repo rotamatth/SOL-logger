@@ -199,7 +199,7 @@ def test_current_draft_preview_does_not_replace_recorded_session_labels(app):
     settings["sessions"][0].update(name="Current preparation", date="2026-10-15")
     state.save_settings(settings, settings["revision"])
     snapshot = {"id": SESSION_ID, "grade": "4", "number": 1,
-                "name": "Recorded study visit", "date": "2026-10-01", "theme": ""}
+                "name": "Recorded study visit", "date": "2026-10-01", "theme": "", "school_year": ""}
     write_dashboard_snapshot(app, snapshot)
     client = app.test_client()
     login(client)

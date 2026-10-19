@@ -36,22 +36,24 @@ or reuse research access. The research pages never load the student logger.
    sessions on their next request; no app restart is needed.
 4. Open `/dashboard`, log in, choose a UI language, and open **Study settings**.
    Defaults are exact IDs `1`–`20` for 4th Grade and `21`–`40` for 5th Grade.
-   Set **Current school year** (for example, `2026/2027`) for newly started runs.
+   Confirm **Current school year** (for example, `2026/2027`, September–August)
+   to enroll the initial roster. Verify the actual IDs in **Permanent participants**.
    In **Sessions**, choose one grade. Expand a session in **Session history** to set
-   its name or date and save that session. Use **New session** in the same grade view
+   its name, own school year and date and save that session. Use **New session** in the same grade view
    to add a dated session with an optional name, up to 100 per grade. History shows
    ten sessions at a time, newest first, with older pages available. Dates use Europe/Zurich.
    Prepare the three V2 sessions per grade with explicit dates; no monthly spacing is required.
    Use **Configure questions** for each session to enter three topics/questions or explicitly
    load previous questions from the library, edit them, and approve the assignment.
-   Blank dates and incomplete/unapproved drafts stay unavailable to students.
+   Missing session years/dates, missing annual enrollment and incomplete/unapproved
+   drafts stay unavailable to students.
    The library remains available without puzzle files. No old per-ID assignment is carried
    into V2 Session 1. Existing extra sessions and their history remain accessible.
    3rd Grade starts without any numbered sessions. Saved historical assignments
    remain active, but their editing controls are currently hidden.
 5. Verify a test run, its question/answer association and a task/participant ZIP
-   before classroom collection. **Participants** controls the shared roster. Its session
-   selector shows readiness for the chosen session. All IDs use that grade/session
+   before classroom collection. **Permanent participants** manages exact IDs, yearly
+   enrollment and active/inactive status. Each session’s question editor shows readiness. All IDs use that grade/session
    shared question set unless **Set individual questions** saves an exception for that ID.
    Removing an exception returns that ID to the shared set. A saved incomplete exception
    blocks that participant rather than falling back to shared or legacy questions.
@@ -79,7 +81,10 @@ An empty V2 directory is intentionally separate from the old collection. **Legac
 records have their own identities; numeric ID `6` in Legacy is not automatically
 the V2 child `6`. Explicitly classified historical records appear alongside the
 current collection in the dashboard's grade/session downloads, with separate
-collection identities and archive folders. API exports explicitly selecting
+source IDs and archive folders. **Link historical records** lets a researcher review
+a date-scoped continuity link against the study register. Only confirmed links
+combine the child’s historical and V2 records in a study participant view/export.
+API exports explicitly selecting
 `collection=v2` continue to contain only V2 sources.
 
 | Setting | Default / meaning |
@@ -542,3 +547,15 @@ historical snapshots and existing logging contracts. The offline checker reporte
 no warnings on synthetic FULL/per-task logs from complete three-question runs.
 The editor and readiness were also checked in a browser using synthetic data.
 The two pre-existing Selenium suites were not run; external search was stubbed.
+
+## Annual enrollment and developer handover
+
+Use **Permanent participants → Prepare the next school year** to review promotion.
+IDs remain permanent; earlier enrollments and session years are preserved. Individual
+changes and inactive status also require a review before saving. Grade 5 IDs stay
+reserved even when there is no next-year enrollment. Historical identity links
+can be revoked while preserving source records and an audit trail.
+
+The [dashboard integration guide](dashboard_integration.md) describes the source
+contracts for Samuele’s progress work, schema migration, supported deployment
+topology and remaining work in #6/#15/#17.

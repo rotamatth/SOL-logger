@@ -2154,3 +2154,36 @@ select {
 .question-editor fieldset { min-width: 0; border: 1px solid var(--border, #dce2e9); border-radius: .6rem; padding: 1rem; display: grid; gap: .6rem; }
 .question-editor textarea { width: 100%; box-sizing: border-box; font: inherit; padding: .65rem; border: 1px solid #b7c3ce; border-radius: .4rem; }
 .question-editor select { max-width: 100%; }
+
+/* Enrollment forms use the same controls and spacing as session setup. */
+.enrollment-workspace .filters {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-end;
+  gap:12px;
+  margin:24px 0;
+}
+.enrollment-workspace .filters input { max-width:180px; margin:0 }
+.enrollment-workspace form:not(.filters) { max-width:640px }
+.enrollment-workspace form label { margin-top:16px }
+.enrollment-workspace form button { margin-top:16px }
+.enrollment-workspace textarea {
+  box-sizing:border-box;
+  width:100%;
+  padding:12px;
+  font:inherit;
+  border:1px solid var(--line);
+  border-radius:8px;
+  resize:vertical;
+}
+.enrollment-workspace .table-wrap { overflow-x:auto }
+.enrollment-workspace .table-wrap table { width:100% }
+.enrollment-workspace td { vertical-align:top }
+.enrollment-workspace td div+div { margin-top:6px }
+.enrollment-workspace details.panel>summary { cursor:pointer; font-weight:600 }
+.enrollment-workspace .panel { margin-top:20px }
+@media(max-width:640px) {
+  .enrollment-workspace .filters>label { flex:1 1 140px }
+  .enrollment-workspace .filters input { width:100% }
+  .enrollment-workspace .settings-tabs { flex-wrap:wrap }
+}

@@ -403,3 +403,15 @@ analysis can separate Vertex suggestions from fallback ones.
 obvious source, or analysis unable to tell providers apart → the model fields
 on the autocomplete and correction events. A sudden change in suggestion
 quality usually means Vertex is failing and the fallback is serving.
+
+## Permanent enrollment foundation — issue #19
+
+- Added a permanent participant register, annual enrollments, individual status/grade
+  edits, and reviewed year-to-year promotion. IDs are never recycled.
+- Sessions own their September–August school year; admission checks exact enrollment
+  and captures stable participant/enrollment keys with the immutable question snapshot.
+- Added explicit, date-scoped legacy identity links and revocation with an audit trail.
+  Unified participant history/exports retain source IDs, original files and link provenance.
+- Added transactional schema 2 migration, concurrent-edit protection, and restart/restore
+  checks for registry keys and annual enrollment.
+- Documented the source integration contract for #6 in `dashboard_integration.md`.

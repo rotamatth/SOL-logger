@@ -14,6 +14,8 @@ import types
 import zipfile
 from urllib.parse import parse_qs, urlsplit
 
+from .enrollment_helpers import enroll_initial_roster, school_year
+
 import pytest
 from flask import Flask, session
 from flask_cors import CORS
@@ -69,6 +71,7 @@ def configure(app):
     settings = state.settings()
     for s in settings["sessions"]:
         s["date"] = f"2026-10-{s['number']:02d}"
+    enroll_initial_roster(settings)
     state.save_settings(settings, settings["revision"])
     return state.settings()
 
@@ -93,7 +96,7 @@ def write_run(app, uid="1", suffix="a", collection="v2", answers=3, finish=False
     if metadata:
         sidecar = {"schema_version": 1, "collection": collection, "participant_id": uid,
                    "technical_session_id": sid, "log_id": suffix, "started_at": date + "T09:00:00+02:00",
-                   "grade_at_collection": "4" if uid == "1" else "5" if uid == "21" else None,
+                   "grade_at_collection": roster(app.extensions["research"]["state"].settings()).get(uid),
                    "app_version": "historical-v2.1", "git_commit": "recorded-commit", "task_order": order,
                    "tasks": [{"presented_number": n, "topic_id": order[n-1], "question": f"Recorded question {n}"} for n in range(1, 4)]}
         (root / f"{stem}.run.json").write_text(json.dumps(sidecar))
@@ -326,7 +329,7 @@ def test_metadata_only_run_visible_before_first_task_save(app, monkeypatch):
     response = client.get("/dashboard")
     assert not any(link.path.endswith("/exports/participant") for link in dashboard_links(response))
     row = next(row for row in re.findall(r'<tr>(.*?)</tr>', response.text, re.S)
-               if f'/participants/v2/{identity("1")}' in row)
+               if f'/participants/study/{identity("1")}' in row)
     assert 'Record without log files' in row and "Visualize logs</a>" in row
     assert 'type="checkbox"' not in row
     assert 'type="checkbox"' not in row and "Download logs" not in row
@@ -582,6 +585,7 @@ def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monke
                               "topic": module.USER_TOPICS["1"][f"{number}_short"],
                               "question": module.USER_TOPICS["1"][f"{number}_full"]}
                              for number in range(1, 4)]})
+    enroll_initial_roster(settings, school_year(study_session["date"]))
     module.RESEARCH_STATE.save_settings(settings, settings["revision"])
     assert client.post("/start", data={"user_id":"1"}).status_code == 302
     assert client.get("/dashboard").status_code == 200
@@ -705,10 +709,10 @@ def test_selected_and_visible_downloads_follow_the_current_participant_view(app)
     view = client.get("/dashboard?grade=4&session=grade-4-session-1")
     assert 'value="visible"' not in view.text
     assert re.search(r'<button[^>]*value="selected"[^>]*>.*?Download selected.*?</button>', view.text, re.S)
-    assert f'value="v2:{identity("1")}"'.encode() in view.data
+    assert f'value="study:{identity("1")}"'.encode() in view.data
     form = {"csrf": csrf(view), "collection": "study", "grade": "4",
             "session": "grade-4-session-1", "mode": "selected",
-            "participant": [f"v2:{identity('1')}"]}
+            "participant": [f"study:{identity('1')}"]}
     _, selected = archive(client.post("/dashboard/exports/selection", data=form))
     assert {run["run_id"] for run in selected["runs"]} == {first}
     assert selected["selection"] == {"collection": "study", "grade": "4", "mode": "selected",
@@ -735,7 +739,7 @@ def test_selected_export_rejects_forged_or_empty_participants_and_requires_auth_
     client = app.test_client()
     login(client)
     form = {"csrf": csrf(client.get("/dashboard?grade=4")), "collection": "study",
-            "grade": "4", "mode": "selected", "participant": [f"v2:{identity('21')}"]}
+            "grade": "4", "mode": "selected", "participant": [f"study:{identity('21')}"]}
     assert client.post("/dashboard/exports/selection", data=form).status_code == 400
     form.pop("participant")
     assert client.post("/dashboard/exports/selection", data=form).status_code == 400
@@ -757,7 +761,7 @@ def test_selected_download_keeps_same_participant_id_in_different_collections_se
     login(client)
     overview = client.get("/dashboard?grade=all")
     form = {"csrf": csrf(overview), "collection": "study", "grade": "all", "mode": "selected"}
-    for collection, expected in (("v2", current), ("legacy", historical)):
+    for collection, expected in (("study", current), ("legacy", historical)):
         form["participant"] = f"{collection}:{identity('1')}"
         _, manifest = archive(client.post("/dashboard/exports/selection", data=form))
         assert {run["run_id"] for run in manifest["runs"]} == {expected}
@@ -898,7 +902,7 @@ def test_overview_places_distinct_downloads_in_their_scope_and_filters_sessions(
     assert len(views) == 1 and parse_qs(views[0].query)["session"] == ["grade-4-session-2"]
     shown = client.get(views[0].geturl())
     shown_keys = {link.path.rsplit("/", 1)[-1] for link in dashboard_links(shown) if "/runs/" in link.path}
-    _, manifest = archive(download_selected_participants(client, response, "v2:" + identity("1")))
+    _, manifest = archive(download_selected_participants(client, response, "study:" + identity("1")))
     assert manifest["selection"]["study_session_id"] == "grade-4-session-2"
     assert shown_keys == {run["run_id"] for run in manifest["runs"]}
     assert all(run["study_session"]["id"] == "grade-4-session-2" for run in manifest["runs"])
@@ -1095,9 +1099,9 @@ def test_researcher_can_visualize_or_download_participant_sessions_and_runs(app)
         _, manifest = archive(client.get(link.geturl()))
         assert {run["run_id"] for run in manifest["runs"]} == set(parse_qs(link.query)["run"])
     row = next(row for row in re.findall(r'<tr>(.*?)</tr>', overview.text, re.S)
-               if f'/participants/v2/{identity("1")}' in row)
+               if f'/participants/study/{identity("1")}' in row)
     assert 'type="checkbox"' in row and "/exports/" not in row
-    z, manifest = archive(download_selected_participants(client, overview, "v2:" + identity("1")))
+    z, manifest = archive(download_selected_participants(client, overview, "study:" + identity("1")))
     assert {run["run_id"] for run in manifest["runs"]} == expected
     original_root = Path(app.config["RESEARCH_LOG_DIR"])
     logs = [item for item in manifest["files"] if item["source_name"].endswith(".log")]
@@ -1330,6 +1334,7 @@ def test_session_names_reject_oversized_or_multiline_values(app, name):
 
 
 def test_new_session_requires_auth_csrf_and_current_revision(app):
+    configure(app)
     state = app.extensions["research"]["state"]
     before = state.settings()
     form = {"action": "add_session", "grade": "4", "date": "2026-10-04", "revision": before["revision"]}
@@ -1362,7 +1367,7 @@ def test_hundred_sessions_remain_browsable_exportable_and_capped_per_grade(app):
     login(client)
     csrf_token = csrf(client.get("/dashboard/settings"))
     created = client.post("/dashboard/settings", data={
-        "action": "add_session", "grade": "4", "date": study_date,
+        "action": "add_session", "grade": "4", "date": study_date, "school_year": school_year(study_date),
         "revision": state.settings()["revision"], "csrf": csrf_token,
     })
     assert created.status_code == 302
@@ -1389,7 +1394,7 @@ def test_hundred_sessions_remain_browsable_exportable_and_capped_per_grade(app):
     assert "This grade has 100 sessions" in available.text
     # A full grade must not block the other grade's next session on the same date.
     assert client.post("/dashboard/settings", data={
-        "action": "add_session", "grade": "5", "date": study_date,
+        "action": "add_session", "grade": "5", "date": study_date, "school_year": school_year(study_date),
         "revision": before["revision"], "csrf": csrf_token,
     }).status_code == 302
     fourth_history = client.get("/dashboard/settings?grade=4")
@@ -1426,6 +1431,7 @@ def test_hundred_sessions_remain_browsable_exportable_and_capped_per_grade(app):
 
 
 def test_concurrent_session_creation_does_not_overwrite_history(app):
+    configure(app)
     state = app.extensions["research"]["state"]
     before = state.settings()
     def create(study_date):
@@ -1474,7 +1480,8 @@ def test_all_participants_selector_shows_both_grades_and_complete_histories(app)
     rows = re.findall(r'<tr>(.*?)</tr>', response.text, re.S)
     for uid, keys in expected.items():
         token = identity(uid)
-        row = next(row for row in rows if f'/participants/v2/{token}' in row)
+        source = "study" if uid != "001" else "v2"
+        row = next(row for row in rows if f'/participants/{source}/{token}' in row)
         assert "Visualize logs</a>" in row and 'type="checkbox"' in row
         assert "/exports/" not in row
         if uid == "1":
@@ -1485,7 +1492,7 @@ def test_all_participants_selector_shows_both_grades_and_complete_histories(app)
         view = next(link for link in links if parse_qs(link.query).get("view") == ["logs"])
         viewed = client.get(view.geturl())
         assert {link.path.rsplit("/", 1)[-1] for link in dashboard_links(viewed) if "/runs/" in link.path} == keys
-        _, manifest = archive(download_selected_participants(client, response, "v2:" + token))
+        _, manifest = archive(download_selected_participants(client, response, source + ":" + token))
         assert "study_session_id" not in manifest["selection"]
         assert {run["run_id"] for run in manifest["runs"]} == keys
         assert {run["participant_id"] for run in manifest["runs"]} == {uid}
@@ -1541,12 +1548,12 @@ def test_historical_grade_categories_and_downloads_preserve_both_cohorts(app):
     assert any(parse_qs(link.query).get("grade") == ["3"] for link in dashboard_links(client.get("/dashboard")))
     empty = client.get("/dashboard?grade=3")
     assert b"No participants in this grade" in empty.data
-    assert any(link.path == "/dashboard/settings" and parse_qs(link.query).get("section") == ["participants"]
+    assert any(link.path == "/dashboard/settings/enrollment"
                for link in dashboard_links(empty))
     add_history_rule(state)
     add_history_rule(state, grade="4", start=21, end=40)
     history_before = state.settings()["historical_grades"]
-    session = client.post("/dashboard/settings", data={"action": "add_session", "grade": "3", "date": "2025-10-01",
+    session = client.post("/dashboard/settings", data={"action": "add_session", "grade": "3", "date": "2025-10-01", "school_year": "2025/2026",
                           "revision": state.settings()["revision"], "csrf": csrf(client.get("/dashboard/settings"))})
     assert session.status_code == 302
     assert parse_qs(urlsplit(session.location).query)["session"] == ["grade-3-session-1"]
@@ -1587,7 +1594,8 @@ def test_historical_grade_categories_and_downloads_preserve_both_cohorts(app):
         assert {run["run_id"] for run in grade_manifest["runs"]} == expected
         assert unassigned not in expected
     # Identical IDs in different collections remain separate until their continuity is confirmed.
-    assert client.get(f"/dashboard/exports/participant?collection=study&participant={identity('1')}").status_code == 404
+    _, canonical = archive(client.get(f"/dashboard/exports/participant?collection=study&participant={identity('1')}"))
+    assert {run["run_id"] for run in canonical["runs"]} == {current4}
     _, current_manifest = archive(client.get(f"/dashboard/exports/participant?collection=v2&participant={identity('1')}"))
     assert {run["run_id"] for run in current_manifest["runs"]} == {current4}
     old_year = client.get("/dashboard?grade=all&school_year=2025/2026")
@@ -1626,11 +1634,11 @@ def test_recorded_grade_and_year_survive_promotion_and_conflicting_assignment(ap
     detail = client.get(f"/dashboard/runs/{key}")
     assert b"recorded grade is preserved" in detail.data
     assert b"3rd Grade" in detail.data and b"5th Grade" in detail.data and b"2025/2026" in detail.data
-    _, manifest = archive(download_selected_participants(client, promoted, "v2:" + identity("1")))
+    _, manifest = archive(download_selected_participants(client, promoted, "study:" + identity("1")))
     assert {run["run_id"] for run in manifest["runs"]} == {key}
     assert manifest["runs"][0]["school_year"] == "2025/2026"
     fifth = client.get("/dashboard?grade=5")
-    row = next(row for row in re.findall(r'<tr>(.*?)</tr>', fifth.text, re.S) if f'/participants/v2/{identity("1")}' in row)
+    row = next(row for row in re.findall(r'<tr>(.*?)</tr>', fifth.text, re.S) if f'/participants/study/{identity("1")}' in row)
     assert 'class="badge no_data"' in row and 'class="dashboard-no-actions muted"' in row
     assert "Download logs" not in row and "completed" not in row
 
@@ -1653,7 +1661,7 @@ def test_historical_school_year_conflicts_and_invalid_metadata_preserve_sources(
     add_history_rule(state, collection="v2", school_year=assigned_year)
     overview = client.get(f"/dashboard?grade=3&school_year={expected_year}")
     assert overview.status_code == 200 and 'class="participant-link"' in overview.text
-    zipped, manifest = archive(download_selected_participants(client, overview, "v2:" + identity("1")))
+    zipped, manifest = archive(download_selected_participants(client, overview, "study:" + identity("1")))
     assert len(manifest["runs"]) == 1
     run = manifest["runs"][0]
     assert run["run_id"] == key and run["school_year"] == expected_year
@@ -1770,7 +1778,7 @@ def test_future_study_id_does_not_mix_with_current_participants_or_downloads(app
     login(client)
     overview = client.get("/dashboard?grade=all")
     participant = next(link for link in dashboard_links(overview)
-                       if link.path.endswith(f"/participants/v2/{identity('1')}") and parse_qs(link.query).get("view") == ["logs"])
+                       if link.path.endswith(f"/participants/study/{identity('1')}") and parse_qs(link.query).get("view") == ["logs"])
     shown = client.get(participant.geturl())
     assert current.encode() in shown.data and future.encode() not in shown.data
     download = next(link for link in dashboard_links(overview) if link.path.endswith("/exports/grade")
@@ -1794,6 +1802,7 @@ def test_existing_settings_load_without_historical_fields_or_migration(app):
     for session in old["sessions"]:
         del session["name"]
     with state.connect() as db:
+        db.execute("DELETE FROM settings WHERE revision > 1")
         db.execute("UPDATE settings SET body = ? WHERE revision = 1", (json.dumps(old),))
     loaded = state.settings()
     assert loaded["revision"] == 1 and loaded["sessions"] == old["sessions"]

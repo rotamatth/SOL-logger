@@ -19,3 +19,9 @@ Prepare V2 session dates and explicitly approve three questions for each grade/s
 in **Study settings → Sessions → Configure questions**. Legacy questions remain a
 library; student eligibility uses the scheduled Zurich date and fresh assignments.
 Puzzle assets are optional.
+
+### Dashboard foundation
+
+For research setup, see [the dashboard guide](docs/research_dashboard.md). For
+progress-saving development, start with [the source integration contract](docs/dashboard_integration.md).
+For deployment and backups, use [the readiness guide](docs/production_readiness.md).

@@ -6,6 +6,7 @@
     <p class="small muted">{{ t('session') }} {{ next_numbers[history_grade] }} · {{ t('new_session_hint') }}</p>
     <form class="new-session-form" method="post" action="{{ u('settings_page', section='sessions', grade=history_grade) }}">
       <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="add_session"><input type="hidden" name="grade" value="{{ history_grade }}">
+      <div><label for="new-year">{{ t('school_year') }}</label><input id="new-year" name="school_year" value="{{ request.form.get('school_year', settings.current_school_year) if open_new else settings.current_school_year }}" pattern="[0-9]{4}/[0-9]{4}" placeholder="2026/2027" required></div>
       <div><label for="new-date">{{ t('date') }}</label><input id="new-date" name="date" type="date" value="{{ add_date }}" required></div>
       <div><label for="new-name">{{ t('session_name_optional') }}</label><input id="new-name" name="name" type="text" maxlength="80" value="{{ add_name }}" placeholder="{{ t('session_name_example') }}"></div>
       <button class="primary" type="submit">{{ t('create_session') }}</button>
@@ -18,12 +19,13 @@
 <div class="settings-session-list">
   {% for study_session in history_sessions %}
   <details class="settings-session-item" id="{{ study_session.id }}" {% if edit_session_id == study_session.id %}open{% endif %}>
-    <summary><strong>{{ t('session') }} {{ study_session.number }}</strong><span class="settings-session-name">{{ study_session.name or '' }}{% if study_session.get('question_set') %}<span class="badge {{ 'completed' if question_status(study_session.question_set) == 'questions_approved' else 'incomplete' }}">{{ t(question_status(study_session.question_set)) }}</span>{% endif %}</span><span class="small muted settings-session-date">{{ study_session.date or t('date_not_set') }}</span></summary>
+    <summary><strong>{{ t('session') }} {{ study_session.number }}</strong><span class="settings-session-name">{{ study_session.name or '' }}{% if study_session.get('question_set') %}<span class="badge {{ 'completed' if question_status(study_session.question_set) == 'questions_approved' else 'incomplete' }}">{{ t(question_status(study_session.question_set)) }}</span>{% endif %}</span><span class="small muted settings-session-date">{{ study_session.date or t('date_not_set') }} · {{ study_session.school_year or t('session_year_missing') }}</span></summary>
     <div class="settings-session-body">
       <p><span class="badge {% if session_readiness[study_session.id].complete %}completed{% else %}incomplete{% endif %}">{{ session_readiness[study_session.id].ready }} / {{ session_readiness[study_session.id].count }} {{ t('ready_to_start') }}</span></p>
       {% with configured_session=study_session %}{% include 'research/session_question_preview.html' %}{% endwith %}
       <form class="new-session-form" method="post" action="{{ u('settings_page', section='sessions', grade=history_grade, page=history_page if history_page > 1 else None) }}">
         <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="save_session"><input type="hidden" name="session_id" value="{{ study_session.id }}">
+        <div><label for="year_{{ study_session.id }}">{{ t('school_year') }}</label><input id="year_{{ study_session.id }}" name="school_year" value="{{ request.form.get('school_year', study_session.school_year) if error and edit_session_id == study_session.id else study_session.school_year }}" pattern="[0-9]{4}/[0-9]{4}" placeholder="2026/2027" required></div>
         <div><label for="date_{{ study_session.id }}">{{ t('date') }}</label><input id="date_{{ study_session.id }}" name="date" type="date" value="{{ edit_date if error and edit_session_id == study_session.id else study_session.date }}"></div>
         <div><label for="name_{{ study_session.id }}">{{ t('session_name_optional') }}</label><input id="name_{{ study_session.id }}" name="name" type="text" maxlength="80" value="{{ edit_name if error and edit_session_id == study_session.id else study_session.name or '' }}"></div>
         <button class="primary" type="submit">{{ t('save_session') }}</button>

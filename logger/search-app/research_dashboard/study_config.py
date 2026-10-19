@@ -11,6 +11,8 @@ import json
 import math
 import re
 
+from .participants import enrollment, roster, valid_school_year, year_contains
+
 
 STUDY_TIMEZONE = ZoneInfo("Europe/Zurich")
 QUESTION_FIELDS = {"id", "topic", "question", "metadata"}
@@ -112,25 +114,8 @@ def question_set_topics(question_set):
     return topics
 
 
-def _range_ids(rule):
-    return [rule["prefix"] + str(number).zfill(rule["width"])
-            for number in range(rule["start"], rule["end"] + 1)]
-
-
-def _participant_grade(settings, uid):
-    if not isinstance(uid, str):
-        return None
-    for rule in settings["ranges"]:
-        if not uid.startswith(rule["prefix"]):
-            continue
-        number = uid[len(rule["prefix"]):]
-        if not re.fullmatch(r"[0-9]{1,8}", number):
-            continue
-        value = int(number)
-        if (rule["start"] <= value <= rule["end"]
-                and rule["prefix"] + str(value).zfill(rule["width"]) == uid):
-            return rule["grade"]
-    return None
+def _participant_grade(settings, uid, school_year=None):
+    return roster(settings, school_year).get(uid) if isinstance(uid, str) else None
 
 
 def _resolved_set(study_session, uid):
@@ -140,6 +125,10 @@ def _resolved_set(study_session, uid):
     problem = question_set_problem(question_set)
     if not study_session["date"]:
         problem = "session_date_missing"
+    if not valid_school_year(study_session.get("school_year")):
+        problem = "session_year_missing"
+    elif study_session.get("date") and not year_contains(study_session["school_year"], study_session["date"]):
+        problem = "session_year_mismatch"
     if study_session.get("removed"):
         problem = "session_removed"
     return question_set, source, problem
@@ -147,22 +136,24 @@ def _resolved_set(study_session, uid):
 
 def assignment_for(settings, uid, session_id):
     """Resolve one explicit session assignment, including its blocking reason."""
-    grade = _participant_grade(settings, uid)
-    study_session = next((item for item in settings["sessions"]
-                          if item["id"] == session_id and item["grade"] == grade), None)
+    study_session = next((item for item in settings["sessions"] if item["id"] == session_id), None)
     if study_session is None or study_session.get("removed"):
+        return None
+    grade = _participant_grade(settings, uid, study_session.get("school_year"))
+    if grade != study_session["grade"]:
         return None
     question_set, source, problem = _resolved_set(study_session, uid)
     return {"session": deepcopy(study_session), "question_set": deepcopy(question_set),
             "topics": question_set_topics(question_set), "source": source,
             "settings_revision": settings.get("revision"),
+            "enrollment": enrollment(settings, uid, study_session.get("school_year")),
             "ready": problem is None, "problem": problem}
 
 
 def session_readiness(settings, study_session):
     """Summarize configuration readiness without requiring today's date."""
-    ids = [uid for rule in settings["ranges"] if rule["grade"] == study_session["grade"]
-           for uid in _range_ids(rule)]
+    ids = [uid for uid, grade in roster(settings, study_session.get("school_year")).items()
+           if grade == study_session["grade"]]
     participants = []
     for uid in ids:
         question_set, source, problem = _resolved_set(study_session, uid)
@@ -191,14 +182,13 @@ def scheduled_assignment(settings, uid, now=None):
         today = now
     else:
         raise ValueError("invalid_study_time")
-    grade = _participant_grade(settings, uid)
-    study_session = next((item for item in settings["sessions"]
-                          if item["grade"] == grade and not item.get("removed")
-                          and item["date"] == today.isoformat()), None)
-    if study_session is None:
-        return None
-    assignment = assignment_for(settings, uid, study_session["id"])
-    return assignment if assignment["ready"] else None
+    for study_session in settings["sessions"]:
+        if study_session.get("removed") or study_session["date"] != today.isoformat():
+            continue
+        assignment = assignment_for(settings, uid, study_session["id"])
+        if assignment and assignment["ready"]:
+            return assignment
+    return None
 
 
 def _content_id(value):

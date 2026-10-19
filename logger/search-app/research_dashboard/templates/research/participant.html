@@ -39,6 +39,7 @@
         {% for run in group.runs %}
         <article class="run-row">
           <strong>{{ t('run') }} {{ loop.index }}</strong>
+          {% if run.identity_source == 'confirmed_link' %}<span class="small muted">{{ t('legacy') }} · ID {{ run.participant_id }}</span>{% endif %}
           {% if manage %}<span class="mono small muted">{{ run.id[:12] }}</span>{% endif %}
           <span class="muted small">{{ run.started_at or run.date or '—' }}</span>
           {% if run.study_session %}<span class="muted small">{{ run.study_session.name or (t('session') ~ ' ' ~ run.study_session.number) }}{% if run.study_session.date %} · {{ run.study_session.date }}{% endif %}</span>{% endif %}

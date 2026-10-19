@@ -18,6 +18,6 @@
       {% else %}<span class="dashboard-no-actions muted">—</span>{% endif %}
     </td>
   </tr>
-  {% else %}<tr><td class="dashboard-empty" colspan="{{ 5 if grade == 'all' else 4 if is_roster_view else 2 }}"><strong>{{ t('dashboard_empty_scope') if selected_year or selected_session else t('dashboard_no_participants') }}</strong>{% if selected_year or selected_session %}<p>{{ t('dashboard_empty_scope_hint') }}</p><a class="button" href="{{ u('overview', collection=collection, grade=grade) }}">{{ t('dashboard_full_history') }}</a>{% elif is_roster_view %}<p>{{ t('grade_roster_empty_hint') }}</p><a class="button" href="{{ u('settings_page', section='participants', grade=grade if grade in grades else None) }}">{{ t('set_up_participants') }}</a>{% endif %}</td></tr>{% endfor %}
+  {% else %}<tr><td class="dashboard-empty" colspan="{{ 5 if grade == 'all' else 4 if is_roster_view else 2 }}"><strong>{{ t('dashboard_empty_scope') if selected_year or selected_session else t('dashboard_no_participants') }}</strong>{% if selected_year or selected_session %}<p>{{ t('dashboard_empty_scope_hint') }}</p><a class="button" href="{{ u('overview', collection=collection, grade=grade) }}">{{ t('dashboard_full_history') }}</a>{% elif is_roster_view %}<p>{{ t('grade_roster_empty_hint') }}</p><a class="button" href="{{ u('enrollment_page', grade=grade if grade in grades else None) }}">{{ t('set_up_participants') }}</a>{% endif %}</td></tr>{% endfor %}
   </tbody>
 </table></div>

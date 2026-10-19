@@ -83,13 +83,13 @@ def test_schema_migration_preserves_settings_and_refuses_newer_databases(tmp_pat
         db.execute("DROP TABLE study_attempts")
         db.execute("PRAGMA user_version=0")
     migrated = State(tmp_path / "state")
-    assert migrated.settings() == before
+    assert {k: v for k, v in migrated.settings().items() if k not in ("revision", "updated_at")} == {k: v for k, v in before.items() if k not in ("revision", "updated_at")}
     assert migrated.pending_attempts() == []
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 1
-        db.execute("PRAGMA user_version=2")
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 2
+        db.execute("PRAGMA user_version=3")
     with pytest.raises(RuntimeError, match="newer application"):
         State(tmp_path / "state")
     with migrated.connect() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 2
-    assert migrated.settings() == before
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 3
+    assert {k: v for k, v in migrated.settings().items() if k not in ("revision", "updated_at")} == {k: v for k, v in before.items() if k not in ("revision", "updated_at")}
