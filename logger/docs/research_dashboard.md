@@ -36,6 +36,9 @@ or reuse research access. The research pages never load the student logger.
    sessions on their next request; no app restart is needed.
 4. Open `/dashboard`, log in, choose a UI language, and use **Prepare a session**.
    Choose the school year and class, then open a session or choose **New session**.
+   The class/session menus show choices directly on the page. Choosing one opens
+   it immediately; **Open year** applies the year field. The session list includes
+   each saved name and date and scrolls for longer lists.
    Save its name and date in step 1. On initial setup, this also confirms the first
    school year (September–August) and enrolls the default IDs in one transaction.
    Defaults are exact IDs `1`–`20` for 4th Grade and `21`–`40` for 5th Grade.
@@ -44,6 +47,11 @@ or reuse research access. The research pages never load the student logger.
    Review the proposed changes before confirming. All active IDs enrolled in that
    class/year are included automatically in every session; no attendance selection
    is required. Inactive children cannot be enrolled through this shortcut.
+   **Edit participant IDs** searches for one complete, case-sensitive ID: `1`, `001`
+   and `Child-A` remain distinct. **Clear filters** restores the class list without
+   changing the session/year. Filtering never changes student availability. Session
+   enrollment forms keep the year fixed; choose another session/year in preparation
+   or use the permanent register for other annual changes.
    Dates use Europe/Zurich. Planning another year does not switch the current year.
    Prepare the three V2 sessions per grade with explicit dates; no monthly spacing is required.
    In step 3, enter three topics/questions or explicitly load previous questions
@@ -65,6 +73,9 @@ or reuse research access. The research pages never load the student logger.
    shared question set unless **Set individual questions** saves an exception for that ID.
    Removing an exception returns that ID to the shared set. A saved incomplete exception
    blocks that participant rather than falling back to shared or legacy questions.
+   **Questions by participant** uses the same table in preparation and the question
+   editor: ID, question source, configuration and actions. **Personalize** opens
+   individual questions; **Edit** appears when that ID already has its own set.
    Students can start only on the configured date in Europe/Zurich; otherwise the app
    displays **Session not available**. Missing an earlier session does not block today.
    Each child must retain the same ID across all study sessions; a tablet number

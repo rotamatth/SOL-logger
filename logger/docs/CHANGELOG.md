@@ -65,6 +65,50 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-20 — Repair preparation menus, enrollment filters and question tables
+
+**Type:** fix · **Area:** session, styling, data, tests, docs
+
+**Files**
+- `search-app/research_dashboard/enrollment_views.py`, `templates/research/enrollment.html` — exact ID search, clear filters, cancel editing, fixed session year and recoverable add/enroll choice.
+- `search-app/research_dashboard/preparation_views.py`, `templates/research/base.html` — retain the selected session through global preparation navigation.
+- `search-app/research_dashboard/templates/research/prepare.html` — in-page class/session menus open a choice directly, showing saved dates.
+- `search-app/research_dashboard/templates/research/participant_question_table.html`, `session_questions.html` — shared aligned table with short Personalize/Edit actions and ID-specific accessible labels.
+- `search-app/research_dashboard/i18n.py`, `static/research.css` — labeled filter controls and guidance in English/Italian.
+- `search-app/tests/test_enrollment_controls.py` — exact identity, filter reset, session navigation and form recovery regressions.
+- `search-app/tests/test_preparation_controls.py` — rendered menu submissions, school-year switching and per-ID question actions.
+
+**What changed for the participant**
+Researchers searching for ID `1` see that participant rather than IDs `10`–`19`.
+Filters can be cleared without losing the selected class/year/session. Enrollment
+forms no longer invite a year change that the selected session rejects, and failed
+existing-ID enrollment retains the correct operation and instructions.
+Class and session choices open inside the page, including in the local preview;
+choosing one opens its details immediately. Question configuration tables use the
+same headings and short actions in preparation and the editor.
+
+**How it works**
+The enrollment query matches the exact permanent ID. Filter/reset/cancel links keep
+the preparation context. Global preparation navigation also carries the session ID.
+Session forms submit its fixed school year; signed review and revision checks still
+validate writes.
+The menus use HTML disclosure elements and submitted GET buttons, without relying
+on native select popups or JavaScript. The question table shares its markup and
+explicit left alignment across both views.
+
+**If something looks wrong after this, check**
+- Empty search → enter the complete ID, including leading zeros and letter case.
+- Unexpected enrollment rejection → check active status, selected class/year and revision.
+
+**Left alone**
+Permanent identities, schema, student collection and the study's existing records.
+
+**Verified**
+330 automated tests passed. The local synthetic preview was restarted with existing
+data retained; browser checks covered exact search, edit, review and confirmation
+returning to the selected session, class/session menu selection and question-table
+layout. The final local container image built successfully.
+
 ## 2026-10-20 — Prepare sessions, participant IDs and questions in one workflow
 
 **Type:** feature · **Area:** session, styling, data, tests, docs

@@ -3,11 +3,25 @@
 <div class="preparation-workspace">
   <div class="preparation-heading"><div><h1>{{ t('prepare_session') }}</h1><p class="muted">{{ t('prepare_hint') }}</p></div></div>
   <form class="preparation-picker" method="get" action="{{ u('prepare_page') }}">
-    <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="context_selection" value="1">{% if creating %}<input type="hidden" name="new" value="1">{% endif %}
+    <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="context_selection" value="1"><input type="hidden" name="grade" value="{{ study_context.grade }}">{% if creating %}<input type="hidden" name="new" value="1">{% endif %}
     <div class="preparation-field"><label for="prepare-year">{{ t('school_year') }}</label><input id="prepare-year" name="year" value="{{ study_context.school_year }}" pattern="[0-9]{4}/[0-9]{4}" required></div>
-    <div class="preparation-field"><label for="prepare-grade">{{ t('grade') }}</label><select name="grade" id="prepare-grade">{% for value in grades %}<option value="{{ value }}" {% if study_context.grade == value %}selected{% endif %}>{{ t('grade_' ~ value) }}</option>{% endfor %}</select></div>
-    {% if sessions %}<div class="preparation-field"><label for="preparation-session">{{ t('session') }}</label><select name="session" id="preparation-session">{% if creating %}<option value="" selected>{{ t('new_session') }}</option>{% endif %}{% for item in sessions %}<option value="{{ item.id }}" {% if selected and selected.id == item.id and not creating %}selected{% endif %}>{{ item.name or (t('session') ~ ' ' ~ item.number) }} · {{ item.date or t('date_not_set') }}</option>{% endfor %}</select></div>{% endif %}
-    <button type="submit">{{ t('open') }}</button>
+    <button type="submit" name="session" value="{{ selected.id if selected else '' }}">{{ t('open_school_year') }}</button>
+    <div class="preparation-field preparation-class-field">
+      <span class="picker-label" id="prepare-grade-label">{{ t('grade') }}</span>
+      <details class="preparation-menu" id="prepare-grade">
+        <summary aria-labelledby="prepare-grade-label prepare-grade-value"><span id="prepare-grade-value">{{ t('grade_' ~ study_context.grade) }}</span></summary>
+        <div class="preparation-menu-options">{% for value in grades %}<button type="submit" name="select_grade" value="{{ value }}" aria-label="{{ t('grade_' ~ value) }}" {% if study_context.grade == value %}aria-current="true" disabled{% endif %}>{{ t('grade_' ~ value) }}</button>{% endfor %}</div>
+      </details>
+    </div>
+    {% if sessions %}
+    <div class="preparation-field preparation-session-field">
+      <span class="picker-label" id="prepare-session-label">{{ t('session') }}</span>
+      <details class="preparation-menu" id="preparation-session">
+        <summary aria-labelledby="prepare-session-label prepare-session-value"><span id="prepare-session-value">{% if selected and not creating %}{{ selected.name or (t('session') ~ ' ' ~ selected.number) }} <span class="picker-date">{{ selected.date or t('date_not_set') }}</span>{% else %}{{ t('new_session') }}{% endif %}</span></summary>
+        <div class="preparation-menu-options">{% for item in sessions %}<button type="submit" name="session" value="{{ item.id }}" aria-label="{{ item.name or (t('session') ~ ' ' ~ item.number) }} · {{ item.date or t('date_not_set') }}" {% if selected and selected.id == item.id and not creating %}aria-current="true"{% endif %}><span>{{ item.name or (t('session') ~ ' ' ~ item.number) }}</span><span class="picker-date">{{ item.date or t('date_not_set') }}</span></button>{% endfor %}</div>
+      </details>
+    </div>
+    {% endif %}
     {% if sessions %}<a class="button" href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,new='1') }}#prepare-details">+ {{ t('new_session') }}</a>{% endif %}
   </form>
   {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<a href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected else None) }}">{{ t('reload_saved_settings') }}</a>{% endif %}{% endif %}
@@ -47,7 +61,7 @@
     <div class="preparation-section-heading"><h2><span class="preparation-number">3</span> {{ t('questions_and_readiness') }}</h2><span class="badge {{ 'completed' if readiness.complete else 'incomplete' }}">{{ (readiness.ready ~ ' / ' ~ readiness.count ~ ' ' ~ t('ready_to_start')) if readiness.count else t('ids_need_setup') }}</span></div>
     {% if selected.get('question_set') %}<p><span class="badge {{ 'completed' if question_status(selected.question_set) == 'questions_approved' else 'incomplete' }}">{{ t(question_status(selected.question_set)) }}</span> {{ selected.question_set.get('theme','') }}</p><ol class="preparation-question-list">{% for question in selected.question_set.questions %}<li>{{ question.get('question') or t('draft_question_empty') }}</li>{% endfor %}</ol>{% else %}<p class="muted">{{ t('question_set_missing') }}</p>{% endif %}
     <a class="button primary" href="{{ u('session_questions',session_id=selected.id,prepare_session=selected.id) }}">{{ t('continue_editing_draft') if selected.get('question_set') and question_status(selected.question_set) != 'questions_approved' else t('edit_saved_questions') if selected.get('question_set') else t('configure_questions') }}</a>
-    {% if readiness.count %}<details class="preparation-readiness"><summary>{{ t('check_each_participant') }}</summary><div class="table-wrap"><table><thead><tr><th>ID</th><th>{{ t('question_assignment') }}</th><th>{{ t('participant_readiness') }}</th><th></th></tr></thead><tbody>{% for person in readiness.participants %}<tr><th scope="row">{{ person.id }}</th><td>{{ t('participant_exception') if person.source == 'participant' else t('shared_questions') }}</td><td>{{ t('ready_to_start') if person.ready else t(person.problem) }}</td><td><a href="{{ u('session_questions',session_id=selected.id,participant=person.id,prepare_session=selected.id) }}">{{ t('edit_exception') }}</a></td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+    {% if readiness.count %}<details class="preparation-readiness"><summary>{{ t('participant_question_overview') }}</summary>{% with question_session=selected,from_preparation=true %}{% include 'research/participant_question_table.html' %}{% endwith %}</details>{% endif %}
     <p class="small muted">{{ t('session_readiness_hint') }}</p>
     {% if readiness.complete and selected.date == today %}<p class="notice success">{{ t('ready_today_hint') }} <a href="/start" target="_blank" rel="noopener">{{ t('open_student_start') }} &rarr;</a></p>{% endif %}
   </section>

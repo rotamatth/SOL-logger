@@ -37,9 +37,7 @@
 </div>
 <div class="panel">
   <h2>{{ t('participant_readiness') }} · {{ readiness.ready }} / {{ readiness.count }}</h2><p class="small muted">{{ t('session_readiness_hint') }}</p>
-  <div class="assignment-table-wrap"><table><thead><tr><th>{{ t('participant') }}</th><th>{{ t('question_assignment') }}</th><th>{{ t('participant_readiness') }}</th><th>{{ t('actions') }}</th></tr></thead><tbody>
-  {% for person in readiness.participants %}<tr><th scope="row">{{ person.id }}</th><td>{{ t('participant_exception') if person.source == 'participant' else t('shared_questions') }}</td><td><span class="badge {{ 'completed' if person.ready else 'incomplete' }}">{{ t('ready_to_start') if person.ready else t(person.problem) }}</span></td><td><a href="{{ u('session_questions', session_id=study_session.id, participant=person.id) }}">{{ t('edit_exception') }}</a></td></tr>{% endfor %}
-  </tbody></table></div>
+  {% with question_session=study_session %}{% include 'research/participant_question_table.html' %}{% endwith %}
 </div>
 </div>
 {% endblock %}

@@ -2244,3 +2244,38 @@ select {
 .preparation-picker select { max-width:100% }
 #preparation-session { max-width:320px }
 @media(max-width:700px) { #preparation-session { max-width:100% } }
+
+.enrollment-filter-panel { margin:20px 0 }
+.enrollment-filters { display:flex; align-items:flex-end; flex-wrap:wrap; gap:16px }
+.enrollment-filters > div { min-width:0; flex:1 1 150px }
+.enrollment-filters label { display:block; margin:0 0 6px }
+.enrollment-filters input,.enrollment-filters select { width:100%; margin:0 }
+.enrollment-filters .enrollment-filter-actions { display:flex; align-items:center; gap:16px; flex:0 1 auto; flex-wrap:wrap }
+.enrollment-filter-panel p { margin:12px 0 0 }
+
+/* In-page choices also work when a browser cannot open native select popups. */
+.preparation-class-field { flex:1 1 160px }
+.preparation-session-field { flex:2 1 240px }
+.preparation-picker .picker-label { display:block; font-weight:600; font-size:13px; margin-bottom:6px }
+.preparation-menu { position:relative; min-width:0 }
+.preparation-menu summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; cursor:pointer; padding:10px 12px; border:1px solid #aebec2; border-radius:8px; background:var(--white) }
+.preparation-menu summary::-webkit-details-marker { display:none }
+.preparation-menu summary::after { content:'▾'; flex:none }
+.preparation-menu[open] summary::after { content:'▴' }
+.preparation-menu .picker-date { display:block; font-size:12px; color:var(--muted); font-weight:400 }
+.preparation-menu-options { position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20; max-height:320px; overflow-y:auto; background:var(--white); border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 20px #132b3926; padding:4px }
+.preparation-menu-options button { display:block; width:100%; text-align:left; border:0; background:transparent; border-radius:4px; padding:10px 12px; white-space:normal; overflow-wrap:anywhere }
+.preparation-menu-options button:hover,.preparation-menu-options button:focus-visible { background:#e8f3f0 }
+.preparation-menu-options [aria-current] { background:#e1efeb; font-weight:700 }
+.preparation-picker #preparation-session { max-width:none }
+.participant-question-table-wrap { overflow-x:auto; margin-top:12px }
+.participant-question-table { table-layout:fixed; min-width:540px }
+.participant-question-table th,.participant-question-table td { text-align:left; padding:12px; white-space:normal; overflow-wrap:anywhere }
+.participant-question-table th:first-child { width:70px }
+.participant-question-table th:last-child { width:110px }
+.participant-question-table .badge { white-space:normal }
+.participant-question-table td:last-child a { display:inline-block; padding:4px 0 }
+@media(max-width:700px) {
+  .preparation-class-field,.preparation-session-field { flex-basis:100% }
+  .preparation-menu-options { max-height:260px }
+}

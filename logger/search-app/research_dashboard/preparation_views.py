@@ -24,7 +24,7 @@ def register_preparation_routes(bp, state, page, u):
     @bp.route('/prepare', methods=['GET', 'POST'])
     def prepare_page():
         settings = state.settings()
-        grade = request.args.get('grade', '4')
+        grade = request.args.get('select_grade', request.args.get('grade', '4'))
         if grade not in GRADES:
             abort(404)
         today = datetime.now(ZoneInfo('Europe/Zurich')).date().isoformat()
@@ -79,7 +79,8 @@ def register_preparation_routes(bp, state, page, u):
                            'session_has_records', 'overlapping_dates', 'session_limit'}
                 error = str(exc) if str(exc) in allowed else 'invalid_settings'
         readiness = session_readiness(settings, selected) if selected else None
-        return page('prepare', settings=settings, study_context={'grade': grade, 'school_year': year},
+        return page('prepare', settings=settings, study_context={'grade': grade, 'school_year': year,
+                    'id': selected['id'] if selected else None},
                     research_area='prepare', selected=selected, sessions=sessions, creating=creating,
                     readiness=readiness, error=error, today=today), 400 if error else 200
     return prepare_page

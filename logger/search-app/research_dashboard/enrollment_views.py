@@ -22,14 +22,14 @@ def register_enrollment_routes(bp, state, index, page, u):
         if workflow_session and (view != "registry" or not workflow_session.get("school_year")):
             abort(404)
         form = request.form.to_dict() if request.method == "POST" else {}
-        year = request.args.get("year", settings["current_school_year"])
+        year = request.args.get("year", workflow_session["school_year"] if workflow_session else settings["current_school_year"])
         if year and not valid_school_year(year):
             abort(404)
-        grade = request.args.get("grade", "all")
+        grade = request.args.get("grade", workflow_session["grade"] if workflow_session else "all")
         status = request.args.get("status", "all")
         if grade not in (*GRADES, "all") or status not in ("all", "active", "inactive"):
             abort(404)
-        if workflow_session and (year != workflow_session["school_year"] or grade not in (workflow_session["grade"], "all")):
+        if workflow_session and (year != workflow_session["school_year"] or grade != workflow_session["grade"]):
             abort(404)
         query = request.args.get("q", "").strip()[:32]
         signer = URLSafeSerializer(g.research_hash, salt="sol-enrollment-review")
@@ -92,7 +92,7 @@ def register_enrollment_routes(bp, state, index, page, u):
                    "history": [{"year": school_year, "grade": members[uid]["grade"]}
                                for school_year, members in sorted(settings["enrollments"].items()) if uid in members]}
                   for uid, person in settings["participant_registry"].items()
-                  if (not query or query.casefold() in uid.casefold())
+                  if (not query or query == uid)
                   and (grade == "all" or enrollments.get(uid, {}).get("grade") == grade)
                   and (status == "all" or person["active"] == (status == "active"))]
         people.sort(key=lambda p: participant_sort_key(p["id"]))
@@ -104,6 +104,8 @@ def register_enrollment_routes(bp, state, index, page, u):
             abort(404)
         editing = form.get("uid") if operation == "update" else request.args.get("edit")
         person = next((p for p in people if p["id"] == editing), None)
+        if editing and person is None:
+            abort(404)
         audit = state.participant_changes()
         return page("enrollment", settings=settings, workflow_session=workflow_session,
                     study_context=workflow_session or {"grade": grade, "school_year": year},
