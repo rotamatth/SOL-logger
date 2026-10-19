@@ -65,6 +65,45 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-20 — Prepare sessions, participant IDs and questions in one workflow
+
+**Type:** feature · **Area:** session, styling, data, tests, docs
+
+**Files**
+- `search-app/research_dashboard/preparation_views.py`, `templates/research/prepare.html`, `preparation_context.html` — session preparation entry and retained context.
+- `search-app/research_dashboard/__init__.py`, `enrollment_views.py`, `templates/research/` — navigation, contextual enrollment review and draft/approval returns.
+- `search-app/research_dashboard/participants.py`, `state.py` — enroll existing IDs with permanent keys and share session construction with administration.
+- `search-app/research_dashboard/i18n.py`, `static/research.css` — English/Italian labels and preparation layout.
+- `search-app/tests/test_session_preparation.py`, `test_research_dashboard.py` — workflow, identity, concurrency and admission coverage.
+
+**What changed for the participant**
+No student-page change. Researchers land on **Prepare a session**, with session
+details, class IDs, saved drafts and question readiness together. Every active
+class ID is included automatically in every session. Rare administration tools
+remain under settings.
+
+**How it works**
+Preparation composes authoritative settings, enrollment and question services.
+Initial enrollment and session details save under one revision. Known children
+can be enrolled in another year without new identities; signed review shows any
+changed grade. Question and enrollment editors return to the selected session.
+No schema migration is introduced.
+
+**If something looks wrong after this, check**
+- Wrong session after navigation → `preparation_views.py` context selection and `prepare_session` links.
+- An ID is missing → active status and enrollment for the session's own year/class.
+- A draft appears unavailable → approval/readiness state, not the reporting cache.
+
+**Left alone**
+Student collection, immutable admitted snapshots, upload acknowledgement, durable
+progress/resume work and live monitoring.
+
+**Verified**
+313 automated tests passed. Italian browser walkthrough covered session creation,
+ID review/confirmation, draft save/reopen, approval and student entry with synthetic data.
+The final image built and passed isolated container replacement and backup/restore checks.
+Institutional deployment, physical tablets and external search need release checks.
+
 ## 2026-10-19 — Recover collection safely after retries and server replacement (#18)
 
 **Type:** fix · **Area:** logging, session, task-flow, infra, data, tests, docs

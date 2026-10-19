@@ -12,6 +12,11 @@ and researcher-authorized repeats remain #6/#15. Live monitoring remains #17.
 collection-hardening work. This is a stacked change, not a standalone patch to
 Samuele's older branch. Nothing in this handover publishes or merges branches.
 
+`session-preparation-ux` builds on local `longitudinal-participants` checkpoint
+`6934280`. It restores preparation as the dashboard entry point and keeps IDs and
+questions within one session context. It adds no schema migration or student-route
+contract change. Integrate this complete stack when choosing that UX for the release.
+
 When the foundation is reviewed and shared, merge the complete foundation branch
 into `samuele/study-progress` (or its agreed integration base), resolve any conflicts
 in `search_app.py`, and run the tests below before adding progress persistence.
@@ -28,6 +33,7 @@ admission and deployment configuration belong to the same foundation.
 | `collection.py` | Freeze admission metadata, commit an attempt and publish its immutable sidecar |
 | `log_store.py` | Durable upload receipts, idempotent retries and recoverable publication of original logs |
 | `enrollment_views.py` | Researcher enrollment forms, signed review/confirmation, shared authentication and CSRF |
+| `preparation_views.py` | Session preparation orchestration; uses the same settings, identity and readiness services |
 | `index.py`, `exports.py` | Rebuildable read models and provenance-preserving exports; never a source of attempt state |
 | `runtime.py` | Persistent signing key and readiness support |
 
@@ -64,6 +70,12 @@ the consecutive year; grade 5 IDs remain reserved without a new enrollment.
 Individual exceptions, retention or late enrollment use the register's edit form.
 A conflicting target enrollment blocks the entire promotion without partial writes.
 
+Every active ID enrolled in a class/year is available in every session of that
+class/year. There is no per-session attendance or participant selection. The
+preparation shortcut can add new IDs or enroll known active IDs while retaining
+their permanent keys and previous years. A change to an existing enrollment is
+shown in the signed review before confirmation.
+
 ## Public reads and writes
 
 `state.settings()` returns a coherent SQLite snapshot of settings and the registry:
@@ -89,7 +101,7 @@ state.change_participants(
 )
 ```
 
-Supported operations are `add`, `update`, `promote`, `link`, and `unlink` (see the
+Supported operations are `add`, `enroll`, `update`, `promote`, `link`, and `unlink` (see the
 small functions in `participants.py` for arguments). Successful writes increment
 the shared revision and append an audit record in the same transaction. Audit
 records identify changes and revisions, not individual researchers: access still
@@ -98,6 +110,14 @@ uses one shared researcher credential. Do not claim per-user attribution.
 The old range editor exists for compatibility during initial setup. Once multiple
 years are recorded, it refuses range changes; use the permanent register instead.
 Unchanged range templates never overwrite individual enrollment edits.
+
+The bare `/dashboard` entry and login lead to `/dashboard/prepare`. Explicit
+reporting links such as `/dashboard?collection=study&grade=4` retain the data view.
+Preparation uses `grade`, `year` and `session`; its question/enrollment links carry
+`prepare_session` to return to the same context. Enrollment review tokens bind that
+session as well as the operation, arguments and settings revision. Other administration
+links remain usable independently. Preparation reads only authoritative settings and
+readiness, so a reporting-cache failure cannot block session setup.
 
 ## Admission contract for #6
 
@@ -241,3 +261,14 @@ staging before classroom release; local tests cannot establish those properties.
   The narrow layout was inspected as well. Only disposable synthetic records were used.
 - Actual tablets, institutional deployment, external search and the two standalone
   legacy Selenium suites still require their release-environment checks.
+
+### Preparation UX verification (20 October 2026)
+
+- 313 automated tests passed, including draft return/reopen, class/year navigation,
+  signed enrollment review, whole-class availability, permanent-key preservation,
+  rejected stale/CSRF writes and actual student admission after preparation.
+- The Italian browser walkthrough used synthetic data: create a session, add IDs,
+  save and reopen a draft, approve questions, and open student entry. No institutional
+  collection records were used.
+- The final container built successfully; synthetic admission, upload receipts,
+  permanent keys and annual enrollments survived replacement and backup/restore.

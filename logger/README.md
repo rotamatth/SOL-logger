@@ -15,10 +15,11 @@ Researchers can use `/dashboard` with a shared server-configured password. See
 V2 collection writes to a fresh directory; existing logs remain available separately
 under Legacy. The research roster defaults to IDs 1–20 (4th Grade) and 21–40 (5th Grade).
 
-Prepare V2 session dates and explicitly approve three questions for each grade/session
-in **Study settings → Sessions → Configure questions**. Legacy questions remain a
-library; student eligibility uses the scheduled Zurich date and fresh assignments.
-Puzzle assets are optional.
+Open **Prepare a session** to choose the year/class, set a session date, check
+participant IDs and save or approve the questions. Every active ID enrolled in
+that class/year is included in every session automatically. IDs remain permanent
+across years. Legacy questions remain a library; student eligibility uses the
+scheduled Zurich date and approved assignments. Puzzle assets are optional.
 
 ### Dashboard foundation
 

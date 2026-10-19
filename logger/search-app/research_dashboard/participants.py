@@ -204,6 +204,24 @@ def update_participant(db, uid, year, grade, active):
             "after": {"active": active, "grade": grade if active else (old[0] if old else None)}}
 
 
+def enroll_participants(db, ids, year, grade):
+    """Assign known active children to a year, retaining their permanent keys."""
+    if (not isinstance(ids, list) or any(not isinstance(uid, str) for uid in ids)
+            or parse_ids("\n".join(ids)) != ids):
+        raise ValueError("invalid_participant_ids")
+    changes = []
+    for uid in ids:
+        person = db.execute("SELECT active FROM participants WHERE id=?", (uid,)).fetchone()
+        if not person:
+            raise ValueError("participant_not_registered")
+        if not person["active"]:
+            raise ValueError("participant_inactive")
+        before = db.execute("SELECT grade FROM enrollments WHERE participant_id=? AND school_year=?", (uid, year)).fetchone()
+        put_enrollment(db, uid, year, grade)
+        changes.append({"id": uid, "before_grade": before[0] if before else None, "grade": grade})
+    return {"ids": ids, "school_year": year, "grade": grade, "changes": changes}
+
+
 def promotion_plan(settings, source_year, target_year):
     if (not valid_school_year(source_year) or not valid_school_year(target_year)
             or int(target_year[:4]) != int(source_year[:4]) + 1):

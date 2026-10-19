@@ -2187,3 +2187,60 @@ select {
   .enrollment-workspace .filters input { width:100% }
   .enrollment-workspace .settings-tabs { flex-wrap:wrap }
 }
+
+/* The preparation workspace keeps class, session, IDs and questions together. */
+.preparation-workspace,.question-workspace { max-width:1000px; margin:0 auto }
+.preparation-heading,.preparation-section-heading,.preparation-session-picker {
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap
+}
+.preparation-heading h1 { margin-bottom:8px }
+.preparation-heading p { margin:0 }
+.preparation-heading { margin-bottom:24px }
+.preparation-picker,.preparation-details,.preparation-session-picker form {
+  display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap
+}
+.preparation-picker { padding:16px; background:var(--white); border:1px solid var(--line); border-radius:12px; margin-bottom:16px }
+.preparation-picker label,.preparation-details label { margin:0 }
+.preparation-picker .preparation-field select { display:block; margin:6px 0 0 }
+.preparation-picker input,.preparation-picker select,.preparation-details input { display:block; margin:6px 0 0 }
+.preparation-picker input { width:170px }
+.preparation-session-picker { margin-bottom:16px }
+.preparation-session-picker select { max-width:480px }
+.preparation-session-picker form label { margin:0 0 10px }
+.preparation-panel { padding:20px; margin:16px 0 }
+.preparation-panel h2 { font-size:20px; margin:0 0 16px }
+.preparation-section-heading h2 { margin-bottom:12px }
+.preparation-number { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#e1efeb; color:var(--accent); font-size:15px; margin-right:6px }
+.preparation-id-list { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px }
+.preparation-id { border:1px solid var(--line); background:#f4f8f7; border-radius:6px; padding:6px 12px; font-weight:600 }
+.preparation-add { padding-top:12px; border-top:1px solid var(--line) }
+.preparation-add summary,.preparation-readiness summary { cursor:pointer; font-weight:600 }
+.preparation-add form { max-width:640px; padding:12px 0 }
+.preparation-add textarea { display:block; width:100%; font:inherit; padding:10px; border:1px solid var(--line); border-radius:8px }
+.preparation-add select { display:block; max-width:100%; margin:8px 0 12px }
+.preparation-add label { margin-top:12px }
+.preparation-question-list { padding-left:22px; margin:12px 0 20px }
+.preparation-question-list li { padding:4px 0; overflow-wrap:anywhere }
+.preparation-readiness { margin-top:20px }
+.preparation-readiness .table-wrap { overflow-x:auto }
+.preparation-readiness table { width:100% }
+.preparation-administration { margin:24px 0; font-size:13px; color:var(--muted) }
+.preparation-context { margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--line) }
+.preparation-context p { margin:12px 0 }
+.preparation-steps,.settings-subtabs { display:flex; flex-wrap:wrap; gap:16px; margin:12px 0 }
+.preparation-steps a,.settings-subtabs a { padding:6px 0 }
+.preparation-steps [aria-current],.settings-subtabs [aria-current] { font-weight:700; border-bottom:2px solid var(--accent) }
+@media(max-width:700px) {
+  .preparation-heading { align-items:flex-start }
+  .preparation-picker .preparation-field,.preparation-details label { flex:1 1 150px }
+  .preparation-picker input,.preparation-picker select,.preparation-details input { width:100% }
+  .preparation-session-picker form { width:100% }
+  .preparation-session-picker select { max-width:100%; flex:1 1 160px }
+  .preparation-panel { padding:16px }
+  .preparation-steps { gap:12px; font-size:13px }
+}
+
+.preparation-picker .preparation-field { min-width:0; max-width:100% }
+.preparation-picker select { max-width:100% }
+#preparation-session { max-width:320px }
+@media(max-width:700px) { #preparation-session { max-width:100% } }

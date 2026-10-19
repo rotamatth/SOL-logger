@@ -177,6 +177,23 @@ def validate_settings(value):
     return value
 
 
+def make_study_session(settings, grade, study_date, name="", school_year=None):
+    """Build a session consistently for administration and guided preparation."""
+    if grade not in GRADES:
+        raise ValueError("invalid_sessions")
+    number = max((s["number"] for s in settings["sessions"] if s["grade"] == grade), default=0) + 1
+    if number > MAX_STUDY_SESSIONS:
+        raise ValueError("session_limit")
+    if not study_date:
+        raise ValueError("invalid_date")
+    study_session = {"id": f"grade-{grade}-session-{number}", "grade": grade,
+                     "number": number, "date": study_date, "name": normalize_session_name(name),
+                     "school_year": settings.get("current_school_year", "") if school_year is None else school_year}
+    if not valid_school_year(study_session["school_year"]):
+        raise ValueError("school_year_required")
+    return study_session
+
+
 class State:
     def __init__(self, directory):
         directory = Path(directory)
@@ -282,6 +299,8 @@ class State:
                                   (utc_now(), json.dumps(settings))).lastrowid
             if operation == "add":
                 details = identities.add_participants(db, **arguments)
+            elif operation == "enroll":
+                details = identities.enroll_participants(db, **arguments)
             elif operation == "update":
                 details = identities.update_participant(db, **arguments)
             elif operation == "promote":
@@ -350,18 +369,7 @@ class State:
         current = self.settings()
         if current["revision"] != expected_revision:
             raise ValueError("settings_changed")
-        if grade not in GRADES:
-            raise ValueError("invalid_sessions")
-        number = max((s["number"] for s in current["sessions"] if s["grade"] == grade), default=0) + 1
-        if number > MAX_STUDY_SESSIONS:
-            raise ValueError("session_limit")
-        if not study_date:
-            raise ValueError("invalid_date")
-        study_session = {"id": f"grade-{grade}-session-{number}", "grade": grade,
-                         "number": number, "date": study_date, "name": normalize_session_name(name),
-                         "school_year": current.get("current_school_year", "") if school_year is None else school_year}
-        if not valid_school_year(study_session["school_year"]):
-            raise ValueError("school_year_required")
+        study_session = make_study_session(current, grade, study_date, name, school_year)
         current["sessions"].append(study_session)
         self.save_settings({key: current[key] for key in SETTING_FIELDS}, expected_revision)
         return study_session

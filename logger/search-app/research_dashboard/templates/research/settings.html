@@ -2,14 +2,10 @@
 {% block content %}
 <div class="settings-workspace">
   <div class="settings-page-heading">
-    <div><a class="settings-back" href="{{ u('overview') }}">&larr; {{ t('back_to_participants') }}</a><h1>{{ t('settings') }}</h1><p class="muted">{{ t('settings_workspace_hint') }}</p></div>
+    <div><a class="settings-back" href="{{ u('prepare_page',grade=history_grade) }}">&larr; {{ t('prepare_session') }}</a><h1>{{ t('settings') }}</h1><p class="muted">{{ t('settings_workspace_hint') }}</p></div>
     {% if settings.current_school_year %}<span class="settings-year-tag">{{ settings.current_school_year }}</span>{% endif %}
   </div>
-  <nav class="settings-tabs" aria-label="{{ t('settings') }}">
-    {% for section, label in (('year', 'school_year'), ('sessions', 'sessions'), ('participants', 'overview')) %}
-    <a href="{{ u('enrollment_page', grade=history_grade) if section == 'participants' else u('settings_page', section=section, grade=history_grade) }}" {% if active_section == section %}aria-current="page"{% endif %}>{{ t(label) }}</a>
-    {% endfor %}
-  </nav>
+  {% include 'research/settings_navigation.html' %}
   {% if request.args.get('saved_action') in ('remove_session', 'restore_session') %}<p class="notice success" role="status">{{ t('study_session_removed') if request.args.get('saved_action') == 'remove_session' else t('study_session_restored') }}</p>{% endif %}
   {% if request.args.get('saved') == '1' and request.args.get('saved_action') not in ('remove_session', 'restore_session') %}<p class="notice success settings-notice" role="status">{{ t('participants_saved') if request.args.get('saved_action') == 'save_ranges' else t('school_year_saved') if request.args.get('saved_action') == 'save_year' else t('session_saved') if request.args.get('saved_action') in ('save_session', 'save_dates') else t('saved') }}</p>{% endif %}
   {% if error and not ranges_error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}

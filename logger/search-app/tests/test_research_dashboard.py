@@ -195,7 +195,7 @@ def test_secure_cookie_headers_and_bilingual_ui(app):
     assert b"Accesso ricercatori" in response.data
     assert "Secure" in response.headers["Set-Cookie"]
     response = login(client, lang="it")
-    assert response.location == "/dashboard?lang=it"
+    assert response.location == "/dashboard/prepare?lang=it"
     response = client.get("/dashboard?lang=it", headers={"Origin": "https://untrusted.example"})
     assert b"Quarta" in response.data
     assert response.headers["X-Frame-Options"] == "DENY"
@@ -326,7 +326,7 @@ def test_metadata_only_run_visible_before_first_task_save(app, monkeypatch):
     assert run["app_version"] == "v2-test" and run["grade"] == "4"
     client = app.test_client()
     login(client)
-    response = client.get("/dashboard")
+    response = client.get("/dashboard?collection=study&grade=4")
     assert not any(link.path.endswith("/exports/participant") for link in dashboard_links(response))
     row = next(row for row in re.findall(r'<tr>(.*?)</tr>', response.text, re.S)
                if f'/participants/study/{identity("1")}' in row)
@@ -946,7 +946,7 @@ def test_empty_dashboard_shows_clear_status_without_unavailable_row_actions(app)
         assert response.status_code == 200
         assert "V2 collection" not in response.text and "Unassigned" not in response.text and "Legacy archive" not in response.text
         assert not any("/exports/" in link.path for link in dashboard_links(response))
-    response = client.get("/dashboard")
+    response = client.get("/dashboard?collection=study&grade=4")
     assert response.text.count('<span class="badge no_data">No saved data</span>') == 20
     assert response.text.count('class="dashboard-no-actions muted"') == 20
     assert 'type="checkbox"' not in response.text
@@ -966,7 +966,7 @@ def test_compact_grade_download_and_participant_session_selectors(app):
     key, _, _ = write_run(app)
     client = app.test_client()
     login(client)
-    overview = client.get("/dashboard")
+    overview = client.get("/dashboard?collection=study&grade=4")
     assert '<nav class="dashboard-grades"' in overview.text
     assert 'class="tabs grade-tabs"' not in overview.text
     assert 'class="download-menu"' not in overview.text
@@ -1082,7 +1082,7 @@ def test_researcher_can_visualize_or_download_participant_sessions_and_runs(app)
     other = write_run(app, uid="21")[0]
     client = app.test_client()
     login(client)
-    overview = client.get("/dashboard")
+    overview = client.get("/dashboard?collection=study&grade=4")
     assert b"Visualize logs</a>" in overview.data and b'aria-label="Download all 4th grade"' in overview.data
     assert not any(link.path.endswith("/exports/all") for link in dashboard_links(overview))
     assert b"export-menu" not in overview.data
@@ -1545,7 +1545,7 @@ def test_historical_grade_categories_and_downloads_preserve_both_cohorts(app):
     state = app.extensions["research"]["state"]
     client = app.test_client()
     login(client)
-    assert any(parse_qs(link.query).get("grade") == ["3"] for link in dashboard_links(client.get("/dashboard")))
+    assert any(parse_qs(link.query).get("grade") == ["3"] for link in dashboard_links(client.get("/dashboard?collection=study&grade=4")))
     empty = client.get("/dashboard?grade=3")
     assert b"No participants in this grade" in empty.data
     assert any(link.path == "/dashboard/settings/enrollment"

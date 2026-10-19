@@ -18,6 +18,7 @@ from .i18n import translate
 from .index import Index
 from .session_lifecycle import session_removal_problem
 from .enrollment_views import register_enrollment_routes
+from .preparation_views import register_preparation_routes
 from .state import DEFAULT_STUDY_ID, GRADES, SETTING_FIELDS, MAX_STUDY_SESSIONS, State, identity, normalize_session_name, roster, validate_settings
 from .student_config import configure_students, range_summary, task_catalog, topics_ready
 from .study_config import assignment_for, question_choices, question_library, question_set_problem, session_readiness, validate_question_set
@@ -78,6 +79,8 @@ def init_dashboard(app):
 
     def u(endpoint, **values):
         values.setdefault("lang", g.get("research_lang", "en"))
+        if endpoint in ("session_questions", "enrollment_page") and request.args.get("prepare_session"):
+            values.setdefault("prepare_session", request.args["prepare_session"])
         return url_for("research." + endpoint, **values)
 
     def page(name, **values):
@@ -162,12 +165,14 @@ def init_dashboard(app):
                 "questions_approved" if question_set_problem(assignment) is None else "questions_draft",
                 "language_url": language_url, "auth": g.get("research_auth"), "when": when,
                 "grades": GRADES,
+                "study_context": {"grade": request.args.get("grade", "4"),
+                                  "school_year": request.args.get("year") or request.args.get("school_year") or None},
                 "pretty": lambda value: json.dumps(value, ensure_ascii=False, indent=2)}
 
     @bp.route("/login", methods=["GET", "POST"])
     def login():
         if g.research_auth and g.research_auth["authenticated"]:
-            return redirect(u("overview"))
+            return redirect(u("prepare_page"))
         if request.method == "GET":
             if not g.research_auth:
                 g.research_new_token, g.research_auth = state.new_session(identity(g.research_hash))
@@ -186,7 +191,7 @@ def init_dashboard(app):
         state.successful_attempt(attempt)
         state.revoke(g.research_cookie)
         g.research_new_token, g.research_auth = state.new_session(identity(g.research_hash), authenticated=True)
-        return redirect(u("overview"))
+        return redirect(u("prepare_page"))
 
     @bp.post("/logout")
     def logout():
@@ -257,6 +262,8 @@ def init_dashboard(app):
     @bp.get("/")
     @bp.get("")
     def overview():
+        if not set(request.args) - {"lang"}:
+            return prepare_view()
         settings, runs = data()
         collection = request.args.get("collection", "study")
         if collection not in (*index.roots, "study"):
@@ -762,6 +769,9 @@ def init_dashboard(app):
         study_session = next((s for s in settings["sessions"] if s["id"] == session_id), None)
         if study_session is None or study_session.get("removed"):
             abort(404)
+        from_preparation = bool(request.args.get("prepare_session"))
+        if from_preparation and request.args["prepare_session"] != session_id:
+            abort(404)
         uid = request.args.get("participant", "")
         if uid and roster(settings, study_session.get("school_year")).get(uid) != study_session["grade"]:
             abort(404)
@@ -848,13 +858,21 @@ def init_dashboard(app):
                         target["question_set"] = draft
                     state.save_settings(updated, revision)
                     if action == "save_draft_return":
+                        if from_preparation:
+                            return redirect(u("prepare_page", grade=study_session["grade"], year=study_session.get("school_year") or None,
+                                              session=session_id, draft_saved="1", _anchor="prepare-questions"))
                         return redirect(u("overview", grade=study_session["grade"], session=session_id, draft_saved="1"))
+                    if action == "approve_questions" and from_preparation:
+                        return redirect(u("prepare_page", grade=study_session["grade"], year=study_session.get("school_year") or None,
+                                          session=session_id, _anchor="prepare-questions"))
                     return redirect(u("session_questions", session_id=session_id, participant=uid or None, saved="1"))
                 else:
                     raise ValueError("invalid_question_set")
             except (ValueError, KeyError, BadSignature) as exc:
                 error = str(exc) if str(exc) in {"settings_changed", "questions_incomplete", "questions_unapproved"} else "invalid_question_set"
         return page("session_questions", settings=settings, study_session=study_session,
+                    from_preparation=from_preparation, research_area="prepare" if from_preparation else "settings",
+                    study_context=study_session,
                     participant=uid, draft=draft, has_exception=uid in exceptions,
                     readiness=session_readiness(settings, study_session), library=library, unique_questions=unique_questions,
                     unsaved_preview=request.method == "POST" and not error,
@@ -946,6 +964,7 @@ def init_dashboard(app):
     def storage_error(_):
         return problem("storage_error", 503)
 
+    prepare_view = register_preparation_routes(bp, state, page, u)
     register_enrollment_routes(bp, state, index, page, u)
     app.register_blueprint(bp)
     return state

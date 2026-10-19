@@ -1,6 +1,9 @@
 {% extends 'research/base.html' %}
 {% block content %}
+<div class="question-workspace">
+{% if from_preparation %}{% include 'research/preparation_context.html' %}{% else %}
 <a href="{{ u('settings_page', section='sessions', grade=study_session.grade, edit=study_session.id) }}#{{ study_session.id }}">&larr; {{ t('manage_sessions') }}</a>
+{% endif %}
 <h1>{{ t('grade_' ~ study_session.grade) }} · {{ t('session') }} {{ study_session.number }}</h1>
 <p>{{ study_session.name or '' }} · {{ study_session.date or t('date_not_set') }} · Europe/Zurich</p>
 <p class="muted">{{ t('v2_questions_hint') }}</p>
@@ -37,5 +40,6 @@
   <div class="assignment-table-wrap"><table><thead><tr><th>{{ t('participant') }}</th><th>{{ t('question_assignment') }}</th><th>{{ t('participant_readiness') }}</th><th>{{ t('actions') }}</th></tr></thead><tbody>
   {% for person in readiness.participants %}<tr><th scope="row">{{ person.id }}</th><td>{{ t('participant_exception') if person.source == 'participant' else t('shared_questions') }}</td><td><span class="badge {{ 'completed' if person.ready else 'incomplete' }}">{{ t('ready_to_start') if person.ready else t(person.problem) }}</span></td><td><a href="{{ u('session_questions', session_id=study_session.id, participant=person.id) }}">{{ t('edit_exception') }}</a></td></tr>{% endfor %}
   </tbody></table></div>
+</div>
 </div>
 {% endblock %}

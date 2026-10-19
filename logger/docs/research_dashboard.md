@@ -34,26 +34,34 @@ or reuse research access. The research pages never load the student logger.
    configuration disables research access (503), including exports and APIs.
    No credential is committed. Rotating the hash invalidates existing research
    sessions on their next request; no app restart is needed.
-4. Open `/dashboard`, log in, choose a UI language, and open **Study settings**.
+4. Open `/dashboard`, log in, choose a UI language, and use **Prepare a session**.
+   Choose the school year and class, then open a session or choose **New session**.
+   Save its name and date in step 1. On initial setup, this also confirms the first
+   school year (September–August) and enrolls the default IDs in one transaction.
    Defaults are exact IDs `1`–`20` for 4th Grade and `21`–`40` for 5th Grade.
-   Confirm **Current school year** (for example, `2026/2027`, September–August)
-   to enroll the initial roster. Verify the actual IDs in **Permanent participants**.
-   In **Sessions**, choose one grade. Expand a session in **Session history** to set
-   its name, own school year and date and save that session. Use **New session** in the same grade view
-   to add a dated session with an optional name, up to 100 per grade. History shows
-   ten sessions at a time, newest first, with older pages available. Dates use Europe/Zurich.
+   Check and correct the class IDs in step 2. **Add or enroll IDs** distinguishes
+   new children needing new IDs from existing children keeping their permanent IDs.
+   Review the proposed changes before confirming. All active IDs enrolled in that
+   class/year are included automatically in every session; no attendance selection
+   is required. Inactive children cannot be enrolled through this shortcut.
+   Dates use Europe/Zurich. Planning another year does not switch the current year.
    Prepare the three V2 sessions per grade with explicit dates; no monthly spacing is required.
-   Use **Configure questions** for each session to enter three topics/questions or explicitly
-   load previous questions from the library, edit them, and approve the assignment.
+   In step 3, enter three topics/questions or explicitly load previous questions
+   from the library, edit them, and approve the assignment. Drafts remain visible
+   in the preparation page and can be reopened. Saving a draft and returning, or
+   approving questions, returns to the same session with the year/class retained.
    Missing session years/dates, missing annual enrollment and incomplete/unapproved
    drafts stay unavailable to students.
    The library remains available without puzzle files. No old per-ID assignment is carried
    into V2 Session 1. Existing extra sessions and their history remain accessible.
    3rd Grade starts without any numbered sessions. Saved historical assignments
-   remain active, but their editing controls are currently hidden.
+   remain active, but their editing controls are currently hidden. **Study settings**
+   retains the full session history, removal controls, annual promotion and historical
+   links, up to 100 sessions per grade. **Data and history** opens the reporting view.
 5. Verify a test run, its question/answer association and a task/participant ZIP
    before classroom collection. **Permanent participants** manages exact IDs, yearly
-   enrollment and active/inactive status. Each session’s question editor shows readiness. All IDs use that grade/session
+   enrollment and active/inactive status. The preparation page shows questions and
+   readiness together. All IDs use that grade/session
    shared question set unless **Set individual questions** saves an exception for that ID.
    Removing an exception returns that ID to the shared set. A saved incomplete exception
    blocks that participant rather than falling back to shared or legacy questions.

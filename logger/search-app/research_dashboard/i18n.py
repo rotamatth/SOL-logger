@@ -494,6 +494,52 @@ TEXT.update({'op_initial_enrollment': ('Confirm initial school-year enrollment',
  'enrollment': ('Confirmed annual enrollment', 'Iscrizione annuale confermata')})
 
 
+TEXT.update({'prepare_session': ('Prepare a session', 'Prepara una sessione'),
+ 'prepare_hint': ('Choose the class and year, check participant IDs, then prepare the questions.',
+                  'Scegli la classe e l’anno, controlla gli ID dei partecipanti e prepara le domande.'),
+ 'data_and_history': ('Data and history', 'Dati e storico'),
+ 'session_details': ('Session details', 'Dettagli della sessione'),
+ 'questions_and_readiness': ('Questions and readiness', 'Domande e accesso'),
+ 'initial_prepare_year_hint': ('Saving confirms this first school year and enrolls the initial ID list. You '
+                               'can then adjust the IDs below.',
+                               'Il salvataggio conferma questo primo anno scolastico e iscrive l’elenco '
+                               'iniziale di ID. Potrai poi modificare gli ID qui sotto.'),
+ 'edit_participant_ids': ('Edit participant IDs', 'Modifica gli ID'),
+ 'save_details_first': ('Save the session details first to confirm the school year and set up IDs.',
+                        'Salva prima i dettagli della sessione per confermare l’anno scolastico e impostare '
+                        'gli ID.'),
+ 'session_ids_hint': ('These children are enrolled in this class for the selected school year. Their '
+                      'permanent IDs stay the same in every session.',
+                      'Questi bambini sono iscritti a questa classe per l’anno scolastico selezionato. I '
+                      'loro ID permanenti restano uguali in tutte le sessioni.'),
+ 'no_enrolled_ids': ('No IDs are enrolled in this class and school year yet.',
+                     'Nessun ID è ancora iscritto a questa classe e anno scolastico.'),
+ 'add_or_enroll_ids': ('Add or enroll IDs', 'Aggiungi o iscrivi ID'),
+ 'id_setup_action': ('Which participants are these?', 'Di quali partecipanti si tratta?'),
+ 'new_children_new_ids': ('New children — create new IDs', 'Nuovi bambini — crea nuovi ID'),
+ 'existing_children_same_ids': ('Children already in the study — keep their IDs',
+                                'Bambini già nello studio — conserva i loro ID'),
+ 'check_each_participant': ('Check each participant and individual questions',
+                            'Controlla i partecipanti e le domande individuali'),
+ 'ready_today_hint': ('This session is configured for today. Each child can start with their own ID.',
+                      'La sessione è configurata per oggi. Ogni bambino può iniziare con il proprio ID.'),
+ 'open_student_start': ('Open student start page', 'Apri la pagina di accesso degli studenti'),
+ 'all_sessions_and_administration': ('All sessions and session administration',
+                                     'Tutte le sessioni e gestione delle sessioni'),
+ 'annual_enrollment_tools': ('Annual enrollment and historical links',
+                             'Iscrizioni annuali e collegamenti storici'),
+ 'op_enroll': ('Enroll existing participants, keeping their IDs',
+               'Iscrivi i partecipanti esistenti conservando i loro ID'),
+ 'participant_not_registered': ('An ID is not registered. Use “New children” to create new IDs, or correct '
+                                'the existing IDs.',
+                                'Un ID non è registrato. Usa “Nuovi bambini” per creare nuovi ID oppure '
+                                'correggi gli ID esistenti.')})
+
+TEXT.update({
+    'ids_need_setup': ('Set up participant IDs', 'ID da impostare'),
+    'prepare_ids_hint': ('Enter each ID separated by commas, for example: 1, 2, 3. Choose whether these are new children or children already in the study. Keep existing children’s original IDs. Do not enter names.', 'Inserisci ogni ID separato da virgole, ad esempio: 1, 2, 3. Scegli se sono nuovi bambini o bambini già nello studio. Per i bambini già presenti conserva gli ID originali. Non inserire nomi.'),
+})
+
 def translate(key, language):
     pair = TEXT.get(key)
     return pair[1 if language == "it" else 0] if pair else key

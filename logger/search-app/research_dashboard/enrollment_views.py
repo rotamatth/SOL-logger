@@ -3,10 +3,11 @@ from flask import abort, g, redirect, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from .state import DEFAULT_STUDY_ID, identity
+from .preparation_views import preparation_session
 from .participants import GRADES, parse_ids, participant_sort_key, valid_school_year
 
 ERRORS = frozenset(("settings_changed", "invalid_enrollment", "invalid_participant_ids",
-                   "participant_id_reserved", "school_year_required", "invalid_promotion_year",
+                   "participant_id_reserved", "participant_not_registered", "participant_inactive", "school_year_required", "invalid_promotion_year",
                    "enrollment_conflict", "empty_promotion", "invalid_identity_link", "identity_link_conflict"))
 
 
@@ -17,6 +18,9 @@ def register_enrollment_routes(bp, state, index, page, u):
         view = request.args.get("view", "registry")
         if view not in ("registry", "promotion", "links"):
             abort(404)
+        workflow_session = preparation_session(settings, request.args.get("prepare_session"))
+        if workflow_session and (view != "registry" or not workflow_session.get("school_year")):
+            abort(404)
         form = request.form.to_dict() if request.method == "POST" else {}
         year = request.args.get("year", settings["current_school_year"])
         if year and not valid_school_year(year):
@@ -24,6 +28,8 @@ def register_enrollment_routes(bp, state, index, page, u):
         grade = request.args.get("grade", "all")
         status = request.args.get("status", "all")
         if grade not in (*GRADES, "all") or status not in ("all", "active", "inactive"):
+            abort(404)
+        if workflow_session and (year != workflow_session["school_year"] or grade not in (workflow_session["grade"], "all")):
             abort(404)
         query = request.args.get("q", "").strip()[:32]
         signer = URLSafeSerializer(g.research_hash, salt="sol-enrollment-review")
@@ -39,11 +45,13 @@ def register_enrollment_routes(bp, state, index, page, u):
             try:
                 if form.get("action") == "confirm":
                     payload = signer.loads(form["review_token"])
+                    if payload.get("workflow_session") != (workflow_session["id"] if workflow_session else None):
+                        raise ValueError("invalid_enrollment")
                     operation, arguments, revision = payload["operation"], payload["arguments"], payload["revision"]
                     preview, token = payload["preview"], form["review_token"]
                 else:
                     revision = int(form["revision"])
-                    if operation == "add":
+                    if operation in ("add", "enroll"):
                         arguments = dict(ids=parse_ids(form.get("ids", "")), year=form.get("year"), grade=form.get("grade"))
                     elif operation == "update":
                         if form.get("active") not in ("yes", "no"):
@@ -57,6 +65,10 @@ def register_enrollment_routes(bp, state, index, page, u):
                         arguments = dict(link_id=form.get("link_id"))
                     else:
                         raise ValueError("invalid_enrollment")
+                if workflow_session and (operation not in ("add", "enroll", "update")
+                        or arguments.get("year") != workflow_session["school_year"]
+                        or operation != "update" and arguments.get("grade") != workflow_session["grade"]):
+                    raise ValueError("invalid_enrollment")
                 if operation == "link" and view != "links":
                     legacy = legacy_records()
                 if operation == "link" and not any(run["participant_id"] == arguments["source_id"]
@@ -64,10 +76,15 @@ def register_enrollment_routes(bp, state, index, page, u):
                     raise ValueError("invalid_identity_link")
                 if form.get("action") == "confirm":
                     state.change_participants(operation, arguments, revision)
-                    return redirect(u("enrollment_page", view="registry" if operation == "promote" else view,
+                    if workflow_session:
+                        return redirect(u("prepare_page", grade=workflow_session["grade"],
+                                          year=workflow_session["school_year"], session=workflow_session["id"],
+                                          participants_saved="1", _anchor="prepare-participants"))
+                    return redirect(u("enrollment_page", grade=grade, status=status, q=query, view="registry" if operation == "promote" else view,
                                       year=arguments.get("target_year", year), saved="1"))
                 preview = state.change_participants(operation, arguments, revision, dry_run=True)
-                token = signer.dumps(dict(operation=operation, arguments=arguments, revision=revision, preview=preview))
+                token = signer.dumps(dict(operation=operation, arguments=arguments, revision=revision, preview=preview,
+                                         workflow_session=workflow_session["id"] if workflow_session else None))
             except (ValueError, KeyError, TypeError, BadSignature) as exc:
                 error = str(exc) if str(exc) in ERRORS else "invalid_enrollment"
         enrollments = settings["enrollments"].get(year, {})
@@ -88,7 +105,9 @@ def register_enrollment_routes(bp, state, index, page, u):
         editing = form.get("uid") if operation == "update" else request.args.get("edit")
         person = next((p for p in people if p["id"] == editing), None)
         audit = state.participant_changes()
-        return page("enrollment", settings=settings, view=view, year=year, grade=grade, status=status, query=query,
+        return page("enrollment", settings=settings, workflow_session=workflow_session,
+                    study_context=workflow_session or {"grade": grade, "school_year": year},
+                    research_area="prepare" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
                     people=people[(number-1)*50:number*50], total=len(people), page_number=number,
                     page_count=max(1, (len(people)+49)//50), editing=person, form=form,
                     preview=preview, review_token=token, operation=operation, error=error,
