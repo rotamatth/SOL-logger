@@ -46,8 +46,13 @@ To test collection:
    to today (Europe/Zurich), with an optional name. Prepare the three V2 session
    dates explicitly; dates do not have to be a month apart.
 2. Open **Configure questions** for today's session. Enter three topics/questions,
-   or load a previous set/question into the editor, edit it, approve the three
-   questions and save. Readiness must show the intended participants as ready.
+   or load a previous set/question into the editor and edit it. **Save draft** keeps
+   incomplete work; **Save draft and return to session** also opens the session's
+   question preview. Saved drafts have a **Continue editing draft** link in the
+   session settings and session overview, with all fields restored on reopening.
+   **Approve questions** validates all three and makes the assignment ready.
+   Each individual question appears once in the reuse list; complete-set choices
+   retain their explicit experimental variants. Readiness must show the intended participants as ready.
    Use **Set individual questions** for an ID exception. V2 starts without legacy
    per-ID assignments and puzzle files are optional. In another tab, open
    http://localhost:7001/welcome and start with a configured ID. Outside the date,
@@ -81,6 +86,11 @@ To test collection:
    supports up to 100 sessions. Expand a session in **Session history** to edit its
    name or date, then press **Save session**. History shows ten sessions per page,
    newest first. Existing session numbers and source files are preserved.
+   For an accidentally created or unused session, expand **Remove session** and
+   confirm. It disappears from the schedule. **Removed sessions → Restore session**
+   restores the original number and saved questions; its date can be adjusted if
+   another active session uses that date. Sessions with participant records,
+   including started attempts and records in log Trash, cannot be removed.
 7. In **Study settings**, set **Current school year** for newly started runs.
    **Save school year** changes only the year. **Participants** shows the saved
    setup for one grade, with a **Need tasks** filter and ten participants per page.

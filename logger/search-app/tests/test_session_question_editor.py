@@ -111,9 +111,9 @@ def test_custom_draft_can_save_incomplete_but_approval_requires_three_questions(
     saved = save_shared(app, client)
     assert saved["approved"] and len(saved["questions"]) == 3
     assert "20 / 20" in client.get(URL).text
-    assert "20 / 20 ready to start" in client.get("/dashboard/settings?section=sessions&grade=4").text
+    assert "20 / 20 configuration complete" in client.get("/dashboard/settings?section=sessions&grade=4").text
     roster = client.get("/dashboard/settings?section=participants&grade=4&participant_session=grade-4-session-1")
-    assert "20</strong><span>ready to start" in roster.text
+    assert "20</strong><span>configuration complete" in roster.text
     assert all("metadata" not in question for question in saved["questions"])
 
 

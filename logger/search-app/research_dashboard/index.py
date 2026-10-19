@@ -11,6 +11,8 @@ import re
 import sqlite3
 import stat
 import time
+import fcntl
+import uuid
 
 from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
 
@@ -53,14 +55,25 @@ def safe_open(root, name):
 
 
 class Index:
-    def __init__(self, directory, roots, refresh_seconds=30):
+    def __init__(self, directory, roots, refresh_seconds=30, initialize=True):
         self.path = Path(directory) / "index.sqlite3"
         self.roots = {name: Path(path).resolve() for name, path in roots.items()}
         if len(set(self.roots.values())) != len(self.roots):
             raise ValueError("v2 and legacy must use different directories")
         self.refresh_seconds = refresh_seconds
-        with self.connect() as db:
-            db.executescript("""
+        self._initialized = False
+        if initialize:
+            self._initialize()
+
+    def _initialize(self):
+        # Reporting cache availability must not be a prerequisite for app boot.
+        # Only this disposable index is rebuilt; research settings are never reset.
+        with open(self.path.with_suffix(".lock"), "a+b") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            for attempt in range(2):
+                db = sqlite3.connect(self.path, timeout=30)
+                try:
+                    db.executescript("""
                 CREATE TABLE IF NOT EXISTS files (
                     id TEXT PRIMARY KEY, collection TEXT NOT NULL, name TEXT NOT NULL,
                     signature TEXT NOT NULL, info TEXT NOT NULL);
@@ -71,16 +84,41 @@ class Index:
                 CREATE INDEX IF NOT EXISTS task_events ON events(file_id, task, line);
                 CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, summary TEXT NOT NULL, detail TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS scan (id INTEGER PRIMARY KEY, at REAL NOT NULL, problems TEXT NOT NULL);
-            """)
-        self.path.chmod(0o600)
+                    """)
+                    if db.execute("PRAGMA quick_check(1)").fetchall() != [("ok",)]:
+                        error = sqlite3.DatabaseError("Corrupt reporting cache")
+                        error.sqlite_errorcode = sqlite3.SQLITE_CORRUPT
+                        raise error
+                    db.commit()
+                    self.path.chmod(0o600)
+                    self._initialized = True
+                    return
+                except sqlite3.DatabaseError as exc:
+                    code = getattr(exc, "sqlite_errorcode", 0) & 0xff
+                    if attempt or code not in (sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB):
+                        raise
+                    db.close()
+                    quarantine = self.path.parent / ("index-corrupt-" + uuid.uuid4().hex)
+                    quarantine.mkdir(mode=0o700)
+                    for suffix in ("", "-journal", "-wal", "-shm"):
+                        source = Path(str(self.path) + suffix)
+                        if source.exists():
+                            source.rename(quarantine / source.name)
+                finally:
+                    db.close()
 
     @contextmanager
     def connect(self):
+        if not self._initialized:
+            self._initialize()
         db = sqlite3.connect(self.path, timeout=60)
         db.row_factory = sqlite3.Row
         try:
             with db:
                 yield db
+        except sqlite3.DatabaseError:
+            self._initialized = False
+            raise
         finally:
             db.close()
 

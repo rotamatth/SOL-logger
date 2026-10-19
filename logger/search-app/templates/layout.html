@@ -38,11 +38,12 @@
                        line-height:1;cursor:pointer;padding:4px 8px;">&times;</button>
     </output>
 
-    <div id="endTaskModal" class="modal">
+    <div id="endTaskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="task-confirm-title">
         <div class="modal-content-box">
-            <span class="close" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</span>
-            <h2>Sei sicuro di voler terminare il compito?</h2>
-            <p>Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
+            <span id="task-confirm-close" class="close" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</span>
+            <h2 id="task-confirm-title">Sei sicuro di voler terminare il compito?</h2>
+            <p id="task-confirm-detail">Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
+            <p id="task-save-error" class="form-error" role="alert" hidden>Salvataggio non riuscito. La risposta è conservata in questo browser. Controlla la connessione e premi Riprova.</p>
 
         <!-- <div id="savedDocuments">
         <a href="#" id="toggleSavedLink" onclick="toggleSavedTitles(event)">See saved documents ▼</a>
@@ -379,11 +380,25 @@
             });
         }
 
+        function showTaskSaveRetry() {
+            isSubmitting = false;
+            yesEndBtn.disabled = false;
+            yesEndBtn.textContent = "Riprova";
+            document.getElementById("task-confirm-title").textContent = "Completiamo il salvataggio";
+            document.getElementById("task-confirm-detail").hidden = true;
+            document.getElementById("task-confirm-close").hidden = true;
+            document.getElementById("no-end-btn").hidden = true;
+            document.getElementById("task-save-error").hidden = false;
+            document.getElementById("endTaskModal").style.display = "flex";
+            yesEndBtn.focus();
+        }
+
         if (yesEndBtn) {
             yesEndBtn.addEventListener('click', async () => {
                 if (isSubmitting) return;
                 isSubmitting = true;
                 yesEndBtn.disabled = true;
+                document.getElementById("task-save-error").hidden = true;
                 if (finalbtn) finalbtn.disabled = true;
                 if (continueBtn) continueBtn.disabled = true;
 
@@ -396,6 +411,9 @@
                 const answer = answerBox ? answerBox.value : "";
 
                 try {
+                    const submissionKey = `solTaskSubmission:${window.SESSION_ID}:${window.TASK_NUMBER}`;
+                    localStorage.setItem(submissionKey, JSON.stringify({answer, logged: window.taskEndedLogged === true}));
+                    if (!window.studyLogger) throw new Error('Logging is unavailable');
                     if (window.studyLogger) {
                         window._feedbackCloseReason = 'submitted';
                         if (typeof window.flushActiveResultExposures === "function") {
@@ -409,6 +427,7 @@
                             studyLogger.logEvent("TaskEnded", { answer });
                             window.taskEndedLogged = true;
                             window.taskEndLockout = true;
+                            localStorage.setItem(submissionKey, JSON.stringify({answer, logged: true}));
                         }
                         const endTaskBtn = document.getElementById("end-task-btn");
                         if (endTaskBtn) endTaskBtn.disabled = true;
@@ -423,26 +442,39 @@
                     });
 
                     if (response.type === 'opaqueredirect' || response.status === 0 || (response.status >= 300 && response.status < 400)) {
+                        localStorage.removeItem(submissionKey);
                         clearDraftAnswer();
                         clearClientData();
                         window.location.href = "{{ url_for('reward') }}";
                         return;
                     }
 
-                    console.error('Unexpected response:', await response.text());
-                    isSubmitting = false;
-                    yesEndBtn.disabled = false;
-                    if (finalbtn) finalbtn.disabled = false;
-                    if (continueBtn) continueBtn.disabled = false;
+                    throw new Error('Unexpected task completion response: ' + response.status);
                 } catch (err) {
                     console.error('Error ending task:', err);
-                    isSubmitting = false;
-                    yesEndBtn.disabled = false;
-                    if (finalbtn) finalbtn.disabled = false;
-                    if (continueBtn) continueBtn.disabled = false;
+                    showTaskSaveRetry();
                 }
             });
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const endTaskBtn = document.getElementById("end-task-btn");
+            if (!endTaskBtn || !window.studyLogger) return;
+            const submissionKey = `solTaskSubmission:${window.SESSION_ID}:${window.TASK_NUMBER}`;
+            const saved = localStorage.getItem(submissionKey);
+            if (!saved) return;
+            try {
+                const submission = JSON.parse(saved);
+                document.getElementById("textarea_feedback").value = submission.answer;
+                window.taskEndedLogged = submission.logged === true || studyLogger.logs.some(event => event.type === "TaskEnded");
+                window.taskEndLockout = true;
+                endTaskBtn.disabled = true;
+                document.getElementById("no-end-btn").disabled = true;
+                showTaskSaveRetry();
+            } catch (error) {
+                console.error("Could not restore pending submission", error);
+            }
+        });
 
         if (continueBtn) {
             continueBtn.addEventListener('click', () => {
@@ -512,6 +544,7 @@
     });
 
     function closeEndTaskModal() {
+        if (window.taskEndLockout) return;
         document.getElementById("endTaskModal").style.display = "none";
         if (window._endTaskCloseReason === 'x-close' && window.studyLogger) {
             studyLogger.logEvent("EndTaskDialogClosed", { reason: "x-close" });

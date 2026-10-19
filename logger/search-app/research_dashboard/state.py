@@ -123,6 +123,8 @@ def validate_settings(value):
         numbers[s["grade"]].add(s["number"])
         if s.get("id") != f"grade-{s['grade']}-session-{s['number']}":
             raise ValueError("invalid_sessions")
+        if type(s.get("removed", False)) is not bool:
+            raise ValueError("invalid_sessions")
         if normalize_session_name(s.get("name", "")) != s.get("name", ""):
             raise ValueError("invalid_session_name")
         if "question_set" in s:
@@ -144,9 +146,10 @@ def validate_settings(value):
             except ValueError:
                 raise ValueError("invalid_date") from None
             key = (s["grade"], s["date"])
-            if key in dates:
+            if not s.get("removed") and key in dates:
                 raise ValueError("overlapping_dates")
-            dates.add(key)
+            if not s.get("removed"):
+                dates.add(key)
     if any(values != set(range(1, len(values) + 1)) for values in numbers.values()) or not numbers["4"] or not numbers["5"]:
         raise ValueError("invalid_sessions")
     current_year = value.setdefault("current_school_year", "")
@@ -188,6 +191,7 @@ class State:
         self.path = directory / "research.sqlite3"
         with self.connect() as db:
             db.executescript("""
+                BEGIN IMMEDIATE;
                 CREATE TABLE IF NOT EXISTS settings (
                     revision INTEGER PRIMARY KEY AUTOINCREMENT, updated_at TEXT NOT NULL,
                     body TEXT NOT NULL);
@@ -198,7 +202,15 @@ class State:
                 CREATE INDEX IF NOT EXISTS attempts_time ON attempts(at);
                 CREATE TABLE IF NOT EXISTS trashed_runs (
                     run_id TEXT PRIMARY KEY, trashed_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS study_attempts (
+                    technical_session_id TEXT PRIMARY KEY, study_session_id TEXT NOT NULL,
+                    participant_id TEXT NOT NULL, metadata TEXT NOT NULL,
+                    published INTEGER NOT NULL DEFAULT 0);
+                CREATE INDEX IF NOT EXISTS study_attempt_session ON study_attempts(study_session_id);
             """)
+            if db.execute("PRAGMA user_version").fetchone()[0] > 1:
+                raise RuntimeError("Research database requires a newer application version")
+            db.execute("PRAGMA user_version=1")
             if not db.execute("SELECT 1 FROM settings LIMIT 1").fetchone():
                 db.execute("INSERT INTO settings(updated_at, body) VALUES (?, ?)",
                            (utc_now(), json.dumps(default_settings())))
@@ -227,8 +239,45 @@ class State:
             revision = db.execute("SELECT MAX(revision) FROM settings").fetchone()[0]
             if revision != expected_revision:
                 raise ValueError("settings_changed")
+            previous = json.loads(db.execute("SELECT body FROM settings WHERE revision=?", (revision,)).fetchone()[0])
+            removed_before = {item["id"] for item in previous["sessions"] if item.get("removed")}
+            for item in value["sessions"]:
+                if item.get("removed") and item["id"] not in removed_before:
+                    if db.execute("SELECT 1 FROM study_attempts WHERE study_session_id=? LIMIT 1", (item["id"],)).fetchone():
+                        raise ValueError("session_has_records")
             db.execute("INSERT INTO settings(updated_at, body) VALUES (?, ?)",
                        (utc_now(), json.dumps(value)))
+
+    def admit_attempt(self, metadata):
+        """Serialize eligibility and immutable attempt creation with settings edits."""
+        from .study_config import scheduled_assignment
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
+            if row["revision"] != metadata["settings_revision_at_collection"]:
+                raise ValueError("settings_changed")
+            configuration = json.loads(row["body"])
+            selected = scheduled_assignment(configuration, metadata["participant_id"])
+            if not selected or selected["session"]["id"] != metadata["study_session_at_collection"]:
+                raise ValueError("session_unavailable")
+            db.execute("""INSERT INTO study_attempts
+                       (technical_session_id,study_session_id,participant_id,metadata,published)
+                       VALUES (?,?,?,?,0)""",
+                       (metadata["technical_session_id"], metadata["study_session_at_collection"],
+                        metadata["participant_id"], json.dumps(metadata, ensure_ascii=False)))
+
+    def attempt_metadata(self, technical_session_id):
+        with self.connect() as db:
+            row = db.execute("SELECT metadata FROM study_attempts WHERE technical_session_id=?", (technical_session_id,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def pending_attempts(self):
+        with self.connect() as db:
+            return [json.loads(row[0]) for row in db.execute("SELECT metadata FROM study_attempts WHERE published=0")]
+
+    def mark_attempt_published(self, technical_session_id):
+        with self.connect() as db:
+            db.execute("UPDATE study_attempts SET published=1 WHERE technical_session_id=?", (technical_session_id,))
 
     def add_study_session(self, grade, study_date, expected_revision, name=""):
         current = self.settings()

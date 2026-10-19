@@ -65,6 +65,72 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-19 — Recover collection safely after retries and server replacement (#18)
+
+**Type:** fix · **Area:** logging, session, task-flow, infra, data, tests, docs
+
+**Files**
+- `search-app/research_dashboard/log_store.py` — durable upload receipts and recoverable appends.
+- `search-app/research_dashboard/state.py`, `collection.py`, `index.py`, `runtime.py` — atomic admission, immutable snapshots, isolated reporting cache and private persistent session configuration.
+- `search-app/search_app.py`, `static/logger.js`, `templates/layout.html`, `templates/end.html` — acknowledged uploads, stable retries and a visible retry dialog that survives reload.
+- `docker-compose.yml`, `search-app/Dockerfile`, `search-app/requirements.lock`, `../scripts/deploy.sh`, `../.github/workflows/collection.yml` — persistent sessions, pinned dependencies, readiness, backup and image rollback.
+- `search-app/tools/backup_study.py`, `check_collection_restart.py`, `setup_runtime_secret.py` — verified recovery and isolated restart checks.
+
+**What changed for the participant**
+A failed answer save displays **Riprova** and retains the pending answer after a
+reload. Retrying a lost response does not record the answer twice. Replacing the
+container preserves active session state when persistent storage and the key remain.
+
+**How it works**
+Admission commits the immutable question/session snapshot before sidecar publication.
+An upload journal records exact log offsets/bytes before appending and acknowledges
+only after all destinations are flushed. The reporting index is lazy and rebuildable.
+See [production recovery](production_readiness.md) for the storage and upgrade contract.
+
+**If something looks wrong after this, check**
+- Save remains pending → collection write access, `.uploads.sqlite3` and original-file consistency; retain the browser buffer.
+- Student cookies stop working → signing key and `student-sessions` mount. The first upgrade requires finished classroom runs because the old shared fallback key is replaced.
+- Dashboard unavailable but collection works → reporting cache and server storage diagnostics.
+
+**Left alone**
+Permanent identities/yearly enrollment (#19), full progress/resume (#6), authorized
+repeat/reset (#15), live monitoring (#17), and the selected HTTP/VPN deployment.
+Existing original logs and task event fields are preserved.
+
+**Verified**
+Automated failure, concurrency, migration, backup and client-upload tests; production
+image build; replacement-container check; browser failure → reload → retry → reward
+with one original answer. Server deployment, actual tablet and external search checks
+remain release acceptance steps; the older Selenium suites need separate setup.
+
+## 2026-10-16 — Remove and restore unused study sessions
+
+**Type:** feature · **Area:** session, data, tests, styling, docs
+
+Session settings offer confirmed removal for unused sessions, with a separate
+Removed sessions section for restoration. Saved questions, original numbers and
+IDs are retained; removed sessions are excluded from new student eligibility.
+Fresh index checks protect sessions with participant records, including started
+metadata-only attempts, archived history and trashed logs. Unavailable or uncertain
+source data blocks removal. An in-flight run arriving after removal retains its
+history; #6 must atomically coordinate future attempt creation with availability.
+Original source logs are never erased. Regression tests cover identity reservation,
+draft restoration, date conflicts, access, storage failures and historical records.
+
+## 2026-10-15 — Show saved question drafts and remove repeated reuse choices
+
+**Type:** fix · **Area:** session, task-flow, data, styling, tests, docs
+
+Saved session questions now appear in session settings and the session overview,
+with draft/approved status and a link to continue editing. Explicit draft-save,
+save-and-return and approval actions clarify when work is persisted. Unsaved
+library previews say that they still need saving.
+
+The individual question picker lists each normalized topic/question once.
+Full-set experiment variants and original metadata remain available; copying a
+question does not choose a conflicting condition arbitrarily. New regression
+tests cover saved drafts, reopening, approval, scope, duplicate choices and metadata.
+
 ## 2026-10-15 — Configure dated V2 session questions and participant exceptions
 
 **Type:** feature · **Area:** session, task-flow, reward, logging, data, docs, tests

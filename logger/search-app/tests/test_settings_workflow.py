@@ -86,7 +86,7 @@ def test_grade_scoped_review_edit_and_save_keep_other_grades_and_calendars(app):
     assert review.status_code == 200 and state.settings() == before
     review_body = participant_section(review)
     assert 'type="number"' not in review_body and 'value="save_ranges"' in review_body
-    assert "19 / 19 ready to start" in review_body
+    assert "19 / 19 configuration complete" in review_body
     draft = FormFields(review_body).fields
     editing = client.post("/dashboard/settings?section=participants&grade=5", data={**draft, "action": "edit_ranges"})
     assert editing.status_code == 200 and state.settings() == before

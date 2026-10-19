@@ -8,10 +8,12 @@ or reuse research access. The research pages never load the student logger.
 
 ## First deployment
 
-1. Back up the existing `logger/logs` and any existing research state before a
-   deployment. This feature does not move, delete, rename or rewrite old files.
-2. Deploy the code using `scripts/deploy.sh`. The build records the Git revision,
-   adding `-dirty` when the server checkout has uncommitted changes. Normal Compose
+1. Follow the [production readiness and recovery guide](production_readiness.md).
+   Schedule the first upgrade after all children have finished: it replaces the old
+   shared signing key. Back up all collection/state directories before upgrading.
+2. Build the image and configure the private credentials below before running
+   `scripts/deploy.sh`. The deploy script refuses a dirty server checkout, preserves
+   the previous image, takes a verified backup and waits for readiness. Normal Compose
    builds from a clean checkout should supply the revision explicitly:
    `SOL_GIT_COMMIT="$(git rev-parse HEAD)" docker compose build search_app`
    (run from `logger`). The app-version label defaults to `v2`; override
@@ -21,6 +23,8 @@ or reuse research access. The research pages never load the student logger.
 
    ```bash
    mkdir -p research-secrets
+   docker compose build search_app
+   python3 search-app/tools/setup_runtime_secret.py research-secrets/student-secret
    docker compose run --rm --no-deps --volume "$PWD/research-secrets:/secrets" search_app python tools/set_research_password.py /secrets/password.hash
    ```
 
@@ -65,10 +69,11 @@ No importer, external collection service or cross-server synchronization is adde
 | --- | --- |
 | `logger/logs` | Existing archive, mounted read-only at `/app/legacy_logs` |
 | `logger/logs-v2` | Fresh V2 log collection, mounted at `/app/logs` |
-| `logger/research-state` | Private settings history, auth, throttle state and rebuildable index |
-| `logger/research-secrets` | Private password hash; never indexed or exported |
+| `logger/research-state` | Private settings history, immutable attempt snapshots, auth, throttle state and rebuildable index |
+| `logger/research-secrets` | Private password hash and stable student signing key; never indexed or exported |
+| `logger/student-sessions` | Persistent student cookies’ server-side state and frozen task order/questions |
 
-All four directories should be backed up with access restricted to researchers
+All five directories should be backed up with access restricted to researchers
 and server administrators. Do not publish them through a web server's static root.
 An empty V2 directory is intentionally separate from the old collection. **Legacy**
 records have their own identities; numeric ID `6` in Legacy is not automatically
@@ -86,6 +91,10 @@ collection identities and archive folders. API exports explicitly selecting
 | `RESEARCH_PASSWORD_HASH` | Alternative secure server configuration; only used without a hash file |
 | `RESEARCH_COOKIE_SECURE` | `0` for the explicitly selected existing HTTP/VPN deployment; set `1` with HTTPS |
 | `SESSION_COOKIE_SECURE` | Student cookie HTTPS setting; set `1` with HTTPS |
+| `SOL_ENV` | Compose sets `production`; production requires a configured private signing key |
+| `SOL_SESSION_DIR` | Persistent filesystem sessions; Compose sets `/app/flask_session` |
+| `FLASK_SECRET_KEY_FILE` | Stable private student key; Compose sets `/app/research-secrets/student-secret` |
+| `FLASK_SECRET_KEY` | Alternative private environment value; at least 32 characters |
 | `SOL_APP_VERSION`, `SOL_GIT_COMMIT` | Build-time version metadata captured for newly started runs |
 
 For direct local Flask use from `search-app`, set `RESEARCH_LEGACY_LOG_DIR=../logs`
@@ -141,8 +150,11 @@ explicitly excludes `/dashboard` and its descendants.
 - Starting a V2 run writes an immutable `.run.json` sidecar containing the original
   participant ID, technical IDs, Swiss start date, grade, school year and session mapping then
   known, settings revision, actual app version/commit, and presented task order with
-  topic IDs, titles and question text. Failed sidecar writes are reported server-side
-  without discarding student logs. Historical questions and versions remain unknown
+  topic IDs, titles and question text. The snapshot is first committed to
+  `research.sqlite3` in the same transaction that rechecks admission. If sidecar
+  publication fails, the snapshot remains recoverable; uploads and dashboard refresh
+  retry publication. If durable admission fails, START fails visibly and preserves
+  any existing student attempt. Historical questions and versions remain unknown
   when the original records do not contain them.
 - A task is **Completed** when its canonical logs contain a `TaskEnded` event with a
   string-valued answer. An explicitly empty string is a submitted empty answer;
@@ -253,6 +265,25 @@ Creation automatically assigns the next number for that grade and opens the new 
 Each grade supports up to 100 sessions. Existing IDs, dates, participant ranges and
 logs are preserved; the initial 1–3 sessions remain available. Numbered study
 sessions are independent of the three tasks within each run.
+
+### Removing an unused session
+
+Expand the session in Study settings, open **Remove session**, review its identity
+and confirm. Removal retains a tombstone (`removed: true`) in settings history,
+reserving its number and ID and preserving its questions and participant exceptions.
+It hides the session from normal calendars and new student eligibility. Other
+sessions are never renumbered. **Removed sessions** provides restore, with a date
+field to resolve any date conflict. Removed entries still count toward the existing
+100-number limit per grade.
+
+The server refreshes the index and checks original records before removing a
+session, including metadata-only starts, trashed runs and classified historical
+records. A session with records is protected; uncertain source availability also
+blocks removal. No log files are erased. Removal and durable attempt admission
+share an atomic settings check: either removal wins and START is rejected, or
+START wins and removal is blocked, including while a sidecar is still unpublished.
+#6 should extend this admission boundary when adding durable progress. Removing/cancelling a session with
+collected data is not provided by this unused-session control.
 
 **Study settings** shows one section at a time: **School year**, **Sessions** or
 **Participants**. School year is the entry view and applies to newly started runs.
@@ -477,6 +508,18 @@ reload and retains its draft without overwriting another researcher's save.
 The authenticated editor lives at `/dashboard/settings/questions/<session_id>`;
 `?participant=<exact ID>` edits an individual exception. Library loading is an
 unsaved draft. Signed form drafts preserve selected IDs and metadata across workers.
+Use **Save draft** to persist incomplete work, **Save draft and return to session**
+to persist and leave the editor, and **Approve questions** when the assignment is
+complete. Session settings and the selected session overview show saved question
+text, draft/approved status and a link to resume the editor without retyping.
+The displayed current setup remains separate from immutable historical run labels.
+Loading a library choice displays **Unsaved changes** until explicitly saved.
+
+Individual reuse choices are grouped by normalized topic and question wording,
+ignoring case and repeated whitespace. Experimental variants remain separate
+complete-set choices. Standalone copying preserves common source metadata; when a
+complete set's explicit condition is already selected, an unambiguous matching
+source retains that condition. Conflicting source metadata is never chosen arbitrarily.
 Only saving creates a settings revision. Approval requires three complete questions;
 puzzle media are optional and missing media use the ordinary completion controls.
 Student pages receive only their current question, never future session assignments.
@@ -487,7 +530,8 @@ serialized characters and is validated before saving.
 New `.run.json` sidecars include `study_session_snapshot`, `question_set_snapshot`,
 `assignment_source`, stable per-task `question_id` and `question_metadata`, alongside
 the existing `tasks`, `task_order` and log identity. These snapshots are immutable.
-#6 should copy them into its durable attempt records at START; #15's authorized
+#18 also stores this snapshot in `study_attempts` at START. #6 should extend that
+record instead of creating a second source of attempt identity; #15's authorized
 reset/repeat must reuse the source attempt's original snapshot/order instead of
 resolving the latest settings. Durable resume, repeat authorization and completion
 gating belong to #6/#15 and are not supplied by this configuration change.

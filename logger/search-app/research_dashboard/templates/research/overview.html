@@ -35,6 +35,13 @@
   </div>
   {% endif %}
 
+  {% if selected_session_configuration %}<section class="panel session-configuration" aria-label="{{ t('current_session_questions') }}">
+    <h2>{{ t('current_session_questions') }}</h2>
+    <p class="small muted">{{ t('session_configuration_hint') }}</p>
+    {% if request.args.get('draft_saved') == '1' %}<p class="notice success" role="status">{{ t('question_draft_saved') }}</p>{% endif %}
+    {% with configured_session=selected_session_configuration %}{% include 'research/session_question_preview.html' %}{% endwith %}
+  </section>{% endif %}
+
   <section class="panel dashboard-table-panel" aria-labelledby="participants-heading">
     {% if is_roster_view %}
     <form id="selected-export" method="post" action="{{ u('export_selection') }}">

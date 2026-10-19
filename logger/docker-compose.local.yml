@@ -2,6 +2,7 @@
 # !override requires Docker Compose 2.24.4 or later.
 services:
   search_app:
+    image: "${LOCAL_UI_IMAGE:-sol-ui-search_app:local}"
     ports: !override
       - "127.0.0.1:${LOCAL_UI_PORT:-7001}:7001"
     command:
@@ -14,6 +15,8 @@ services:
       - --debug
       - --no-debugger
     environment:
+      SOL_ENV: development
+      FLASK_SECRET_KEY_FILE: ""
       FLASK_DEBUG: "1"
       PYTHONDONTWRITEBYTECODE: "1"
     volumes:

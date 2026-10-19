@@ -9,6 +9,18 @@
   --white:#fff
 }
 
+.session-question-preview { width: 100%; min-width: 0; border-top: 1px solid var(--line); padding-top: 1rem; margin: 1rem 0; }
+.session-question-preview h3 { margin: 0; }
+.saved-question-list { padding-left: 1.5rem; }
+.saved-question-list li { padding: .4rem 0; }
+.saved-question-list p { margin: .2rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.session-configuration { margin-bottom: 1.5rem; }
+.session-removal { width: 100%; border-top: 1px solid var(--line); padding-top: 1rem; }
+.session-removal>summary { color: #8a3a2b; cursor: pointer; }
+.removed-study-sessions { margin-top: 1.5rem; }
+.removed-study-sessions>summary { cursor: pointer; font-weight: 600; }
+.removed-session-row { padding: 1rem 0; border-top: 1px solid var(--line); }
+
 * {
   box-sizing:border-box
 }
@@ -889,8 +901,13 @@ button:disabled {
   background:#f9fbfb
 }
 .settings-session-name {
-  color:var(--ink)
+  color:var(--ink);
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:12px
 }
+.settings-session-date { white-space:nowrap; }
 .settings-session-body {
   border-top:1px solid var(--line);
   background:#f9fbfb;

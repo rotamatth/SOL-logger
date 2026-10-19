@@ -8,10 +8,11 @@ import os
 import re
 
 from .state import DEFAULT_STUDY_ID, roster
+from .runtime import sync_directory
 
 
 def record_run(directory, state, user_id, session_id, log_id, order, topics, settings=None,
-               study_session=None, question_set=None, assignment_source=None):
+               study_session=None, question_set=None, assignment_source=None, admit=False):
     started = datetime.now(ZoneInfo("Europe/Zurich"))
     settings = settings if settings is not None else state.settings()
     grade = roster(settings).get(user_id)
@@ -55,8 +56,22 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
                         question_set_theme=question_set.get("theme"),
                         question_set_metadata=deepcopy(question_set.get("metadata", {})),
                         assignment_source=assignment_source)
-    safe_user = re.sub(r"[^A-Za-z0-9._-]", "_", str(user_id))[:64] or "anon"
-    path = Path(directory) / f"{safe_user}_{log_id}.run.json"
+    if admit:
+        state.admit_attempt(metadata)
+    publish_metadata(directory, metadata)
+    if admit:
+        state.mark_attempt_published(session_id)
+    return metadata
+
+
+def publish_metadata(directory, metadata):
+    safe_user = re.sub(r"[^A-Za-z0-9._-]", "_", str(metadata["participant_id"]))[:64] or "anon"
+    path = Path(directory) / f"{safe_user}_{metadata['log_id']}.run.json"
+    if path.exists():
+        if path.is_symlink() or json.loads(path.read_text()) != metadata:
+            raise FileExistsError("Conflicting immutable run metadata")
+        sync_directory(path.parent)
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     # A temp file + hard-link publishes the complete sidecar without replacing a prior one.
     import tempfile
@@ -67,6 +82,17 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
             f.write("\n")
             f.flush()
             os.fsync(f.fileno())
-        os.link(temporary, path)
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            if path.is_symlink() or json.loads(path.read_text()) != metadata:
+                raise FileExistsError("Conflicting immutable run metadata")
+        sync_directory(path.parent)
     finally:
         os.unlink(temporary)
+
+
+def publish_pending_runs(directory, state):
+    for metadata in state.pending_attempts():
+        publish_metadata(directory, metadata)
+        state.mark_attempt_published(metadata["technical_session_id"])

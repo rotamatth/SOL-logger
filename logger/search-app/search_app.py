@@ -11,6 +11,7 @@ import random
 from copy import deepcopy
 import traceback
 import sqlite3
+import tempfile
 from time import time
 
 from urllib import response
@@ -22,7 +23,9 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 from research_dashboard import init_dashboard
-from research_dashboard.collection import record_run
+from research_dashboard.collection import record_run, publish_metadata
+from research_dashboard.log_store import LogStore, UploadConflict
+from research_dashboard.runtime import configure_runtime
 from research_dashboard.state import roster
 from research_dashboard.study_config import scheduled_assignment
 
@@ -31,7 +34,7 @@ app = Flask(__name__)
 # -------------------------------------------------
 # 1. Core app + session configuration FIRST
 # -------------------------------------------------
-app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or "OtulwLo7gQ"
+configure_runtime(app)
 
 app.config.update(
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
@@ -60,6 +63,7 @@ LOG_DIR = os.getenv("SOL_LOG_DIR", "logs_v2")
 LOG_TIME_ZONE = ZoneInfo("Europe/Zurich")
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_REGISTRY_PATH = os.path.join(LOG_DIR, 'log_registry.jsonl')
+LOG_STORE = LogStore(LOG_DIR)
 
 SERP_QUERY_FIELD_EVENTS = {
     'querySubmitted',
@@ -113,6 +117,32 @@ USER_TOPICS = load_user_topics()
 app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PUZZLE_ASSET_DIR = 'puzzle_pieces'
+
+
+@app.get('/health/ready')
+def ready():
+    """Check collection dependencies without exposing configuration or secrets."""
+    try:
+        RESEARCH_STATE.settings()
+        with RESEARCH_STATE.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.rollback()
+        if os.getenv("SOL_ENV") == "production" and not app.extensions["research"]["credential_ready"]():
+            raise RuntimeError("Research authentication is unconfigured")
+        LOG_STORE.recover()
+        for directory in (LOG_DIR, RESEARCH_STATE.path.parent, app.config["SESSION_FILE_DIR"]):
+            fd, name = tempfile.mkstemp(prefix=".health-", dir=directory)
+            try:
+                with os.fdopen(fd, 'wb') as probe:
+                    probe.write(b'ready')
+                    probe.flush()
+                    os.fsync(probe.fileno())
+            finally:
+                os.unlink(name)
+        return jsonify(status="ok")
+    except (OSError, ValueError, RuntimeError, sqlite3.Error):
+        app.logger.exception("Collection readiness check failed")
+        return jsonify(status="unavailable"), 503
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 # TEMPORARY TESTING FLAG - If API GOOGLE IS NOT AVAILABLE, SET TO TRUE TO ALLOW ANSWER SUBMISSION WITHOUT SEARCH RESULTS.
@@ -350,6 +380,7 @@ def start_page():
         if assignment is None:
             return render_template('start.html', show_search=False, valid_ids=val_ids,
                                    start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare la data e le domande."), 400
+        previous_session = dict(session)
         session.clear()
         session['user_id'] = user_id
         session['task_config'] = deepcopy(assignment['topics'])
@@ -373,10 +404,20 @@ def start_page():
                        settings=enrollment_settings,
                        study_session=session['study_session'],
                        question_set=session['question_set'],
-                       assignment_source=session['assignment_source'])
+                       assignment_source=session['assignment_source'], admit=True)
         except (OSError, ValueError, sqlite3.Error):
-            # Research metadata failure must not discard student interaction logs.
-            app.logger.warning("Could not record research run metadata", exc_info=True)
+            # A committed attempt can republish its sidecar later. Without that
+            # durable snapshot, do not admit a new attempt or discard an old one.
+            app.logger.error("Could not publish research run metadata", exc_info=True)
+            try:
+                durable = RESEARCH_STATE.attempt_metadata(session['session_id'])
+            except (OSError, sqlite3.Error):
+                durable = None
+            if durable is None:
+                session.clear()
+                session.update(previous_session)
+                return render_template('start.html', show_search=False, valid_ids=val_ids,
+                                       start_error="Impossibile avviare la sessione in sicurezza. Riprova o chiedi al ricercatore."), 503
         
         return redirect(url_for('task'))
 
@@ -679,188 +720,103 @@ def _append_log_registry(*, user_id, session_id, task_number, num_events,
         traceback.print_exc()
 
 
-def _write_incomplete_recovery(foreign_groups, recovered_from_user):
-    """Persist events left behind by a previous, unfinished participant.
-
-    ``foreign_groups`` maps (foreign_uid, client_session_id) -> list of that
-    participant's log entries that arrived mixed into another participant's
-    submission. Each group is appended to its own deterministic
-    ``<uid>_<sid>_INCOMPLETE.log`` file (so repeated recoveries accumulate
-    instead of spawning new files) and the file is closed with an
-    ``incompleteExperiment`` marker line. Returns a {uid: num_events} summary.
-    Never raises.
-    """
-    recovered_summary = {}
+def _prepare_upload(logs, user_id, server_session_id, log_id, task_number, task_order, task_position):
+    """Plan all original-format files before committing the upload receipt."""
+    files = {}
+    recovered_incomplete = {}
+    own_logs, foreign_groups = [], {}
+    for entry in logs:
+        euid = entry.get('uid')
+        if euid and euid != user_id:
+            foreign_groups.setdefault((euid, entry.get('sessionID') or 'nosession'), []).append(entry)
+        else:
+            own_logs.append(entry)
     for (fuid, fsid), entries in foreign_groups.items():
-        try:
-            safe_fuid  = _sanitize_for_filename(fuid)
-            short_fsid = _sanitize_for_filename(fsid)[:8]
-            fname = f"{safe_fuid}_{short_fsid}_INCOMPLETE.log"
-            fpath = os.path.join(LOG_DIR, fname)
-            recovered_at = datetime.now(LOG_TIME_ZONE).isoformat(timespec='milliseconds')
-            with open(fpath, 'a', encoding='utf-8') as f:
-                for entry in entries:
-                    enriched = dict(entry)
-                    enriched['recovered']           = True
-                    enriched['recovered_from_user'] = recovered_from_user
-                    enriched['recovered_at']        = recovered_at
-                    f.write(json.dumps(enriched) + '\n')
-                f.write(json.dumps({
-                    "type": "incompleteExperiment",
-                    "uid": fuid,
-                    "sessionID": fsid,
-                    "recovered_from_user": recovered_from_user,
-                    "recovered_at": recovered_at,
-                }) + '\n')
-            print(
-                f"[log] RECOVER incomplete uid={fuid} session={fsid} "
-                f"events={len(entries)} file={fname} recovered_from={recovered_from_user}"
-            )
-            _append_log_registry(
-                user_id=fuid, session_id=fsid, task_number=None,
-                num_events=len(entries), saved_log_filename=fname,
-                status="incomplete", error=f"recovered-from:{recovered_from_user}",
-            )
-            recovered_summary[fuid] = recovered_summary.get(fuid, 0) + len(entries)
-        except Exception:
-            traceback.print_exc()
-    return recovered_summary
+        fname = f"{_sanitize_for_filename(fuid)}_{_sanitize_for_filename(fsid)}_INCOMPLETE.log"
+        recovered_at = datetime.now(LOG_TIME_ZONE).isoformat(timespec='milliseconds')
+        recovery = [{**entry, "recovered": True, "recovered_from_user": user_id,
+                     "recovered_at": recovered_at} for entry in entries]
+        recovery.append({"type": "incompleteExperiment", "uid": fuid, "sessionID": fsid,
+                         "recovered_from_user": user_id, "recovered_at": recovered_at})
+        files[fname] = files.get(fname, '') + ''.join(json.dumps(entry) + '\n' for entry in recovery)
+        recovered_incomplete[fuid] = recovered_incomplete.get(fuid, 0) + len(entries)
+
+    visible_task_number = task_position + 1
+    actual_topic_number = task_number
+    safe_user = _sanitize_for_filename(user_id)
+    combined_filename = f"{safe_user}_{log_id}_FULL.log"
+    task_filename     = f"{safe_user}_{log_id}_task{visible_task_number}_topic{actual_topic_number}.log"
+    lines = []
+    for entry in own_logs:
+        enriched = dict(entry)
+        enriched['task_number'] = visible_task_number
+        enriched['actual_topic_number'] = actual_topic_number
+        enriched['task_order'] = task_order
+        enriched['sessionID'] = server_session_id
+        if not enriched.get('uid'):
+            enriched['uid'] = user_id
+        lines.append(json.dumps(enriched) + '\n')
+    if lines:
+        files[combined_filename] = ''.join(lines)
+        files[task_filename] = ''.join(lines)
+    return files, {
+        "status": "logged", "saved_events": len(own_logs),
+        "combined_file": combined_filename,
+        "task_file":     task_filename,
+        "recovered_incomplete": recovered_incomplete,
+    }
 
 
 @app.route('/log_session', methods=['POST'])
 def log_session():
-    data = request.get_json(force=False, silent=True) or {}
-
+    data = request.get_json(force=False, silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="Invalid upload"), 400
     session_id = data.get('session_id')
     logs = data.get('logs')
-    num_events = len(logs) if isinstance(logs, list) else 0
-
     user_id = session.get('user_id')
     task_number = session.get('task_number')
     server_session_id = session.get('session_id')
-
-    if not (user_id and task_number and session_id and isinstance(logs, list) and logs):
-        print(f"[log] ERROR missing-data user={user_id} session={session_id} task={task_number}")
-        _append_log_registry(
-            user_id=user_id, session_id=session_id, task_number=task_number,
-            num_events=num_events, saved_log_filename=None,
-            status="error", error="missing-data",
-        )
-        return jsonify({"error": "Missing user_id, task_number, session_id or logs"}), 400
-
+    if not (user_id and task_number and isinstance(session_id, str) and isinstance(logs, list) and logs):
+        return jsonify(error="Missing user_id, task_number, session_id or logs"), 400
     if session_id != server_session_id:
-        print(
-            f"[log] REJECT session-mismatch user={user_id} "
-            f"client={session_id} server={server_session_id}"
-        )
-        _append_log_registry(
-            user_id=user_id, session_id=session_id, task_number=task_number,
-            num_events=num_events, saved_log_filename=None,
-            status="error", error="session-mismatch",
-        )
         return jsonify({"error": "Session mismatch"}), 409
-
-    # If events from a different participant (a previous, unfinished session on
-    # the same device) arrived mixed into this submission, never reject the
-    # batch — the old behaviour lost the real participant's data too. Keep the
-    # current participant's events (and uid-less / generic ones) for the normal
-    # log, and recover the other participant's events into their own
-    # incomplete-experiment log instead of discarding them.
-    own_logs = []
-    foreign_groups = {}
-    for entry in logs:
-        euid = entry.get('uid') if isinstance(entry, dict) else None
-        if euid and euid != user_id:
-            esid = entry.get('sessionID') or 'nosession'
-            foreign_groups.setdefault((euid, esid), []).append(entry)
-        else:
-            own_logs.append(entry)
-
-    recovered_incomplete = {}
-    if foreign_groups:
-        recovered_incomplete = _write_incomplete_recovery(foreign_groups, user_id)
-        logs = own_logs
-        num_events = len(logs)
-        if not logs:
-            # The whole batch belonged to a previous participant; it has been
-            # recovered. Return OK so the client clears its buffer and the
-            # study can proceed.
-            return jsonify({
-                "status": "logged",
-                "saved_events": 0,
-                "recovered_incomplete": recovered_incomplete,
-            }), 200
-
+    if any(not isinstance(entry, dict) or not isinstance(entry.get('type'), str)
+           or entry.get('uid') is not None and not isinstance(entry['uid'], str)
+           or entry.get('sessionID') is not None and not isinstance(entry['sessionID'], str)
+           for entry in logs):
+        return jsonify(error="Invalid log event"), 400
     warn_logging_contract_issues(logs, task_number)
-
     log_id = session.get('log_id')
     if not log_id:
         log_id = generate_log_id()
         session['log_id'] = log_id
-
-    visible_task_number = session.get("task_position", 0) + 1
-    actual_topic_number = task_number
-    task_order          = session.get("task_order", [])
-
-    safe_user = _sanitize_for_filename(user_id)
-    combined_filename = f"{safe_user}_{log_id}_FULL.log"
-    task_filename     = f"{safe_user}_{log_id}_task{visible_task_number}_topic{actual_topic_number}.log"
-
-    combined_path = os.path.join(LOG_DIR, combined_filename)
-    task_path     = os.path.join(LOG_DIR, task_filename)
-
-    with open(combined_path, 'a', encoding='utf-8') as full_f, \
-         open(task_path, 'a', encoding='utf-8') as task_f:
-        for entry in logs:
-            enriched = dict(entry)
-            enriched['task_number']         = visible_task_number
-            enriched['actual_topic_number'] = actual_topic_number
-            enriched['task_order']          = task_order
-            if server_session_id:
-                enriched['sessionID'] = server_session_id
-            if not enriched.get('uid') and user_id:
-                enriched['uid'] = user_id
-
-            line = json.dumps(enriched) + '\n'
-            full_f.write(line)
-            task_f.write(line)
-
-    is_last_task = bool(task_order) and session.get("task_position", 0) >= len(task_order) - 1
-    is_session_end = any(
-        isinstance(e, dict) and e.get("type") == "experimentFinished"
-        for e in logs
-    )
-
-    if is_session_end:
-        marker = "SESSION_END"
-    elif is_last_task:
-        marker = "LAST_TASK"
-    else:
-        marker = None
-
-    if marker:
-        print(
-            f"[log] OK {marker} user={user_id} session={session_id} "
-            f"task={visible_task_number}/{len(task_order) or '?'} events={num_events} "
-            f"task_file={task_filename} full_file={combined_filename}"
-        )
-    else:
-        print(
-            f"[log] OK user={user_id} session={session_id} "
-            f"task={visible_task_number} events={num_events} file={task_filename}"
-        )
-    _append_log_registry(
-        user_id=user_id, session_id=session_id, task_number=visible_task_number,
-        num_events=num_events, saved_log_filename=task_filename,
-        status="success", error=None,
-    )
-
-    return jsonify({
-        "status":        "logged",
-        "combined_file": combined_filename,
-        "task_file":     task_filename,
-        "recovered_incomplete": recovered_incomplete,
-    }), 200
+    try:
+        receipt = LOG_STORE.accept(session_id, data.get('batch_id'),
+            {"session_id": session_id, "logs": logs},
+            lambda: _prepare_upload(logs, user_id, server_session_id, log_id, task_number,
+                                    session.get('task_order', []), session.get('task_position', 0)))
+    except UploadConflict:
+        return jsonify(error="Upload identifier already used for different data"), 409
+    except (ValueError, TypeError):
+        return jsonify(error="Invalid upload"), 400
+    except (OSError, sqlite3.Error):
+        app.logger.exception("Upload not acknowledged; pending bytes retained for recovery")
+        return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
+    # Attempt context is already durable in research.sqlite3. A missing sidecar
+    # can be recreated without blocking an acknowledgement of saved interactions.
+    try:
+        metadata = RESEARCH_STATE.attempt_metadata(session_id)
+        if metadata:
+            publish_metadata(LOG_DIR, metadata)
+            RESEARCH_STATE.mark_attempt_published(session_id)
+    except (OSError, ValueError, sqlite3.Error):
+        app.logger.exception("Run context is pending publication")
+    _append_log_registry(user_id=user_id, session_id=session_id,
+                         task_number=session.get('task_position', 0) + 1,
+                         num_events=len(logs), saved_log_filename=receipt.get('task_file'),
+                         status="success", error=None)
+    return jsonify(receipt), 200
 
 def warn_logging_contract_issues(logs, default_task_number):
     previous_query_submit = None
@@ -1004,9 +960,10 @@ def reward():
                 "source": "server"
             }
             line = json.dumps(entry) + '\n'
-            for path in (combined_path, task_path):
-                with open(path, 'a', encoding='utf-8') as f:
-                    f.write(line)
+            LOG_STORE.accept(session.get('session_id'), 'reward:' + reward_log_key,
+                             {"type": "rewardShown", "task": reward_log_key},
+                             lambda: ({os.path.basename(combined_path): line,
+                                       os.path.basename(task_path): line}, {"status": "logged"}))
             reward_shown_logged.append(reward_log_key)
             session['reward_shown_logged'] = reward_shown_logged
         except Exception as exc:

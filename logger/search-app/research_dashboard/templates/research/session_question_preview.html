@@ -1,0 +1,14 @@
+<div class="session-question-preview">
+  {% set assignment = configured_session.get('question_set') %}
+  <div class="settings-heading-row"><h3>{{ t('shared_questions') }}</h3><span class="badge {{ 'completed' if question_status(assignment) == 'questions_approved' else 'incomplete' }}">{{ t(question_status(assignment)) }}</span></div>
+  {% if assignment %}
+  {% if assignment.get('theme') %}<p class="small muted">{{ assignment.theme }}</p>{% endif %}
+  <ol class="saved-question-list">{% for slot in range(3) %}{% set question = assignment.questions[slot] if slot < assignment.questions | length else {} %}<li>{% if question.get('topic') %}<strong>{{ question.topic }}</strong>{% endif %}<p>{{ question.get('question') or t('draft_question_empty') }}</p></li>{% endfor %}</ol>
+  {% else %}<p class="muted">{{ t('question_set_missing') }}</p>{% endif %}
+  <a class="button" href="{{ u('session_questions', session_id=configured_session.id) }}">{{ t('continue_editing_draft') if assignment and question_status(assignment) == 'questions_draft' else t('edit_saved_questions') if assignment else t('configure_questions') }} &rarr;</a>
+  {% if configured_session.get('participant_questions') %}
+  <details class="technical-details"><summary>{{ t('individual_assignments') }} ({{ configured_session.participant_questions | length }})</summary>
+    {% for uid, individual in configured_session.participant_questions.items() %}<p>{{ t('participant') }} {{ uid }} · <span class="badge {{ 'completed' if question_status(individual) == 'questions_approved' else 'incomplete' }}">{{ t(question_status(individual)) }}</span> <a href="{{ u('session_questions', session_id=configured_session.id, participant=uid) }}">{{ t('continue_editing_draft') if question_status(individual) == 'questions_draft' else t('edit_saved_questions') }}</a></p>{% endfor %}
+  </details>
+  {% endif %}
+</div>

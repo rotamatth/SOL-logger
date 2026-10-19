@@ -140,6 +140,8 @@ def _resolved_set(study_session, uid):
     problem = question_set_problem(question_set)
     if not study_session["date"]:
         problem = "session_date_missing"
+    if study_session.get("removed"):
+        problem = "session_removed"
     return question_set, source, problem
 
 
@@ -148,7 +150,7 @@ def assignment_for(settings, uid, session_id):
     grade = _participant_grade(settings, uid)
     study_session = next((item for item in settings["sessions"]
                           if item["id"] == session_id and item["grade"] == grade), None)
-    if study_session is None:
+    if study_session is None or study_session.get("removed"):
         return None
     question_set, source, problem = _resolved_set(study_session, uid)
     return {"session": deepcopy(study_session), "question_set": deepcopy(question_set),
@@ -191,7 +193,8 @@ def scheduled_assignment(settings, uid, now=None):
         raise ValueError("invalid_study_time")
     grade = _participant_grade(settings, uid)
     study_session = next((item for item in settings["sessions"]
-                          if item["grade"] == grade and item["date"] == today.isoformat()), None)
+                          if item["grade"] == grade and not item.get("removed")
+                          and item["date"] == today.isoformat()), None)
     if study_session is None:
         return None
     assignment = assignment_for(settings, uid, study_session["id"])
@@ -257,3 +260,61 @@ def question_library(app, settings=None):
         for question_set in study_session.get("participant_questions", {}).values():
             add(question_set)
     return list(catalog.values())
+
+
+def question_choices(library):
+    """Group reusable questions by wording without choosing a study condition.
+
+    A question may occur in several saved sets or historical experimental
+    conditions. Standalone reuse carries only metadata identical in every
+    source. Original question and set metadata remain available in ``sources``
+    so callers can disclose variants or offer an explicit whole-set choice.
+    """
+    grouped = {}
+    for entry in library:
+        question_set = entry["question_set"]
+        for slot, question in enumerate(question_set["questions"]):
+            normalized = {field: " ".join(question[field].split()).casefold()
+                          for field in ("topic", "question")}
+            token = _content_id(normalized)
+            if token not in grouped:
+                grouped[token] = {"id": token, "topic": question["topic"],
+                                  "question": question["question"], "sources": []}
+            grouped[token]["sources"].append({
+                "library_id": entry["id"], "slot": slot,
+                "label": entry["label"], "question_data": deepcopy(question),
+                "set_metadata": deepcopy(question_set.get("metadata", {})),
+            })
+
+    def identical(value, other):
+        # JSON equality keeps bool/int and int/float metadata distinct, while
+        # ignoring dictionary insertion order.
+        return (json.dumps(value, sort_keys=True, ensure_ascii=False)
+                == json.dumps(other, sort_keys=True, ensure_ascii=False))
+
+    for token, choice in grouped.items():
+        sources = choice["sources"]
+        first = sources[0]["question_data"]
+        common_metadata = {
+            key: deepcopy(value) for key, value in first.get("metadata", {}).items()
+            if all(key in source["question_data"].get("metadata", {})
+                   and identical(value, source["question_data"]["metadata"][key])
+                   for source in sources[1:])
+        }
+        identifier = first.get("id", "")
+        if not identifier or not all(source["question_data"].get("id", "") == identifier
+                                     for source in sources[1:]):
+            identifier = token
+        choice["question_data"] = {
+            "id": identifier, "topic": choice["topic"],
+            "question": choice["question"], "metadata": common_metadata,
+        }
+        choice["count"] = len(sources)
+        choice["has_variants"] = any(
+            source["question_data"].get("id", "") != first.get("id", "")
+            or not identical(source["question_data"].get("metadata", {}),
+                             first.get("metadata", {}))
+            or not identical(source["set_metadata"], sources[0]["set_metadata"])
+            for source in sources[1:]
+        )
+    return list(grouped.values())

@@ -170,30 +170,46 @@
         },
 
         sendLogs() {
-            if (this.logs.length === 0) return Promise.resolve();
-
-            return fetch('/log_session', {
+            if (this.uploadInFlight) return this.uploadInFlight;
+            const pendingKey = `solPendingUpload:${this.sessionID}`;
+            let pending;
+            try { pending = JSON.parse(localStorage.getItem(pendingKey) || 'null'); }
+            catch (_) { return Promise.reject(new Error('Pending upload is unreadable; keep this browser open.')); }
+            if (!pending && this.logs.length === 0) return Promise.resolve();
+            if (!pending) {
+                pending = {session_id: this.sessionID, batch_id: createClientSessionID(), logs: this.logs.slice()};
+                // Persist the exact request before sending it. A lost response or
+                // page reload must retry the same batch, including its identifier.
+                try { localStorage.setItem(pendingKey, JSON.stringify(pending)); }
+                catch (error) { return Promise.reject(error); }
+            }
+            this.uploadInFlight = fetch('/log_session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    session_id: this.sessionID,
-                    logs: this.logs
-                })
-            }).then(response => {
+                body: JSON.stringify(pending)
+            }).then(async response => {
                 if (!response.ok) {
                     throw new Error('Failed to send logs.');
                 }
+                const data = await response.json();
+                if (data.status !== 'logged' || data.batch_id !== pending.batch_id) {
+                    throw new Error('Upload acknowledgement does not match the pending batch.');
+                }
                 console.log('Logs successfully sent to server.');
-                localStorage.removeItem('sessionLogs');
+                // Events added while the request was in flight must remain queued.
+                const prefix = this.logs.slice(0, pending.logs.length);
+                if (JSON.stringify(prefix) === JSON.stringify(pending.logs)) {
+                    this.logs.splice(0, pending.logs.length);
+                }
+                localStorage.setItem('sessionLogs', JSON.stringify(this.logs));
+                localStorage.removeItem(pendingKey);
                 localStorage.removeItem('browserHistory');
-                this.logs = [];
                 this.historyTracker = [];
                 // The server may have recovered events left behind by a
                 // previous, unfinished participant and saved them as an
                 // incomplete experiment. Surface that to the operator.
-                return response.json().catch(() => ({})).then(data => {
                     const recovered = data && data.recovered_incomplete;
                     if (recovered && typeof recovered === 'object'
                         && Object.keys(recovered).length > 0
@@ -204,8 +220,13 @@
                         }));
                     }
                     return response;
-                });
+            }).finally(() => {
+                this.uploadInFlight = null;
+            }).then(async response => {
+                if (this.logs.length) await this.sendLogs();
+                return response;
             });
+            return this.uploadInFlight;
         }
     };
 

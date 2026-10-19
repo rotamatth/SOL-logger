@@ -10,7 +10,8 @@
     <a href="{{ u('settings_page', section=section, grade=history_grade) }}" {% if active_section == section %}aria-current="page"{% endif %}>{{ t(label) }}</a>
     {% endfor %}
   </nav>
-  {% if request.args.get('saved') == '1' %}<p class="notice success settings-notice" role="status">{{ t('participants_saved') if request.args.get('saved_action') == 'save_ranges' else t('school_year_saved') if request.args.get('saved_action') == 'save_year' else t('session_saved') if request.args.get('saved_action') in ('save_session', 'save_dates') else t('saved') }}</p>{% endif %}
+  {% if request.args.get('saved_action') in ('remove_session', 'restore_session') %}<p class="notice success" role="status">{{ t('study_session_removed') if request.args.get('saved_action') == 'remove_session' else t('study_session_restored') }}</p>{% endif %}
+  {% if request.args.get('saved') == '1' and request.args.get('saved_action') not in ('remove_session', 'restore_session') %}<p class="notice success settings-notice" role="status">{{ t('participants_saved') if request.args.get('saved_action') == 'save_ranges' else t('school_year_saved') if request.args.get('saved_action') == 'save_year' else t('session_saved') if request.args.get('saved_action') in ('save_session', 'save_dates') else t('saved') }}</p>{% endif %}
   {% if error and not ranges_error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}
   {% if error == 'settings_changed' %}<p><a class="button" href="{{ u('settings_page', section=active_section, grade=history_grade, edit_participants='1' if active_section == 'participants' else None) }}">{{ t('reload_saved_settings') }}</a></p>{% endif %}
   <section class="panel settings-card settings-year-card" id="school-year" {% if active_section != 'year' %}hidden{% endif %}>

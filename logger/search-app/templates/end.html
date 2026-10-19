@@ -164,8 +164,12 @@ document.getElementById("finish-experiment-btn").addEventListener("click", async
     btn.textContent = "Salvataggio...";
 
     try {
+        if (!window.studyLogger) throw new Error('Logging is unavailable');
         if (window.studyLogger) {
-            studyLogger.logEvent("experimentFinished");
+            if (!window.experimentFinishedLogged && !studyLogger.logs.some(event => event.type === "experimentFinished")) {
+                studyLogger.logEvent("experimentFinished");
+                window.experimentFinishedLogged = true;
+            }
             await studyLogger.sendLogs();
         }
 

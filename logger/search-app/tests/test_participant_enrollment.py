@@ -51,7 +51,7 @@ def test_preview_shows_readiness_exact_ids_and_changes_without_saving(app):
         app, client, action="preview_ranges", **{"4_end": 22, "5_start": 23}))
     assert response.status_code == 200
     assert "Preview — changes have not been saved" in response.text
-    assert "22 / 22 ready to start" in response.text
+    assert "22 / 22 configuration complete" in response.text
     assert "<strong>2</strong> IDs becoming ready for this session" in response.text
     assert "2 IDs changing grade" in response.text
     assert 'name="4_end" value="22"' in response.text
@@ -68,7 +68,7 @@ def test_preview_uses_selected_session_questions_and_explains_student_access(app
     assert "<strong>2</strong> IDs becoming ready for this session" in response.text
     assert "<strong>0</strong> IDs receiving different questions" in response.text
     assert "Review each participant&#39;s assignment (22)" in response.text
-    assert "22 / 22 ready to start" in response.text
+    assert "22 / 22 configuration complete" in response.text
     assert "Grade 4 question 1" in response.text
     unconfigured = client.get("/dashboard/settings?section=participants&grade=5&participant_session=grade-5-session-2")
     assert "No task set assigned" in unconfigured.text

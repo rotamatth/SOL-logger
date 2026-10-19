@@ -13,11 +13,13 @@ from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 
 from .exports import SourceSnapshotError, build_export, capture_log
+from .collection import publish_pending_runs
 from .i18n import translate
 from .index import Index
+from .session_lifecycle import session_removal_problem
 from .state import DEFAULT_STUDY_ID, GRADES, SETTING_FIELDS, MAX_STUDY_SESSIONS, State, identity, normalize_session_name, roster, validate_settings
 from .student_config import configure_students, range_summary, task_catalog, topics_ready
-from .study_config import assignment_for, question_library, session_readiness, validate_question_set
+from .study_config import assignment_for, question_choices, question_library, question_set_problem, session_readiness, validate_question_set
 
 PREFIX = "/dashboard"
 COOKIE = "sol_research"
@@ -52,7 +54,7 @@ def init_dashboard(app):
     app.config.setdefault("RESEARCH_COOKIE_SECURE", os.getenv("RESEARCH_COOKIE_SECURE", "0") == "1")
     state = State(app.config["RESEARCH_STATE_DIR"])
     index = Index(app.config["RESEARCH_STATE_DIR"], {
-        "v2": app.config["RESEARCH_LOG_DIR"], "legacy": app.config["RESEARCH_LEGACY_LOG_DIR"]})
+        "v2": app.config["RESEARCH_LOG_DIR"], "legacy": app.config["RESEARCH_LEGACY_LOG_DIR"]}, initialize=False)
     app.extensions["research"] = {"state": state, "index": index}
     bp = Blueprint("research", __name__, template_folder="templates", static_folder="static", url_prefix=PREFIX)
 
@@ -71,6 +73,8 @@ def init_dashboard(app):
             return ""
         return value
 
+    app.extensions["research"]["credential_ready"] = lambda: bool(password_hash())
+
     def u(endpoint, **values):
         values.setdefault("lang", g.get("research_lang", "en"))
         return url_for("research." + endpoint, **values)
@@ -82,6 +86,12 @@ def init_dashboard(app):
         if request.path.endswith("/events.json"):
             return jsonify(error=key), code
         return page("error", message=key), code
+
+    @bp.errorhandler(sqlite3.Error)
+    @bp.errorhandler(OSError)
+    def storage_unavailable(error):
+        app.logger.error("Research storage unavailable", exc_info=error)
+        return problem("storage_unavailable", 503)
 
     @app.before_request
     def research_gate():
@@ -147,6 +157,8 @@ def init_dashboard(app):
                 return translate("unknown", language)
             return datetime.fromtimestamp(timestamp, ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%d %H:%M:%S %Z")
         return {"t": lambda key: translate(key, language), "u": u, "language": language,
+                "question_status": lambda assignment: "question_set_missing" if assignment is None else
+                "questions_approved" if question_set_problem(assignment) is None else "questions_draft",
                 "language_url": language_url, "auth": g.get("research_auth"), "when": when,
                 "grades": GRADES,
                 "pretty": lambda value: json.dumps(value, ensure_ascii=False, indent=2)}
@@ -182,6 +194,7 @@ def init_dashboard(app):
         return redirect(u("login"))
 
     def data():
+        publish_pending_runs(app.config["RESEARCH_LOG_DIR"], state)
         index.refresh()
         settings = state.settings()
         return settings, index.summaries(settings)
@@ -239,13 +252,16 @@ def init_dashboard(app):
         grade = request.args.get("grade", "4") if collection != "legacy" else request.args.get("grade", "legacy")
         if grade not in (*GRADES, "all", "unassigned", "legacy"):
             abort(404)
-        sessions = sorted((s for s in settings["sessions"] if s["grade"] == grade),
+        recorded_sessions = {r["study_session"]["id"] for r in runs if r.get("study_session")}
+        sessions = sorted((s for s in settings["sessions"] if s["grade"] == grade
+                           and (not s.get("removed") or s["id"] in recorded_sessions)),
                           key=lambda s: s["number"], reverse=True)
         selected_session = None
         if request.args.get("session"):
             selected_session = next((s for s in sessions if s["id"] == request.args["session"]), None)
             if selected_session is None:
                 abort(404)
+        selected_session_configuration = selected_session if collection in ("v2", "study") and selected_session and not selected_session.get("removed") else None
         selected_year = request.args.get("school_year") or None
         school_years = sorted({r["school_year"] for r in collection_runs(runs, collection) if r["school_year"]}, reverse=True)
         if selected_year and selected_year not in school_years:
@@ -273,6 +289,7 @@ def init_dashboard(app):
                     unidentified=unidentified if grade in ("all", "unassigned", "legacy") else [],
                     scan=index.scan_status(), settings=settings, session_cards=session_cards,
                     selected_session=selected_session, selected_year=selected_year, school_years=school_years,
+                    selected_session_configuration=selected_session_configuration,
                     grade_has_logs=grade_has_logs,
                     downloadable_count=sum(person["has_downloadable_logs"] for person in people))
 
@@ -298,6 +315,8 @@ def init_dashboard(app):
                 if session["grade"] in person["grades"] and (not grade_filter or session["grade"] == grade_filter):
                     matching_runs = [run for run in person["runs"] if run["study_session"]
                                      and run["study_session"]["id"] == session["id"]]
+                    if session.get("removed") and not matching_runs:
+                        continue
                     groups.append({"session": display_session(session, matching_runs), "runs": matching_runs})
         groups.append({"session": None, "runs": [r for r in person["runs"] if not r["study_session"]]})
         for group in groups:
@@ -481,7 +500,7 @@ def init_dashboard(app):
                 history_grade = range_scope
         elif action == "save_year":
             active_section = "year"
-        elif action in ("add_session", "save_session", "save_dates"):
+        elif action in ("add_session", "save_session", "save_dates", "remove_session", "restore_session"):
             active_section = "sessions"
         edit_session_id = request.form.get("session_id") if action == "save_session" else request.args.get("edit") or None
         edit_name = request.form.get("name") if action == "save_session" else None
@@ -499,6 +518,27 @@ def init_dashboard(app):
                 if revision != current["revision"]:
                     raise ValueError("settings_changed")
                 updated = deepcopy({key: current[key] for key in SETTING_FIELDS})
+                if action in ("remove_session", "restore_session"):
+                    target = next((s for s in updated["sessions"] if s["id"] == request.form.get("session_id")
+                                   and s["grade"] == history_grade), None)
+                    if target is None or bool(target.get("removed")) != (action == "restore_session"):
+                        raise ValueError("invalid_sessions")
+                    if action == "remove_session":
+                        if request.form.get("confirm_remove") != "1":
+                            raise ValueError("session_removal_confirmation")
+                        reason = session_removal_problem(index, current, target)
+                        if reason:
+                            raise ValueError(reason)
+                        target["removed"] = True
+                    else:
+                        target["removed"] = False
+                        if "date" in request.form:
+                            target["date"] = request.form["date"]
+                    state.save_settings(updated, revision)
+                    return redirect(u("settings_page", section="sessions", grade=history_grade, saved="1",
+                                      saved_action=action, removed="1" if action == "remove_session" else None,
+                                      edit=target["id"] if action == "restore_session" else None,
+                                      _anchor="removed-sessions" if action == "remove_session" else target["id"]))
                 if action == "add_session":
                     add_grade = request.form.get("grade", "")
                     if add_grade in GRADES:
@@ -590,7 +630,7 @@ def init_dashboard(app):
                                       edit=edit_session_id if action == "save_session" else None,
                                       _anchor=anchor))
             except (ValueError, KeyError) as exc:
-                error = str(exc) if str(exc) in {"invalid_ranges", "overlapping_ranges", "invalid_task_assignment", "invalid_sessions", "invalid_date", "invalid_session_name", "overlapping_dates", "settings_changed", "session_limit", "invalid_school_year", "invalid_historical_grade", "overlapping_historical_grades"} else "invalid_settings"
+                error = str(exc) if str(exc) in {"invalid_ranges", "overlapping_ranges", "invalid_task_assignment", "invalid_sessions", "invalid_date", "invalid_session_name", "overlapping_dates", "settings_changed", "session_limit", "invalid_school_year", "invalid_historical_grade", "overlapping_historical_grades", "session_has_records", "session_usage_unavailable", "session_removal_confirmation"} else "invalid_settings"
         ranges_submitted = action in ("save_ranges", "preview_ranges", "edit_ranges")
         range_forms = []
         for grade in ("4", "5", "3"):
@@ -606,7 +646,7 @@ def init_dashboard(app):
                 if request.form.get("ranges_editor") == "1" and grade == "3" and range_scope in (None, "3"):
                     fields["enabled"] = request.form.get("3_enabled") == "1"
             range_forms.append(fields)
-        participant_sessions = [s for s in range_draft["sessions"] if s["grade"] == history_grade]
+        participant_sessions = [s for s in range_draft["sessions"] if s["grade"] == history_grade and not s.get("removed")]
         participant_session_id = request.args.get("participant_session") or (participant_sessions[0]["id"] if participant_sessions else None)
         participant_session = next((s for s in participant_sessions if s["id"] == participant_session_id), None)
         if participant_session_id and participant_session is None:
@@ -615,7 +655,7 @@ def init_dashboard(app):
         for rule in range_draft["ranges"]:
             summary = range_summary(app, rule)
             study_session = participant_session if rule["grade"] == history_grade else next(
-                (s for s in range_draft["sessions"] if s["grade"] == rule["grade"]), None)
+                (s for s in range_draft["sessions"] if s["grade"] == rule["grade"] and not s.get("removed")), None)
             if study_session:
                 summary.update(session_readiness(range_draft, study_session))
             else:
@@ -644,8 +684,10 @@ def init_dashboard(app):
         calendars = {grade: {s["number"]: s for s in current["sessions"] if s["grade"] == grade}
                      for grade in GRADES}
         next_numbers = {grade: max(values, default=0) + 1 for grade, values in calendars.items()}
-        all_history_sessions = sorted((s for s in current["sessions"] if s["grade"] == history_grade),
+        all_history_sessions = sorted((s for s in current["sessions"] if s["grade"] == history_grade and not s.get("removed")),
                                       key=lambda s: s["number"], reverse=True)
+        removed_sessions = sorted((s for s in current["sessions"] if s["grade"] == history_grade and s.get("removed")),
+                                  key=lambda s: s["number"], reverse=True)
         history_page_count = max(1, (len(all_history_sessions) + 9) // 10)
         if history_page > history_page_count:
             abort(404)
@@ -695,6 +737,7 @@ def init_dashboard(app):
                     history_grade=history_grade, history_page=history_page,
                     history_page_count=history_page_count, history_total=len(all_history_sessions),
                     history_sessions=history_sessions,
+                    removed_sessions=removed_sessions,
                     next_numbers=next_numbers,
                     session_limit=MAX_STUDY_SESSIONS, add_date=add_date, add_name=add_name,
                     open_new=request.args.get("new") == "1" or action == "add_session" and error is not None,
@@ -704,7 +747,7 @@ def init_dashboard(app):
     def session_questions(session_id):
         settings = state.settings()
         study_session = next((s for s in settings["sessions"] if s["id"] == session_id), None)
-        if study_session is None:
+        if study_session is None or study_session.get("removed"):
             abort(404)
         uid = request.args.get("participant", "")
         if uid and roster(settings).get(uid) != study_session["grade"]:
@@ -717,8 +760,11 @@ def init_dashboard(app):
         if uid and saved is None:
             draft["approved"] = False
         library = question_library(app, settings)
+        unique_questions = question_choices(library)
+        unique_by_id = {item["id"]: item for item in unique_questions}
         choices = {f"{item['id']}:{slot}": question
                    for item in library for slot, question in enumerate(item["question_set"]["questions"])}
+        choices.update({item["id"]: item["question_data"] for item in unique_questions})
         error = None
         revision = settings["revision"]
         signer = URLSafeSerializer(g.research_hash, salt="sol-question-draft")
@@ -743,13 +789,26 @@ def init_dashboard(app):
                                     topic=request.form.get(f"topic_{slot}", "").strip(),
                                     question=request.form.get(f"question_{slot}", "").strip())
                     if action == "load_questions" and request.form.get(f"library_question_{slot}"):
-                        selected = choices.get(request.form[f"library_question_{slot}"])
+                        selected_id = request.form[f"library_question_{slot}"]
+                        selected = choices.get(selected_id)
                         if selected is None:
                             raise ValueError("invalid_question_set")
+                        if selected_id in unique_by_id:
+                            # A chosen full set supplies an explicit experiment
+                            # condition. Reuse that source when it is unambiguous.
+                            matching = [source["question_data"] for source in unique_by_id[selected_id]["sources"]
+                                        if json.dumps(source["set_metadata"], sort_keys=True)
+                                        == json.dumps(draft.get("metadata", {}), sort_keys=True)]
+                            if matching and len({json.dumps(item, sort_keys=True) for item in matching}) == 1:
+                                selected = matching[0]
                         question = deepcopy(selected)
                     questions.append(question)
-                draft.update(questions=questions, theme=request.form.get("theme", "").strip(),
-                             approved=request.form.get("approved") == "1")
+                approved = request.form.get("approved") == "1"
+                if action in ("save_draft", "save_draft_return"):
+                    approved = False
+                elif action == "approve_questions":
+                    approved = True
+                draft.update(questions=questions, theme=request.form.get("theme", "").strip(), approved=approved)
                 if revision != settings["revision"]:
                     raise ValueError("settings_changed")
                 if action == "load_set":
@@ -766,7 +825,7 @@ def init_dashboard(app):
                     target.get("participant_questions", {}).pop(uid, None)
                     state.save_settings(updated, revision)
                     return redirect(u("session_questions", session_id=session_id, saved="1"))
-                elif action == "save_questions":
+                elif action in ("save_questions", "save_draft", "save_draft_return", "approve_questions"):
                     validate_question_set(draft, require_ready=draft["approved"])
                     updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
                     target = next(s for s in updated["sessions"] if s["id"] == session_id)
@@ -775,6 +834,8 @@ def init_dashboard(app):
                     else:
                         target["question_set"] = draft
                     state.save_settings(updated, revision)
+                    if action == "save_draft_return":
+                        return redirect(u("overview", grade=study_session["grade"], session=session_id, draft_saved="1"))
                     return redirect(u("session_questions", session_id=session_id, participant=uid or None, saved="1"))
                 else:
                     raise ValueError("invalid_question_set")
@@ -782,7 +843,8 @@ def init_dashboard(app):
                 error = str(exc) if str(exc) in {"settings_changed", "questions_incomplete", "questions_unapproved"} else "invalid_question_set"
         return page("session_questions", settings=settings, study_session=study_session,
                     participant=uid, draft=draft, has_exception=uid in exceptions,
-                    readiness=session_readiness(settings, study_session), library=library,
+                    readiness=session_readiness(settings, study_session), library=library, unique_questions=unique_questions,
+                    unsaved_preview=request.method == "POST" and not error,
                     draft_token=signer.dumps({"session_id": session_id, "participant": uid,
                                              "revision": revision, "question_set": draft}),
                     form_revision=revision, error=error), 400 if error else 200
