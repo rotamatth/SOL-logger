@@ -408,8 +408,7 @@ tbody th a {
 }
 
 .session-content {
-  border-top:1px solid var(--line);
-  padding:24px 26px
+  border-top:1px solid var(--line)
 }
 
 .facts {
@@ -521,14 +520,6 @@ fieldset {
 legend {
   font-weight:650;
   padding:0 8px
-}
-
-button:disabled {
-  color:var(--muted);
-  border-color:var(--line);
-  background:#f5f7f7;
-  cursor:default;
-  opacity:.7
 }
 
 .participant-link {
@@ -2150,8 +2141,10 @@ select {
     gap:12px
   }
 }
-.question-editor { display: grid; gap: 1rem; }
-.question-editor fieldset { min-width: 0; border: 1px solid var(--border, #dce2e9); border-radius: .6rem; padding: 1rem; display: grid; gap: .6rem; }
+.question-editor { display: grid; gap: .75rem; }
+.question-editor > label { margin: 4px 0 0; }
+.question-editor fieldset { min-width: 0; margin: 0; border: 1px solid var(--border, #dce2e9); border-radius: .6rem; padding: .75rem 1rem 1rem; display: grid; gap: .35rem; }
+.question-editor fieldset label { margin: 6px 0 2px; }
 .question-editor textarea { width: 100%; box-sizing: border-box; font: inherit; padding: .65rem; border: 1px solid #b7c3ce; border-radius: .4rem; }
 .question-editor select { max-width: 100%; }
 
@@ -2278,4 +2271,14 @@ select {
 @media(max-width:700px) {
   .preparation-class-field,.preparation-session-field { flex-basis:100% }
   .preparation-menu-options { max-height:260px }
+}
+
+/* Touch screens (iPad): comfortable 44px targets. Mouse/trackpad layouts are unchanged. */
+@media (pointer: coarse) {
+  .site-header nav a, .languages a { display:inline-flex; align-items:center; min-height:44px }
+  /* Vertical padding enlarges the tap area of a link without changing the line height. */
+  main a:not(.button), main .participant-question-table td:last-child a { padding-block:12px }
+  .button, button, select, input:not([type=checkbox]):not([type=radio]):not([type=hidden]) { min-height:44px }
+  summary, main .technical-details > summary { padding-block:10px }
+  input[type=checkbox] { width:22px; height:22px }
 }

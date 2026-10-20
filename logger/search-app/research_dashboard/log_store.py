@@ -39,7 +39,7 @@ class LogStore:
                     break
                 except BlockingIOError:
                     if time.monotonic() >= deadline:
-                        raise TimeoutError("Collection storage is busy; retry this upload")
+                        raise TimeoutError("Collection storage is busy; retry this upload") from None
                     time.sleep(0.02)
             db = sqlite3.connect(self.path, timeout=self.lock_timeout)
             db.row_factory = sqlite3.Row

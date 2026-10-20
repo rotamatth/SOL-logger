@@ -76,6 +76,12 @@ def shared_set(app):
     return app.extensions["research"]["state"].settings()["sessions"][0]["question_set"]
 
 
+def working_set(app):
+    """The editor's working copy: a saved draft, otherwise the published set."""
+    session = app.extensions["research"]["state"].settings()["sessions"][0]
+    return session.get("question_draft", session.get("question_set"))
+
+
 def save_shared(app, client, **changes):
     fields = editor_form(client, **custom_fields(), **changes)
     response = client.post(URL, data=fields)
@@ -104,8 +110,9 @@ def test_custom_draft_can_save_incomplete_but_approval_requires_three_questions(
     configured(app)
     draft = editor_form(client, theme="A draft", topic_0="One topic", question_0="One question?")
     assert client.post(URL, data=draft).status_code == 302
-    saved = shared_set(app)
+    saved = working_set(app)
     assert not saved["approved"] and saved["questions"][0]["topic"] == "One topic"
+    assert "question_set" not in app.extensions["research"]["state"].settings()["sessions"][0]
     before = app.extensions["research"]["state"].settings()
     response = client.post(URL, data=editor_form(client, approved="1"))
     assert response.status_code == 400 and "Complete all three topics and questions" in response.text
@@ -129,7 +136,7 @@ def test_approved_question_edit_preserves_metadata_and_stable_identity(app):
     original["questions"][0]["metadata"] = {"difficulty": 2, "gif": "optional.gif"}
     configured(app, question_set=original)
     before = deepcopy(original)
-    response = client.post(URL, data=editor_form(client, question_0="Edited question <&>"))
+    response = client.post(URL, data=editor_form(client, approved="1", question_0="Edited question <&>"))
     assert response.status_code == 302
     saved = shared_set(app)
     assert saved["metadata"] == before["metadata"]
@@ -275,7 +282,7 @@ def test_changing_shared_questions_preserves_previously_saved_individual_assignm
     assert client.post(exception_url, data=fields).status_code == 302
     state = app.extensions["research"]["state"]
     exception = deepcopy(state.settings()["sessions"][0]["participant_questions"]["1"])
-    fields = editor_form(client, question_0="Changed shared question?")
+    fields = editor_form(client, approved="1", question_0="Changed shared question?")
     assert client.post(URL, data=fields).status_code == 302
     settings = state.settings()
     assert settings["sessions"][0]["participant_questions"]["1"] == exception
@@ -320,7 +327,10 @@ def test_new_route_requires_research_login_and_csrf_for_every_action(app):
     assert app.extensions["research"]["state"].settings() == before
     response = client.get(URL)
     assert "no-store" in response.headers["Cache-Control"]
-    assert "script-src 'none'" in response.headers["Content-Security-Policy"]
+    policy = response.headers["Content-Security-Policy"]
+    # Only same-origin scripts (editor protection); never inline or third-party code.
+    assert "script-src 'self'" in policy and "connect-src 'self'" in policy
+    assert "unsafe-inline" not in policy and "unsafe-eval" not in policy
 
 
 @pytest.mark.parametrize("url", [

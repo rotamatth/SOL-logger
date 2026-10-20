@@ -32,10 +32,28 @@ admission and deployment configuration belong to the same foundation.
 | `study_config.py` | Resolve a participant's exact session questions and readiness, using the session's own year |
 | `collection.py` | Freeze admission metadata, commit an attempt and publish its immutable sidecar |
 | `log_store.py` | Durable upload receipts, idempotent retries and recoverable publication of original logs |
-| `enrollment_views.py` | Researcher enrollment forms, signed review/confirmation, shared authentication and CSRF |
-| `preparation_views.py` | Session preparation orchestration; uses the same settings, identity and readiness services |
+| `question_versions.py` | Working draft vs approved questions per session and participant (see "Question lifecycle") |
 | `index.py`, `exports.py` | Rebuildable read models and provenance-preserving exports; never a source of attempt state |
 | `runtime.py` | Persistent signing key and readiness support |
+
+Dashboard web layer (Flask). `__init__.py` only wires these modules; each one
+exposes `register_*(dash)` and receives the shared `Dashboard` context
+(`dashboard.py`: blueprint, `state`, `index`, `u()`, `page()`, `problem()`, `data()`).
+
+| Module | Responsibility |
+| --- | --- |
+| `security.py` | Login/logout, research session, CSRF, response headers (CSP), error pages |
+| `template_context.py` | Values available in every template (translation, navigation context, question status) |
+| `preparation_views.py` | Session preparation (the start page) and the researcher-only student preview |
+| `question_views.py` | Question editor: Save draft / Approve / Discard, library reuse |
+| `editor_views.py`, `editor_recovery.py` | Private 8-hour recovery of unsaved editor text |
+| `enrollment_views.py` | Permanent participants, yearly enrollment, signed review/confirmation |
+| `settings_views.py` | School year, session administration, original ID ranges (one handler per action) |
+| `history_data.py`, `history_views.py` | Data and history read models; overview, participant, run and log pages; trash |
+| `export_views.py` | ZIP downloads |
+
+Add a new dashboard area as its own `*_views.py` module with a `register_*_routes(dash)`
+function and call it from `init_dashboard`. Endpoint names stay `research.<function>`.
 
 `search_app.py` composes these boundaries. New progress code should be a separate
 module with narrow methods called by student routes. Keep SQL in the persistence
@@ -165,6 +183,36 @@ must reject late writes. Recap edits need append-only revisions with before/afte
 values and authoring-session context. Repeats must preserve the original snapshot
 and order and require #15's researcher authorization. None of these should depend
 on whether the reporting index is available.
+
+## Question lifecycle: working draft vs approved
+
+Each study session holds two separate versions of its questions. Only the
+approved version is ever used for admission.
+
+| Field on the session | Written by | Read by admission |
+| --- | --- | --- |
+| `question_set` (and `participant_questions[id]`) | **Approve questions** only (`publish_questions`) | yes, if `approved` is true and complete |
+| `question_draft` (and `participant_question_drafts[id]`) | **Save draft** (`save_question_draft`) | never |
+
+Rules (implemented in `research_dashboard/question_versions.py`, validated in
+`state.validate_settings`):
+
+- Saving a draft never changes or withdraws the approved questions. Children who
+  have not started keep receiving the approved version.
+- Approving replaces the approved version for **new** starts and removes the draft.
+  Already admitted attempts keep their immutable snapshot (`attempt_metadata`);
+  never re-resolve current settings to resume one.
+- An individual draft does not create an individual assignment: until it is
+  approved the child keeps the class questions.
+- **Discard working draft** removes only the draft. **Use shared questions** removes
+  both the individual approved set and the individual draft.
+- Older data may contain an unapproved `question_set` written before this split.
+  It is kept as it is, shown as a draft, and never published implicitly.
+
+Researcher form recovery (`editor_recovery.py`, `/dashboard/editor/recovery`) is a
+separate, private concern: an 8-hour, per-browser copy of unsaved editor text. It
+never touches settings, admission or student progress, and is not a model for
+#6 student progress saving.
 
 ## Durable acknowledgement and logging
 

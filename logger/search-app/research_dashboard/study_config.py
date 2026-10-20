@@ -9,7 +9,6 @@ from hashlib import sha256
 from zoneinfo import ZoneInfo
 import json
 import math
-import re
 
 from .participants import enrollment, roster, valid_school_year, year_contains
 

@@ -10,9 +10,10 @@ import sqlite3
 import time
 
 from .student_config import validate_topics
-from .study_config import validate_question_set
+from .study_config import scheduled_assignment, validate_question_set
+from .question_versions import validate_question_drafts
 from . import participants as identities
-from .participants import GRADES, roster, valid_school_year
+from .participants import GRADES, roster, valid_school_year  # noqa: F401 - roster is re-exported for callers
 
 MAX_STUDY_SESSIONS = 100
 DEFAULT_STUDY_ID = "sol-longitudinal"
@@ -71,36 +72,66 @@ def normalize_session_name(value):
     return name
 
 
-def validate_settings(value):
-    if not isinstance(value, dict) or value.get("schema_version") != 1:
-        raise ValueError("invalid_settings")
-    rules = value.get("ranges", [])
+ID_PREFIX = re.compile(r"[A-Za-z0-9_-]{0,24}")
+PARTICIPANT_ID = re.compile(r"[A-Za-z0-9_-]{1,32}")
+HEX_ID = re.compile(r"[0-9a-f]{24}")
+
+
+def _valid_id_range(rule):
+    """start/end/width/prefix of a generated ID range (at most 1,000 IDs)."""
+    return (type(rule.get("start")) is int and type(rule.get("end")) is int
+            and 0 <= rule["start"] <= rule["end"] <= 999999 and rule["end"] - rule["start"] <= 999
+            and type(rule.get("width")) is int and 0 <= rule["width"] <= 8
+            and isinstance(rule.get("prefix"), str) and ID_PREFIX.fullmatch(rule["prefix"]) is not None)
+
+
+def _range_ids(rule):
+    return {rule["prefix"] + str(n).zfill(rule["width"]) for n in range(rule["start"], rule["end"] + 1)}
+
+
+def _valid_iso_date(value):
+    try:
+        return isinstance(value, str) and date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        return False
+
+
+def _validate_ranges(rules):
     if (not isinstance(rules, list) or not 2 <= len(rules) <= 3
             or any(not isinstance(r, dict) for r in rules)
             or len({r.get("grade") for r in rules}) != len(rules)
             or not {"4", "5"} <= {r.get("grade") for r in rules} <= set(GRADES)):
         raise ValueError("invalid_ranges")
     seen = set()
-    for r in rules:
-        if (type(r.get("start")) is not int or type(r.get("end")) is not int
-                or not 0 <= r["start"] <= r["end"] <= 999999
-                or r["end"] - r["start"] > 999
-                or type(r.get("width")) is not int or not 0 <= r["width"] <= 8
-                or not isinstance(r.get("prefix"), str)
-                or not re.fullmatch(r"[A-Za-z0-9_-]{0,24}", r["prefix"])):
+    for rule in rules:
+        if not _valid_id_range(rule):
             raise ValueError("invalid_ranges")
-        ids = {r["prefix"] + str(n).zfill(r["width"]) for n in range(r["start"], r["end"] + 1)}
+        ids = _range_ids(rule)
         if seen & ids:
             raise ValueError("overlapping_ranges")
         seen |= ids
-        assignment = r.get("assignment")
+        assignment = rule.get("assignment")
         if assignment is not None:
             if (not isinstance(assignment, dict) or assignment.get("mode") not in ("missing", "all")
-                    or not isinstance(assignment.get("id"), str)
-                    or not re.fullmatch(r"[0-9a-f]{24}", assignment["id"])):
+                    or not isinstance(assignment.get("id"), str) or not HEX_ID.fullmatch(assignment["id"])):
                 raise ValueError("invalid_task_assignment")
             validate_topics(assignment.get("topics"))
-    sessions = value.get("sessions", [])
+
+
+def _validate_session_questions(study_session):
+    if "question_set" in study_session:
+        validate_question_set(study_session["question_set"])
+    if "participant_questions" in study_session:
+        overrides = study_session["participant_questions"]
+        if (not isinstance(overrides, dict) or len(overrides) > 3000
+                or any(not isinstance(uid, str) or not PARTICIPANT_ID.fullmatch(uid) for uid in overrides)):
+            raise ValueError("invalid_participant_questions")
+        for question_set in overrides.values():
+            validate_question_set(question_set)
+    validate_question_drafts(study_session)
+
+
+def _validate_sessions(sessions):
     if not isinstance(sessions, list) or not 2 <= len(sessions) <= len(GRADES) * MAX_STUDY_SESSIONS:
         raise ValueError("invalid_sessions")
     dates, numbers = set(), {grade: set() for grade in GRADES}
@@ -118,62 +149,57 @@ def validate_settings(value):
             raise ValueError("invalid_sessions")
         if normalize_session_name(s.get("name", "")) != s.get("name", ""):
             raise ValueError("invalid_session_name")
-        if "question_set" in s:
-            validate_question_set(s["question_set"])
-        if "participant_questions" in s:
-            overrides = s["participant_questions"]
-            if (not isinstance(overrides, dict) or len(overrides) > 3000
-                    or any(not isinstance(uid, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", uid)
-                           for uid in overrides)):
-                raise ValueError("invalid_participant_questions")
-            for question_set in overrides.values():
-                validate_question_set(question_set)
+        _validate_session_questions(s)
         if not isinstance(s.get("date"), str):
             raise ValueError("invalid_date")
-        if s["date"]:
-            try:
-                if date.fromisoformat(s["date"]).isoformat() != s["date"]:
-                    raise ValueError()
-            except ValueError:
-                raise ValueError("invalid_date") from None
-            if s.get("school_year") and not identities.year_contains(s["school_year"], s["date"]):
-                raise ValueError("session_year_mismatch")
-            key = (s["grade"], s["date"])
-            if not s.get("removed") and key in dates:
+        if not s["date"]:
+            continue
+        if not _valid_iso_date(s["date"]):
+            raise ValueError("invalid_date")
+        if s.get("school_year") and not identities.year_contains(s["school_year"], s["date"]):
+            raise ValueError("session_year_mismatch")
+        if not s.get("removed"):
+            # Two active sessions of one grade cannot share a date.
+            if (s["grade"], s["date"]) in dates:
                 raise ValueError("overlapping_dates")
-            if not s.get("removed"):
-                dates.add(key)
+            dates.add((s["grade"], s["date"]))
+    # Session numbers per grade are 1..n without gaps; 4th and 5th grade always have sessions.
     if any(values != set(range(1, len(values) + 1)) for values in numbers.values()) or not numbers["4"] or not numbers["5"]:
         raise ValueError("invalid_sessions")
-    current_year = value.setdefault("current_school_year", "")
-    if current_year and not valid_school_year(current_year):
-        raise ValueError("invalid_school_year")
-    history = value.setdefault("historical_grades", [])
+
+
+def _validate_historical_grades(history):
     if not isinstance(history, list) or len(history) > 100:
         raise ValueError("invalid_historical_grade")
     identifiers, checked = set(), []
     for rule in history:
         if (not isinstance(rule, dict) or rule.get("grade") not in GRADES
                 or rule.get("collection") not in ("v2", "legacy")
-                or not isinstance(rule.get("id"), str) or not re.fullmatch(r"[0-9a-f]{24}", rule["id"])
+                or not isinstance(rule.get("id"), str) or not HEX_ID.fullmatch(rule["id"])
                 or rule["id"] in identifiers or not valid_school_year(rule.get("school_year"))
-                or type(rule.get("start")) is not int or type(rule.get("end")) is not int
-                or not 0 <= rule["start"] <= rule["end"] <= 999999 or rule["end"] - rule["start"] > 999
-                or type(rule.get("width")) is not int or not 0 <= rule["width"] <= 8
-                or not isinstance(rule.get("prefix"), str) or not re.fullmatch(r"[A-Za-z0-9_-]{0,24}", rule["prefix"])):
+                or not _valid_id_range(rule)):
             raise ValueError("invalid_historical_grade")
         identifiers.add(rule["id"])
-        try:
-            if any(not isinstance(rule.get(key), str) or date.fromisoformat(rule[key]).isoformat() != rule[key]
-                   for key in ("date_from", "date_to")) or rule["date_from"] > rule["date_to"]:
-                raise ValueError()
-        except ValueError:
-            raise ValueError("invalid_date") from None
-        ids = {rule["prefix"] + str(n).zfill(rule["width"]) for n in range(rule["start"], rule["end"] + 1)}
+        if (not all(_valid_iso_date(rule.get(key)) for key in ("date_from", "date_to"))
+                or rule["date_from"] > rule["date_to"]):
+            raise ValueError("invalid_date")
+        ids = _range_ids(rule)
         if any(old["collection"] == rule["collection"] and old["date_from"] <= rule["date_to"]
                and rule["date_from"] <= old["date_to"] and ids & old_ids for old, old_ids in checked):
             raise ValueError("overlapping_historical_grades")
         checked.append((rule, ids))
+
+
+def validate_settings(value):
+    """Validate a complete settings document; fills in optional defaults. Raises ValueError(code)."""
+    if not isinstance(value, dict) or value.get("schema_version") != 1:
+        raise ValueError("invalid_settings")
+    _validate_ranges(value.get("ranges", []))
+    _validate_sessions(value.get("sessions", []))
+    current_year = value.setdefault("current_school_year", "")
+    if current_year and not valid_school_year(current_year):
+        raise ValueError("invalid_school_year")
+    _validate_historical_grades(value.setdefault("historical_grades", []))
     return value
 
 
@@ -322,16 +348,23 @@ class State:
         return details
 
     def participant_changes(self, limit=20):
-        """Recent audit headers for the researcher view; full details remain in SQLite."""
+        """Recent audit entries with the affected IDs and their before/after values."""
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("invalid_audit_limit")
         with self.connect() as db:
-            return [dict(row) for row in db.execute(
-                "SELECT revision,at,operation FROM participant_audit ORDER BY id DESC LIMIT ?", (limit,))]
+            rows = [dict(row) for row in db.execute(
+                "SELECT revision,at,operation,details FROM participant_audit ORDER BY id DESC LIMIT ?", (limit,))]
+        for row in rows:
+            try:
+                details = json.loads(row.pop("details") or "{}")
+            except (TypeError, ValueError):
+                details = {}
+            row["school_year"] = details.get("school_year") if isinstance(details, dict) else None
+            row["changes"] = identities.audit_rows(row["operation"], details)
+        return rows
 
     def admit_attempt(self, metadata):
         """Serialize eligibility and immutable attempt creation with settings edits."""
-        from .study_config import scheduled_assignment
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()

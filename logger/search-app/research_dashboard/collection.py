@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 import json
 import os
 import re
+import tempfile
 
 from .state import DEFAULT_STUDY_ID, roster
 from .runtime import sync_directory
@@ -80,7 +81,6 @@ def publish_metadata(directory, metadata):
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     # A temp file + hard-link publishes the complete sidecar without replacing a prior one.
-    import tempfile
     fd, temporary = tempfile.mkstemp(prefix=".run-", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -92,7 +92,7 @@ def publish_metadata(directory, metadata):
             os.link(temporary, path)
         except FileExistsError:
             if path.is_symlink() or json.loads(path.read_text()) != metadata:
-                raise FileExistsError("Conflicting immutable run metadata")
+                raise FileExistsError("Conflicting immutable run metadata") from None
         sync_directory(path.parent)
     finally:
         os.unlink(temporary)

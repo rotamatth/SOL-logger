@@ -534,8 +534,17 @@ The authenticated editor lives at `/dashboard/settings/questions/<session_id>`;
 unsaved draft. Signed form drafts preserve selected IDs and metadata across workers.
 Use **Save draft** to persist incomplete work, **Save draft and return to session**
 to persist and leave the editor, and **Approve questions** when the assignment is
-complete. Session settings and the selected session overview show saved question
-text, draft/approved status and a link to resume the editor without retyping.
+complete. A saved draft is stored separately: the approved questions stay available
+to children until **Approve questions** replaces them for new starts (attempts
+already started keep their original questions). **Discard working draft** returns
+to the approved version. Session settings and the selected session overview show the
+approved questions, any working draft and a link to resume the editor without retyping.
+
+While typing, the editor keeps a private recovery copy on the server for 8 hours
+(this browser only; logout deletes it). Switching language, reloading or signing in
+again after the 30-minute idle logout offers the unsaved text back. If the login has
+expired, saving is held back and the text stays on the page until you sign in again
+in another tab. The copy is never part of study settings or exports.
 The displayed current setup remains separate from immutable historical run labels.
 Loading a library choice displays **Unsaved changes** until explicitly saved.
 

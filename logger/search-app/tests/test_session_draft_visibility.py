@@ -11,8 +11,9 @@ from werkzeug.security import generate_password_hash
 from .test_research_dashboard import PASSWORD, app, login
 from .test_session_history_snapshot import rendered_context, write_dashboard_snapshot
 from .test_session_question_editor import (
-    URL, EditorFields, configured, custom_fields, editor_form, save_shared, shared_set,
+    URL, EditorFields, configured, custom_fields, editor_form, save_shared, shared_set, working_set,
 )
+from .enrollment_helpers import enroll_initial_roster, school_year
 from .test_study_enrollment import metadata_files, student_modules
 from research_dashboard.state import State
 from research_dashboard.study_config import assignment_for, question_library
@@ -36,7 +37,7 @@ def test_incomplete_draft_is_visible_in_session_and_can_be_resumed_without_retyp
     assert redirect.path.rstrip("/") == "/dashboard"
     assert parse_qs(redirect.query)["grade"] == ["4"]
     assert parse_qs(redirect.query)["session"] == [SESSION_ID]
-    saved = deepcopy(shared_set(app))
+    saved = deepcopy(working_set(app))
     assert saved["approved"] is False
 
     for path in (SESSION_SETTINGS, response.location):
@@ -57,7 +58,7 @@ def test_incomplete_draft_is_visible_in_session_and_can_be_resumed_without_retyp
     assert reopened["topic_1"] == reopened["question_1"] == ""
     assert reopened["topic_2"] == reopened["question_2"] == ""
     assert "approved" not in reopened
-    assert shared_set(app) == saved
+    assert working_set(app) == saved
 
 
 def test_question_editor_exposes_separate_draft_and_approval_actions(app):
@@ -74,16 +75,19 @@ def test_question_editor_exposes_separate_draft_and_approval_actions(app):
 
 
 @pytest.mark.parametrize("action", ["save_draft", "save_draft_return"])
-def test_explicit_draft_save_removes_approval_even_when_form_carries_approval(app, action):
+def test_draft_save_keeps_approved_questions_available_even_when_form_carries_approval(app, action):
     client = app.test_client()
     login(client)
     configured(app)
-    save_shared(app, client)
+    published = deepcopy(save_shared(app, client))
     fields = editor_form(client, action=action, approved="1", question_0="Revised draft?")
     assert client.post(URL, data=fields).status_code == 302
-    assert shared_set(app)["approved"] is False
-    assert shared_set(app)["questions"][0]["question"] == "Revised draft?"
-    assert assignment_for(app.extensions["research"]["state"].settings(), "1", SESSION_ID)["ready"] is False
+    settings = app.extensions["research"]["state"].settings()
+    assert settings["sessions"][0]["question_set"] == published
+    assert settings["sessions"][0]["question_draft"]["approved"] is False
+    assert settings["sessions"][0]["question_draft"]["questions"][0]["question"] == "Revised draft?"
+    assert assignment_for(settings, "1", SESSION_ID)["ready"] is True
+    assert assignment_for(settings, "1", SESSION_ID)["question_set"] == published
 
 
 def test_approval_requires_complete_questions_and_keeps_incomplete_text_for_correction(app):
@@ -152,8 +156,11 @@ def test_individual_draft_reopens_for_exact_participant_and_keeps_shared_assignm
     state = app.extensions["research"]["state"]
     settings = state.settings()
     assert settings["sessions"][0]["question_set"] == shared
-    assert settings["sessions"][0]["participant_questions"]["1"]["approved"] is False
-    assert assignment_for(settings, "1", SESSION_ID)["ready"] is False
+    assert "1" not in settings["sessions"][0].get("participant_questions", {})
+    assert settings["sessions"][0]["participant_question_drafts"]["1"]["approved"] is False
+    # An unapproved individual draft never blocks the child: the class questions stay in use.
+    assert assignment_for(settings, "1", SESSION_ID)["ready"] is True
+    assert assignment_for(settings, "1", SESSION_ID)["question_set"] == shared
     assert assignment_for(settings, "2", SESSION_ID)["ready"] is True
 
     for path in (SESSION_SETTINGS, SESSION_OVERVIEW):
@@ -213,7 +220,7 @@ def test_current_draft_preview_does_not_replace_recorded_session_labels(app):
     assert "Continue editing draft" in response.text
 
 
-def test_visible_future_approved_session_and_today_draft_both_keep_student_start_blocked(student_modules, tmp_path):
+def test_future_session_stays_closed_and_today_draft_never_blocks_approved_questions(student_modules, tmp_path):
     module = student_modules()
     module.app.config.update(
         RESEARCH_PASSWORD_HASH=generate_password_hash(PASSWORD, method="pbkdf2:sha256:1000"),
@@ -236,13 +243,20 @@ def test_visible_future_approved_session_and_today_draft_both_keep_student_start
 
     settings = state.settings()
     settings["sessions"][0]["date"] = today.isoformat()
+    enroll_initial_roster(settings, school_year(today))
     state.save_settings(settings, settings["revision"])
-    fields = editor_form(researcher, action="save_draft", approved="1")
+    fields = editor_form(researcher, action="save_draft", approved="1", question_0="Unapproved draft question?")
     assert researcher.post(URL, data=fields).status_code == 302
     assert "Continue editing draft" in researcher.get(SESSION_OVERVIEW).text
-    response = student.post("/start", data={"user_id": "1"})
-    assert response.status_code == 400 and "Session not available" in response.text
-    assert not metadata_files(tmp_path)
+    # A working draft never withdraws the approved questions: children can still start
+    # today, and they receive the approved text, never the unapproved draft.
+    assert student.post("/start", data={"user_id": "1"}).status_code == 302
+    task = student.get("/task").text
+    assert "Unapproved draft question" not in task
+    started = metadata_files(tmp_path)
+    assert len(started) == 1
+    assert "Unapproved draft question" not in str(started[0])
+    assert "Future session question 1?" in str(started[0])
 
 
 @pytest.mark.parametrize("action", ["save_draft", "save_draft_return", "approve_questions"])

@@ -12,7 +12,7 @@ sys.path.insert(0, str(APP_ROOT))
 
 from research_dashboard.study_config import question_choices, question_library, validate_question_set
 from .test_research_dashboard import app, login
-from .test_session_question_editor import (URL, EditorFields, configured, editor_form,
+from .test_session_question_editor import (URL, EditorFields, configured, working_set, editor_form,
                                            save_shared, shared_set)
 
 
@@ -198,7 +198,7 @@ def test_unique_question_selection_saves_without_guessing_condition_or_losing_ot
     assert state.settings() == before
     fields["action"] = save_action
     assert client.post(URL, data=fields).status_code == 302
-    saved = shared_set(app)
+    saved = working_set(app)
     assert saved["approved"] is (save_action == "approve_questions")
     assert saved["theme"] == "Still my theme"
     assert saved["questions"][1] == choice["question_data"]
@@ -229,7 +229,7 @@ def test_unique_choice_with_loaded_set_context_keeps_that_explicit_condition(app
     fields = EditorFields(applied).fields
     fields["action"] = save_action
     assert client.post(URL, data=fields).status_code == 302
-    saved = shared_set(app)
+    saved = working_set(app)
     assert saved["approved"] is (save_action == "approve_questions")
     assert saved["theme"] == "Explicit condition"
     assert saved["metadata"] == selected_set["question_set"]["metadata"]
@@ -254,7 +254,7 @@ def test_conflicting_sources_with_same_set_context_still_do_not_guess_question_m
     fields = EditorFields(response).fields
     fields["action"] = "save_draft"
     assert client.post(URL, data=fields).status_code == 302
-    saved = shared_set(app)
+    saved = working_set(app)
     assert "high_interest" not in saved["questions"][0]["metadata"]
     assert saved["questions"][0]["id"] == original["questions"][0]["id"]
     assert saved["questions"][1:] == edited["questions"][1:]

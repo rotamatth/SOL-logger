@@ -2,7 +2,7 @@
 {% block content %}
 <div class="settings-workspace">
   <div class="settings-page-heading">
-    <div><a class="settings-back" href="{{ u('prepare_page',grade=history_grade) }}">&larr; {{ t('prepare_session') }}</a><h1>{{ t('settings') }}</h1><p class="muted">{{ t('settings_workspace_hint') }}</p></div>
+    <div><a class="settings-back" href="{{ u('prepare_page',grade=history_grade,year=study_context.school_year or None,session=study_context.get('id')) }}">&larr; {{ t('prepare_session') }}</a><h1>{{ t('settings') }}</h1><p class="muted">{{ t('settings_workspace_hint') }}</p></div>
     {% if settings.current_school_year %}<span class="settings-year-tag">{{ settings.current_school_year }}</span>{% endif %}
   </div>
   {% include 'research/settings_navigation.html' %}

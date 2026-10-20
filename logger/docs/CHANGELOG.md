@@ -65,6 +65,68 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-20 — Split the dashboard controller into area modules; fix the always-visible student banner
+
+**Type:** fix, infra · **Area:** styling, session, infra, tests, docs
+
+**Files**
+- `search-app/templates/layout.html` — the operator banner "Dati di un partecipante precedente…" had an inline `display:block` that overrode `hidden`, so every student page showed it (since `d6d9357`, 16 May). Removed that declaration.
+- `search-app/research_dashboard/__init__.py` — now only wires the modules below (was a 1,050-line closure).
+- New: `dashboard.py` (shared context), `security.py`, `template_context.py`, `history_data.py`, `history_views.py`, `export_views.py`, `question_views.py`, `settings_views.py` (one handler per action).
+- `editor_views.py`, `preparation_views.py`, `enrollment_views.py` — register on the shared context; recovery store failures answer 503 JSON instead of an error page; no warning is logged for forms saved without the script.
+- `state.py` — `validate_settings` split into focused validators (same checks, same order, same error codes).
+- `index.py` — run summary task merging/status extracted into helpers.
+- `collection.py`, `runtime.py`, `log_store.py`, `study_config.py` — imports at module level, unused import removed, exception chaining.
+- `static/research.css`, `static/editor.css` — 9 dead overridden declarations removed; 44px touch targets under `@media (pointer: coarse)` (iPad), mouse layouts unchanged.
+- Templates: `enrollment.html` (leave warning on edit/link/promotion forms, reflowed table/form), `settings_participants.html` (reflowed).
+- Tests: `test_research_dashboard.py` patches `history_views.capture_log`; new change-history test.
+
+**What changed for the participant**
+The orange "previous participant" banner no longer shows on every page; it still appears when old data is actually recovered.
+
+**How it works**
+Behaviour preserved: a snapshot of 4,000 dashboard pages and 56 write flows (HTML, redirects, ZIP contents) is identical before and after (ignoring whitespace between tags), and 54 screenshots at PC/iPad/phone sizes are pixel-identical apart from the touch sizing.
+
+**If something looks wrong after this, check**
+- A dashboard URL 404s → the route's module is registered in `init_dashboard`.
+- Error page instead of JSON for the editor script → `dashboard.JSON_ENDPOINTS`.
+
+**Left alone**
+Student routes and logging (except the banner), URLs and endpoint names, storage schemas, templates' output.
+
+**Verified**
+416 automated tests; behaviour snapshot and screenshot comparison; student start/question pages on PC and iPad sizes.
+
+## 2026-10-20 — Keep approved questions live while editing, and protect unsaved edits
+
+**Type:** fix · **Area:** session, data, styling, tests, docs
+
+**Files**
+- `search-app/research_dashboard/__init__.py` — question editor saves drafts to `question_draft`/`participant_question_drafts` and publishes only on approval; new `discard_draft` action; clears the private recovery copy after a successful save; `question_view` template helper.
+- `search-app/research_dashboard/static/editor.js`, `static/editor.css` (new) — unsaved-change warning, private autosave/recovery, re-login with CSRF refresh, save-state line, sticky action bar, menu dismissal (Escape/click outside).
+- `search-app/research_dashboard/preparation_views.py` — access status reports missing setup before the schedule.
+- `search-app/research_dashboard/state.py`, `participants.py`, `templates/research/audit_changes.html` (new), `enrollment.html` — change history lists affected IDs with before/after values; phone card rows for the register.
+- `templates/research/session_questions.html`, `prepare.html`, `session_question_preview.html`, `settings_sessions.html`, `overview_downloads.html` — approved vs draft display, Approve as primary action, download labels.
+- `search-app/research_dashboard/editor_i18n.py` — English/Italian wording.
+- Tests: `test_question_draft_workflow.py` (new); updated draft-contract expectations in `test_session_draft_visibility.py`, `test_session_question_editor.py`, `test_question_library_choices.py`, `test_session_preparation.py`, `test_preparation_preview.py`, `test_research_dashboard.py`.
+
+**What changed for the participant**
+No visible change in the student app. Children are no longer blocked when a researcher saves a draft over approved questions.
+
+**How it works**
+See "Question lifecycle" in `dashboard_integration.md`. Admission still reads only `question_set`/`participant_questions`.
+
+**If something looks wrong after this, check**
+- Child blocked after editing questions → is the approved `question_set` present and complete? Drafts are in `question_draft`.
+- Editor shows "recovered" text unexpectedly → `research-state/editor-drafts.sqlite3`; **Discard recovered edits** clears it.
+- Script not running → CSP must allow `script-src 'self'`; `/dashboard/static/editor.js` must be served.
+
+**Left alone**
+Student routes, logging, admission (`study_config.scheduled_assignment`), exports and the recovery store's schema.
+
+**Verified**
+414 automated tests (Selenium back-navigation tests not runnable in the review environment). Browser checks: language switch recovery, expired login while typing, re-login and approve, draft keeps "Available today", discard, leave warning, phone layouts.
+
 ## 2026-10-20 — Repair preparation menus, enrollment filters and question tables
 
 **Type:** fix · **Area:** session, styling, data, tests, docs

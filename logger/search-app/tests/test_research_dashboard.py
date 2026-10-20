@@ -643,7 +643,7 @@ def test_individual_log_download_rejects_other_runs_metadata_and_paths(app):
 
 @pytest.mark.parametrize("change", ["append", "replace", "symlink"])
 def test_individual_log_download_verifies_snapshot_before_sending(app, tmp_path, monkeypatch, change):
-    import research_dashboard as dashboard
+    import research_dashboard.history_views as dashboard
     key, root, stem = write_run(app)
     path = root / f"{stem}_FULL.log"
     original = path.read_bytes()
@@ -1512,11 +1512,13 @@ def test_all_participants_empty_roster_translation_and_refresh(app):
     assert response.text.count('<span class="badge no_data">Senza dati salvati</span>') == 40
     assert 'type="checkbox"' not in response.text and "Scarica log</button>" not in response.text
     history = next(link for link in dashboard_links(response) if link.fragment == "session-history")
-    creation = next(link for link in dashboard_links(response) if link.fragment == "new-session")
+    # New sessions start from session preparation (session-first workflow).
+    creation = next(link for link in dashboard_links(response) if link.fragment == "prepare-details")
     assert client.get(history.geturl()).status_code == 200
     assert parse_qs(creation.query)["new"] == ["1"]
     creation_page = client.get(creation.geturl())
-    assert creation_page.status_code == 200 and 'id="new-session" open' in creation_page.text
+    assert creation_page.status_code == 200 and 'id="prepare-details"' in creation_page.text
+    assert 'value="save_details"' in creation_page.text
     refreshed = client.post("/dashboard/refresh?lang=it", data={
         "csrf": csrf(response), "grade": "all", "collection": "v2",
     })
@@ -1577,7 +1579,9 @@ def test_historical_grade_categories_and_downloads_preserve_both_cohorts(app):
     assert old3.encode() in viewed.data and current4.encode() not in viewed.data
     fourth_url = next(link for link in links if link.path in ("/dashboard", "/dashboard/")
                       and parse_qs(link.query).get("grade") == ["4"])
-    fourth_links = dashboard_links(client.get(fourth_url.geturl()))
+    # Grade tabs keep the selected school year; the full grade history is the unscoped view.
+    assert parse_qs(fourth_url.query)["school_year"] == ["2025/2026"]
+    fourth_links = dashboard_links(client.get("/dashboard?grade=4"))
     _, grade_manifest = archive(client.get(next(link for link in fourth_links if link.path.endswith("/exports/grade")
                                                 and parse_qs(link.query)["grade"] == ["4"]).geturl()))
     assert {run["run_id"] for run in grade_manifest["runs"]} == {current4, old4}

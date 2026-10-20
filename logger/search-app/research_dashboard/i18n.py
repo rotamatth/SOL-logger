@@ -562,6 +562,15 @@ TEXT.update({
     'prepare_ids_hint': ('Enter each ID separated by commas, for example: 1, 2, 3. Choose whether these are new children or children already in the study. Keep existing children’s original IDs. Do not enter names.', 'Inserisci ogni ID separato da virgole, ad esempio: 1, 2, 3. Scegli se sono nuovi bambini o bambini già nello studio. Per i bambini già presenti conserva gli ID originali. Non inserire nomi.'),
 })
 
+from .workflow_i18n import WORKFLOW_TEXT
+from .history_i18n import TEXT as HISTORY_TEXT
+from .editor_i18n import EDITOR_TEXT
+
+TEXT.update(WORKFLOW_TEXT)
+TEXT.update(HISTORY_TEXT)
+TEXT.update(EDITOR_TEXT)
+
+
 def translate(key, language):
     pair = TEXT.get(key)
     return pair[1 if language == "it" else 0] if pair else key

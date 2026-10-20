@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ t('dashboard') }} · SOL</title>
   <link rel="stylesheet" href="{{ url_for('research.static', filename='research.css') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='history.css') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='workflow.css') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='editor.css') }}">
+  <script src="{{ url_for('research.static', filename='editor.js') }}" defer></script>
 </head>
-<body>
+<body data-editor-messages="{{ editor_messages|tojson|forceescape }}" data-editor-recovery-url="{{ u('editor_recovery') }}" data-editor-login-url="{{ u('login') }}">
   <header class="site-header">
     <a class="brand" href="{{ u('prepare_page') }}"><img class="brand-mark" src="{{ url_for('static', filename='images/Logo.png') }}" alt="Cerca con SOL" width="72" height="56"><span>{{ t('private') }}</span></a>
     <nav aria-label="Navigation">
       {% if auth and auth.authenticated %}
-      <a href="{{ u('prepare_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'prepare' %}aria-current="page"{% endif %}>{{ t('prepare_session') }}</a>
-      <a href="{{ u('overview',collection='study',grade=study_context.grade if study_context is defined and study_context.grade in grades else 'all') }}">{{ t('data_and_history') }}</a>
-      <a href="{{ u('settings_page') }}">{{ t('settings') }}</a>
+      <a href="{{ u('prepare_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'prepare' %}aria-current="page"{% endif %}>{{ t('prepare_session') }}</a>
+      <a href="{{ u('overview',collection='study',grade=study_context.grade if study_context is defined and study_context.grade in grades else 'all',school_year=study_context.school_year if study_context is defined else None,session=study_context.get('id') if study_context is defined and study_context.grade in grades else None) }}" {% if research_area|default('') == 'history' %}aria-current="page"{% endif %}>{{ t('data_and_history') }}</a>
+      <a href="{{ u('settings_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}">{{ t('settings') }}</a>
       <a href="{{ u('trash_page') }}">{{ t('trash') }}</a>
       {% endif %}
       <span class="languages"><a href="{{ language_url('en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>EN</a><span>/</span><a href="{{ language_url('it') }}" lang="it" {% if language == 'it' %}aria-current="true"{% endif %}>IT</a></span>

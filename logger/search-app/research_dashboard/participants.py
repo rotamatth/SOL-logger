@@ -123,6 +123,49 @@ def audit(db, revision, operation, details):
                (revision, now(), operation, json.dumps(details, ensure_ascii=False)))
 
 
+def audit_rows(operation, details):
+    """Project a stored audit entry onto affected IDs with before/after values.
+
+    Values are (kind, value) pairs rendered by the template: grade, status,
+    none (not enrolled), new, text. Unknown shapes yield no rows.
+    """
+    def grade(value):
+        return ("grade", value) if value in GRADES else ("none", None)
+
+    rows = []
+    details = details if isinstance(details, dict) else {}
+    try:
+        if operation == "add":
+            rows = [{"id": uid, "before": [("new", None)], "after": [grade(details.get("grade"))]}
+                    for uid in details.get("ids", [])]
+        elif operation == "enroll":
+            rows = [{"id": item["id"], "before": [grade(item.get("before_grade"))], "after": [grade(item.get("grade"))]}
+                    for item in details.get("changes", [])]
+        elif operation == "update":
+            before, after = details.get("before", {}), details.get("after", {})
+            rows = [{"id": details["id"],
+                     "before": [grade(before.get("grade")), ("status", bool(before.get("active")))],
+                     "after": [grade(after.get("grade")), ("status", bool(after.get("active")))]}]
+        elif operation == "promote":
+            rows = [{"id": item["id"], "before": [grade(item.get("from_grade"))], "after": [grade(item.get("to_grade"))]}
+                    for item in details.get("participants", [])]
+        elif operation == "range_edit":
+            rows = [{"id": item["id"], "before": [grade(item.get("before"))], "after": [grade(item.get("after"))]}
+                    for item in details.get("changes", [])]
+        elif operation == "initial_enrollment":
+            rows = [{"id": uid, "before": [("none", None)], "after": [("text", details.get("school_year", ""))]}
+                    for uid in details.get("ids", [])]
+        elif operation in ("link", "unlink"):
+            period = f"{details.get('date_from', '')} – {details.get('date_to', '')}"
+            linked = [("text", str(details.get("source_id", ""))), ("text", period)]
+            rows = [{"id": details["participant_id"],
+                     "before": [("none", None)] if operation == "link" else linked,
+                     "after": linked if operation == "link" else [("none", None)]}]
+    except (KeyError, TypeError, AttributeError):
+        rows = []
+    return rows
+
+
 def put_enrollment(db, uid, year, grade):
     if not valid_school_year(year):
         raise ValueError("school_year_required")

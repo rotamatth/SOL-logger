@@ -11,7 +11,9 @@ ERRORS = frozenset(("settings_changed", "invalid_enrollment", "invalid_participa
                    "enrollment_conflict", "empty_promotion", "invalid_identity_link", "identity_link_conflict"))
 
 
-def register_enrollment_routes(bp, state, index, page, u):
+def register_enrollment_routes(dash):
+    bp, state, index, page, u = dash.bp, dash.state, dash.index, dash.page, dash.u
+
     @bp.route("/settings/enrollment", methods=["GET", "POST"])
     def enrollment_page():
         settings = state.settings()

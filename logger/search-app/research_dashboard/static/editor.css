@@ -1,0 +1,55 @@
+/* Question editor: version status, persistent actions and private edit protection. */
+.question-version-status { display:grid; gap:6px; margin:12px 0 16px; padding:12px 14px; border:1px solid var(--line); border-radius:9px; background:#f8fbfb; font-size:14px }
+.question-version-status p { margin:0 }
+.question-version-status .badge { margin:0 6px 0 4px }
+
+/* Keep the completion actions reachable while scrolling through the long form. */
+.editor-action-bar { position:sticky; bottom:0; z-index:5; margin-top:4px; padding:12px 0; border-top:1px solid var(--line); background:rgba(255,255,255,.97); box-shadow:0 -10px 12px -10px rgba(24,45,54,.12) }
+.editor-action-bar .actions { display:flex; flex-wrap:wrap; gap:8px; margin:0 }
+.editor-action-meta { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin:8px 0 0; min-height:1.4em }
+.editor-status { font-size:13px; font-weight:600; color:var(--muted) }
+.editor-status[data-tone="ok"] { color:#235634 }
+.editor-status[data-tone="busy"] { color:var(--muted) }
+.editor-status[data-tone="warn"] { color:#8a5a12 }
+.editor-status[data-tone="error"] { color:#8a3a2b }
+.editor-status button, .editor-status a { min-height:30px; margin-left:8px; padding:4px 10px; font-size:12px }
+
+button.quiet { border-color:transparent; background:transparent; color:var(--accent); font-weight:600 }
+button.quiet:hover { background:#edf5f3 }
+.question-reuse-apply { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px }
+.question-reuse-apply p { margin:0 }
+
+.recovery-banner { display:grid; gap:10px; margin:0 0 16px }
+.recovery-banner p { margin:0 }
+.recovery-banner ol { margin:0; padding-left:1.4rem }
+.recovery-banner li { white-space:pre-wrap; overflow-wrap:anywhere }
+.recovery-banner .actions { display:flex; flex-wrap:wrap; gap:8px }
+.recovery-copy-buffer { position:fixed; top:0; left:-9999px; width:1px; height:1px; opacity:0 }
+
+.working-draft-block { margin-top:12px }
+.preparation-question-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px }
+
+@media (max-width:640px) {
+  .editor-action-bar { padding:10px 0 }
+  .editor-action-bar .actions button { flex:1 1 auto }
+}
+
+/* Enrollment change history: affected IDs with before/after values. */
+.audit-entry { border-top:1px solid var(--line); padding:8px 0 }
+.audit-entry > summary { cursor:pointer; font-size:14px }
+.audit-table { width:100%; margin-top:8px; border-collapse:collapse; font-size:13px }
+.audit-table th, .audit-table td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line) }
+
+/* Permanent register on phones: one card per ID, with its action on the first line. */
+@media (max-width:640px) {
+  .participant-register { display:block; min-width:0 }
+  .participant-register thead { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0) }
+  .participant-register tbody { display:grid; gap:10px }
+  .participant-register tr { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; padding:12px; border:1px solid var(--line); border-radius:8px; background:#fff }
+  .participant-register td { display:block; padding:0; border:0 }
+  .participant-register td:first-child { grid-column:1; grid-row:1; font-weight:700; font-size:16px }
+  .participant-register td.register-action { grid-column:2; grid-row:1; text-align:right }
+  .participant-register td[data-label] { grid-column:1 / -1; font-size:13px }
+  .participant-register td[data-label]::before { content:attr(data-label) ': '; color:var(--muted) }
+  .participant-register td[colspan] { grid-column:1 / -1 }
+}

@@ -147,7 +147,8 @@ def test_save_and_return_keeps_draft_and_preparation_context(app):
     assert parse_qs(urlsplit(result.location).query)['session'] == ['grade-4-session-1']
     page = client.get(result.location)
     assert 'Why is the sky blue?' in page.text and 'Continue editing draft' in page.text
-    assert state.settings()['sessions'][0]['question_set']['approved'] is False
+    saved = state.settings()['sessions'][0]
+    assert saved['question_draft']['approved'] is False and 'question_set' not in saved
 
 
 def test_preparation_requires_csrf_and_preserves_stale_input(app):

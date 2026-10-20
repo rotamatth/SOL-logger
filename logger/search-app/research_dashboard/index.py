@@ -296,34 +296,8 @@ class Index:
             if (sum(f["event_count"] for f in full), sum(f["signature_sum"] for f in full) % MODULUS) != (
                     sum(f["event_count"] for f in task_files), sum(f["signature_sum"] for f in task_files) % MODULUS):
                 issues.append("full_and_task_copies_differ")
-        tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "events": 0} for n in (1, 2, 3)}
-        for f in canonical:
-            for number, t in f["tasks"].items():
-                if number not in tasks:
-                    issues.append(f"unrecognized_task_number:{number}")
-                    continue
-                dest = tasks.setdefault(number, {"number": number, "topics": [], "questions": [], "answers": [], "events": 0})
-                dest["events"] += t["events"]
-                dest["answers"].extend(t["answers"])
-                for field in ("topics", "questions"):
-                    dest[field] = list(dict.fromkeys(dest[field] + t[field]))
-        for recorded in meta.get("tasks", []):
-            number = str(recorded.get("presented_number"))
-            if number not in tasks:
-                continue
-            for field, key in (("topics", "topic_id"), ("questions", "question")):
-                value = recorded.get(key)
-                if isinstance(value, (str, int)) and str(value) not in tasks[number][field]:
-                    tasks[number][field].append(str(value))
-        for t in tasks.values():
-            t["status"] = "completed" if any(a["present"] and isinstance(a["value"], str) for a in t["answers"]) else "incomplete" if t["events"] else "no_data"
-            if len(t["topics"]) > 1 or len(t["questions"]) > 1:
-                t["status"] = "unknown"
-                issues.append(f"conflicting_task_metadata:task={t['number']}")
-            if len(t["answers"]) > 1:
-                issues.append(f"multiple_answer_records:task={t['number']}")
-            if any(a["present"] and not isinstance(a["value"], str) for a in t["answers"]):
-                issues.append(f"non_text_answer:task={t['number']}")
+        tasks = _merge_tasks(canonical, meta, issues)
+        _assign_task_status(tasks, issues)
         event_count = sum(f["event_count"] for f in canonical)
         complete = all(tasks[str(n)]["status"] == "completed" for n in (1, 2, 3))
         date = date_of(meta.get("started_at")) or min((d for f in canonical for d in f["dates"]), default=None)
@@ -436,6 +410,45 @@ def _study_session_for_run(run, settings, study_id, grade, issues):
     return next((s for s in settings["sessions"] if s["grade"] == grade
                  and s["date"] and s["date"] == run["date"]), None)
 
+
+
+def _merge_tasks(canonical, meta, issues):
+    """Combine per-task events, answers, topics and questions of the canonical logs."""
+    tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "events": 0} for n in (1, 2, 3)}
+    for f in canonical:
+        for number, task in f["tasks"].items():
+            if number not in tasks:
+                issues.append(f"unrecognized_task_number:{number}")
+                continue
+            dest = tasks[number]
+            dest["events"] += task["events"]
+            dest["answers"].extend(task["answers"])
+            for field in ("topics", "questions"):
+                dest[field] = list(dict.fromkeys(dest[field] + task[field]))
+    # The run snapshot records what was presented even when no event mentions it.
+    for recorded in meta.get("tasks", []):
+        number = str(recorded.get("presented_number"))
+        if number not in tasks:
+            continue
+        for field, key in (("topics", "topic_id"), ("questions", "question")):
+            value = recorded.get(key)
+            if isinstance(value, (str, int)) and str(value) not in tasks[number][field]:
+                tasks[number][field].append(str(value))
+    return tasks
+
+
+def _assign_task_status(tasks, issues):
+    """completed: a text answer was recorded; unknown: conflicting task identity."""
+    for task in tasks.values():
+        answered = any(a["present"] and isinstance(a["value"], str) for a in task["answers"])
+        task["status"] = "completed" if answered else "incomplete" if task["events"] else "no_data"
+        if len(task["topics"]) > 1 or len(task["questions"]) > 1:
+            task["status"] = "unknown"
+            issues.append(f"conflicting_task_metadata:task={task['number']}")
+        if len(task["answers"]) > 1:
+            issues.append(f"multiple_answer_records:task={task['number']}")
+        if any(a["present"] and not isinstance(a["value"], str) for a in task["answers"]):
+            issues.append(f"non_text_answer:task={task['number']}")
 
 def classify(run, settings):
     grade, school_year, source, rule_id, current_grade = None, None, "unknown", None, None

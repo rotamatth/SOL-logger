@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import secrets
+import tempfile
 
 
 def sync_directory(directory):
@@ -14,7 +15,6 @@ def sync_directory(directory):
 
 def create_secret(path):
     """Publish a complete private secret once; never replace an existing key."""
-    import tempfile
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd, temporary = tempfile.mkstemp(prefix=".secret-", dir=path.parent)
