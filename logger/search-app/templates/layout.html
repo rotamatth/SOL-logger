@@ -45,10 +45,6 @@
             <p id="task-confirm-detail">Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
             <p id="task-save-error" class="form-error" role="alert" hidden>Salvataggio non riuscito. La risposta è conservata in questo browser. Controlla la connessione e premi Riprova.</p>
 
-        <!-- <div id="savedDocuments">
-        <a href="#" id="toggleSavedLink" onclick="toggleSavedTitles(event)">See saved documents ▼</a>
-        <ul id="savedTitles" style="display: none;" ></ul>
-        </div> -->
 
         <div class="modal-buttons">
         <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
@@ -511,7 +507,6 @@
             studyLogger.logEvent("ClickedOnSendAndTerminateTask");
             window.clickedEndTaskLogged = true;
         }
-        // populateSavedDocuments();
     }
 
     function openFeedbackModal() {
@@ -567,122 +562,8 @@
         window._feedbackCloseReason = null;
     }
 
-    function toggleSavedTitles(event) {
-        event.preventDefault();
-        const list = document.getElementById('savedTitles');
-        const link = document.getElementById('toggleSavedLink');
-
-        if (!list || !link) return;
-
-        const isVisible = list.style.display === 'block';
-        list.style.display = isVisible ? 'none' : 'block';
-        link.innerHTML = isVisible ? 'See saved documents ▼' : 'Hide saved documents ▲';
-    }
-
-    function populateSavedDocuments() {
-        const argumentSelections = JSON.parse(localStorage.getItem('argumentSelections') || '{}');
-        const savedTitles = JSON.parse(localStorage.getItem('savedTitles') || '{}');
-        const savedTitlesUl = document.getElementById('savedTitles');
-        if (!savedTitlesUl) return;
-
-        savedTitlesUl.innerHTML = '';
-
-        for (const docid in argumentSelections) {
-            const li = document.createElement('li');
-            li.textContent = (argumentSelections[docid].toUpperCase() === 'PRO' ? 'PRO: ' : 'CON: ') + (savedTitles[docid] || `ID: ${docid}`);
-            li.classList.add(argumentSelections[docid] === 'pro' ? 'pro-vote' : 'con-vote');
-            savedTitlesUl.appendChild(li);
-        }
-    }
     </script>
 
-    <script>
-    const argumentSelections = JSON.parse(localStorage.getItem('argumentSelections') || '{}');
-    const savedTitles = JSON.parse(localStorage.getItem('savedTitles') || '{}');
-
-    function toggleArgument(docid, type) {
-        const proBtn = document.getElementById(`pro-btn-${docid}`);
-        const conBtn = document.getElementById(`con-btn-${docid}`);
-        if (!proBtn || !conBtn) return;
-
-        const isPro = type === 'pro';
-        const activeBtn = isPro ? proBtn : conBtn;
-        const otherBtn = isPro ? conBtn : proBtn;
-
-        const activeClass = isPro ? 'btn-success' : 'btn-danger';
-        const outlineClass = isPro ? 'btn-outline-success' : 'btn-outline-danger';
-        const otherActiveClass = isPro ? 'btn-danger' : 'btn-success';
-        const otherOutlineClass = isPro ? 'btn-outline-danger' : 'btn-outline-success';
-
-        const currentState = argumentSelections[docid];
-
-        const titleElement = document.querySelector(`article[base_ir="${docid}"] h4 > span`);
-        let fullTitle = titleElement ? titleElement.innerText.trim() : '0. Untitled Document';
-        let title = fullTitle.replace(/^\d+\.\s*/, '');
-
-        if (currentState === type) {
-            activeBtn.classList.remove(activeClass);
-            activeBtn.classList.add(outlineClass);
-            delete argumentSelections[docid];
-            delete savedTitles[docid];
-        } else {
-            activeBtn.classList.remove(outlineClass);
-            activeBtn.classList.add(activeClass);
-            otherBtn.classList.remove(otherActiveClass);
-            otherBtn.classList.add(otherOutlineClass);
-            argumentSelections[docid] = type;
-            savedTitles[docid] = title;
-        }
-
-        localStorage.setItem('argumentSelections', JSON.stringify(argumentSelections));
-        localStorage.setItem('savedTitles', JSON.stringify(savedTitles));
-
-        updateCounters();
-    }
-
-    function restoreButtonStates() {
-        for (const docid in argumentSelections) {
-            const type = argumentSelections[docid];
-            const isPro = type === 'pro';
-
-            const proBtn = document.getElementById(`pro-btn-${docid}`);
-            const conBtn = document.getElementById(`con-btn-${docid}`);
-
-            if (!proBtn || !conBtn) continue;
-
-            if (isPro) {
-                proBtn.classList.remove('btn-outline-success');
-                proBtn.classList.add('btn-success');
-                conBtn.classList.remove('btn-danger');
-                conBtn.classList.add('btn-outline-danger');
-            } else {
-                conBtn.classList.remove('btn-outline-danger');
-                conBtn.classList.add('btn-danger');
-                proBtn.classList.remove('btn-success');
-                proBtn.classList.add('btn-outline-success');
-            }
-        }
-    }
-
-    function updateCounters() {
-        let proCount = 0, conCount = 0;
-        for (const key in argumentSelections) {
-            if (argumentSelections[key] === 'pro') proCount++;
-            if (argumentSelections[key] === 'con') conCount++;
-        }
-
-        const pcount = document.getElementById('pro-count');
-        if (pcount) pcount.textContent = proCount;
-
-        const ccount = document.getElementById('con-count');
-        if (ccount) ccount.textContent = conCount;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        restoreButtonStates();
-        updateCounters();
-    });
-    </script>
 
     <script>
     function clearClientData() {

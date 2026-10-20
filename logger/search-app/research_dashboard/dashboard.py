@@ -15,7 +15,7 @@ COOKIE = "sol_research"
 EDITOR_COOKIE = "sol_research_editor"
 
 # Endpoints whose failures are answered as JSON for the browser scripts.
-JSON_ENDPOINTS = ("research.editor_recovery",)
+JSON_ENDPOINTS = ("research.editor_recovery", "research.session_check")
 
 
 def is_dashboard_path(path):

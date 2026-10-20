@@ -1,5 +1,5 @@
 /* Shared preparation status, safe question preview and compact participant rows. */
-.session-status-summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; margin:20px 0; border:1px solid #cbdad9; border-left:4px solid var(--accent); border-radius:10px; background:#edf5f3 }
+.session-status-summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; margin:20px 0; border:1px solid #cbdad9; border-left:4px solid var(--accent); border-radius:10px; background:var(--selection) }
 .session-status-summary p { margin:6px 0 0; font-size:14px }
 .session-status-summary.warning { border-left-color:#9b6b16; background:#fff8e8 }
 .session-status-summary.success { background:#e2f2e8; border-left-color:#297044 }
@@ -13,7 +13,7 @@
 .preview-participant-picker { max-width:300px; margin:20px 0 }
 .preview-participant-picker > span { display:block; font-weight:600; margin-bottom:6px }
 .preparation-menu-options a { display:block; padding:10px 12px; border-radius:4px; text-decoration:none }
-.preparation-menu-options a:hover,.preparation-menu-options a:focus-visible { background:#e8f3f0 }
+.preparation-menu-options a:hover,.preparation-menu-options a:focus-visible { background:var(--selection) }
 .preview-version-tabs [aria-current],.preview-question-tabs [aria-current] { font-weight:700; border-bottom:3px solid var(--accent) }
 .preview-question-tabs a { padding:8px 12px }
 .student-question-preview { position:relative; margin:24px 0; padding:44px 32px 32px; border-radius:16px; border:2px solid #cdd7d0; background:#fffef9; text-align:center; box-shadow:0 3px 10px #1b35300d }

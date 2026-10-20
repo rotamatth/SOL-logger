@@ -1,7 +1,8 @@
-.history-scope { margin:16px 0; padding:16px 20px }
+.history-scope { margin:16px 0; padding:16px 20px; background:#fffaf0; border-color:var(--line) }
 .history-scope-picker { display:flex; align-items:flex-end; flex-wrap:wrap; gap:16px }
 .history-scope-picker form { flex:1 1 200px; min-width:0; max-width:400px }
-.history-scope-picker .picker-label { display:block; font-size:13px; font-weight:600; margin-bottom:6px }
+.history-scope-picker .picker-label { display:block; font-size:13px; font-weight:650; margin-bottom:6px }
+.history-scope-picker>a { display:inline-flex; align-items:center; min-height:var(--control-height) }
 .history-scope p { margin:12px 0 0 }
 .history-download-scope { display:block; max-width:500px; font-size:12px; color:var(--muted); margin-top:6px }
 .history-full-download { margin-top:8px; font-size:13px }

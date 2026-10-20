@@ -41,9 +41,12 @@
   function text(key) { return messages[key] || key; }
 
   var recoveryUrl = body.getAttribute('data-editor-recovery-url') || '';
+  var sessionUrl = body.getAttribute('data-editor-session-url') || '';
   var loginUrl = body.getAttribute('data-editor-login-url') || '';
   var AUTOSAVE_DELAY = 1200;
+  var FLUSH_ATTEMPTS = 4;
   var submitting = false;
+  var canFetch = !!(window.fetch && window.URLSearchParams);
 
   function editable(form) {
     return Array.prototype.filter.call(form.elements, function (field) {
@@ -72,6 +75,28 @@
     return input ? input.value : '';
   }
 
+  /*
+   * Login check before anything is sent: refreshes the CSRF token (after signing in
+   * again in another tab) and keeps the login alive. Resolves to the HTTP status.
+   * It never touches a recovery copy, so a stale tab cannot adopt another tab's version.
+   */
+  function authCheck() {
+    if (!sessionUrl || !canFetch) { return Promise.resolve(200); }
+    return fetch(sessionUrl, { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (payload) {
+          if (response.status === 200) { setCsrf(payload.csrf); }
+          return response.status;
+        });
+      });
+  }
+
+  function sameFields(left, right) {
+    if (!left || !right) { return false; }
+    var keys = Object.keys(left);
+    return keys.length === Object.keys(right).length && keys.every(function (name) { return left[name] === right[name]; });
+  }
+
   /* ---------- Private server recovery for long editor forms ---------- */
 
   function Recovery(form) {
@@ -84,6 +109,8 @@
     this.inflight = null;
     this.state = 'saved';
     this.ready = false;
+    this.started = null;
+    this.discarding = false;
     this.statusNode = form.querySelector('[data-editor-status]');
     this.sequenceInput = form.querySelector('input[name="recovery_sequence"]');
   }
@@ -183,59 +210,83 @@
     });
   };
 
-  /* Re-read the server copy: refreshes the CSRF token and keeps the login alive. */
-  Recovery.prototype.check = function () {
-    var self = this;
-    return this.request('GET').then(function (result) {
-      if (result.status === 200) {
-        setCsrf(result.payload.csrf);
-        var record = result.payload.recovery;
-        if (record) { self.setSequence(record.sequence); }
-      }
-      return result;
-    });
-  };
-
+  /*
+   * Compare-and-swap save of the current fields. Resolves true when this request was
+   * stored; the form may have changed meanwhile, so callers that need the *current*
+   * text protected use flush().
+   */
   Recovery.prototype.save = function (retried) {
     var self = this;
+    if (this.discarding) { return Promise.resolve(false); }
     if (this.inflight) { return this.inflight; }
-    if (this.isProtected()) { return Promise.resolve(true); }
+    if (this.isProtected()) {
+      if (this.state === 'expired' || this.state === 'failed') { this.status('protected'); }
+      return Promise.resolve(true);
+    }
     var snapshot = serialize(this.form);
+    var sent = this.fields();
     this.status('protecting');
-    this.inflight = this.request('POST', {
-      action: 'save', sequence: String(this.sequence), fields: JSON.stringify(this.fields())
+    var pending = this.request('POST', {
+      action: 'save', sequence: String(this.sequence), fields: JSON.stringify(sent)
     }).then(function (result) {
-      self.inflight = null;
       if (result.status === 200 && result.payload.recovery) {
         setCsrf(result.payload.csrf);
-        self.setSequence(result.payload.recovery.sequence);
-        self.protectedState = snapshot;
-        if (serialize(self.form) !== snapshot) { self.schedule(); return true; }
-        self.status('protected');
-        return true;
+        return self.stored(result.payload.recovery.sequence, snapshot);
       }
       if (result.status === 401) { self.status('expired'); return false; }
-      if (result.status === 409) { self.status('conflict'); return false; }
+      if (result.status === 409) { return self.reconcile(sent, snapshot); }
       if (!retried && result.payload && result.payload.error === 'csrf_error') {
         // Signed in again elsewhere: fetch the new token and try once more.
-        return self.check().then(function (checked) {
-          if (checked.status === 401) { self.status('expired'); return false; }
+        return authCheck().then(function (status) {
+          if (status === 401) { self.status('expired'); return false; }
+          self.inflight = null;
           return self.save(true);
         });
       }
       self.status('failed');
       return false;
+    });
+    var operation = pending.then(function (stored) {
+      if (self.inflight === operation) { self.inflight = null; }
+      return stored;
     }, function () {
-      self.inflight = null;
+      if (self.inflight === operation) { self.inflight = null; }
       self.status('failed');
       return false;
     });
+    this.inflight = operation;
     return this.inflight;
+  };
+
+  Recovery.prototype.stored = function (sequence, snapshot) {
+    this.setSequence(sequence);
+    this.protectedState = snapshot;
+    if (serialize(this.form) !== snapshot) { this.schedule(); } else { this.status('protected'); }
+    return true;
+  };
+
+  /*
+   * The server copy moved on. If it holds exactly the text this tab sent (our own
+   * earlier save whose answer was lost), continue from it; otherwise another tab wrote
+   * it: never overwrite that copy, keep this tab's text on the page and say so.
+   */
+  Recovery.prototype.reconcile = function (sent, snapshot) {
+    var self = this;
+    return this.request('GET').then(function (result) {
+      var record = result.status === 200 ? result.payload.recovery : null;
+      if (record && sameFields(record.fields, sent)) { return self.stored(record.sequence, snapshot); }
+      self.status('conflict');
+      return false;
+    }, function () {
+      self.status('conflict');
+      return false;
+    });
   };
 
   Recovery.prototype.schedule = function () {
     var self = this;
     clearTimeout(this.timer);
+    if (this.discarding) { return; }
     if (!this.ready) { return; }
     if (this.isProtected()) { this.status('protected'); return; }
     if (this.state !== 'expired' && this.state !== 'conflict') { this.status('dirty'); }
@@ -244,39 +295,68 @@
     }, AUTOSAVE_DELAY);
   };
 
-  Recovery.prototype.flush = function () {
+  /*
+   * Resolve true only once the text currently in the form is stored. A save that was
+   * already running covers older text, so keep saving until the snapshot matches.
+   */
+  Recovery.prototype.flush = function (attempt) {
+    var self = this;
+    attempt = attempt || 0;
     clearTimeout(this.timer);
-    if (!this.ready || this.isProtected()) { return Promise.resolve(true); }
-    return this.save();
+    if (this.discarding) { return Promise.resolve(false); }
+    if (this.isProtected()) { return Promise.resolve(true); }
+    if (!this.ready) { return this.started.then(function () { return self.flush(attempt); }); }
+    if (this.state === 'conflict' || attempt >= FLUSH_ATTEMPTS) { return Promise.resolve(false); }
+    return this.save().then(function (stored) {
+      return stored && self.flush(attempt + 1);
+    });
   };
 
   Recovery.prototype.retry = function () {
     var self = this;
-    this.check().then(function (result) {
-      if (result.status === 401) { self.status('expired'); return; }
-      if (result.status !== 200) { self.status('failed'); return; }
-      self.protectedState = null;
+    authCheck().then(function (status) {
+      if (status === 401) { self.status('expired'); return; }
+      if (status !== 200) { self.status('failed'); return; }
       self.save();
     }, function () { self.status('failed'); });
   };
 
   Recovery.prototype.discard = function () {
+    if (this.discarding) { return; }
     if (!window.confirm(text('editor_discard_confirm'))) { return; }
     var self = this;
-    this.request('POST', { action: 'clear', sequence: String(this.sequence) }).then(function () {
+    this.discarding = true;
+    clearTimeout(this.timer);
+    // Finish any save already sent before clearing its acknowledged version.
+    // New input must not start another autosave while the discard is pending.
+    return Promise.resolve(this.inflight || this.started).then(function () {
+      return self.request('POST', { action: 'clear', sequence: String(self.sequence) });
+    }).then(function (result) {
+      if (result.status !== 200) {
+        self.discarding = false;
+        self.protectedState = null;
+        self.status(result.status === 401 ? 'expired' : result.status === 409 ? 'conflict' : 'failed');
+        return false;
+      }
       self.protectedState = null;
       submitting = true;  // Reload the saved version without a leave warning.
       window.location.href = window.location.href.split('#')[0];
-    }, function () { self.status('failed'); });
+      return true;
+    }, function () {
+      self.discarding = false;
+      self.protectedState = null;
+      self.status('failed');
+      return false;
+    });
   };
 
-  Recovery.prototype.banner = function (values) {
+  Recovery.prototype.banner = function (values, introKey) {
     var self = this;
     var box = document.createElement('div');
     box.className = 'notice warning recovery-banner';
     box.setAttribute('role', 'status');
     var intro = document.createElement('p');
-    intro.textContent = text('editor_revision_conflict');
+    intro.textContent = text(introKey);
     box.appendChild(intro);
     var list = document.createElement('ol');
     ['question_0', 'question_1', 'question_2'].forEach(function (name) {
@@ -301,41 +381,50 @@
     this.form.parentNode.insertBefore(box, this.form);
   };
 
+  /*
+   * Load the private copy once. Only the page as the server rendered it counts as
+   * safe; anything typed while this request runs is kept and protected afterwards,
+   * and a recovered copy never replaces it silently.
+   */
   Recovery.prototype.start = function () {
     var self = this;
     var unsavedPage = this.form.hasAttribute('data-unsaved');
-    this.check().then(function (result) {
+    var rendered = serialize(this.form);
+    var renderedFields = this.fields();
+    this.started = this.request('GET').then(function (result) {
       self.ready = true;
       if (result.status === 401) { self.status('expired'); return; }
       if (result.status !== 200) { self.status('failed'); return; }
+      setCsrf(result.payload.csrf);
       var record = result.payload.recovery;
-      var current = self.fields();
+      if (record) { self.setSequence(record.sequence); }  // The version this page builds on.
       if (unsavedPage) {
         // This page shows text the server just returned (preview or validation
         // error): it is newer than any earlier copy, so protect it right away.
         self.save();
         return;
       }
-      if (!record || !record.fields) { self.protectedState = serialize(self.form); self.status('saved'); return; }
-      var saved = record.fields;
-      var differs = Object.keys(self.textFields(saved)).some(function (name) { return saved[name] !== current[name]; });
+      var typed = serialize(self.form) !== rendered;
+      self.protectedState = rendered;
+      var saved = record && record.fields;
+      var differs = saved && Object.keys(self.textFields(saved)).some(function (name) {
+        return saved[name] !== renderedFields[name];
+      });
       if (!differs) {
-        self.protectedState = serialize(self.form);
         self.status('saved');
-        return;
-      }
-      if (saved.revision === current.revision) {
+      } else if (saved.revision === renderedFields.revision && !typed) {
         // Same settings version: put the recovered text back into the form.
         self.apply(saved, false);
         self.protectedState = serialize(self.form);
         self.status('recovered', { discard: function () { self.discard(); } });
       } else {
-        // Settings changed since: never overwrite silently; let the researcher choose.
-        self.protectedState = serialize(self.form);
+        // Settings changed since, or the researcher already started typing:
+        // never overwrite silently; let the researcher choose.
         self.status('saved');
-        self.banner(saved);
+        self.banner(saved, typed ? 'editor_recovered_choice' : 'editor_revision_conflict');
       }
-    }, function () {
+      if (typed) { self.schedule(); }
+    }).catch(function () {
       self.ready = true;
       self.status('failed');
     });
@@ -369,11 +458,49 @@
     }
   }
 
+  /* A message next to the submit button; called without a key it removes the message. */
+  function formNotice(form, submitter, key, withLogin) {
+    var old = form.querySelector('.editor-form-notice');
+    if (old) { old.parentNode.removeChild(old); }
+    if (!key) { return; }
+    var node = document.createElement('p');
+    node.className = 'notice warning editor-form-notice';
+    node.setAttribute('role', 'alert');
+    node.textContent = text(key) + ' ';
+    if (withLogin && loginUrl) {
+      var link = document.createElement('a');
+      link.href = loginUrl;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = text('editor_sign_in');
+      node.appendChild(link);
+    }
+    var anchor = submitter && submitter.form === form ? submitter : null;
+    if (anchor) { anchor.parentNode.insertBefore(node, anchor); } else { form.appendChild(node); }
+  }
+
+  /* Submit without firing the submit event again, keeping the clicked button's value. */
+  function submitNatively(form, submitter) {
+    Array.prototype.forEach.call(form.querySelectorAll('input[data-editor-submitter]'), function (input) {
+      input.parentNode.removeChild(input);
+    });
+    if (submitter && submitter.name && submitter.form === form) {
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = submitter.name;
+      hidden.value = submitter.value;
+      hidden.setAttribute('data-editor-submitter', '');
+      form.appendChild(hidden);
+    }
+    submitting = true;
+    HTMLFormElement.prototype.submit.call(form);
+  }
+
   /* ---------- wiring ---------- */
 
   var guards = forms.map(function (form) {
-    var guard = { form: form, initial: serialize(form), recovery: null };
-    if (recoveryUrl && form.hasAttribute('data-recovery-key') && window.fetch && window.URLSearchParams) {
+    var guard = { form: form, initial: serialize(form), recovery: null, pending: false };
+    if (recoveryUrl && form.hasAttribute('data-recovery-key') && canFetch) {
       guard.recovery = new Recovery(form);
     }
     guard.dirty = function () { return serialize(form) !== guard.initial || form.hasAttribute('data-unsaved'); };
@@ -395,27 +522,32 @@
       var submitter = event.submitter || document.activeElement;
       var question = submitter && submitter.getAttribute && submitter.getAttribute('data-confirm');
       if (question && !window.confirm(question)) { event.preventDefault(); return; }
-      if (!guard.recovery) { submitting = true; return; }
-      // Check the login first so an expired session never swallows the form.
+      if (!sessionUrl || !canFetch) { submitting = true; return; }
+      // Check the login first so an expired session never swallows what was typed.
       event.preventDefault();
+      if (guard.pending) { return; }
+      guard.pending = true;
       var recovery = guard.recovery;
-      clearTimeout(recovery.timer);
-      recovery.check().then(function (result) {
-        if (result.status === 401) { recovery.status('expired'); return; }
-        if (result.status !== 200) { recovery.status('failed'); return; }
-        var flushed = recovery.isProtected() ? Promise.resolve(true) : recovery.save();
-        return flushed.then(function () {
-          if (submitter && submitter.name) {
-            var hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = submitter.name;
-            hidden.value = submitter.value;
-            form.appendChild(hidden);
+      if (recovery) { clearTimeout(recovery.timer); }
+      authCheck().then(function (status) {
+        if (status !== 200) {
+          guard.pending = false;
+          if (recovery) {
+            recovery.status(status === 401 ? 'expired' : 'failed');  // Its status line explains.
+          } else {
+            formNotice(form, submitter, status === 401 ? 'editor_session_expired' : 'editor_submit_failed', status === 401);
           }
-          submitting = true;
-          HTMLFormElement.prototype.submit.call(form);
+          return;
+        }
+        formNotice(form);
+        // The explicit save goes ahead even if the private copy cannot be updated.
+        return (recovery ? recovery.flush() : Promise.resolve(true)).then(function () {
+          submitNatively(form, submitter);
         });
-      }, function () { recovery.status('failed'); });
+      }).catch(function () {
+        guard.pending = false;
+        if (recovery) { recovery.status('failed'); } else { formNotice(form, submitter, 'editor_submit_failed', false); }
+      });
     });
 
     if (guard.recovery) { guard.recovery.start(); }
@@ -452,6 +584,13 @@
         window.location.href = link.href;
       }
     });
+  });
+
+  // Back/forward cache: the page is live again, so the leave warning applies again.
+  window.addEventListener('pageshow', function (event) {
+    if (!event.persisted) { return; }
+    submitting = false;
+    guards.forEach(function (guard) { guard.pending = false; });
   });
 
   // Coming back to the tab (for example after signing in elsewhere): retry protection.

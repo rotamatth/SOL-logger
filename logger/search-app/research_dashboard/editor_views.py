@@ -60,8 +60,13 @@ def register_editor_routes(dash):
             app.logger.warning("Could not clear private editor recovery after saving")
 
     def clear_owner():
-        if g.get("research_editor_owner"):
+        if not g.get("research_editor_owner"):
+            return
+        try:
             storage().clear_owner(g.research_editor_owner)
+        except (ValueError, OSError, RuntimeError, sqlite3.Error):
+            # Copies still expire after 8 hours and are bound to the deleted edit cookie.
+            app.logger.warning("Could not remove private editor recovery copies at logout")
 
     dash.clear_editor_saved = clear_saved
     dash.clear_editor_owner = clear_owner

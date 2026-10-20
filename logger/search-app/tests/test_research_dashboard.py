@@ -18,7 +18,6 @@ from .enrollment_helpers import enroll_initial_roster, school_year
 
 import pytest
 from flask import Flask, session
-from flask_cors import CORS
 from werkzeug.security import generate_password_hash
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -43,7 +42,6 @@ def app(tmp_path):
                       RESEARCH_PASSWORD_HASH_FILE="")
     for kind in ("v2", "legacy"):
         (tmp_path / kind).mkdir()
-    CORS(app, resources={r"/(?!dashboard(?:/|$)).*": {"origins": "*"}}, supports_credentials=True)
     init_dashboard(app)
 
     @app.post("/student-reset")

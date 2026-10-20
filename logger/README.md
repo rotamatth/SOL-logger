@@ -26,3 +26,5 @@ scheduled Zurich date and approved assignments. Puzzle assets are optional.
 For research setup, see [the dashboard guide](docs/research_dashboard.md). For
 progress-saving development, start with [the source integration contract](docs/dashboard_integration.md).
 For deployment and backups, use [the readiness guide](docs/production_readiness.md).
+For the current checkpoint, remaining merge checks and next V2 work, see
+[Merge and V2 readiness](docs/merge_v2_readiness.md).

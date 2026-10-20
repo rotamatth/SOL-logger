@@ -65,6 +65,225 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-20 — Finalize dashboard review checkpoint and V2 handoff
+
+**Type:** feature, fix · **Area:** styling, session, logging, infra, docs, tests
+
+**Files**
+- `search-app/research_dashboard/templates/research/base.html` — decorative gold
+  mark and utilities on the top row, centered primary navigation below; selected
+  settings navigation and versioned stylesheet URLs.
+- `search-app/research_dashboard/static/{research,history,workflow,editor}.css` —
+  final very pale logo-gold palette, neutral text and consistent selection states;
+  the aligned control/session-row changes described below are included too.
+- Student/backend hardening, editor recovery fixes, pinned browser-test dependency
+  and required CI are included in this same checkpoint; the entries below describe
+  their behavior and validation in detail.
+- `docs/merge_v2_readiness.md` (new), `docs/codex_handoff.md`,
+  `docs/dashboard_integration.md`, `docs/research_dashboard.md`, `README.md` — current
+  merge/deployment gates, known limitations, V2 extension decisions, schema-version
+  distinction and the local synthetic demo inventory.
+
+**What changed for researchers**
+The three main areas stand out on their own centered row. Light gold matches the
+search mark while status badges keep their text and semantic colors. The handoff
+now distinguishes what is implemented, what still needs acceptance before merge
+or release, and what remains for progress/resume, repeats and monitoring in V2.
+
+**If something looks wrong after this, check**
+- Old colors or header arrangement → refresh the page and inspect the versioned
+  research stylesheets and `base.html`.
+- A large local roster or DEMO sessions in two years → these are local Docker
+  fixtures described in `merge_v2_readiness.md`, not production participant data.
+- Assumed student resume or live activity → those are still separate V2 changes;
+  editor recovery and indexed sample logs do not implement them.
+
+**Left alone**
+This checkpoint adds no authoritative database migration, new student-progress
+policy or classroom deployment. Local demo logs, state, passwords and one-off
+seed scripts are excluded from Git.
+
+**Verified**
+449 tests passed in 64.72 seconds on Python 3.13.2, including all 10 required
+Chromium regressions; the two legacy standalone Selenium suites were excluded.
+Existing Flask-Session deprecation warnings remain. Dependency, JavaScript syntax,
+Compose and diff checks passed. A Python 3.14.4 runtime image built successfully;
+fresh-container restart plus verified backup/restore checks passed with synthetic
+storage. Hosted CI and final-layout PC/iPad acceptance remain open; see the detailed
+verification and limitations in `merge_v2_readiness.md`.
+
+## 2026-10-20 — Align dashboard selectors, inputs and buttons
+
+**Type:** fix · **Area:** styling
+
+**Files**
+- `search-app/research_dashboard/static/research.css` — new `--control-height`
+  token (42px; 44px under `pointer: coarse`) used by buttons, inputs, native selects
+  and the in-page menus. Native selects drop the platform look (`appearance:none`)
+  and draw the same arrow as the menus with CSS gradients. The closed session menu
+  shows its date on the name's line. Inputs nested in a `<label>` use regular text.
+  Participant session rows use fixed name/date/badge columns. At ≤700px the grade
+  and session pickers take full rows (the earlier `flex-basis:100%` rule lost on
+  specificity), and a closed menu wraps the whole date instead of cutting it off.
+- `search-app/research_dashboard/static/history.css` — picker labels use the same
+  weight as other labels; "Show full history" is centred on the filter controls.
+
+**What changed for researchers**
+No behaviour change. In Prepare a session, the year field, Open year, Grade,
+Session and New session now have one height and their labels sit on one line.
+Previously the session menu was 64px tall because of its two-line date. Session
+details text no longer appears in small bold type. All dropdowns, native or
+in-page, look the same. On participant pages, dates and completion badges line up
+from one session row to the next.
+
+**How it works**
+Controls that share a row size from `var(--control-height)`. The arrow is two
+`linear-gradient` triangles (CSP `img-src 'self'` rules out an inline SVG image).
+
+**If something looks wrong after this, check**
+- A select without an arrow or with a double arrow → the `select` rule in
+  `research.css` (background gradients, `appearance:none`).
+- A long session name truncated with "…" in the closed menu at desktop width →
+  `.preparation-menu summary>span` (`text-overflow:ellipsis`); the full name stays
+  in the open list and its `aria-label`.
+- Participant session rows overlapping on narrow screens → the `.session-meta` grid
+  and its `display:flex` override at ≤600px.
+
+**Left alone**
+Templates, editor.js, the menu option lists, table layouts and the iPad 44px rule's
+selectors. Student app styles (`static/main.css`) are untouched.
+
+**Verified**
+Screenshots before and after in Chrome at 1440, 768 and 390px of Prepare a session,
+Data and history (grade and session view), a participant page and Study settings →
+Participants, using simulated data. Test suite in the app image: 432 passed. 5 failures
+need Node.js, which the image lacks (logging contract and upload client). The 2
+walkthrough tests failed only because `logger/docs` was not mounted, and pass with it.
+Not checked on a real iPad.
+
+## 2026-10-20 — Finish discard safety, private error logs and required browser checks
+
+**Type:** fix, infra · **Area:** session, autocomplete, result-viewer, logging, infra, tests, docs
+
+**Files**
+- `search-app/research_dashboard/static/editor.js` — discard pauses new autosaves,
+  waits for the full pending save/reconciliation, and reloads only after a successful
+  clear. A rejected clear leaves the page and text available with error feedback.
+- `search-app/search_backend.py`, `search-app/search_app.py` — search/autocomplete
+  provider failures log the exception type without raw messages, URLs, credentials,
+  queries or tracebacks. Malformed iframe redirect destinations return an unavailable
+  probe result, including parsing errors raised inside Requests.
+- `search-app/tests/test_editor_browser.py` — delayed-save discard, conflicting
+  recovery, expired login, storage failure and network failure regressions; required
+  browser mode fails on missing dependencies or browser-launch failure.
+- `search-app/tests/test_backend_privacy.py` — synthetic provider 401/429 and private
+  exception-message regressions.
+- `search-app/tests/test_student_security.py` — malformed redirects through both
+  `urljoin` and real Requests redirect preparation, plus route-level logging privacy.
+- `.github/workflows/collection.yml`, `search-app/requirements-browser-test.txt` —
+  separate required Chromium job with pinned Playwright and matching browser.
+- `docs/research_dashboard.md`, `docs/dashboard_integration.md`,
+  `docs/codex_handoff.md` — required verification command and updated handoff.
+
+**What changed for researchers and participants**
+Discard returns to saved questions only when the server confirms the recovery copy
+was cleared. On conflict, expired login or storage/network failure, the current
+text stays on screen. Invalid external redirect locations no longer produce a
+server error. Autocomplete keeps its existing empty fallback on provider failure.
+
+**If something looks wrong after this, check**
+- Discard stays on the editor → inspect the existing conflict/sign-in/failure
+  notice; another tab's newer recovery is intentionally preserved.
+- Browser CI fails before running → verify the pinned dependency and matching
+  Chromium installation; required mode deliberately refuses a silent skip.
+- Provider diagnostics contain only an exception class → raw provider text is
+  omitted because it can include a participant query or credential.
+
+**Left alone**
+Page layout and wording, question publication, participant identity, collection
+formats and storage schemas.
+
+**Verified**
+449 tests passed in 60.49 seconds, including all 10 real Chromium cases with
+`SOL_REQUIRE_BROWSER_TESTS=1` (synthetic data only). Required mode was also checked
+without Playwright and without Chromium: both fail rather than skip. JavaScript
+syntax, workflow YAML, dependency consistency and diff checks passed. The production
+image built successfully with Python 3.14.4 and its pinned runtime dependencies.
+The two legacy standalone Selenium suites remain excluded; actual PC/iPad acceptance
+and the hosted CI run remain release-environment checks.
+
+## 2026-10-20 — Close edit-protection races, keep forms through login expiry, reliable logout
+
+**Type:** fix · **Area:** session, logging, result-viewer, tests, docs
+
+**Files**
+- `search-app/research_dashboard/static/editor.js`
+  - Leaving the page waits until the text *currently* on screen is stored. Before, a save already in progress for older text was enough.
+  - Text typed while the recovery copy loads is saved, never assumed safe, and is never replaced by a recovered copy (a banner offers the earlier text instead).
+  - The login check before submit/retry no longer adopts another tab's recovery version, so a stale tab cannot overwrite or clear a newer copy. A version conflict caused by this tab's own lost response is recognised and resolved.
+  - Every guarded form (IDs, session details, enrollment edits, links, promotion) checks the login before submitting. When it has expired, nothing is sent, entries stay and a message offers sign-in in another tab.
+  - Back/forward cache restores the leave warning.
+- `research_dashboard/security.py` — new `GET /dashboard/session` login preflight (JSON 401 when expired). Logout revokes the session before the optional recovery cleanup.
+- `research_dashboard/editor_views.py` — recovery cleanup at logout logs and continues on storage errors.
+- `research_dashboard/dashboard.py` — `session_check` answers JSON.
+- `research_dashboard/templates/research/base.html` — `data-editor-session-url`.
+- `research_dashboard/editor_i18n.py` — 3 messages (EN/IT).
+- `research_dashboard/static/editor.css` — form notice spacing.
+- `search-app/search_app.py` — malformed viewer addresses (e.g. `http://[x`) redirect to the results instead of a 500.
+- `search-app/search_backend.py`
+  - `print` calls replaced by a module logger.
+  - Corrected queries and autocomplete suggestions are no longer written to process logs (only a count).
+  - Vertex failure/misconfiguration raises explicitly. Before, it returned a wrong-shaped tuple that failed by accident; the same "could not connect" page is shown.
+- Tests:
+  - `test_editor_browser.py` (new, real Chromium; skipped without Playwright). All 5 fail on the previous `editor.js`.
+  - `test_question_draft_workflow.py`: logout with a broken store, and the preflight.
+  - `test_student_security.py`: malformed URLs, backend logs, explicit Vertex errors.
+
+**What changed for the participant**
+No visible change.
+
+**What changed for researchers**
+After the 30-minute idle logout, submitting IDs or session details keeps the entries on the page with a sign-in message instead of losing them on the login page.
+
+**If something looks wrong after this, check**
+- A guarded form "does nothing" on submit → `/dashboard/session` returned non-200 (message shown above the button).
+- Leaving the question editor asks for confirmation → the current text could not be stored after 4 attempts, or another tab changed the copy.
+
+**Left alone**
+Recovery store format and server rules, question/settings saving, student logging, page layout (behaviour snapshot identical apart from the new attribute, messages and `editor.js`).
+
+**Verified**
+437 automated tests, including 5 real-browser race reproductions (also run 3× for flakiness). The dashboard snapshot (4,000 pages, 56 flows) is unchanged apart from the intended additions. The expired-login message was checked at PC and iPad sizes.
+
+## 2026-10-20 — Security review: escape search results, restrict server probes, drop CORS
+
+**Type:** fix · **Area:** serp, result-viewer, autocomplete, logging, infra, tests, docs
+
+**Files**
+- `search-app/templates/search.html` — queries, links and IDs are escaped (`|safe` removed); titles/snippets go through the new `rich_text` filter (text plus `<b>/<strong>/<i>/<em>/<br>` only).
+- `search-app/search_app.py` — `rich_text` filter; `/webpage` accepts only http(s) URLs; `/iframe_check` needs an active search and re-validates every redirect hop (max 5); `/autocomplete` needs a participant session; CORS removed; 16 MiB upload limit; `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: same-origin` on student responses; logging-contract warnings no longer print event contents; prints/tracebacks go to the app logger; dead autocomplete cache and unused imports removed.
+- `search-app/search_backend.py` — PyTerrier: query sent as an encoded parameter, 10 s timeout, errors raise (same "could not connect" page as Vertex) instead of returning a 2-tuple that crashed the caller.
+- `search-app/templates/layout.html`, `static/main.css` — removed the unused pro/con "saved documents" code from an earlier study.
+- `search-app/requirements.txt`, `requirements.lock` — `flask-cors` removed (unused).
+- Tests: `test_student_security.py` (new, fails on the previous code); `test_logging_contract.py`, `test_research_dashboard.py` adjusted.
+
+**What changed for the participant**
+A query containing `"`, `<` or `&` is now shown and logged exactly as typed. Before, the results event logged it cut off at the first quote (e.g. `la luna "piena"` → `la luna `). None of the 109 queries collected in May contained these characters.
+
+**How it works**
+Autoescaping is the default; only `rich_text` returns markup, built from escaped text.
+
+**If something looks wrong after this, check**
+- Bold highlights missing in results → engine returned a tag outside the allow-list (`RICH_TEXT_TAGS`).
+- Viewer shows "page could not be checked" → `/iframe_check` reasons `no-active-search`, `ssrf-rejected:*`, `too-many-redirects`.
+- `413` on upload → batch above 16 MiB (`MAX_CONTENT_LENGTH`).
+
+**Left alone**
+Task flow, logger.js, log formats and filenames, dashboard (behaviour snapshot identical), Flask-Session configuration (deprecation warnings only; migrate with the next dependency update).
+
+**Verified**
+427 automated tests; new security tests fail on the previous code; browser check on PC and iPad sizes that queries with quotes are logged intact; dashboard snapshot of 4,000 pages and 56 flows unchanged.
+
 ## 2026-10-20 — Split the dashboard controller into area modules; fix the always-visible student banner
 
 **Type:** fix, infra · **Area:** styling, session, infra, tests, docs

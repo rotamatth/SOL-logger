@@ -6,6 +6,14 @@ UI. It uses Flask/Jinja, with its own templates, styles, server-side authenticat
 CSRF tokens and storage. Student session resets and browser storage do not grant
 or reuse research access. The research pages never load the student logger.
 
+The header keeps the gold search mark and utility controls on the top row. The
+second row centers **Prepare a session**, **Data and history** and **Study settings**.
+The mark is decorative; there is no separate dashboard-home link. Pale-gold
+highlights follow the selected section and grade, with text labels for status.
+
+For remaining merge checks and the next V2 integration work, see
+[Merge and V2 readiness](merge_v2_readiness.md).
+
 ## First deployment
 
 1. Follow the [production readiness and recovery guide](production_readiness.md).
@@ -146,8 +154,23 @@ Five failed attempts per source IP in a rolling 15-minute window (and a global c
 of 100 attempts) throttle further password checks. A NAT/proxy can make several
 researchers share the same source-IP limit. All research POSTs, including login,
 require a session-bound CSRF token. Research responses use `no-store`, escaped
-templates, a restrictive CSP, and no credentialed CORS. Existing student CORS
-explicitly excludes `/dashboard` and its descendants.
+templates, a restrictive CSP, and no CORS. The student app grants no cross-origin
+access either: every student page and script is same-origin.
+
+### Student app safeguards
+
+- Search titles/snippets are shown as text; only the engine's emphasis tags
+  (`<b>`, `<strong>`, `<i>`, `<em>`, `<br>`) are kept. Queries are always escaped.
+- The page viewer opens only `http`/`https` addresses.
+- `/iframe_check` (frame-embedding probe) and `/autocomplete` (paid API) work only
+  for a participant in an active session; the probe re-checks every redirect
+  target against private, loopback and reserved addresses.
+- Uploads are limited to 16 MiB. Student responses send `nosniff`,
+  `X-Frame-Options: SAMEORIGIN` and `Referrer-Policy: same-origin`, so children's
+  queries in our URLs are never sent to the pages they open.
+- Server log warnings name only the event type and position, never queries or answers;
+  the search backend logs neither corrected queries nor autocomplete suggestions.
+- Malformed result addresses are refused like any other non-web address.
 
 ## Research interpretation
 
@@ -473,7 +496,7 @@ contract is documented in [research_diagram_contract.md](research_diagram_contra
 
 ## Verification
 
-Run from the repository root in an environment with Flask, Flask-Cors, Flask-Session,
+Run from the repository root in an environment with Flask, Flask-Session,
 Flask-WTF, cachelib, requests, pytest and Node installed:
 
 ```bash
@@ -485,11 +508,30 @@ student integration. No real participant files, credentials or external searches
 are used or changed. Existing Selenium suites additionally require a running app,
 browser driver and a configured test participant.
 
+`tests/test_editor_browser.py` reproduces the editor's timing races (autosave while
+leaving, typing during load, two tabs, expired login and discarding recovery) in a
+real browser. It starts its own temporary server with synthetic data. To require
+these checks locally, install the pinned browser-test dependencies and matching
+Chromium, then run:
+
+```bash
+python -m pip install -r logger/search-app/requirements-browser-test.txt
+python -m playwright install --only-shell chromium
+SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest logger/search-app/tests/test_editor_browser.py -q
+```
+
+The **Dashboard browser regressions** CI job runs this required mode, including
+browser system dependencies. Missing Playwright, a missing Chromium binary or a
+browser launch failure fails the job. Ordinary local suite runs may still skip the
+browser module when its dependencies are unavailable.
+
 
 ## Session question contract for progress saving (#6)
 
-The additive configuration keeps `schema_version: 1` and the existing append-only
-SQLite settings revisions. Each `sessions` entry may contain:
+The additive JSON configuration keeps `schema_version: 1` and the existing
+append-only settings revisions. This JSON format version is separate from
+`research.sqlite3`'s SQLite `PRAGMA user_version`, currently **2** for the permanent
+registry and annual-enrollment schema. Each `sessions` entry may contain:
 
 ```json
 {
@@ -544,7 +586,10 @@ While typing, the editor keeps a private recovery copy on the server for 8 hours
 (this browser only; logout deletes it). Switching language, reloading or signing in
 again after the 30-minute idle logout offers the unsaved text back. If the login has
 expired, saving is held back and the text stays on the page until you sign in again
-in another tab. The copy is never part of study settings or exports.
+in another tab; the ID, session-detail and enrollment forms do the same through a
+login check (`GET /dashboard/session`) before submitting. Leaving the page is allowed
+without a warning only once the text currently on screen is stored; a second tab
+never overwrites or clears another tab's newer copy. The copy is never part of study settings or exports.
 The displayed current setup remains separate from immutable historical run labels.
 Loading a library choice displays **Unsaved changes** until explicitly saved.
 

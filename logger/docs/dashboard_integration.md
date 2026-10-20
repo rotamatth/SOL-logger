@@ -5,6 +5,10 @@ The foundation covers dashboard configuration (#14), collection hardening (#18),
 and permanent identity/yearly enrollment (#19). Durable draft/resume semantics
 and researcher-authorized repeats remain #6/#15. Live monitoring remains #17.
 
+For the 20 October 2026 checkpoint, outstanding merge/deployment checks and V2
+decisions, read [Merge and V2 readiness](merge_v2_readiness.md) first. This document
+defines the extension contract; it does not certify an untested merge or release.
+
 ## Branch integration
 
 `longitudinal-participants` is based on local checkpoint `3e85a9e` on
@@ -292,6 +296,18 @@ links/exports, promotion, immutable admitted runs and upload recovery. CI also
 builds the release image and uses `tools/check_collection_restart.py` across fresh
 containers and a verified backup/restore. That check compares permanent keys and
 annual enrollments as well as snapshots, cookies and upload receipts.
+
+CI separately requires the dashboard Chromium regressions. To run them locally:
+
+```bash
+python -m pip install -r logger/search-app/requirements-browser-test.txt
+python -m playwright install --only-shell chromium
+SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest logger/search-app/tests/test_editor_browser.py -q
+```
+
+Required mode fails when the browser dependency or executable is unavailable;
+an optional browser-module skip in the ordinary suite is insufficient for a
+release baseline.
 
 Add #6 tests for browser/server restart at every phase, lost acknowledgements,
 concurrent start/resume, stale autosaves, retired attempts, recap revision history,

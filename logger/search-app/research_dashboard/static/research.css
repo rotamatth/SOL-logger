@@ -1,12 +1,19 @@
 :root {
   color-scheme:light;
-  --ink:#182d36;
-  --muted:#52666f;
-  --line:#dce5e7;
-  --accent:#12665c;
+  --ink:#30343a;
+  --muted:#66696e;
+  --line:#ede6d6;
+  --accent:#49515a;
+  --history:#49515a;
+  --settings:#49515a;
+  --logo:#ffb442;
+  --selection:#fff3dc;
+  --accent-hover:#ffedcb;
   --sol-blue:#4285f4;
-  --canvas:#f3f6f6;
-  --white:#fff
+  --canvas:#fffdf8;
+  --white:#fff;
+  /* One height for inputs, selects, menus and buttons that share a row. */
+  --control-height:42px
 }
 
 .session-question-preview { width: 100%; min-width: 0; border-top: 1px solid var(--line); padding-top: 1rem; margin: 1rem 0; }
@@ -51,31 +58,9 @@ button,input,select {
 }
 
 .site-header {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:24px;
-  padding:18px max(24px,calc((100vw - 1280px)/2));
   background:var(--white);
-  border-bottom:1px solid var(--line)
-}
-
-.brand {
-  display:flex;
-  align-items:center;
-  gap:14px;
-  font-weight:650;
-  color:var(--ink)
-}
-
-.brand-mark {
-  display:block;
-  width:72px;
-  height:56px;
-  object-fit:contain;
-  background:var(--sol-blue);
-  border-radius:10px;
-  padding:6px 8px
+  border-bottom:1px solid var(--line);
+  box-shadow:0 3px 16px #182d3604
 }
 
 .site-header nav,.actions,.languages,.pagination {
@@ -86,7 +71,109 @@ button,input,select {
 }
 
 .site-header nav {
-  font-size:14px
+  width:100%;
+  padding-inline:max(24px,calc((100vw - 1152px)/2))
+}
+
+.site-header .header-top {
+  justify-content:space-between;
+  flex-wrap:nowrap;
+  padding-block:8px;
+  background:var(--white);
+  border-bottom:1px solid var(--line)
+}
+
+.header-logo {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 40px;
+  height:40px;
+  color:var(--logo)
+}
+
+.header-logo svg {
+  display:block;
+  width:100%;
+  height:100%
+}
+
+.header-primary,.header-utilities {
+  display:flex;
+  align-items:center
+}
+
+.site-header .header-primary {
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:6px;
+  padding-block:10px;
+  background:var(--canvas)
+}
+
+.header-primary>a {
+  --section-ink:var(--accent);
+  --section-soft:var(--selection);
+  display:inline-flex;
+  align-items:center;
+  min-height:46px;
+  padding:11px 15px;
+  border-radius:10px;
+  color:var(--muted);
+  font-size:16px;
+  font-weight:650
+}
+
+.header-primary>[data-section="history"] {
+  --section-ink:var(--history);
+  --section-soft:var(--selection)
+}
+
+.header-primary>[data-section="settings"] {
+  --section-ink:var(--settings);
+  --section-soft:var(--selection)
+}
+
+.header-primary>a:hover {
+  color:var(--section-ink);
+  background:var(--section-soft);
+  text-decoration:none
+}
+
+.header-primary>a[aria-current="page"] {
+  color:var(--accent);
+  background:var(--selection);
+  font-weight:700
+}
+
+.header-utilities {
+  flex-shrink:0;
+  gap:16px;
+  margin-left:auto;
+  color:var(--muted);
+  font-size:12px
+}
+
+.header-utilities>a,.header-utilities .languages a {
+  color:var(--muted)
+}
+
+.header-utilities>a,.header-utilities button {
+  display:inline-flex;
+  align-items:center;
+  min-height:38px
+}
+
+.header-utilities button.quiet {
+  padding:7px 0;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:500
+}
+
+.header-utilities button.quiet:hover {
+  color:var(--ink);
+  background:var(--selection)
 }
 
 .site-header form {
@@ -180,7 +267,8 @@ p {
   border:1px solid var(--line);
   border-radius:14px;
   padding:26px;
-  margin:22px 0
+  margin:22px 0;
+  box-shadow:0 3px 14px #203c5408
 }
 
 .panel>p:last-child {
@@ -227,8 +315,8 @@ p {
 .notice {
   padding:15px 18px;
   border-radius:9px;
-  background:#e9f2f1;
-  color:#284d4a;
+  background:#fff8e9;
+  color:#55565b;
   font-size:14px
 }
 
@@ -246,7 +334,7 @@ p {
   display:inline-flex;
   justify-content:center;
   align-items:center;
-  min-height:40px;
+  min-height:var(--control-height);
   padding:9px 15px;
   line-height:1.35;
   border:1px solid #bdcdcf;
@@ -260,19 +348,19 @@ p {
 }
 
 .button:hover,button:hover {
-  background:#edf5f3;
+  background:var(--selection);
   text-decoration:none
 }
 
 .primary {
-  background:var(--accent);
-  border-color:var(--accent);
-  color:white
+  background:#fff0d2;
+  border-color:#efddb6;
+  color:var(--ink)
 }
 
 .primary:hover {
-  background:#0d5149;
-  color:white
+  background:var(--accent-hover);
+  color:var(--ink)
 }
 
 .quiet {
@@ -402,6 +490,24 @@ tbody th a {
   color:#52666f
 }
 
+.badge.completed {
+  background:#e2f3e9;
+  color:#205c3d;
+  box-shadow:inset 0 0 0 1px #c4e3d0
+}
+
+.badge.incomplete {
+  background:#fff0cf;
+  color:#795119;
+  box-shadow:inset 0 0 0 1px #eed6a3
+}
+
+.badge.unknown {
+  background:#eeeaf5;
+  color:#654b85;
+  box-shadow:inset 0 0 0 1px #ded2ed
+}
+
 .breadcrumbs {
   font-size:13px;
   color:var(--muted)
@@ -495,9 +601,15 @@ label {
   margin:12px 0 7px
 }
 
+/* Inputs nested in a label keep the regular text style, not the label's. */
+label input,label select {
+  font-size:15px;
+  font-weight:400
+}
+
 input {
   width:100%;
-  min-height:42px;
+  min-height:var(--control-height);
   border:1px solid #b6c5ca;
   border-radius:7px;
   padding:8px 12px;
@@ -565,10 +677,8 @@ legend {
 }
 
 @media(max-width:900px) {
-  .site-header {
-    align-items:flex-start;
-    flex-direction:column;
-    padding:16px 20px
+  .site-header nav {
+    padding-inline:20px
   }
   .facts {
     grid-template-columns:repeat(2,minmax(0,1fr))
@@ -607,17 +717,19 @@ legend {
   .tabs a {
     padding:10px
   }
-  .site-header nav {
-    gap:12px
+  .site-header .header-primary {
+    justify-content:center;
+    gap:4px
+  }
+  .header-primary>a {
+    font-size:14px;
+    padding:10px
   }
   .actions {
     gap:10px
   }
   .login-panel {
     padding:24px
-  }
-  .brand {
-    font-size:14px
   }
 }
 
@@ -683,7 +795,7 @@ legend {
   border-radius:6px
 }
 .grade-choice:hover {
-  background:#edf5f3;
+  background:var(--selection);
 }
 .grade-choice>a:first-child {
   flex:1;
@@ -940,13 +1052,18 @@ button:disabled {
 .session-selector label {
   margin:0
 }
+/* Native selects share the in-page menus' look: same border, height and arrow. */
 select {
-  padding:9px 12px;
-  min-height:40px;
-  border:1px solid #bdcdcf;
+  appearance:none;
+  padding:9px 36px 9px 12px;
+  min-height:var(--control-height);
+  border:1px solid #aebec2;
   border-radius:8px;
   color:var(--ink);
-  background:var(--white);
+  background:var(--white) no-repeat;
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:right 17px center,right 12px center;
+  background-size:5px 5px;
   max-width:100%
 }
 .new-session-form {
@@ -991,13 +1108,15 @@ select {
 .session-entry:last-child {
   border-bottom:0
 }
+/* Session rows share fixed name/date columns so dates and badges line up. */
 .empty-session-row {
   display:grid;
-  grid-template-columns:minmax(120px,1fr) minmax(0,1fr) auto;
+  grid-template-columns:minmax(0,240px) 96px auto;
+  justify-content:start;
   gap:16px;
   align-items:center;
   min-height:68px;
-  padding:18px 26px;
+  padding:16px 26px;
   font-size:14px
 }
 .session-header {
@@ -1020,11 +1139,13 @@ select {
   font-size:12px
 }
 .session-meta {
-  display:flex;
+  display:grid;
+  grid-template-columns:minmax(0,240px) 96px auto;
+  justify-content:start;
+  justify-items:start;
   align-items:center;
   gap:16px;
-  flex:1;
-  flex-wrap:wrap
+  flex:1
 }
 .run-row {
   display:flex;
@@ -1192,6 +1313,9 @@ select {
     padding:16px 24px
   }
   .session-meta {
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
     flex-basis:100%;
     gap:8px 12px
   }
@@ -1290,7 +1414,7 @@ select {
   text-decoration:none
 }
 .settings-grade-nav a[aria-current="page"] {
-  background:#e4f1ee;
+  background:var(--selection);
   color:var(--accent)
 }
 .settings-section-heading {
@@ -1757,12 +1881,16 @@ select {
   text-decoration:none
 }
 .dashboard-grades [aria-current="page"] {
-  background:#e4f1ee;
+  background:var(--selection);
   color:var(--accent)
 }
 .dashboard-grades a:hover {
   color:var(--accent);
-  background:#f0f6f4
+  background:var(--selection)
+}
+.dashboard-grades a[aria-current="page"]:hover {
+  background:var(--accent-hover);
+  color:var(--accent)
 }
 /* Session or year context is shown only when a scoped link was opened. */
 .dashboard-scope-context {
@@ -1775,7 +1903,7 @@ select {
   padding:14px 18px;
   border:1px solid var(--line);
   border-radius:9px;
-  background:var(--white);
+  background:var(--selection);
   color:var(--muted);
   font-size:13px
 }
@@ -1825,7 +1953,7 @@ select {
   border-radius:6px
 }
 .dashboard-grade-download-menu>a:hover {
-  background:#edf5f3;
+  background:var(--selection);
   text-decoration:none
 }
 .dashboard-grade-download-menu>span,.dashboard-grade-download-menu small {
@@ -1850,7 +1978,7 @@ select {
   flex-wrap:wrap;
   gap:16px;
   padding:22px;
-  background:var(--white);
+  background:#fff8eb;
   border-radius:12px 12px 0 0
 }
 .dashboard-table-heading h2 {
@@ -1883,10 +2011,10 @@ select {
   min-width:110px
 }
 .dashboard-table-scroll tbody tr:hover {
-  background:#fafcfb
+  background:#fffaf1
 }
 .dashboard-table-scroll tbody tr:has(input:checked) {
-  background:#f0f7f4
+  background:#fff1d6
 }
 .dashboard-table-scroll .participant-link {
   font-size:15px;
@@ -1934,7 +2062,7 @@ select {
   display:none
 }
 .dashboard-row-more>summary:hover,.dashboard-row-more[open]>summary {
-  background:#eaf3f0;
+  background:var(--selection);
   color:var(--accent)
 }
 .dashboard-row-more>div {
@@ -2203,9 +2331,9 @@ select {
 .preparation-panel { padding:20px; margin:16px 0 }
 .preparation-panel h2 { font-size:20px; margin:0 0 16px }
 .preparation-section-heading h2 { margin-bottom:12px }
-.preparation-number { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#e1efeb; color:var(--accent); font-size:15px; margin-right:6px }
+.preparation-number { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:var(--selection); color:var(--accent); font-size:15px; margin-right:6px }
 .preparation-id-list { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px }
-.preparation-id { border:1px solid var(--line); background:#f4f8f7; border-radius:6px; padding:6px 12px; font-weight:600 }
+.preparation-id { border:1px solid var(--line); background:#fffaf1; border-radius:6px; padding:6px 12px; font-weight:600 }
 .preparation-add { padding-top:12px; border-top:1px solid var(--line) }
 .preparation-add summary,.preparation-readiness summary { cursor:pointer; font-weight:600 }
 .preparation-add form { max-width:640px; padding:12px 0 }
@@ -2249,17 +2377,21 @@ select {
 /* In-page choices also work when a browser cannot open native select popups. */
 .preparation-class-field { flex:1 1 160px }
 .preparation-session-field { flex:2 1 240px }
-.preparation-picker .picker-label { display:block; font-weight:600; font-size:13px; margin-bottom:6px }
+.preparation-picker .picker-label { display:block; font-weight:650; font-size:13px; margin-bottom:6px }
 .preparation-menu { position:relative; min-width:0 }
-.preparation-menu summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; cursor:pointer; padding:10px 12px; border:1px solid #aebec2; border-radius:8px; background:var(--white) }
+.preparation-menu summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; cursor:pointer; min-height:var(--control-height); padding:0 12px; border:1px solid #aebec2; border-radius:8px; background:var(--white) }
+.preparation-menu summary>span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .preparation-menu summary::-webkit-details-marker { display:none }
-.preparation-menu summary::after { content:'▾'; flex:none }
-.preparation-menu[open] summary::after { content:'▴' }
+/* Same arrow as native selects (see select). */
+.preparation-menu summary::after { content:''; flex:none; width:10px; height:5px; background:linear-gradient(45deg,transparent 50%,currentColor 50%) left/5px 5px no-repeat,linear-gradient(135deg,currentColor 50%,transparent 50%) right/5px 5px no-repeat }
+.preparation-menu[open] summary::after { transform:rotate(180deg) }
 .preparation-menu .picker-date { display:block; font-size:12px; color:var(--muted); font-weight:400 }
+/* The closed menu stays one line high: the session date follows the name. */
+.preparation-menu summary .picker-date { display:inline; margin-left:8px }
 .preparation-menu-options { position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:20; max-height:320px; overflow-y:auto; background:var(--white); border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 20px #132b3926; padding:4px }
 .preparation-menu-options button { display:block; width:100%; text-align:left; border:0; background:transparent; border-radius:4px; padding:10px 12px; white-space:normal; overflow-wrap:anywhere }
-.preparation-menu-options button:hover,.preparation-menu-options button:focus-visible { background:#e8f3f0 }
-.preparation-menu-options [aria-current] { background:#e1efeb; font-weight:700 }
+.preparation-menu-options button:hover,.preparation-menu-options button:focus-visible { background:var(--selection) }
+.preparation-menu-options [aria-current] { background:var(--selection); font-weight:700 }
 .preparation-picker #preparation-session { max-width:none }
 .participant-question-table-wrap { overflow-x:auto; margin-top:12px }
 .participant-question-table { table-layout:fixed; min-width:540px }
@@ -2269,8 +2401,12 @@ select {
 .participant-question-table .badge { white-space:normal }
 .participant-question-table td:last-child a { display:inline-block; padding:4px 0 }
 @media(max-width:700px) {
-  .preparation-class-field,.preparation-session-field { flex-basis:100% }
+  .preparation-picker .preparation-class-field,.preparation-picker .preparation-session-field { flex-basis:100% }
   .preparation-menu-options { max-height:260px }
+  /* Narrow menus wrap the whole session date instead of cutting it off. */
+  .preparation-menu summary { padding-block:6px }
+  .preparation-menu summary>span { white-space:normal }
+  .preparation-menu summary .picker-date { white-space:nowrap }
 }
 
 /* Touch screens (iPad): comfortable 44px targets. Mouse/trackpad layouts are unchanged. */
@@ -2278,6 +2414,7 @@ select {
   .site-header nav a, .languages a { display:inline-flex; align-items:center; min-height:44px }
   /* Vertical padding enlarges the tap area of a link without changing the line height. */
   main a:not(.button), main .participant-question-table td:last-child a { padding-block:12px }
+  :root { --control-height:44px }
   .button, button, select, input:not([type=checkbox]):not([type=radio]):not([type=hidden]) { min-height:44px }
   summary, main .technical-details > summary { padding-block:10px }
   input[type=checkbox] { width:22px; height:22px }

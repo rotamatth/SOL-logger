@@ -5,6 +5,27 @@ on:
 permissions:
   contents: read
 jobs:
+  browser:
+    name: Dashboard browser regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOL_REQUIRE_BROWSER_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: |
+            logger/search-app/requirements*.txt
+            logger/search-app/requirements.lock
+      - run: python -m pip install -r logger/search-app/requirements-browser-test.txt
+      - run: python -m pip check
+      - name: Install matching Chromium and system dependencies
+        run: python -m playwright install --with-deps --only-shell chromium
+      - name: Require dashboard browser regressions
+        run: python -m pytest logger/search-app/tests/test_editor_browser.py -q
   collection:
     runs-on: ubuntu-latest
     steps:

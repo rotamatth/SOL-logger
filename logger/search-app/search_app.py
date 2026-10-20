@@ -1,4 +1,7 @@
-import requests, json
+import html
+import json
+
+import requests
 import math
 import os
 import csv
@@ -9,25 +12,21 @@ import search_backend
 import uuid
 import random
 from copy import deepcopy
-import traceback
 import sqlite3
 import tempfile
-from time import time
 
-from urllib import response
 from flask import Flask, render_template, url_for, request, session, redirect, jsonify
+from markupsafe import Markup, escape
 from flask_session import Session
-from flask_cors import CORS
 from forms import SearchForm
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from research_dashboard.participants import participant_sort_key
 from research_dashboard import init_dashboard
 from research_dashboard.collection import record_run, publish_metadata
 from research_dashboard.log_store import LogStore, UploadConflict
 from research_dashboard.runtime import configure_runtime
-from research_dashboard.state import roster
 from research_dashboard.study_config import scheduled_assignment
 
 app = Flask(__name__)
@@ -49,15 +48,10 @@ app.config["SESSION_USE_SIGNER"] = True
 # Initialize server-side sessions
 Session(app)
 
-# -------------------------------------------------
-# 2. Enable CORS LAST
-# -------------------------------------------------
-CORS(app, resources={r"/(?!dashboard(?:/|$)).*": {"origins": "*"}}, supports_credentials=True)
-rpp = 10  # results per page for pagination; may be changed later
+# All student pages and their scripts are same-origin; no cross-origin access (CORS)
+# is granted. Uploads are bounded; the dashboard sets its own tighter limits.
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-# cache storage for query autocomplete suggestions
-AUTOCOMPLETE_CACHE = {}
-CACHE_TTL = 600  # 10 minutes
 SEARCH_BACKEND = os.getenv("SEARCH_BACKEND", "vertex").lower()
 
 LOG_DIR = os.getenv("SOL_LOG_DIR", "logs_v2")
@@ -177,7 +171,7 @@ def assign_random_task_order(user_id):
     session["task_position"] = 0
     session["task_number"] = task_order[0] if task_order else None
     
-    print(f"[Task Randomization] user_id={user_id}, session_id={session.get('session_id')}, task_order={task_order}")
+    app.logger.debug("Task order for session %s: %s", session.get('session_id'), task_order)
 
     return task_order
 
@@ -240,7 +234,30 @@ def add_no_store_headers(response):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+    # Student pages: no MIME sniffing, no framing by other sites, and children's
+    # queries in our URLs are never sent as a referrer to the pages they open.
+    # (The dashboard sets its own stricter headers.)
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'same-origin')
     return response
+
+
+RICH_TEXT_TAGS = re.compile(r'&lt;(/?)(b|strong|i|em)&gt;|&lt;br\s*/?&gt;', re.IGNORECASE)
+
+
+@app.template_filter('rich_text')
+def rich_text(value):
+    """Render search-engine titles/snippets as text, keeping only emphasis tags.
+
+    The engine highlights matches with <b>; anything else from a web page is
+    shown as text, never interpreted as HTML.
+    """
+    text = str(escape(html.unescape(str(value or ''))))
+
+    def allowed(match):
+        return f"<{match.group(1)}{match.group(2).lower()}>" if match.group(2) else "<br>"
+    return Markup(RICH_TEXT_TAGS.sub(allowed, text))
 
 class PuzzleConfigError(Exception):
     pass
@@ -306,7 +323,7 @@ def get_unlocked_piece(user_id, task_number, display_task_number=None):
     try:
         task_num = int(task_number)
     except (TypeError, ValueError):
-        raise PuzzleConfigError(f"Invalid task number for puzzle reward: '{task_number}'.")
+        raise PuzzleConfigError(f"Invalid task number for puzzle reward: '{task_number}'.") from None
 
     label_number = display_task_number if display_task_number is not None else task_num
 
@@ -626,9 +643,19 @@ def webpage():
     url = request.args.get("url", "")
     query = request.args.get("query", "")
     page = request.args.get("page", "1")
-    if not url:
+    # Only web addresses: a javascript:/data: URL would run inside our own origin.
+    if not _is_web_address(url):
         return redirect(url_for('search_page'))
     return render_template("webpage.html", url=url, query=query, page=page, show_search=False)
+
+def _is_web_address(url):
+    """True for a well-formed http(s) address with a host; malformed input is simply refused."""
+    try:
+        parsed = urlparse(url)
+    except (ValueError, TypeError):
+        return False
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+
 
 def _is_safe_iframe_url(url):
     try:
@@ -649,24 +676,46 @@ def _is_safe_iframe_url(url):
         return False, f"dns-error:{type(e).__name__}"
     return True, None
 
+
+IFRAME_PROBE_MAX_REDIRECTS = 5
+
+
+def _probe_frame_headers(url):
+    """HEAD (or GET) the page, re-checking every redirect target before following it."""
+    for _ in range(IFRAME_PROBE_MAX_REDIRECTS + 1):
+        safe, reason = _is_safe_iframe_url(url)
+        if not safe:
+            return None, f"ssrf-rejected:{reason}"
+        r = requests.head(url, allow_redirects=False, timeout=3)
+        if r.status_code == 405:
+            r = requests.get(url, allow_redirects=False, timeout=3, stream=True)
+            r.close()
+        location = r.headers.get("location")
+        if r.is_redirect and location:
+            try:
+                url = urljoin(url, location)
+            except ValueError:
+                return None, "ssrf-rejected:malformed-url"
+            continue
+        return r, None
+    return None, "too-many-redirects"
+
 @app.route("/iframe_check")
 def iframe_check():
     """Probe a target URL's headers to predict whether it can be embedded in an iframe.
     Used by webpage.html to log webpageLoadSucceeded / webpageLoadFailed.
     """
+    # Only a participant who is currently searching can make the server probe a URL.
+    if current_phase() != 'searching':
+        return jsonify({"blocked": None, "reason": "no-active-search"})
     url = request.args.get("url", "")
     if not url:
         return jsonify({"blocked": None, "reason": "empty-url"})
 
-    safe, ssrf_reason = _is_safe_iframe_url(url)
-    if not safe:
-        return jsonify({"blocked": None, "reason": f"ssrf-rejected:{ssrf_reason}"})
-
     try:
-        r = requests.head(url, allow_redirects=True, timeout=3)
-        if r.status_code == 405:
-            r = requests.get(url, allow_redirects=True, timeout=3, stream=True)
-            r.close()
+        r, problem = _probe_frame_headers(url)
+        if r is None:
+            return jsonify({"blocked": None, "reason": problem})
         headers = {k.lower(): v for k, v in r.headers.items()}
         xfo = headers.get("x-frame-options", "").lower()
         csp = headers.get("content-security-policy", "").lower()
@@ -675,7 +724,9 @@ def iframe_check():
         if "frame-ancestors" in csp:
             return jsonify({"blocked": True, "reason": "csp:frame-ancestors"})
         return jsonify({"blocked": False, "reason": None})
-    except requests.RequestException as e:
+    except (requests.RequestException, ValueError) as e:
+        # requests can parse Location even with allow_redirects=False and raise
+        # a plain ValueError before returning the response.
         return jsonify({"blocked": None, "reason": f"request-error:{type(e).__name__}"})
 
 # Powers the search-bar autocomplete dropdown in layout.html.
@@ -683,12 +734,9 @@ def iframe_check():
 def autocomplete():
     query = request.args.get("query")
 
-    if not query or len(query) < 3:
+    # Suggestions call the paid search API: only for a participant in a session.
+    if not session.get('user_id') or not query or len(query) < 3:
         return jsonify({"suggestions": [], "source": "none", "query_model": None})
-    
-    cached = AUTOCOMPLETE_CACHE.get(query)
-    if cached and time() - cached["time"] < CACHE_TTL:
-        return cached["data"]
 
     try:
         suggestions, source = search_backend.autocomplete(query)
@@ -697,8 +745,9 @@ def autocomplete():
             "source": source,
             "query_model": search_backend.autocomplete_query_model(),
         })
-    except Exception:
-        traceback.print_exc()
+    except Exception as error:
+        # Provider exceptions can contain the query or credentials; omit their text.
+        app.logger.warning("Autocomplete failed (%s)", type(error).__name__)
         return jsonify({"suggestions": [], "source": "none", "query_model": None}), 200
 
 def _append_log_registry(*, user_id, session_id, task_number, num_events,
@@ -718,7 +767,7 @@ def _append_log_registry(*, user_id, session_id, task_number, num_events,
         with open(LOG_REGISTRY_PATH, 'a', encoding='utf-8') as f:
             f.write(json.dumps(entry) + '\n')
     except Exception:
-        traceback.print_exc()
+        app.logger.exception("Could not append to the log registry")
 
 
 def _prepare_upload(logs, user_id, server_session_id, log_id, task_number, task_order, task_position):
@@ -820,68 +869,50 @@ def log_session():
     return jsonify(receipt), 200
 
 def warn_logging_contract_issues(logs, default_task_number):
-    previous_query_submit = None
+    """Warn about client logging gaps.
 
+    Only the event position and type are written to the server log, never the
+    event itself: events contain children's queries and answers.
+    """
+    def warn(message, index, entry):
+        app.logger.warning("%s at log entry %d (type=%s)", message, index,
+                           entry.get('type') if isinstance(entry, dict) else type(entry).__name__)
+
+    previous_query_submit = None
     for index, entry in enumerate(logs, start=1):
         if not isinstance(entry, dict):
-            print(f"[Logging WARN] log entry {index} is not an object: {entry}")
+            warn("[Logging WARN] log entry is not an object", index, entry)
             previous_query_submit = None
             continue
 
         event_type = entry.get('type')
 
         if event_type == 'querySubmitted':
-            marker = (
-                entry.get('task_number') or default_task_number,
-                (entry.get('query') or '').strip(),
-            )
+            marker = (entry.get('task_number') or default_task_number, (entry.get('query') or '').strip())
             if marker == previous_query_submit:
-                print(
-                    "[Logging WARN] duplicate consecutive querySubmitted "
-                    f"for task/query at log entry {index}: {entry}"
-                )
+                warn("[Logging WARN] duplicate consecutive querySubmitted", index, entry)
             previous_query_submit = marker
         else:
             previous_query_submit = None
 
         if event_type == 'webpageClosed':
-            missing_fields = [
-                field for field in ('url', 'durationMs', 'exitReason')
-                if field not in entry
-            ]
-            if missing_fields:
-                print(
-                    "[Logging WARN] webpageClosed missing fields "
-                    f"{missing_fields} at log entry {index}: {entry}"
-                )
+            missing = [field for field in ('url', 'durationMs', 'exitReason') if field not in entry]
+            if missing:
+                warn(f"[Logging WARN] webpageClosed missing fields {missing}", index, entry)
 
         if event_type == 'pageNavigationClicked' and entry.get('toPage') is None:
-            print(
-                "[Logging WARN] pageNavigationClicked has null toPage "
-                f"at log entry {index}: {entry}"
-            )
+            warn("[Logging WARN] pageNavigationClicked has null toPage", index, entry)
 
         if event_type in ('browserBackBlocked', 'customBackButtonClicked'):
-            missing_fields = [
-                field for field in ('fromURL', 'toURL')
-                if not entry.get(field)
-            ]
-            if missing_fields:
-                print(
-                    f"[Logging WARN] {event_type} missing navigation fields "
-                    f"{missing_fields} at log entry {index}: {entry}"
-                )
+            missing = [field for field in ('fromURL', 'toURL') if not entry.get(field)]
+            if missing:
+                warn(f"[Logging WARN] {event_type} missing navigation fields {missing}", index, entry)
 
         if event_type in SERP_QUERY_FIELD_EVENTS:
-            missing_fields = [
-                field for field in ('rawQuery', 'sanitizedQuery')
-                if field not in entry
-            ]
-            if missing_fields:
-                print(
-                    "[Logging WARN] SERP event missing query fields "
-                    f"{missing_fields} at log entry {index}: {entry}"
-                )
+            missing = [field for field in ('rawQuery', 'sanitizedQuery') if field not in entry]
+            if missing:
+                warn(f"[Logging WARN] SERP event missing query fields {missing}", index, entry)
+
 
 @app.route('/end', methods=['POST'])
 def end_task():

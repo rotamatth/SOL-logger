@@ -127,7 +127,7 @@ def test_modal_close_logging_contract():
     ]
     feedback_close = source[
         source.index("function closeFeedbackModal()"):
-        source.index("function toggleSavedTitles")
+        source.index("</script>", source.index("function closeFeedbackModal()"))
     ]
     confirm_branch = source[
         source.index("yesEndBtn.addEventListener"):

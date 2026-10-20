@@ -6,7 +6,7 @@ participant Flask session. Every non-GET request needs the session-bound CSRF to
 import secrets
 import sqlite3
 
-from flask import g, redirect, request
+from flask import g, jsonify, redirect, request
 from werkzeug.security import check_password_hash
 
 from .dashboard import COOKIE, EDITOR_COOKIE, PREFIX, is_dashboard_path, safe_research_next, wants_json
@@ -129,10 +129,16 @@ def register_security(dash):
         g.research_new_token, g.research_auth = state.new_session(identity(g.research_hash), authenticated=True)
         return redirect(destination)
 
+    @bp.get("/session")
+    def session_check():
+        """Login preflight for forms: 401 JSON when expired, otherwise the current CSRF token."""
+        return jsonify(csrf=g.research_auth["csrf"])
+
     @bp.post("/logout")
     def logout():
-        dash.clear_editor_owner()
+        # Sign out first: optional recovery cleanup must never keep a session alive.
         state.revoke(g.research_cookie)
         g.research_clear_cookie = True
         g.research_clear_editor = True
+        dash.clear_editor_owner()
         return redirect(dash.u("login"))

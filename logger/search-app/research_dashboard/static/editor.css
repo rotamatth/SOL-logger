@@ -15,7 +15,7 @@
 .editor-status button, .editor-status a { min-height:30px; margin-left:8px; padding:4px 10px; font-size:12px }
 
 button.quiet { border-color:transparent; background:transparent; color:var(--accent); font-weight:600 }
-button.quiet:hover { background:#edf5f3 }
+button.quiet:hover { background:var(--selection) }
 .question-reuse-apply { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px }
 .question-reuse-apply p { margin:0 }
 
@@ -53,3 +53,5 @@ button.quiet:hover { background:#edf5f3 }
   .participant-register td[data-label]::before { content:attr(data-label) ': '; color:var(--muted) }
   .participant-register td[colspan] { grid-column:1 / -1 }
 }
+.editor-form-notice { margin:10px 0 }
+.editor-form-notice a { font-weight:600 }

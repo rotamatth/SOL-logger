@@ -190,3 +190,29 @@ def test_change_history_lists_affected_ids_with_before_and_after_values(app):
     configured(app)
     page = client.get("/dashboard/settings/enrollment?lang=en&grade=4&year=2026/2027")
     assert 'class="audit-table"' in page.text and "<th scope=\"row\">1</th>" in page.text
+
+
+def test_logout_signs_out_even_when_the_recovery_store_is_broken(app, monkeypatch):
+    def broken(*args, **kwargs):
+        raise RuntimeError("Editor recovery database has an invalid schema")
+
+    client = app.test_client()
+    login(client)
+    token = client.get(RECOVERY + "?key=" + KEY).get_json()["csrf"]
+    monkeypatch.setattr(editor_views.EditorRecovery, "clear_owner", broken)
+    response = client.post("/dashboard/logout", data={"csrf": token})
+    assert response.status_code == 302 and "/dashboard/login" in response.location
+    assert client.get("/dashboard/prepare").status_code == 302
+    assert client.get("/dashboard/session").status_code == 401
+
+
+def test_login_preflight_returns_the_token_or_a_json_401(app):
+    client = app.test_client()
+    expired = client.get("/dashboard/session")
+    assert expired.status_code == 401 and expired.get_json() == {"error": "login"}
+    login(client)
+    checked = client.get("/dashboard/session")
+    assert checked.status_code == 200 and checked.headers["Cache-Control"].startswith("private, no-store")
+    assert checked.get_json()["csrf"] == client.get(RECOVERY + "?key=" + KEY).get_json()["csrf"]
+    page = client.get(PREP).text
+    assert 'data-editor-session-url="/dashboard/session' in page
