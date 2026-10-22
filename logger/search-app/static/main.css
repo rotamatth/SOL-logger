@@ -64,12 +64,14 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 
 .app-panel {
   flex: 1;
   width: 100%;
+  min-width: 0;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 24px;
@@ -87,10 +89,12 @@ a:hover {
   padding: 11px 30px;
   font-size: 1.1rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.25;
   cursor: pointer;
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 100%;
+  text-align: center;
   touch-action: manipulation;
 }
 
@@ -335,7 +339,7 @@ a:hover {
   text-align: center;
   padding: 60px 48px 48px;
   border-radius: 28px;
-  overflow: hidden;
+  overflow-y: auto;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
 }
 
@@ -535,6 +539,11 @@ a:hover {
   line-height: 1.35;
 }
 
+.content-section .media-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .content-section h4 a {
   color: #1a0dab;
   text-decoration: none;
@@ -607,11 +616,22 @@ a:hover {
 }
 
 .page-link {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
   color: var(--sol-blue);
   border: none;
   border-radius: 999px !important;
   margin: 0 3px;
   padding: 9px 13px;
+}
+
+.pagination {
+  flex-wrap: wrap;
+  gap: 6px 0;
+  padding-left: 0;
 }
 
 .page-link:hover {
@@ -632,13 +652,26 @@ a:hover {
 /* Web viewer */
 .webpage-panel {
   padding: 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+}
+
+.webpage-page {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+
+.webpage-page .app-toolbar {
+  flex-shrink: 0;
 }
 
 #webpage-frame {
   display: block;
   width: 100%;
-  height: calc(100vh - 170px);
-  min-height: 640px;
+  flex: 1;
+  min-height: 0;
   border: 0;
   border-radius: 12px;
   background: #fff;
@@ -1066,6 +1099,10 @@ a:hover {
 .modal-content-box {
   width: min(720px, 100%);
   min-height: 220px;
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 34px;
   border-radius: 20px;
   background-color: #fff;
@@ -1091,6 +1128,16 @@ a:hover {
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  touch-action: manipulation;
 }
 
 .modal-buttons {
@@ -1099,6 +1146,15 @@ a:hover {
   gap: 14px;
   margin-top: 28px;
   flex-wrap: wrap;
+}
+
+body.dialog-open {
+  overflow: hidden;
+}
+
+.modal-buttons .app-btn {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 textarea {
@@ -1446,7 +1502,6 @@ textarea:focus {
   }
 
   #webpage-frame {
-    height: calc(100vh - 130px);
     min-height: 0;
   }
 }
@@ -1472,7 +1527,6 @@ textarea:focus {
   }
 
   #webpage-frame {
-    height: calc(100vh - 140px);
     min-height: 0;
   }
 }
@@ -1576,5 +1630,24 @@ textarea:focus {
   .modal-buttons {
     margin-top: 16px;
     gap: 10px;
+  }
+}
+
+/* Keep keyboard focus distinct from hover on white and blue surfaces. */
+.app-main :focus-visible,
+.modal :focus-visible {
+  outline: 3px solid #174ea6;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-btn-secondary:hover {
+    background: #e8f0fe;
+  }
+
+  button.close:hover {
+    background: #e8f0fe;
+    opacity: 1;
   }
 }
