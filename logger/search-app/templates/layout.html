@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">    
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}?v=clear-button-20260918">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}?v=responsive-interface-20261022">
 
     {% if title %}
         <title>Search App - {{ title }}</title>
@@ -38,10 +38,10 @@
                        line-height:1;cursor:pointer;padding:4px 8px;">&times;</button>
     </output>
 
-    <div id="endTaskModal" class="modal">
+    <div id="endTaskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="end-task-title">
         <div class="modal-content-box">
-            <span class="close" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</span>
-            <h2>Sei sicuro di voler terminare il compito?</h2>
+            <button type="button" class="close" aria-label="Chiudi" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</button>
+            <h2 id="end-task-title">Sei sicuro di voler terminare il compito?</h2>
             <p>Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
 
         <!-- <div id="savedDocuments">
@@ -53,19 +53,19 @@
         <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
         <button id = "yes-end-btn" class="app-btn app-btn-primary">Si, termina</button>
 
-        <button id = "no-end-btn" onclick="window._endTaskCloseReason='no-btn'; closeEndTaskModal(); openFeedbackModal()" class="app-btn app-btn-secondary">No, continua a cercare</button>
+        <button id = "no-end-btn" data-dialog-initial-focus onclick="window._endTaskCloseReason='no-btn'; closeEndTaskModal(); openFeedbackModal()" class="app-btn app-btn-secondary">No, continua a cercare</button>
         </div>
         </div>
     </div>
 
-    <div id="feedbackModal" class="modal">
+    <div id="feedbackModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
     <div class="modal-content-box">
-        <span class="close" onclick="window._feedbackCloseReason='x-button'; closeFeedbackModal()">&times;</span>
-        <h2>Hai completato la risposta?</h2>
+        <button type="button" class="close" aria-label="Chiudi" onclick="window._feedbackCloseReason='x-button'; closeFeedbackModal()">&times;</button>
+        <h2 id="feedback-title">Hai completato la risposta?</h2>
 
             <div id="feedback">
-                <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>
-                <p id="answer-error-message" class="form-error" hidden>Inserisci una risposta</p>
+                <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5" aria-labelledby="feedback-title"></textarea>
+                <p id="answer-error-message" class="form-error" role="alert" hidden>Inserisci una risposta</p>
             </div>
 
             <div class="modal-buttons">
@@ -155,6 +155,7 @@
                 const query = input.value.trim();
                 list.innerHTML = "";
                 activeIndex = -1;
+                hideList();
                 syncClearButton();
 
                 if (query.length < 3) {
@@ -174,32 +175,36 @@
             });
 
             input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" || e.key === "Tab") {
+                    dismissList();
+                    if (e.key === "Escape") e.preventDefault();
+                    return;
+                }
                 const items = list.querySelectorAll("li");
                 if (!items.length) return;
 
                 if (e.key === "ArrowDown") {
                     e.preventDefault();
+                    showList();
                     activeIndex = (activeIndex + 1) % items.length;
                     updateActive(items);
                 }
 
                 if (e.key === "ArrowUp") {
                     e.preventDefault();
+                    showList();
                     activeIndex =
-                        (activeIndex - 1 + items.length) % items.length;
+                        activeIndex < 0 ? items.length - 1 : (activeIndex - 1 + items.length) % items.length;
                     updateActive(items);
                 }
 
-                if (e.key === "Enter" && activeIndex >= 0) {
+                if (e.key === "Enter" && activeIndex >= 0 && !list.classList.contains("hidden")) {
                     // Take over the native submit so the highlighted
                     // suggestion, not the typed prefix, is what gets searched.
                     e.preventDefault();
                     select(items[activeIndex].textContent);
                 }
 
-                if (e.key === "Escape") {
-                    hideList();
-                }
             });
 
             async function fetchSuggestions(query, requestId) {
@@ -234,10 +239,11 @@
                         return;
                     }
 
-                    suggestions.forEach(value => {
+                    suggestions.forEach((value, index) => {
                         const li = document.createElement("li");
                         li.textContent = value;
                         li.role = "option";
+                        li.id = `query-suggestion-${index}`;
                         li.setAttribute("aria-selected", "false");
 
                         li.addEventListener("mousedown", () => {
@@ -271,6 +277,11 @@
                 items.forEach((el, i) =>
                     el.setAttribute("aria-selected", i === activeIndex)
                 );
+                const active = items[activeIndex];
+                if (active) {
+                    input.setAttribute("aria-activedescendant", active.id);
+                    active.scrollIntoView({ block: "nearest" });
+                }
             }
 
             // Picking a suggestion runs the search straight away, so the
@@ -332,12 +343,21 @@
             function hideList() {
                 list.classList.add("hidden");
                 input.setAttribute("aria-expanded", "false");
+                input.removeAttribute("aria-activedescendant");
+                activeIndex = -1;
+                list.querySelectorAll("li").forEach(item => item.setAttribute("aria-selected", "false"));
+            }
+
+            function dismissList() {
+                clearTimeout(debounceTimer);
+                autocompleteRequestSequence += 1;
+                hideList();
             }
 
             document.addEventListener("click", (e) => {
                 if (!e.target.closest("#query-suggestions") &&
                     e.target !== input) {
-                    hideList();
+                    dismissList();
                 }
             });
         })();
@@ -362,6 +382,8 @@
                         answerError.hidden = false;
                     }
                     if (answerBox) {
+                        answerBox.setAttribute("aria-invalid", "true");
+                        answerBox.setAttribute("aria-describedby", "answer-error-message");
                         answerBox.focus();
                     }
                     return;
@@ -369,6 +391,8 @@
                 if (answerError) {
                     answerError.hidden = true;
                 }
+                answerBox.removeAttribute("aria-invalid");
+                answerBox.removeAttribute("aria-describedby");
 
                 if (typeof saveDraftAnswer === 'function') {
                     saveDraftAnswer(answerBox.value);
@@ -494,6 +518,8 @@
         }
         const answerBox = document.getElementById("textarea_feedback");
         if (answerBox) {
+            answerBox.removeAttribute("aria-invalid");
+            answerBox.removeAttribute("aria-describedby");
             answerBox.value = loadDraftAnswer();
             setTimeout(() => answerBox.focus(), 0);
         }
@@ -670,6 +696,7 @@
         window.USER_ID = {{ session.get('user_id')|tojson }};
     </script>
     <script src="{{ url_for('static', filename='logger.js') }}"></script>
+    <script src="{{ url_for('static', filename='interface.js') }}?v=20261022"></script>
 
     <script>
     (function () {

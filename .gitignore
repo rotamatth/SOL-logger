@@ -34,3 +34,6 @@ logger/search-engine/API_keys.json
 # macOS
 .DS_Store
 **/.DS_Store
+
+# Local browser automation sessions
+.playwright-cli/

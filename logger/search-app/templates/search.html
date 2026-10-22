@@ -122,17 +122,17 @@
   <ul class="pagination justify-content-center">
 
     <li class="page-item {% if page == 1 %}disabled{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=page-1)|safe }}" tabindex="-1">« Precedente</a>
+      <a class="page-link" {% if page > 1 %}href="{{ url_for('result', query=query, page=page-1)|safe }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}>« Precedente</a>
     </li>
 
     {% for p in range(1, total_pages + 1) %}
     <li class="page-item {% if page == p %}active{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=p)|safe }}">{{ p }}</a>
+      <a class="page-link" href="{{ url_for('result', query=query, page=p)|safe }}" {% if page == p %}aria-current="page"{% endif %}>{{ p }}</a>
     </li>
     {% endfor %}
 
     <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=page+1)|safe }}">Successiva »</a>
+      <a class="page-link" {% if page < total_pages %}href="{{ url_for('result', query=query, page=page+1)|safe }}"{% else %}aria-disabled="true" tabindex="-1"{% endif %}>Successiva »</a>
     </li>
 
   </ul>
@@ -142,9 +142,9 @@
   </section>
 
   {% if reminder %}
-  <div id="task-help-modal" class="modal">
+  <div id="task-help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="task-help-question">
     <div class="modal-content-box">
-      <span class="close" id="task-help-close-btn" aria-label="Chiudi">&times;</span>
+      <button type="button" class="close" id="task-help-close-btn" aria-label="Chiudi">&times;</button>
       <div class="task-help-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 18h6"/>
@@ -153,7 +153,7 @@
         </svg>
       </div>
       <span class="task-help-label">La domanda a cui devi rispondere è la seguente:</span>
-      <p class="task-help-question">{{ reminder }}</p>
+      <p class="task-help-question" id="task-help-question">{{ reminder }}</p>
     </div>
   </div>
   {% endif %}
