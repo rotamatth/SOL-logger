@@ -203,6 +203,51 @@ def test_an_expired_login_keeps_entered_ids_and_submits_after_signing_in_again(l
     assert "91" in page.content() and "92" in page.content()
 
 
+@pytest.mark.parametrize("operation", ["year", "edit_session", "add_session", "restore_session"])
+def test_settings_keep_entered_values_after_login_expiry(live, operation):
+    state = live.app.extensions["research"]["state"]
+    if operation == "restore_session":
+        settings = state.settings()
+        settings["sessions"][1]["removed"] = True
+        state.save_settings(settings, settings["revision"])
+    page = live.login()
+    if operation == "year":
+        path, selector, value = "?section=year&grade=4", "#current-school-year", "2027/2028"
+    elif operation == "edit_session":
+        path, selector, value = ("?section=sessions&grade=4&edit=grade-4-session-1",
+                                 "#name_grade-4-session-1", "Name entered before expiry")
+    elif operation == "add_session":
+        path, selector, value = "?section=sessions&grade=4&new=1", "#new-name", "New session before expiry"
+    else:
+        path, selector, value = ("?section=sessions&grade=4&removed=1",
+                                 "#restore-date-grade-4-session-2", "2026-10-20")
+    page.goto(f"{live.base}/dashboard/settings{path}&lang=en")
+    if operation == "add_session":
+        page.fill("#new-date", "2026-10-20")
+    page.fill(selector, value)
+    form = page.locator(selector).locator("xpath=ancestor::form")
+    before = page.url
+    live.expire_logins()
+    form.locator("button[type=submit]").click()
+    page.wait_for_selector(".editor-form-notice", timeout=3000)
+    assert page.url == before and page.input_value(selector) == value
+    assert "sign-in expired" in page.inner_text(".editor-form-notice")
+
+    live.login()  # Signing in elsewhere refreshes the CSRF token before retry.
+    with page.expect_navigation():
+        form.locator("button[type=submit]").click()
+    assert "login" not in page.url and not page.query_selector(".editor-form-notice")
+    saved = state.settings()
+    if operation == "year":
+        assert saved["current_school_year"] == value
+    elif operation == "edit_session":
+        assert saved["sessions"][0]["name"] == value
+    elif operation == "add_session":
+        assert any(item.get("name") == value and item["date"] == "2026-10-20" for item in saved["sessions"])
+    else:
+        assert not saved["sessions"][1]["removed"] and saved["sessions"][1]["date"] == value
+
+
 def recovery_choice(live):
     """Keep an earlier-copy banner visible while editing newer text."""
     page = live.context.new_page()

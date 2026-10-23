@@ -1,11 +1,14 @@
 """History controls and exports retain the explicitly selected study context."""
+from html import unescape
+import json
+import re
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pytest
 
 from .test_dashboard_filters import rendered_context, selection_form, write_year_run
 from .test_enrollment_controls import Controls
-from .test_research_dashboard import app, archive, configure, login
+from .test_research_dashboard import add_history_rule, app, archive, configure, identity, login, write_run
 
 
 YEAR = "2026/2027"
@@ -164,3 +167,86 @@ def test_invalid_year_scopes_are_rejected(app, path):
     client = app.test_client()
     login(client)
     assert client.get(path).status_code == 404
+
+
+@pytest.mark.parametrize("collection", ["study", "v2", "legacy"])
+def test_participant_breadcrumb_preserves_the_collection_year_and_session(app, collection):
+    configure(app)
+    if collection == "legacy":
+        add_history_rule(app.extensions["research"]["state"], grade="4", school_year=YEAR,
+                         date_from="2026-09-01", date_to="2027-08-31")
+        write_run(app, collection="legacy", metadata=False)
+    else:
+        write_year_run(app)
+    client = app.test_client()
+    login(client)
+    response = client.get(f"/dashboard/participants/{collection}/{identity('1')}"
+                          f"?grade=4&school_year={YEAR}&session={SESSION}&view=logs&lang=it")
+    assert response.status_code == 200
+    breadcrumb = re.search(r'<p class="breadcrumbs"><a href="([^"]+)"', response.text).group(1)
+    assert parse_qs(urlsplit(unescape(breadcrumb)).query) == {
+        "collection": [collection], "grade": ["4"], "school_year": [YEAR],
+        "session": [SESSION], "lang": ["it"],
+    }
+    returning = client.get(unescape(breadcrumb))
+    assert returning.status_code == 200
+
+
+def test_participant_year_scope_excludes_sessions_from_other_years(app):
+    configure(app)
+    write_year_run(app)
+    state = app.extensions["research"]["state"]
+    future = state.add_study_session("4", "2027-10-20", state.settings()["revision"],
+                                     school_year="2027/2028")
+    client = app.test_client()
+    login(client)
+    path = f"/dashboard/participants/study/{identity('1')}?grade=4&school_year={YEAR}&view=logs"
+    response = client.get(path)
+    assert response.status_code == 200
+    assert f'value="{SESSION}"' in response.text
+    assert f'value="{future["id"]}"' not in response.text
+    assert "2027-10-20" not in response.text
+    assert client.get(path + "&session=" + future["id"]).status_code == 404
+    all_years = client.get(f"/dashboard/participants/study/{identity('1')}?grade=4&view=logs")
+    assert all_years.status_code == 200 and f'value="{future["id"]}"' in all_years.text
+
+
+def test_participant_year_scope_keeps_recorded_sessions_after_configuration_moves_year(app):
+    settings = configure(app)
+    key, root, stem = write_run(app)
+    sidecar = root / f"{stem}.run.json"
+    metadata = json.loads(sidecar.read_text())
+    snapshot = settings["sessions"][0]
+    metadata.update(school_year_at_collection=YEAR, study_session_at_collection=SESSION,
+                    study_session_snapshot=snapshot)
+    sidecar.write_text(json.dumps(metadata))
+    settings["sessions"][0].update(school_year="2027/2028", date="2027-10-01")
+    state = app.extensions["research"]["state"]
+    state.save_settings(settings, settings["revision"])
+    client = app.test_client()
+    login(client)
+    response = client.get(f"/dashboard/participants/study/{identity('1')}"
+                          f"?grade=4&school_year={YEAR}&session={SESSION}&view=logs")
+    assert response.status_code == 200
+    assert key in response.text and "2026-10-01" in response.text
+    assert "2027-10-01" not in response.text
+
+
+def test_selected_session_breadcrumb_uses_its_grade_for_a_promoted_participant(app):
+    configure(app)
+    write_year_run(app)
+    _, root, stem = write_run(app, date="2025-10-01", suffix="prior-year")
+    sidecar = root / f"{stem}.run.json"
+    metadata = json.loads(sidecar.read_text())
+    metadata.update(grade_at_collection="3", school_year_at_collection="2025/2026")
+    sidecar.write_text(json.dumps(metadata))
+    state = app.extensions["research"]["state"]
+    state.add_study_session("3", "2025-10-01", state.settings()["revision"], school_year="2025/2026")
+    client = app.test_client()
+    login(client)
+    response = client.get(f"/dashboard/participants/study/{identity('1')}?session={SESSION}&view=logs")
+    assert response.status_code == 200
+    breadcrumb = unescape(re.search(r'<p class="breadcrumbs"><a href="([^"]+)"', response.text).group(1))
+    query = parse_qs(urlsplit(breadcrumb).query)
+    assert query["grade"] == ["4"] and query["session"] == [SESSION]
+    assert client.get(breadcrumb).status_code == 200

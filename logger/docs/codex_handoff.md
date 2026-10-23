@@ -6,6 +6,15 @@ Read this before changing the research dashboard or the student app. It covers w
 was done since your assessment, what is still open, and the risks to keep in mind.
 `docs/CHANGELOG.md` has the per-change detail (search it by **Area** tag).
 
+The subsequent [22 October dashboard review](dashboard_review_2026-10-22.md)
+records additional bug fixes, UI improvements, verification and the prioritized
+follow-up plan, now implemented in the 23 October follow-up except physical-device
+acceptance. The changes and their new source/test dependencies are included in the
+23 October follow-up. The report records replacement of the retired Selenium
+suites, lost-response coverage and final verification. The subsequent
+[merge review and correction](merge_review_2026-10-23.md) records the session
+concurrency fix and the requirement to check CI on the exact candidate.
+
 For the current merge checklist, deployment gates, local demo inventory and V2
 follow-up decisions, start with [Merge and V2 readiness](merge_v2_readiness.md).
 That checklist supersedes older verification totals and release-status wording below.

@@ -9,11 +9,12 @@ from copy import deepcopy
 from flask import abort, g, redirect, request
 
 from .i18n import translate
-from .participants import GRADES
+from .participants import GRADES, valid_school_year
 from .session_lifecycle import session_removal_problem
 from .state import MAX_STUDY_SESSIONS, SETTING_FIELDS, normalize_session_name, roster, validate_settings
 from .student_config import range_summary, task_catalog, topics_ready
 from .study_config import assignment_for, session_readiness
+from .year_controls import school_year_choices
 
 SECTIONS = ("year", "sessions", "participants")
 RANGE_ACTIONS = ("save_ranges", "preview_ranges", "edit_ranges")
@@ -70,6 +71,16 @@ class SettingsForm:
         self.add_name = request.form.get("name", "") if adding else ""
         if adding and request.form.get("grade") in GRADES:
             self.grade = request.form["grade"]
+        selected_id = ((request.form.get("session_id") if posted else None)
+                       or self.edit_session_id or request.args.get("session"))
+        selected = _session_in_grade(current, selected_id, self.grade)
+        self.year = request.args.get("year", selected.get("school_year", "") if selected
+                                     else current.get("current_school_year", ""))
+        if self.year and not valid_school_year(self.year):
+            abort(404)
+        context_session = _session_in_grade(current, request.args.get("session"), self.grade)
+        self.session_id = (context_session["id"] if context_session and not context_session.get("removed")
+                           and _in_year(context_session, self.year) else None)
         self.range_draft = current
         self.range_preview = False
 
@@ -210,6 +221,19 @@ def _page_count(total, size):
     return max(1, (total + size - 1) // size)
 
 
+def _in_year(study_session, year):
+    # Undated initial sessions remain available to complete their setup.
+    return not year or study_session.get("school_year", "") in ("", year)
+
+
+def _session_page(settings, grade, year, session_id):
+    active = sorted((item for item in settings["sessions"] if item["grade"] == grade
+                     and not item.get("removed") and _in_year(item, year)),
+                    key=lambda item: item["number"], reverse=True)
+    return next((index // HISTORY_PAGE_SIZE + 1 for index, item in enumerate(active)
+                 if item["id"] == session_id), 1)
+
+
 def register_settings_routes(dash):
     app, bp, state = dash.app, dash.bp, dash.state
 
@@ -231,8 +255,11 @@ def register_settings_routes(dash):
             target["removed"] = True
         state.save_settings(updated, revision)
         removing = not restoring
-        return redirect(dash.u("settings_page", section="sessions", grade=form.grade, saved="1",
+        target_year = form.year
+        target_page = 1 if removing else _session_page(updated, form.grade, target_year, target["id"])
+        return redirect(dash.u("settings_page", section="sessions", grade=form.grade, year=target_year, saved="1",
                                saved_action=form.action, removed="1" if removing else None,
+                               page=target_page if target_page > 1 else None,
                                edit=target["id"] if restoring else None,
                                _anchor="removed-sessions" if removing else target["id"]))
 
@@ -274,11 +301,17 @@ def register_settings_routes(dash):
         if action in NOT_SAVED_ACTIONS:
             return None
         state.save_settings(updated, revision)
+        target_year, target_page = form.year, form.history_page
+        if action == "save_session":
+            target = _session_in_grade(updated, form.edit_session_id, form.grade)
+            if target_year and target.get("school_year"):
+                target_year = target["school_year"]
+            target_page = _session_page(updated, form.grade, target_year, form.edit_session_id)
         anchor = {"save_year": "school-year", "save_dates": "session-history",
                   "save_session": form.edit_session_id, "save_ranges": "participant-ids"}.get(action)
         return redirect(dash.u("settings_page", saved="1", grade=form.grade, section=form.section,
-                               saved_action=action,
-                               page=form.history_page if form.history_page > 1 else None,
+                               year=target_year, saved_action=action,
+                               page=target_page if target_page > 1 else None,
                                edit=form.edit_session_id if action == "save_session" else None,
                                _anchor=anchor))
 
@@ -340,16 +373,35 @@ def register_settings_routes(dash):
 
     def session_history(form):
         current = form.current
-        in_grade = [s for s in current["sessions"] if s["grade"] == form.grade]
+        in_grade = [s for s in current["sessions"] if s["grade"] == form.grade and _in_year(s, form.year)]
         active = sorted((s for s in in_grade if not s.get("removed")), key=lambda s: s["number"], reverse=True)
         removed = sorted((s for s in in_grade if s.get("removed")), key=lambda s: s["number"], reverse=True)
         page_count = _page_count(len(active), HISTORY_PAGE_SIZE)
         if form.history_page > page_count:
-            abort(404)
+            if not form.error:
+                abort(404)
+            # A concurrent removal/year change may invalidate a submitted page.
+            # Keep rejected input visible without accepting invalid GET URLs.
+            form.history_page = page_count
         shown = _page_of(active, form.history_page, HISTORY_PAGE_SIZE)
+        submitted = (_session_in_grade(current, form.edit_session_id, form.grade)
+                     if form.error and form.action == "save_session" else None)
+        rejected_session = (submitted if submitted and submitted["id"] not in {s["id"] for s in shown}
+                            else None)
+        saved_session_url = None
+        if submitted and form.error == "settings_changed":
+            saved_year = submitted.get("school_year") or form.year
+            saved_page = _session_page(current, form.grade, saved_year, submitted["id"])
+            saved_session_url = dash.u(
+                "settings_page", section="sessions", grade=form.grade, year=saved_year,
+                page=saved_page if saved_page > 1 else None,
+                edit=submitted["id"] if not submitted.get("removed") else None,
+                removed="1" if submitted.get("removed") else None,
+                _anchor="removed-sessions" if submitted.get("removed") else submitted["id"])
         numbers = {grade: [s["number"] for s in current["sessions"] if s["grade"] == grade] for grade in GRADES}
         return {"history_page_count": page_count, "history_total": len(active), "history_sessions": shown,
-                "removed_sessions": removed,
+                "removed_sessions": removed, "rejected_session": rejected_session,
+                "saved_session_url": saved_session_url,
                 "next_numbers": {grade: max(values, default=0) + 1 for grade, values in numbers.items()},
                 "session_readiness": {s["id"]: session_readiness(current, s) for s in shown}}
 
@@ -367,6 +419,7 @@ def register_settings_routes(dash):
                 form.error = str(exc) if str(exc) in VISIBLE_ERRORS else "invalid_settings"
         error = form.error
         submitted_revision = request.form.get("revision", current["revision"])
+        history = session_history(form)
         return dash.page(
             "settings", settings=current, error=error,
             form_revision=submitted_revision if error == "settings_changed" else current["revision"],
@@ -378,7 +431,9 @@ def register_settings_routes(dash):
             range_form_revision=(submitted_revision if form.ranges_submitted and error == "settings_changed"
                                  else current["revision"]),
             history_grade=form.grade, history_page=form.history_page,
+            history_year=form.year, school_years=school_year_choices(current, form.year, request.form.get("school_year")),
+            study_context={"grade": form.grade, "school_year": form.year, "id": form.session_id},
             session_limit=MAX_STUDY_SESSIONS, add_date=form.add_date, add_name=form.add_name,
             open_new=request.args.get("new") == "1" or form.action == "add_session" and error is not None,
             edit_session_id=form.edit_session_id, edit_name=form.edit_name, edit_date=form.edit_date,
-            **participant_overview(form, catalog), **session_history(form)), 400 if error else 200
+            **participant_overview(form, catalog), **history), 400 if error else 200

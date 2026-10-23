@@ -453,6 +453,11 @@ def _assign_task_status(tasks, issues):
 def classify(run, settings):
     grade, school_year, source, rule_id, current_grade = None, None, "unknown", None, None
     issues = list(run.get("issues", []))
+    # Validate both cached and freshly indexed labels; the raw metadata stays intact.
+    started_at = run.get("started_at")
+    if started_at is not None and not isinstance(started_at, str):
+        started_at = None
+        issues.append("invalid_recorded_started_at")
     year_source = "unknown"
     recorded_study = run.get("study_id_at_collection")
     study_id = DEFAULT_STUDY_ID if recorded_study is None else recorded_study
@@ -497,7 +502,7 @@ def classify(run, settings):
         if enrolled and not school_year and grade == enrolled["grade"]:
             school_year, year_source = dated_year, "enrollment"
     study_session = _study_session_for_run(run, settings, study_id, grade, issues)
-    return {**run, "study_id": study_id, "grade": grade, "study_session": study_session,
+    return {**run, "started_at": started_at, "study_id": study_id, "grade": grade, "study_session": study_session,
             "school_year": school_year, "grade_source": source,
             "study_participant_id": canonical["id"] if canonical else None,
             "enrollment_id": run.get("enrollment_id") or (enrolled["id"] if enrolled else None),

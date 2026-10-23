@@ -65,6 +65,52 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-23 — Complete dashboard UX and preserve concurrent session edits
+
+**Type:** feature, fix · **Area:** styling, session, logging, data, infra, docs, tests
+
+**Files**
+- `search-app/research_dashboard/` — scoped year controls, searchable question
+  library, guarded forms, editor logout/recovery races, history and export fixes;
+  required new assets, year helper and template partials are included.
+- `search-app/static/logger.js` — prevent duplicate repeated-result listeners
+  when restoring a page from the back/forward cache.
+- `search-app/tests/`, `.github/workflows/collection.yml` — browser coverage for
+  the implemented workflows, replacement of standalone Selenium suites, and
+  required execution of every browser regression module.
+- `docs/dashboard_review_2026-10-22.md`, `docs/merge_review_2026-10-23.md`,
+  `docs/research_dashboard.md`, `docs/codex_handoff.md` — implementation evidence,
+  merge gates and current handoff.
+
+**What changed for researchers**
+Session/year navigation, question selection and validation preserve context and
+entered text. Cross-tab logout and failed saves retain on-screen edits. If another
+researcher removes a session or moves it to another year, a rejected session edit
+keeps the typed details and opens the saved state for review in a separate tab.
+
+**How it works**
+Failed settings POSTs clamp obsolete history pages and render an out-of-scope
+submitted session separately through `settings_session_form.html`. The original
+revision is retained, preventing a repeated stale save from overwriting changes.
+The review link resolves the saved session's current year/page or restore panel.
+
+**If something looks wrong after this, check**
+- Missing question/year controls → verify that the new library assets,
+  `year_controls.py` and template partials are present in the checkout/image.
+- A session conflict hides typed fields → inspect `session_history()` in
+  `settings_views.py` and the concurrency server/browser regressions.
+- Logout or editor recovery feedback → inspect `static/editor.js` and its
+  race/reconciliation tests; researcher recovery is not student progress storage.
+
+**Left alone**
+No real collection, credentials or generated demo archive are included. Durable
+student resume, repeat authorization and live monitoring remain separate work.
+
+**Verified**
+The four new concurrency server cases fail before the fix and pass after it;
+three browser cases pass across EN/IT touch layouts and without JavaScript.
+See the merge review and PR #20 for full-suite and exact-candidate CI evidence.
+
 ## 2026-10-20 — Finalize dashboard review checkpoint and V2 handoff
 
 **Type:** feature, fix · **Area:** styling, session, logging, infra, docs, tests

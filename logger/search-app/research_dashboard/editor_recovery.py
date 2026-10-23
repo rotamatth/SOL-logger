@@ -160,6 +160,14 @@ class EditorRecovery:
             row = self._row(db, *scope)
         return _record(row) if row and time.time() - row["updated_at"] < TTL_SECONDS else None
 
+    def has_copies(self, owner, credential):
+        """Whether logout would remove an unexpired copy; disclose no keys or text."""
+        owner_hash, credential, _ = _scope(owner, credential, "logout")
+        with self._connect() as db:
+            return db.execute("""SELECT 1 FROM editor_drafts WHERE owner=? AND credential=?
+                                 AND fields IS NOT NULL AND updated_at>? LIMIT 1""",
+                              (owner_hash, credential, time.time() - TTL_SECONDS)).fetchone() is not None
+
     def save(self, owner, credential, key, fields, expected_sequence):
         """CAS-save text fields; a missing key has expected sequence zero."""
         owner_hash, credential, key = _scope(owner, credential, key)

@@ -15,7 +15,7 @@ COOKIE = "sol_research"
 EDITOR_COOKIE = "sol_research_editor"
 
 # Endpoints whose failures are answered as JSON for the browser scripts.
-JSON_ENDPOINTS = ("research.editor_recovery", "research.session_check")
+JSON_ENDPOINTS = ("research.editor_recovery", "research.session_check", "research.editor_logout_check")
 
 
 def is_dashboard_path(path):
@@ -23,14 +23,18 @@ def is_dashboard_path(path):
 
 
 def wants_json():
-    return request.path.endswith("/events.json") or request.endpoint in JSON_ENDPOINTS
+    return (request.path.endswith("/events.json") or request.endpoint in JSON_ENDPOINTS
+            or request.endpoint == "research.logout" and request.accept_mimetypes.best == "application/json")
 
 
 def safe_research_next(value):
     """Accept only a local dashboard path as a post-login destination."""
     if not isinstance(value, str) or len(value) > 8192 or any(ord(c) < 32 for c in value):
         return None
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
     if (parsed.scheme or parsed.netloc or not parsed.path.startswith(PREFIX + "/")
             or parsed.path in (PREFIX + "/login", PREFIX + "/logout") or "\\" in value):
         return None

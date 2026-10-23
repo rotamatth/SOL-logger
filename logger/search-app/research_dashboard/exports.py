@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import zipfile
 
+from .history_data import display_session
 from .index import safe_open
 from .state import identity, utc_now
 
@@ -59,7 +60,9 @@ def _prepare(index, selected, settings, task, manifest, archive):
         if any(run[key] != summary[key] for key in ("study_id", "participant_id", "collection", "grade", "study_session", "school_year", "historical_assignment_id", "study_participant_id", "participant_key", "identity_link_id")):
             manifest["problems"].append({"run_id": summary["id"], "code": "run_classification_changed_retry_export"})
             continue
-        session = run["study_session"]
+        # Historical runs can resolve to today's full session configuration.
+        # Export labels, never unrelated assignments or uncollected drafts.
+        session = display_session(run["study_session"], [run]) if run["study_session"] else None
         if session and session["id"] not in session_ids:
             manifest["available_sessions"].append(session)
             session_ids.add(session["id"])

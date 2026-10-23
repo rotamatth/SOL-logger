@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from .test_research_dashboard import app, csrf, login
 from .test_participant_enrollment import configure_session_questions, ranges_form
+from .test_enrollment_controls import Controls
 from research_dashboard.student_config import task_catalog
 
 
@@ -36,7 +37,11 @@ def test_navigation_exposes_one_section_and_retains_selected_grade(app):
         assert response.status_code == 200
         assert f'id="{active_id}" >' in response.text
         assert 'id="school-year" hidden' in response.text
-        assert f'section={selected}&amp;grade=5&amp;lang=it" aria-current="page"' in response.text
+        current = next(link for link in Controls(response).links
+                       if link.get("aria-current") == "page"
+                       and parse_qs(urlsplit(link["href"]).query).get("section") == [selected])
+        assert parse_qs(urlsplit(current["href"]).query, keep_blank_values=True) == {
+            "section": [selected], "grade": ["5"], "year": [""], "lang": ["it"]}
     assert client.get("/dashboard/settings?section=unknown").status_code == 404
 
 
@@ -152,7 +157,7 @@ def test_stale_session_and_year_forms_preserve_input_and_revision(app):
     assert response.status_code == 400
     assert 'id="grade-4-session-1" open' in response.text
     assert 'value="My classroom"' in response.text and 'value="2026-10-12"' in response.text
-    assert "Reload saved settings" in response.text
+    assert "Review saved session in a new tab" in response.text
     assert f'name="revision" value="{before["revision"]}"' in response.text
     year = client.post("/dashboard/settings?section=year", data={
         "action": "save_year", "csrf": token, "revision": before["revision"],

@@ -9,6 +9,7 @@ from .participants import GRADES, participant_sort_key, roster, school_year_for,
 from .question_versions import published_questions, working_questions
 from .state import SETTING_FIELDS, make_study_session, normalize_session_name
 from .study_config import assignment_for, question_set_problem, session_readiness
+from .year_controls import school_year_bounds, school_year_choices
 
 
 def preparation_session(settings, session_id):
@@ -112,6 +113,7 @@ def register_preparation_routes(dash):
         return page('prepare', settings=settings, study_context={'grade': grade, 'school_year': year,
                     'id': selected['id'] if selected else None},
                     research_area='prepare', selected=selected, sessions=sessions, creating=creating,
+                    school_years=school_year_choices(settings, year), date_bounds=school_year_bounds(year),
                     readiness=readiness, error=error, today=today,
                     session_status=preparation_status(selected, readiness, today),
                     working_questions=working, published_questions=published,

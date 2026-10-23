@@ -18,7 +18,7 @@
 </ol>{% endif %}
 {% if ranges_error %}<p class="notice warning" role="alert">{{ t(ranges_error) }}</p>{% endif %}
 {% if participants_mode == 'edit' %}
-<form class="panel participant-setup-form" method="post" action="{{ u('settings_page', section='participants', grade=history_grade, participant_session=participant_session.id if participant_session else None) }}#participant-ids">
+<form class="panel participant-setup-form" method="post" data-guard {% if ranges_error or request.form.get('action') == 'edit_ranges' %}data-unsaved{% endif %} action="{{ u('settings_page', section='participants', grade=history_grade, participant_session=participant_session.id if participant_session else None) }}#participant-ids">
   <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ range_form_revision }}"><input type="hidden" name="ranges_editor" value="1"><input type="hidden" name="range_grade" value="{{ history_grade }}">
   {% set rule = selected_range %}
   <div class="setup-form-section">
@@ -46,7 +46,7 @@
     {% for key in ('enabled', 'disabled', 'tasks_changed') %}<div><strong>{{ range_changes[key] | length }}</strong> {{ t('ids_' ~ key) }}{% if range_changes[key] %}<details class="technical-details"><summary>{{ t('show_ids') }}</summary><p>{{ range_changes[key] | join(', ') }}</p></details>{% endif %}</div>{% endfor %}
   </div>
   {% if range_changes.added or range_changes.removed or range_changes.moved %}<details class="technical-details review-roster-changes"><summary>{{ t('roster_changes') }}</summary><p>{{ range_changes.added | length }} {{ t('ids_added') }} · {{ range_changes.removed | length }} {{ t('ids_removed') }} · {{ range_changes.moved | length }} {{ t('ids_moved') }}</p>{% for key in ('added', 'removed', 'moved') %}{% if range_changes[key] %}<p><strong>{{ t('ids_' ~ key) }}</strong>: {{ range_changes[key] | join(', ') }}</p>{% endif %}{% endfor %}</details>{% endif %}
-  <form class="setup-form-footer" method="post" action="{{ u('settings_page', section='participants', grade=history_grade, participant_session=participant_session.id if participant_session else None) }}#participant-ids">
+  <form class="setup-form-footer" method="post" data-guard data-unsaved action="{{ u('settings_page', section='participants', grade=history_grade, participant_session=participant_session.id if participant_session else None) }}#participant-ids">
     <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ range_form_revision }}"><input type="hidden" name="ranges_editor" value="1"><input type="hidden" name="range_grade" value="{{ history_grade }}">
     {% for key in ('start', 'end', 'prefix', 'width') %}<input type="hidden" name="{{ history_grade }}_{{ key }}" value="{{ selected_range[key] }}">{% endfor %}{% if history_grade == '3' and selected_range.enabled %}<input type="hidden" name="3_enabled" value="1">{% endif %}
     <p class="small muted">{{ t('new_runs_only_hint') }}</p><div class="actions"><button class="primary" type="submit" name="action" value="save_ranges">{{ t('save_changes') }}</button><button type="submit" name="action" value="edit_ranges">{{ t('back_to_editing') }}</button></div>

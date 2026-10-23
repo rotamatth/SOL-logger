@@ -5,6 +5,7 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from .state import DEFAULT_STUDY_ID, identity
 from .preparation_views import preparation_session
 from .participants import GRADES, parse_ids, participant_sort_key, valid_school_year
+from .year_controls import school_year_choices
 
 ERRORS = frozenset(("settings_changed", "invalid_enrollment", "invalid_participant_ids",
                    "participant_id_reserved", "participant_not_registered", "participant_inactive", "school_year_required", "invalid_promotion_year",
@@ -90,30 +91,45 @@ def register_enrollment_routes(dash):
             except (ValueError, KeyError, TypeError, BadSignature) as exc:
                 error = str(exc) if str(exc) in ERRORS else "invalid_enrollment"
         enrollments = settings["enrollments"].get(year, {})
-        people = [{"id": uid, **person, "grade": enrollments.get(uid, {}).get("grade"),
-                   "history": [{"year": school_year, "grade": members[uid]["grade"]}
-                               for school_year, members in sorted(settings["enrollments"].items()) if uid in members]}
+        def registry_person(uid, person):
+            return {"id": uid, **person, "grade": enrollments.get(uid, {}).get("grade"),
+                    "history": [{"year": school_year, "grade": members[uid]["grade"]}
+                                for school_year, members in sorted(settings["enrollments"].items()) if uid in members]}
+
+        people = [registry_person(uid, person)
                   for uid, person in settings["participant_registry"].items()
                   if (not query or query == uid)
                   and (grade == "all" or enrollments.get(uid, {}).get("grade") == grade)
                   and (status == "all" or person["active"] == (status == "active"))]
         people.sort(key=lambda p: participant_sort_key(p["id"]))
+        page_count = max(1, (len(people) + 49) // 50)
         try:
             number = int(request.args.get("page", "1"))
-            if not 1 <= number <= max(1, (len(people) + 49) // 50):
+            if number < 1:
                 raise ValueError()
+            if number > page_count:
+                if request.method != "POST":
+                    raise ValueError()
+                # Concurrent changes can shrink the filtered roster while a
+                # form is open. Keep its error or review visible on the last page.
+                number = page_count
         except ValueError:
             abort(404)
         editing = form.get("uid") if operation == "update" else request.args.get("edit")
         person = next((p for p in people if p["id"] == editing), None)
+        if request.method == "POST" and operation == "update" and person is None and editing in settings["participant_registry"]:
+            # A concurrent update can move the person outside the displayed grade
+            # or status filter. Keep the rejected editor and its inputs available.
+            person = registry_person(editing, settings["participant_registry"][editing])
         if editing and person is None:
             abort(404)
         audit = state.participant_changes()
         return page("enrollment", settings=settings, workflow_session=workflow_session,
                     study_context=workflow_session or {"grade": grade, "school_year": year},
                     research_area="prepare" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
+                    school_years=school_year_choices(settings, year, *(form.get(key) for key in ("year", "source_year", "target_year"))),
                     people=people[(number-1)*50:number*50], total=len(people), page_number=number,
-                    page_count=max(1, (len(people)+49)//50), editing=person, form=form,
+                    page_count=page_count, editing=person, form=form,
                     preview=preview, review_token=token, operation=operation, error=error,
                     participant_token=identity, registry_ids=sorted(settings["participant_registry"], key=participant_sort_key),
                     legacy_ids=sorted({run["participant_id"] for run in legacy}, key=participant_sort_key), audit=audit), 400 if error else 200

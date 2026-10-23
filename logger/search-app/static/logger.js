@@ -964,6 +964,7 @@ function logPageNavigation(){
 }
 
 let listenersAttached = false;
+let serpInitialized = false;
 
 function loggingSearchActions(isPageShow = false){
     if (window.__SOLBrowserBackRecoveryInProgress) return;
@@ -973,7 +974,13 @@ function loggingSearchActions(isPageShow = false){
         studyLogger.init();
     }
 
-    logSERP();
+    // A BFCache restore retains this DOM and its listeners. Re-syncing stored
+    // state must not emit its results again or attach did-you-mean handlers a
+    // second time. A fresh page gets a fresh flag and the usual SERP logging.
+    if (!serpInitialized) {
+        logSERP();
+        serpInitialized = true;
+    }
 
     // Only attach event listeners once to prevent duplicates
     if (!listenersAttached) {

@@ -118,6 +118,9 @@ def register_history_routes(dash):
                     matching_runs = [run for run in person["runs"] if _in_session(run, session)]
                     if session.get("removed") and not matching_runs:
                         continue
+                    if (year_filter and session.get("school_year")
+                            and session["school_year"] != year_filter and not matching_runs):
+                        continue
                     groups.append({"session": display_session(session, matching_runs), "runs": matching_runs})
         groups.append({"session": None, "runs": [r for r in person["runs"] if not r["study_session"]]})
         for group in groups:
@@ -125,13 +128,15 @@ def register_history_routes(dash):
         groups.sort(key=lambda group: (group["session"] is None,
                                        -group["session"]["number"] if group["session"] else 0))
         selected_session = request.args.get("session")
-        if selected_session and not any(group["session"] and group["session"]["id"] == selected_session
-                                        for group in groups):
+        selected_session_group = next((group["session"] for group in groups
+                                       if group["session"] and group["session"]["id"] == selected_session), None)
+        if selected_session and selected_session_group is None:
             abort(404)
         display_groups = [group for group in groups if
                           (group["session"] and group["session"]["id"] == selected_session)
                           or (not selected_session and group["runs"])]
-        grade = grade_filter or (next(iter(person["grades"])) if len(person["grades"]) == 1 else "all")
+        grade = grade_filter or (selected_session_group["grade"] if selected_session_group else
+                                 next(iter(person["grades"])) if len(person["grades"]) == 1 else "all")
         return dash.page("participant", person=person, groups=groups, display_groups=display_groups,
                          collection=collection, grade=grade,
                          selected_session=selected_session, selected_year=year_filter, grade_filter=grade_filter,

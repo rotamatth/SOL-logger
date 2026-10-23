@@ -25,7 +25,7 @@ jobs:
       - name: Install matching Chromium and system dependencies
         run: python -m playwright install --with-deps --only-shell chromium
       - name: Require dashboard browser regressions
-        run: python -m pytest logger/search-app/tests/test_editor_browser.py -q
+        run: python -m pytest logger/search-app/tests/test_*browser.py -q
   collection:
     runs-on: ubuntu-latest
     steps:
@@ -43,10 +43,7 @@ jobs:
       - run: python -m pip install -r logger/search-app/requirements-test.txt
       - run: python -m pip check
       - name: Collection, failure recovery and logging contracts
-        run: >-
-          python -m pytest logger/search-app/tests -q
-          --ignore=logger/search-app/tests/test_back_navigation.py
-          --ignore=logger/search-app/tests/test_bfcache_simulation.py
+        run: python -m pytest logger/search-app/tests -q
       - name: Validate production container configuration
         run: docker compose -f logger/docker-compose.yml config --quiet
       - name: Build release image

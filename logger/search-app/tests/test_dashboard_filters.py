@@ -101,7 +101,7 @@ def test_overview_keeps_visualization_selection_and_grade_downloads_without_filt
     assert f'form="{form_id}"' in selected.group()
     assert 'value="visible"' not in response.text
     assert '/exports/grade?' in response.text
-    checkboxes = re.findall(r'<input type="checkbox"[^>]*>', response.text)
+    checkboxes = re.findall(r'<input type="checkbox"[^>]*name="participant"[^>]*>', response.text)
     assert len(checkboxes) == 2
     assert all(f'form="{form_id}"' in checkbox and 'name="participant"' in checkbox
                and "disabled" not in checkbox for checkbox in checkboxes)

@@ -1,5 +1,6 @@
 {% extends 'research/base.html' %}
-{% macro field(name, label, value='', type='text') %}<div><label for="{{ name }}">{{ t(label) }}</label><input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ form.get(name, value) }}" required {% if name in ('year','source_year','target_year') %}pattern="[0-9]{4}/[0-9]{4}" placeholder="2026/2027"{% endif %}></div>{% endmacro %}
+{% from 'research/year_input.html' import school_year_input with context %}
+{% macro field(name, label, value='', type='text') %}<div>{% if name in ('year','source_year','target_year') %}{{ school_year_input(name, name, form.get(name, value), school_years, label=label) }}{% else %}<label for="{{ name }}">{{ t(label) }}</label><input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ form.get(name, value) }}" required>{% endif %}</div>{% endmacro %}
 {% macro hidden(op) %}<input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ settings.revision }}"><input type="hidden" name="operation" value="{{ op }}">{% endmacro %}
 {% macro grade_select(value='3') %}<div><label for="enrollment-grade">{{ t('grade') }}</label><select id="enrollment-grade" name="grade">{% for item in ('3','4','5') %}<option value="{{ item }}" {% if form.get('grade', value) == item %}selected{% endif %}>{{ t('grade_' ~ item) }}</option>{% endfor %}</select></div>{% endmacro %}
 {% macro enrollment_year() %}
@@ -26,7 +27,7 @@
 {% if operation == 'enroll' %}<ul>{% for change in preview.changes %}<li>ID {{ change.id }}: {{ t('grade_' ~ change.before_grade) if change.before_grade else t('not_enrolled') }} &rarr; {{ t('grade_' ~ change.grade) }}</li>{% endfor %}</ul>{% endif %}
 {% elif operation == 'update' %}<p><strong>ID {{ preview.id }}</strong> · {{ preview.school_year }}</p><p>{{ t('active') if preview.before.active else t('inactive') }} / {{ t('grade_' ~ preview.before.grade) if preview.before.grade else t('not_enrolled') }} &rarr; <strong>{{ t('active') if preview.after.active else t('inactive') }} / {{ t('grade_' ~ preview.after.grade) if preview.after.grade else t('not_enrolled') }}</strong></p><p>{{ t('inactive_hint') }}</p>
 {% else %}<p><strong>{{ t('legacy') }} ID {{ preview.source_id }} &rarr; ID {{ preview.participant_id }}</strong></p><p>{{ preview.date_from }} &ndash; {{ preview.date_to }}</p><p>{{ preview.note }}</p><p>{{ t('legacy_link_hint') }}</p>{% endif %}
-<form method="post"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="action" value="confirm"><input type="hidden" name="review_token" value="{{ review_token }}">{% if not error %}<button class="primary" type="submit">{{ t('confirm_enrollment') }}</button>{% endif %} <a href="{{ u('enrollment_page',view=view,year=year,grade=grade,status=status,q=query) }}">{{ t('cancel') }}</a></form>
+<form method="post" data-guard data-unsaved><input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="action" value="confirm"><input type="hidden" name="review_token" value="{{ review_token }}">{% if not error %}<button class="primary" type="submit">{{ t('confirm_enrollment') }}</button>{% endif %} <a href="{{ u('enrollment_page',view=view,year=year,grade=grade,status=status,q=query) }}">{{ t('cancel') }}</a></form>
 </section>
 {% elif view == 'registry' %}
 <section class="panel enrollment-filter-panel" aria-label="{{ t('dashboard_filters') }}">
@@ -37,7 +38,7 @@
     <input type="hidden" name="year" value="{{ year }}">
     <input type="hidden" name="grade" value="{{ workflow_session.grade }}">
     {% else %}
-    <div><label for="filter-year">{{ t('school_year') }}</label><input id="filter-year" name="year" value="{{ year }}" pattern="[0-9]{4}/[0-9]{4}" placeholder="2026/2027"></div>
+    <div>{{ school_year_input('filter-year', 'year', year, school_years, required=false) }}</div>
     <div><label for="filter-grade">{{ t('grade') }}</label><select id="filter-grade" name="grade"><option value="all">{{ t('all') }}</option>{% for item in grades %}<option value="{{ item }}" {% if grade == item %}selected{% endif %}>{{ t('grade_' ~ item) }}</option>{% endfor %}</select></div>
     {% endif %}
     <div><label for="filter-id">{{ t('find_exact_id') }}</label><input id="filter-id" name="q" type="search" value="{{ query }}" maxlength="32" placeholder="001" aria-describedby="id-search-hint" autocomplete="off"></div>
@@ -50,7 +51,7 @@
 {% if not year %}<p class="notice warning">{{ t('school_year_required') }} <a href="{{ u('settings_page',section='year') }}">{{ t('save_school_year') }}</a></p>{% endif %}
 {% if editing %}
 <section class="panel"><h2>{{ t('edit_enrollment') }} · ID {{ editing.id }}</h2>
-  <form method="post" data-guard>{{ hidden('update') }}<input type="hidden" name="uid" value="{{ editing.id }}">
+  <form method="post" data-guard {% if error and operation == 'update' %}data-unsaved{% endif %}>{{ hidden('update') }}<input type="hidden" name="uid" value="{{ editing.id }}">
     {{ enrollment_year() }}{{ grade_select(editing.grade or '3') }}
     <label for="active">{{ t('participant_study_status') }}</label><select id="active" name="active"><option value="yes" {% if form.get('active', 'yes' if editing.active else 'no') == 'yes' %}selected{% endif %}>{{ t('active') }}</option><option value="no" {% if form.get('active', 'yes' if editing.active else 'no') == 'no' %}selected{% endif %}>{{ t('inactive') }}</option></select>
     <p class="muted">{{ t('inactive_hint') }}</p>
@@ -59,7 +60,7 @@
 </section>
 {% else %}
 <details class="panel" {% if operation in ('add','enroll') and error %}open{% endif %}><summary>{{ t('add_or_enroll_ids') }}</summary>
-  <form method="post" data-guard><input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ settings.revision }}">
+  <form method="post" data-guard {% if error and operation in ('add','enroll') %}data-unsaved{% endif %}><input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ settings.revision }}">
     <label for="id-operation">{{ t('id_setup_action') }}</label><select name="operation" id="id-operation"><option value="add" {% if operation != 'enroll' %}selected{% endif %}>{{ t('new_children_new_ids') }}</option><option value="enroll" {% if operation == 'enroll' %}selected{% endif %}>{{ t('existing_children_same_ids') }}</option></select>
     <label for="ids">{{ t('participant_ids') }}</label><textarea id="ids" name="ids" rows="3" maxlength="32000" required>{{ form.get('ids','') }}</textarea><p class="small muted">{{ t('prepare_ids_hint') }}</p>
     {{ enrollment_year() }}
@@ -90,16 +91,16 @@
 </div>
 {% if page_count > 1 %}<nav class="settings-pagination">{% if page_number > 1 %}<a href="{{ u('enrollment_page',year=year,grade=grade,status=status,q=query,page=page_number-1) }}">&larr;</a>{% endif %}<span>{{ page_number }} / {{ page_count }}</span>{% if page_number < page_count %}<a href="{{ u('enrollment_page',year=year,grade=grade,status=status,q=query,page=page_number+1) }}">&rarr;</a>{% endif %}</nav>{% endif %}
 {% elif view == 'promotion' %}
-<section class="panel"><h2>{{ t('promote_year') }}</h2><p>{{ t('promotion_hint') }}</p><form method="post" data-guard>{{ hidden('promote') }}{{ field('source_year','from_year',year) }}{{ field('target_year','to_year') }}<button class="primary" type="submit">{{ t('review_enrollment') }}</button></form></section>
+<section class="panel"><h2>{{ t('promote_year') }}</h2><p>{{ t('promotion_hint') }}</p><form method="post" data-guard {% if error and operation == 'promote' %}data-unsaved{% endif %}>{{ hidden('promote') }}{{ field('source_year','from_year',year) }}{{ field('target_year','to_year') }}<button class="primary" type="submit">{{ t('review_enrollment') }}</button></form></section>
 {% elif view == 'links' %}
 <section class="panel"><h2>{{ t('legacy_identity_links') }}</h2><p>{{ t('legacy_link_hint') }}</p>
-<form method="post" data-guard>{{ hidden('link') }}
+<form method="post" data-guard {% if error and operation == 'link' %}data-unsaved{% endif %}>{{ hidden('link') }}
   <label for="source_id">{{ t('legacy_source_id') }}</label><select id="source_id" name="source_id" required><option value="">—</option>{% for uid in legacy_ids %}<option value="{{ uid }}" {% if form.get('source_id') == uid %}selected{% endif %}>{{ uid }}</option>{% endfor %}</select>
   <label for="uid">{{ t('permanent_id') }}</label><select id="uid" name="uid" required><option value="">—</option>{% for uid in registry_ids %}<option value="{{ uid }}" {% if form.get('uid') == uid %}selected{% endif %}>{{ uid }}</option>{% endfor %}</select>{{ field('date_from','from_date',type='date') }}{{ field('date_to','to_date',type='date') }}
   <label for="note">{{ t('link_confirmation_note') }}</label><input id="note" name="note" maxlength="300" value="{{ form.get('note','') }}" required><button class="primary" type="submit">{{ t('review_enrollment') }}</button>
 </form>
 </section>
-{% for link in settings.participant_links %}<div class="panel"><p>{{ t('legacy') }} ID {{ link.source_id }} &rarr; ID {{ link.participant_id }} · {{ link.date_from }} &ndash; {{ link.date_to }}</p><p>{{ link.note }}</p><form method="post">{{ hidden('unlink') }}<input type="hidden" name="link_id" value="{{ link.id }}"><button type="submit">{{ t('revoke_link') }}</button></form></div>{% endfor %}
+{% for link in settings.participant_links %}<div class="panel"><p>{{ t('legacy') }} ID {{ link.source_id }} &rarr; ID {{ link.participant_id }} · {{ link.date_from }} &ndash; {{ link.date_to }}</p><p>{{ link.note }}</p><form method="post" data-guard {% if error and operation == 'unlink' and form.get('link_id') == link.id %}data-unsaved{% endif %}>{{ hidden('unlink') }}<input type="hidden" name="link_id" value="{{ link.id }}"><button type="submit">{{ t('revoke_link') }}</button></form></div>{% endfor %}
 {% endif %}
 {% include 'research/audit_changes.html' %}
 </div>

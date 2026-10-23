@@ -39,6 +39,14 @@
     {% with configured_session=selected_session_configuration %}{% include 'research/session_question_preview.html' %}{% endwith %}
   </section>{% endif %}
 
+  {% if people %}<div class="participant-jump" data-participant-jump data-missing="{{ t('jump_id_missing') }}" data-participant-label="{{ t('participant') }}" hidden>
+    <label for="participant-jump-id">{{ t('jump_to_id') }}</label>
+    <div class="participant-jump-controls"><input id="participant-jump-id" type="search" list="participant-jump-options" autocomplete="off" aria-describedby="participant-jump-hint"><button type="button">{{ t('jump_to_participant') }}</button></div>
+    <datalist id="participant-jump-options">{% for uid in people|map(attribute='id')|unique %}<option value="{{ uid }}">{% endfor %}</datalist>
+    <p id="participant-jump-hint" class="small muted">{{ t('jump_id_hint') }}</p>
+    <p class="small" data-jump-result role="status" aria-live="polite"></p>
+  </div>{% endif %}
+
   <section class="panel dashboard-table-panel" aria-labelledby="participants-heading">
     {% if is_roster_view %}
     <form id="selected-export" method="post" action="{{ u('export_selection') }}">
@@ -50,6 +58,10 @@
     <div class="dashboard-table-heading">
       <div><h2 id="participants-heading">{{ t('overview') }}{% if selected_session %} · {{ selected_session.name or (t('session') ~ ' ' ~ selected_session.number) }}{% endif %} <span class="count">{{ people|length }}</span></h2>{% if is_roster_view %}<p id="download-selection-hint">{{ t('dashboard_selection_hint') }}</p>{% endif %}</div>
       {% if is_roster_view %}<div class="dashboard-selected-download">
+        {% if downloadable_count %}<div class="dashboard-selection-controls" data-selection-controls hidden>
+          <label><input type="checkbox" data-select-all> {{ t('select_available_logs') }}</label>
+          <span role="status" aria-live="polite" aria-atomic="true">{{ t('selection_count') }}: <span data-selection-count>0</span> / {{ downloadable_count }}</span>
+        </div>{% endif %}
         <button class="dashboard-selection-ready" form="selected-export" type="submit" name="mode" value="selected" aria-describedby="download-selection-hint" {% if not downloadable_count %}disabled{% endif %}>{{ icons.download() }} {{ t('download_selected') }}</button>
         <button class="dashboard-selection-empty" type="button" disabled aria-describedby="download-selection-hint">{{ icons.download() }} {{ t('download_selected') }}</button>
       </div>{% endif %}

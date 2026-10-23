@@ -19,6 +19,15 @@ def register_editor_routes(dash):
         # A failure of this optional editor store must not stop student collection.
         return EditorRecovery(app.config["RESEARCH_STATE_DIR"])
 
+    @bp.get("/editor/logout-check")
+    def editor_logout_check():
+        """Warn before deleting this browser's copies, including those from closed tabs."""
+        try:
+            return jsonify(has_recovery=storage().has_copies(g.research_editor_owner, identity(g.research_hash)),
+                           csrf=g.research_auth["csrf"])
+        except (ValueError, OSError, RuntimeError, sqlite3.Error):
+            return jsonify(error="recovery_unavailable", csrf=g.research_auth["csrf"]), 503
+
     @bp.route("/editor/recovery", methods=["GET", "POST"])
     def editor_recovery():
         key = request.args.get("key", "") if request.method == "GET" else request.form.get("key", "")

@@ -64,7 +64,7 @@ def edited_questions(draft, form, action, choices):
         question = deepcopy(old)
         question.update(id=old.get("id") or secrets.token_hex(12),
                         topic=form.get(f"topic_{slot}", "").strip(),
-                        question=form.get(f"question_{slot}", "").strip())
+                        question=form.get(f"question_{slot}", "").replace("\r\n", "\n").replace("\r", "\n").strip())
         if action == "load_questions" and form.get(f"library_question_{slot}"):
             question = choices.question(form[f"library_question_{slot}"], draft.get("metadata", {}))
         questions.append(question)

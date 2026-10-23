@@ -1,4 +1,8 @@
 {% extends 'research/base.html' %}
+{% block page_assets %}
+<link rel="stylesheet" href="{{ url_for('research.static', filename='question-library.css') }}">
+<script src="{{ url_for('research.static', filename='question-library.js') }}" defer></script>
+{% endblock %}
 {% block content %}
 <div class="question-workspace">
 {% if from_preparation %}{% include 'research/preparation_context.html' %}{% else %}
@@ -23,7 +27,8 @@
   <form method="post" class="question-editor" data-guard data-recovery-key="{{ recovery_key }}" data-recovery-fields="theme topic_0 question_0 topic_1 question_1 topic_2 question_2 draft_token revision"{% if unsaved_preview or error %} data-unsaved{% endif %}>
     <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="draft_token" value="{{ draft_token }}">
     <input type="hidden" name="recovery_sequence" value="">
-    <details class="technical-details"><summary>{{ t('reuse_question_set') }}</summary>
+    <div hidden data-library-data data-library-sets="{{ library|tojson|forceescape }}" data-library-questions="{{ unique_questions|tojson|forceescape }}" data-library-labels="{{ {'search': t('library_search'), 'results': t('library_results'), 'empty': t('library_no_results'), 'preview': t('library_preview'), 'source': t('library_source'), 'condition': t('library_condition'), 'details': t('library_question_details'), 'variants': t('library_variants'), 'choose': t('library_choose'), 'selected': t('library_selected'), 'more': t('library_show_more')}|tojson|forceescape }}"></div>
+    <details class="technical-details question-library" data-library-kind="sets"><summary>{{ t('reuse_question_set') }}</summary>
       <label for="library-set">{{ t('question_library') }}</label><select name="library_set" id="library-set"><option value="">{{ t('choose_question_set') }}</option>{% for item in library %}<option value="{{ item.id }}">{{ item.label }}</option>{% endfor %}</select>
       <button type="submit" name="action" value="load_set">{{ t('load_question_set') }}</button><p class="small muted">{{ t('library_load_hint') }}</p>
     </details>
@@ -32,13 +37,14 @@
     <fieldset><legend>{{ t('editable_question') }} {{ slot + 1 }}</legend>
       <label for="topic-{{ slot }}">{{ t('question_topic') }}</label><input id="topic-{{ slot }}" name="topic_{{ slot }}" value="{{ question.get('topic', '') }}" maxlength="200">
       <label for="question-{{ slot }}">{{ t('question_text') }}</label><textarea id="question-{{ slot }}" name="question_{{ slot }}" rows="3" maxlength="2000">{{ question.get('question', '') }}</textarea>
-      <details class="technical-details"><summary>{{ t('reuse_question') }}</summary><label for="library-question-{{ slot }}">{{ t('question_library') }}</label><select name="library_question_{{ slot }}" id="library-question-{{ slot }}"><option value="">{{ t('keep_question') }}</option>{% for previous in unique_questions %}<option value="{{ previous.id }}">{{ previous.topic }} · {{ previous.question }}</option>{% endfor %}</select></details>
+      <details class="technical-details question-library" data-library-kind="questions"><summary>{{ t('reuse_question') }}</summary><label for="library-question-{{ slot }}">{{ t('question_library') }}</label><select name="library_question_{{ slot }}" id="library-question-{{ slot }}"><option value="">{{ t('keep_question') }}</option>{% for previous in unique_questions %}<option value="{{ previous.id }}">{{ previous.topic }} · {{ previous.question }}</option>{% endfor %}</select></details>
     </fieldset>
     {% endfor %}
     <div class="question-reuse-apply"><button class="quiet" type="submit" name="action" value="load_questions">{{ t('apply_question_selections') }}</button>
     <p class="small muted">{{ t('unique_question_metadata_hint') }}</p></div>
     <div class="editor-action-bar">
-      <div class="actions"><button class="primary" type="submit" name="action" value="approve_questions">{{ t('approve_question_assignment') }}</button><button type="submit" name="action" value="save_draft">{{ t('save_question_draft') }}</button><button type="submit" name="action" value="save_draft_return">{{ t('save_draft_return') }}</button>{% if has_draft %}<button class="quiet" type="submit" name="action" value="discard_draft" title="{{ t('discard_question_draft_hint') }}" data-confirm="{{ t('discard_question_draft_hint') }}">{{ t('discard_question_draft') }}</button>{% endif %}{% if participant and has_exception %}<button type="submit" name="action" value="remove_exception">{{ t('use_shared_questions') }}</button>{% endif %}</div>
+      <div class="actions question-save-actions"><button type="submit" name="action" value="save_draft">{{ t('save_question_draft') }}</button><button type="submit" name="action" value="save_draft_return">{{ t('save_draft_return') }}</button><button class="primary" type="submit" name="action" value="approve_questions">{{ t('approve_question_assignment') }}</button></div>
+      {% if has_draft or (participant and has_exception) %}<div class="actions question-other-actions">{% if has_draft %}<button class="quiet" type="submit" name="action" value="discard_draft" title="{{ t('discard_question_draft_hint') }}" data-confirm="{{ t('discard_question_draft_hint') }}">{{ t('discard_question_draft') }}</button>{% endif %}{% if participant and has_exception %}<button type="submit" name="action" value="remove_exception">{{ t('use_shared_questions') }}</button>{% endif %}</div>{% endif %}
       <p class="editor-action-meta"><span class="editor-status" data-editor-status role="status" aria-live="polite"></span>{% if published_ready %}<span class="small muted">{{ t('publish_impact') }}</span>{% endif %}</p>
     </div>
   </form>

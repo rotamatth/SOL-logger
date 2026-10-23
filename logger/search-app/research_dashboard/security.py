@@ -141,4 +141,6 @@ def register_security(dash):
         g.research_clear_cookie = True
         g.research_clear_editor = True
         dash.clear_editor_owner()
+        if request.accept_mimetypes.best == "application/json":
+            return jsonify(logged_out=True, login_url=dash.u("login"))
         return redirect(dash.u("login"))

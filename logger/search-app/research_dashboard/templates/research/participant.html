@@ -1,11 +1,12 @@
 {% extends 'research/base.html' %}
 {% import 'research/icons.html' as icons %}
 {% block content %}
-<p class="breadcrumbs"><a href="{{ u('overview', grade=grade, school_year=selected_year) }}">{{ t('grade_' ~ grade) if grade in grades else t('overview') }}</a> / {{ person.id }}{% if collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}{% if selected_year %} · {{ selected_year }}{% endif %}</p>
+<p class="breadcrumbs"><a href="{{ u('overview', collection=collection, grade=grade, school_year=selected_year, session=selected_session) }}">{{ t('grade_' ~ grade) if grade in grades else t('overview') }}</a> / {{ person.id }}{% if collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}{% if selected_year %} · {{ selected_year }}{% endif %}</p>
 <div class="page-heading">
   <h1>{{ t('participant') }} {{ person.id }}</h1>
   {% if person.runs %}<a class="button" href="{{ u('export', scope='participant', collection=collection, participant=person.token, grade=grade_filter, school_year=selected_year) }}" title="{{ t('participant_export_hint') }}">{{ icons.download() }} {{ t('download_participant') }}</a>{% endif %}
 </div>
+{% if person.runs %}<p class="small muted participant-download-scope">{{ t('participant_export_hint') }}{% if selected_year %} · {{ selected_year }}{% endif %}{% if grade_filter %} · {{ t('grade_' ~ grade_filter) }}{% endif %}</p>{% endif %}
 <form class="session-selector participant-session-selector" method="get" action="{{ u('participant', collection=collection, token=person.token) }}">
   <input type="hidden" name="lang" value="{{ language }}">
   <input type="hidden" name="view" value="logs">

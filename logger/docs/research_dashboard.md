@@ -500,13 +500,14 @@ Run from the repository root in an environment with Flask, Flask-Session,
 Flask-WTF, cachelib, requests, pytest and Node installed:
 
 ```bash
-python -m pytest -q logger/search-app/tests --ignore=logger/search-app/tests/test_back_navigation.py --ignore=logger/search-app/tests/test_bfcache_simulation.py
+python -m pytest -q logger/search-app/tests
 ```
 
 Research tests use temporary synthetic data and stub the search backend when testing
 student integration. No real participant files, credentials or external searches
-are used or changed. Existing Selenium suites additionally require a running app,
-browser driver and a configured test participant.
+are used or changed. The old Selenium modules are retired compatibility entry
+points; their navigation and persisted-pageshow coverage now runs through
+`tests/test_student_navigation_browser.py` with a temporary synthetic server.
 
 `tests/test_editor_browser.py` reproduces the editor's timing races (autosave while
 leaving, typing during load, two tabs, expired login and discarding recovery) in a
@@ -517,13 +518,33 @@ Chromium, then run:
 ```bash
 python -m pip install -r logger/search-app/requirements-browser-test.txt
 python -m playwright install --only-shell chromium
-SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest logger/search-app/tests/test_editor_browser.py -q
+SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest -q logger/search-app/tests/test_*browser.py
 ```
 
 The **Dashboard browser regressions** CI job runs this required mode, including
 browser system dependencies. Missing Playwright, a missing Chromium binary or a
 browser launch failure fails the job. Ordinary local suite runs may still skip the
 browser module when its dependencies are unavailable.
+
+The additional UI modules cover scoped bulk selection, keyboard navigation,
+unsaved edits in sibling forms, logout recovery, and navigation after preparation
+validation errors. The [22 October review](dashboard_review_2026-10-22.md) records
+the fixes and the completed UI/UX work.
+
+Repeat the layout and long-question save/reopen/preview checks with WebKit:
+
+```bash
+python -m playwright install webkit
+SOL_REQUIRE_BROWSER_TESTS=1 SOL_ACCEPTANCE_WEBKIT=1 python -m pytest -q \
+  logger/search-app/tests/test_dashboard_acceptance_browser.py
+```
+
+Set `SOL_DASHBOARD_SCREENSHOTS` to a temporary directory to retain screenshots.
+WebKit touch emulation complements physical iPad/Safari acceptance; it does not
+replace it. Logout checks stored private copies and live/suspended-tab flags before
+revocation; those flags contain timestamps only, never form text. A successful
+sign-out notifies other editors and invalidates their recovery claims.
+
 
 
 ## Session question contract for progress saving (#6)

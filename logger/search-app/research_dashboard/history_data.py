@@ -39,7 +39,7 @@ def collection_runs(state, summaries, collection):
 
 def _participant_sort_key(person):
     uid = person["id"]
-    return (not uid.isdigit(), int(uid) if uid.isdigit() else uid, uid)
+    return (not uid.isdecimal(), int(uid) if uid.isdecimal() else uid, uid)
 
 
 def collect_participants(state, settings, summaries, collection):

@@ -1,5 +1,8 @@
 """Researcher editing, private recovery and publication wording."""
 EDITOR_TEXT = {
+    'editor_logout_confirm': ('You have unsaved changes in this browser. Logging out removes private recovery copies, including those from other tabs. Save any drafts you need first. Log out anyway?', 'Ci sono modifiche non salvate in questo browser. Uscendo vengono eliminate le copie di recupero private, anche quelle delle altre schede. Salva prima le bozze che vuoi conservare. Uscire comunque?'),
+    'editor_logout_check_failed': ('Unable to check other tabs and private recovery copies. Logging out may discard unsaved edits. Log out anyway?', 'Impossibile controllare le altre schede e le copie di recupero private. Uscendo potresti perdere modifiche non salvate. Uscire comunque?'),
+    'editor_signed_out_elsewhere': ('Sign-out was requested in another tab. Your entries stay here. Sign in again before saving.', 'È stata richiesta l’uscita da un’altra scheda. I dati inseriti restano qui. Accedi di nuovo prima di salvare.'),
     'editor_protecting': ('Protecting edits…', 'Protezione delle modifiche…'),
     'editor_protected': ('Edits protected privately. Not approved for students.', 'Modifiche protette in privato. Non approvate per gli studenti.'),
     'editor_saved': ('Saved version loaded. Changes will be protected automatically.', 'Versione salvata caricata. Le modifiche saranno protette automaticamente.'),

@@ -33,8 +33,62 @@
     });
   });
 
+  // Bulk downloads always refer to the checkboxes in the currently displayed scope.
+  var selectionControls = document.querySelector('[data-selection-controls]');
+  if (selectionControls) {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('input[name="participant"][form="selected-export"]:not(:disabled)'));
+    var selectAll = selectionControls.querySelector('[data-select-all]');
+    var selectionCount = selectionControls.querySelector('[data-selection-count]');
+    function updateSelection() {
+      var count = rows.filter(function (row) { return row.checked; }).length;
+      selectionCount.textContent = String(count);
+      selectAll.checked = rows.length > 0 && count === rows.length;
+      selectAll.indeterminate = count > 0 && count < rows.length;
+      selectAll.disabled = !rows.length;
+    }
+    selectAll.addEventListener('change', function () {
+      rows.forEach(function (row) { row.checked = selectAll.checked; });
+      updateSelection();
+    });
+    rows.forEach(function (row) { row.addEventListener('change', updateSelection); });
+    window.addEventListener('pageshow', updateSelection);
+    updateSelection();
+    selectionControls.hidden = false;
+  }
+
+  var jump = document.querySelector('[data-participant-jump]');
+  if (jump) {
+    var jumpInput = jump.querySelector('input');
+    var jumpResult = jump.querySelector('[data-jump-result]');
+    var lastJump = '', jumpIndex = -1;
+    function jumpToId() {
+      var value = jumpInput.value.trim();
+      var matches = Array.prototype.filter.call(document.querySelectorAll('.participant-link[data-participant-id]'), function (link) {
+        return link.getAttribute('data-participant-id') === value;
+      }).map(function (link) { return link.closest('tr'); });
+      document.querySelectorAll('.participant-jump-target').forEach(function (row) { row.classList.remove('participant-jump-target'); });
+      if (!value || !matches.length) {
+        jumpResult.textContent = jump.getAttribute('data-missing');
+        jumpInput.focus();
+        return;
+      }
+      jumpIndex = value === lastJump ? (jumpIndex + 1) % matches.length : 0;
+      lastJump = value;
+      var row = matches[jumpIndex];
+      row.classList.add('participant-jump-target');
+      row.querySelector('.participant-link').focus({ preventScroll: true });
+      row.scrollIntoView({ block: 'center' });
+      jumpResult.textContent = jump.getAttribute('data-participant-label') + ' ' + value + ' · ' + (jumpIndex + 1) + ' / ' + matches.length;
+    }
+    jump.querySelector('button').addEventListener('click', jumpToId);
+    jumpInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); jumpToId(); }
+    });
+    jump.hidden = false;
+  }
+
   var forms = Array.prototype.slice.call(document.querySelectorAll('form[data-guard]'));
-  if (!body || !forms.length) { return; }
+  if (!body) { return; }
 
   var messages = {};
   try { messages = JSON.parse(body.getAttribute('data-editor-messages') || '{}'); } catch (error) { messages = {}; }
@@ -43,6 +97,7 @@
   var recoveryUrl = body.getAttribute('data-editor-recovery-url') || '';
   var sessionUrl = body.getAttribute('data-editor-session-url') || '';
   var loginUrl = body.getAttribute('data-editor-login-url') || '';
+  var logoutCheckUrl = body.getAttribute('data-editor-logout-check-url') || '';
   var AUTOSAVE_DELAY = 1200;
   var FLUSH_ATTEMPTS = 4;
   var submitting = false;
@@ -111,6 +166,8 @@
     this.ready = false;
     this.started = null;
     this.discarding = false;
+    this.epoch = 0;
+    this.needsRebind = false;
     this.statusNode = form.querySelector('[data-editor-status]');
     this.sequenceInput = form.querySelector('input[name="recovery_sequence"]');
   }
@@ -217,18 +274,20 @@
    */
   Recovery.prototype.save = function (retried) {
     var self = this;
-    if (this.discarding) { return Promise.resolve(false); }
+    if (this.discarding || this.needsRebind) { return Promise.resolve(false); }
     if (this.inflight) { return this.inflight; }
     if (this.isProtected()) {
       if (this.state === 'expired' || this.state === 'failed') { this.status('protected'); }
       return Promise.resolve(true);
     }
     var snapshot = serialize(this.form);
+    var epoch = this.epoch;
     var sent = this.fields();
     this.status('protecting');
     var pending = this.request('POST', {
       action: 'save', sequence: String(this.sequence), fields: JSON.stringify(sent)
     }).then(function (result) {
+      if (self.epoch !== epoch) { return false; }
       if (result.status === 200 && result.payload.recovery) {
         setCsrf(result.payload.csrf);
         return self.stored(result.payload.recovery.sequence, snapshot);
@@ -243,7 +302,7 @@
           return self.save(true);
         });
       }
-      self.status('failed');
+      if (self.epoch === epoch) { self.status('failed'); }
       return false;
     });
     var operation = pending.then(function (stored) {
@@ -251,7 +310,7 @@
       return stored;
     }, function () {
       if (self.inflight === operation) { self.inflight = null; }
-      self.status('failed');
+      if (self.epoch === epoch) { self.status('failed'); }
       return false;
     });
     this.inflight = operation;
@@ -272,13 +331,15 @@
    */
   Recovery.prototype.reconcile = function (sent, snapshot) {
     var self = this;
+    var epoch = this.epoch;
     return this.request('GET').then(function (result) {
+      if (self.epoch !== epoch) { return false; }
       var record = result.status === 200 ? result.payload.recovery : null;
       if (record && sameFields(record.fields, sent)) { return self.stored(record.sequence, snapshot); }
       self.status('conflict');
       return false;
     }, function () {
-      self.status('conflict');
+      if (self.epoch === epoch) { self.status('conflict'); }
       return false;
     });
   };
@@ -286,7 +347,7 @@
   Recovery.prototype.schedule = function () {
     var self = this;
     clearTimeout(this.timer);
-    if (this.discarding) { return; }
+    if (this.discarding || this.needsRebind) { return; }
     if (!this.ready) { return; }
     if (this.isProtected()) { this.status('protected'); return; }
     if (this.state !== 'expired' && this.state !== 'conflict') { this.status('dirty'); }
@@ -303,7 +364,7 @@
     var self = this;
     attempt = attempt || 0;
     clearTimeout(this.timer);
-    if (this.discarding) { return Promise.resolve(false); }
+    if (this.discarding || this.needsRebind) { return Promise.resolve(false); }
     if (this.isProtected()) { return Promise.resolve(true); }
     if (!this.ready) { return this.started.then(function () { return self.flush(attempt); }); }
     if (this.state === 'conflict' || attempt >= FLUSH_ATTEMPTS) { return Promise.resolve(false); }
@@ -314,11 +375,29 @@
 
   Recovery.prototype.retry = function () {
     var self = this;
+    var epoch = this.epoch;
     authCheck().then(function (status) {
+      if (self.epoch !== epoch) { return; }
       if (status === 401) { self.status('expired'); return; }
       if (status !== 200) { self.status('failed'); return; }
-      self.save();
-    }, function () { self.status('failed'); });
+      if (!self.needsRebind) { self.save(); return; }
+      if (self.blockedCsrf === csrfValue()) { self.status('expired'); return; }
+      // A confirmed sign-out removes the owner cookie and its copies. Adopt a
+      // fresh empty scope only after signing in; never replace another tab's text.
+      Promise.resolve(self.inflight).then(function () { return self.request('GET'); }).then(function (result) {
+        if (self.epoch !== epoch) { return; }
+        if (result.status !== 200) { self.status(result.status === 401 ? 'expired' : 'failed'); return; }
+        var record = result.payload.recovery;
+        if (record && record.fields && !sameFields(record.fields, self.fields())) {
+          self.status('conflict');
+          return;
+        }
+        self.setSequence(record ? record.sequence : 0);
+        self.needsRebind = false;
+        self.protectedState = null;
+        self.save();
+      }).catch(function () { if (self.epoch === epoch) { self.status('failed'); } });
+    }, function () { if (self.epoch === epoch) { self.status('failed'); } });
   };
 
   Recovery.prototype.discard = function () {
@@ -391,8 +470,10 @@
     var unsavedPage = this.form.hasAttribute('data-unsaved');
     var rendered = serialize(this.form);
     var renderedFields = this.fields();
+    var epoch = this.epoch;
     this.started = this.request('GET').then(function (result) {
       self.ready = true;
+      if (self.epoch !== epoch) { return; }
       if (result.status === 401) { self.status('expired'); return; }
       if (result.status !== 200) { self.status('failed'); return; }
       setCsrf(result.payload.csrf);
@@ -506,7 +587,10 @@
     guard.dirty = function () { return serialize(form) !== guard.initial || form.hasAttribute('data-unsaved'); };
     guard.safe = function () { return !guard.dirty() || (guard.recovery && guard.recovery.isProtected()); };
 
-    function changed() { if (guard.recovery) { guard.recovery.schedule(); } }
+    function changed() {
+      if (guard.recovery) { guard.recovery.schedule(); }
+      publishTab();
+    }
     form.addEventListener('input', changed);
     form.addEventListener('change', changed);
 
@@ -557,6 +641,159 @@
   function unsafeGuards() {
     return guards.filter(function (guard) { return !guard.safe(); });
   }
+
+  // Cross-tab notices contain flags only, never questions, IDs, tokens or URLs.
+  // Stored flags also cover a suspended tab that cannot answer a live query.
+  var tabId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  var tabPrefix = 'sol-research-unsaved:';
+  var tabKey = tabPrefix + tabId;
+  var channel = null;
+  var tabRequests = {};
+  try { if (window.BroadcastChannel) { channel = new BroadcastChannel('sol-research-editor'); } } catch (error) { /* storage fallback */ }
+
+  function announce(message) {
+    message.sender = tabId;
+    if (channel) { channel.postMessage(message); return; }
+    try {
+      localStorage.setItem('sol-research-tab-message', JSON.stringify(message));
+      localStorage.removeItem('sol-research-tab-message');
+    } catch (error) { /* Logout also checks server copies. */ }
+  }
+
+  function dirtyTab() { return guards.some(function (guard) { return guard.dirty(); }); }
+
+  function publishTab() {
+    try {
+      if (dirtyTab()) { localStorage.setItem(tabKey, String(Date.now())); }
+      else { localStorage.removeItem(tabKey); }
+    } catch (error) { /* Live queries and server copies remain available. */ }
+  }
+
+  function storedOtherEdits() {
+    try {
+      return Object.keys(localStorage).some(function (key) {
+        if (key === tabKey || key.indexOf(tabPrefix) !== 0) { return false; }
+        var updated = Number(localStorage.getItem(key));
+        if (Date.now() - updated > 8 * 60 * 60 * 1000) { localStorage.removeItem(key); return false; }
+        return updated > 0;
+      });
+    } catch (error) { return false; }
+  }
+
+  function receive(message) {
+    if (!message || message.sender === tabId) { return; }
+    if (message.type === 'query') {
+      announce({ type: 'answer', nonce: message.nonce, dirty: dirtyTab() });
+    } else if (message.type === 'answer' && message.dirty && tabRequests[message.nonce]) {
+      tabRequests[message.nonce].dirty = true;
+    } else if (message.type === 'logout') {
+      guards.forEach(function (guard) {
+        if (guard.recovery) {
+          var recovery = guard.recovery;
+          clearTimeout(recovery.timer);
+          recovery.epoch += 1;
+          recovery.needsRebind = true;
+          recovery.blockedCsrf = csrfValue();
+          recovery.protectedState = null;
+          recovery.status('expired');
+        } else if (guard.dirty()) {
+          formNotice(guard.form, null, 'editor_signed_out_elsewhere', true);
+        }
+      });
+    }
+  }
+  if (channel) { channel.onmessage = function (event) { receive(event.data); }; }
+  window.addEventListener('storage', function (event) {
+    if (event.key !== 'sol-research-tab-message' || !event.newValue) { return; }
+    try { receive(JSON.parse(event.newValue)); } catch (error) { /* Ignore malformed flags. */ }
+  });
+  window.addEventListener('pagehide', function (event) {
+    if (event.persisted) { publishTab(); return; }
+    try { localStorage.removeItem(tabKey); } catch (error) { /* unavailable */ }
+  });
+  window.addEventListener('pageshow', publishTab);
+  document.addEventListener('visibilitychange', publishTab);
+  setInterval(publishTab, 30000);
+  publishTab();
+  guards.forEach(function (guard) { if (guard.recovery) { guard.recovery.started.then(publishTab); } });
+
+  function checkOtherTabs() {
+    var nonce = tabId + ':' + Date.now();
+    var result = { dirty: storedOtherEdits() };
+    tabRequests[nonce] = result;
+    announce({ type: 'query', nonce: nonce });
+    return new Promise(function (resolve) {
+      setTimeout(function () { delete tabRequests[nonce]; resolve(result.dirty); }, 200);
+    });
+  }
+
+  function logoutCheck() {
+    if (!canFetch || !logoutCheckUrl) { return Promise.resolve({ checked: false }); }
+    var timer;
+    var check = fetch(logoutCheckUrl, { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } })
+      .then(function (response) {
+        return response.json().then(function (payload) {
+          setCsrf(payload.csrf);
+          return { checked: response.status === 200, hasRecovery: payload.has_recovery };
+        });
+      }).catch(function () { return { checked: false }; });
+    return Promise.race([check, new Promise(function (resolve) {
+      timer = setTimeout(function () { resolve({ checked: false }); }, 4000);
+    })]).then(function (result) { clearTimeout(timer); return result; });
+  }
+
+  // A normal submission leaves sibling forms behind. Logout additionally checks
+  // every tab and durable copy before its existing revocation endpoint is called.
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (form.hasAttribute('data-clears-editor-recovery')) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (form.hasAttribute('data-logout-pending')) { return; }
+      form.setAttribute('data-logout-pending', '');
+      var submitter = event.submitter;
+      Promise.all([checkOtherTabs(), logoutCheck()]).then(function (results) {
+        form.removeAttribute('data-logout-pending');
+        var copies = results[1];
+        var warning = !copies.checked ? 'editor_logout_check_failed' :
+          dirtyTab() || results[0] || copies.hasRecovery ? 'editor_logout_confirm' : null;
+        if (warning && !window.confirm(text(warning))) { return; }
+        if (!canFetch) { submitNatively(form, submitter); return; }
+        var data = new URLSearchParams(new FormData(form));
+        form.setAttribute('data-logout-pending', '');
+        fetch(form.action, { method: 'POST', credentials: 'same-origin', body: data,
+          headers: { 'Accept': 'application/json' } }).then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (payload) {
+            form.removeAttribute('data-logout-pending');
+            if ((response.status === 200 && payload.logged_out) || response.status === 401) {
+              // Notify only after revocation; an earlier notification can race a retry.
+              announce({ type: 'logout' });
+              submitting = true;
+              window.location.href = payload.login_url || loginUrl;
+            } else { formNotice(form, submitter, 'editor_submit_failed', false); }
+          });
+        }).catch(function () {
+          form.removeAttribute('data-logout-pending');
+          // Delivery is uncertain. Other tabs must not claim their copies survived.
+          announce({ type: 'logout' });
+          receive({ type: 'logout', sender: 'logout-local' });
+          formNotice(form, submitter, 'editor_submit_failed', false);
+        });
+      });
+      return;
+    }
+    var otherEdits = guards.some(function (guard) {
+      return guard.form !== form && !guard.safe();
+    });
+    if (!otherEdits) { return; }
+    if (!window.confirm(text('editor_leave_unsaved'))) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    } else if (!form.hasAttribute('data-guard')) {
+      // The user already confirmed this ordinary form navigation.
+      submitting = true;
+    }
+  }, true);
 
   window.addEventListener('beforeunload', function (event) {
     if (submitting || !unsafeGuards().length) { return; }
