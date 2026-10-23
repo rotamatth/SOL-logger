@@ -28,7 +28,7 @@ VISIBLE_ERRORS = frozenset((
     "invalid_ranges", "overlapping_ranges", "invalid_task_assignment", "invalid_sessions", "invalid_date",
     "invalid_session_name", "overlapping_dates", "settings_changed", "session_limit", "invalid_school_year",
     "school_year_required", "session_year_mismatch", "participant_inactive", "range_editor_retired",
-    "invalid_historical_grade", "overlapping_historical_grades", "session_has_records",
+    "invalid_historical_grade", "overlapping_historical_grades", "session_has_records", "session_year_has_records",
     "session_usage_unavailable", "session_removal_confirmation"))
 
 
@@ -234,6 +234,17 @@ def _session_page(settings, grade, year, session_id):
                  if item["id"] == session_id), 1)
 
 
+def session_review_url(dash, settings, study_session, fallback_year=None):
+    """Session administration opened at a session's saved state: its year and page, or the restore panel."""
+    year = study_session.get("school_year") or fallback_year
+    removed = bool(study_session.get("removed"))
+    page = _session_page(settings, study_session["grade"], year, study_session["id"])
+    return dash.u("settings_page", section="sessions", grade=study_session["grade"], year=year,
+                  page=page if page > 1 else None, edit=None if removed else study_session["id"],
+                  removed="1" if removed else None,
+                  _anchor="removed-sessions" if removed else study_session["id"])
+
+
 def register_settings_routes(dash):
     app, bp, state = dash.app, dash.bp, dash.state
 
@@ -390,14 +401,7 @@ def register_settings_routes(dash):
                             else None)
         saved_session_url = None
         if submitted and form.error == "settings_changed":
-            saved_year = submitted.get("school_year") or form.year
-            saved_page = _session_page(current, form.grade, saved_year, submitted["id"])
-            saved_session_url = dash.u(
-                "settings_page", section="sessions", grade=form.grade, year=saved_year,
-                page=saved_page if saved_page > 1 else None,
-                edit=submitted["id"] if not submitted.get("removed") else None,
-                removed="1" if submitted.get("removed") else None,
-                _anchor="removed-sessions" if submitted.get("removed") else submitted["id"])
+            saved_session_url = session_review_url(dash, current, submitted, form.year)
         numbers = {grade: [s["number"] for s in current["sessions"] if s["grade"] == grade] for grade in GRADES}
         return {"history_page_count": page_count, "history_total": len(active), "history_sessions": shown,
                 "removed_sessions": removed, "rejected_session": rejected_session,
@@ -420,8 +424,16 @@ def register_settings_routes(dash):
         error = form.error
         submitted_revision = request.form.get("revision", current["revision"])
         history = session_history(form)
+
+        def revision_for(action, session_id=None):
+            # Only the rejected form keeps its old revision, so saving it again cannot
+            # overwrite the other change. The page's other forms show current values.
+            rejected = (error == "settings_changed" and form.action == action
+                        and (session_id is None or request.form.get("session_id") == session_id))
+            return submitted_revision if rejected else current["revision"]
+
         return dash.page(
-            "settings", settings=current, error=error,
+            "settings", settings=current, error=error, revision_for=revision_for,
             form_revision=submitted_revision if error == "settings_changed" else current["revision"],
             active_section=form.section,
             school_year_value=(request.form.get("current_school_year", current["current_school_year"])

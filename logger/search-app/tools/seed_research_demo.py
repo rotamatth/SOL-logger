@@ -37,7 +37,7 @@ def demo_files(settings, today):
         ids = [uid for uid, value in roster(settings).items() if value == grade][:6]
         session = next((s for s in settings["sessions"] if s["grade"] == grade and s["number"] == 1), None)
         study_date = date.fromisoformat(session["date"]) if session and session["date"] else today
-        year_start = study_date.year if study_date.month >= 8 else study_date.year - 1
+        year_start = study_date.year if study_date.month >= 9 else study_date.year - 1  # September–August
         school_year = settings.get("current_school_year") or f"{year_start}/{year_start + 1}"
         examples = [(uid, *SCENARIOS[n], n) for n, uid in enumerate(ids)]
         if ids:

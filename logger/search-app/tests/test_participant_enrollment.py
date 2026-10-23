@@ -95,7 +95,7 @@ def test_stale_range_form_keeps_values_and_requires_reload_before_resubmitting(a
         participant_section = response.text.split('id="participant-ids"', 1)[1]
         assert 'name="4_end" value="19"' in participant_section
         assert f'name="revision" value="{fields["revision"]}"' in participant_section
-        assert "Another researcher updated the settings" in participant_section
+        assert "changed in another tab or by another researcher" in participant_section
         assert state.settings() == latest
 
 

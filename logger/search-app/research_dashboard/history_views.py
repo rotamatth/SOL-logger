@@ -109,7 +109,9 @@ def register_history_routes(dash):
             abort(404)
         person["runs"] = [run for run in person["runs"] if (not grade_filter or run["grade"] == grade_filter)
                           and (not year_filter or run["school_year"] == year_filter)]
-        if year_filter and not person["runs"]:
+        enrolled_in_year = (year_filter and collection in ("v2", "study")
+                            and person["id"] in settings["enrollments"].get(year_filter, {}))
+        if year_filter and not person["runs"] and not enrolled_in_year:
             abort(404)
         groups = []
         if collection in ("v2", "legacy", "study"):

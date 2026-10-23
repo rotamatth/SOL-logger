@@ -14,11 +14,13 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from .editor_views import recovery_key
 from .question_versions import (discard_question_draft, publish_questions, published_questions, question_draft,
                                 remove_individual_questions, save_question_draft, working_questions)
+from .settings_views import session_review_url
 from .state import SETTING_FIELDS, roster
 from .study_config import question_choices, question_library, session_readiness
 
 SAVE_ACTIONS = ("save_questions", "save_draft", "save_draft_return", "approve_questions")
-VISIBLE_ERRORS = {"settings_changed", "questions_incomplete", "questions_unapproved"}
+VISIBLE_ERRORS = {"settings_changed", "questions_incomplete", "questions_unapproved",
+                  "question_session_removed", "question_participant_moved", "duplicate_question_id"}
 
 
 class LibraryChoices:
@@ -74,12 +76,6 @@ def edited_questions(draft, form, action, choices):
 def register_question_routes(dash):
     bp, state = dash.bp, dash.state
 
-    def editable_session(settings, session_id):
-        study_session = next((s for s in settings["sessions"] if s["id"] == session_id), None)
-        if study_session is None or study_session.get("removed"):
-            abort(404)
-        return study_session
-
     def save(settings, revision, session_id, change):
         """Apply ``change`` to a copy of the session and persist it at ``revision``."""
         updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
@@ -89,12 +85,23 @@ def register_question_routes(dash):
     @bp.route("/settings/questions/<session_id>", methods=["GET", "POST"])
     def session_questions(session_id):
         settings = state.settings()
-        study_session = editable_session(settings, session_id)
+        study_session = next((s for s in settings["sessions"] if s["id"] == session_id), None)
+        if study_session is None:
+            abort(404)
         from_preparation = bool(request.args.get("prepare_session"))
         if from_preparation and request.args["prepare_session"] != session_id:
             abort(404)
         uid = request.args.get("participant", "")
-        if uid and roster(settings, study_session.get("school_year")).get(uid) != study_session["grade"]:
+        if uid and uid not in settings["participant_registry"]:
+            abort(404)
+        # Removed elsewhere while the editor was open: a POST keeps the typed text
+        # on screen with an explanation; it never saves. A new GET is still 404.
+        unavailable = None
+        if study_session.get("removed"):
+            unavailable = "question_session_removed"
+        elif uid and roster(settings, study_session.get("school_year")).get(uid) != study_session["grade"]:
+            unavailable = "question_participant_moved"
+        if unavailable and request.method != "POST":
             abort(404)
         exceptions = study_session.get("participant_questions", {})
         published = published_questions(study_session, uid)
@@ -131,6 +138,8 @@ def register_question_routes(dash):
                 publish = action == "approve_questions" or (
                     action == "save_questions" and request.form.get("approved") == "1")
                 draft.update(questions=questions, theme=request.form.get("theme", "").strip(), approved=False)
+                if unavailable:
+                    raise ValueError(unavailable)
                 if revision != settings["revision"]:
                     raise ValueError("settings_changed")
                 if action == "load_set":
@@ -160,8 +169,13 @@ def register_question_routes(dash):
                     raise ValueError("invalid_question_set")
             except (ValueError, KeyError, BadSignature) as exc:
                 error = str(exc) if str(exc) in VISIBLE_ERRORS else "invalid_question_set"
+        review_url = None
+        if error == "question_session_removed":
+            review_url = session_review_url(dash, settings, study_session)
+        elif error == "question_participant_moved":
+            review_url = dash.u("enrollment_page", year=study_session.get("school_year") or None, q=uid)
         return dash.page("session_questions", settings=settings, study_session=study_session,
-                         from_preparation=from_preparation,
+                         from_preparation=from_preparation, review_url=review_url,
                          research_area="prepare" if from_preparation else "settings",
                          study_context=study_session,
                          participant=uid, draft=draft, has_exception=uid in exceptions,

@@ -284,6 +284,30 @@ def get_user_config(user_id):
     return user
 
 
+def untouched_run_for(user_id):
+    """This browser already holds today's admitted run for the ID, and no task has been searched yet."""
+    if not user_id or session.get('user_id') != user_id or not session.get('session_id'):
+        return False
+    if session.get('tasks_started') or session.get('pieces_earned') or session.get('task_position', 0):
+        return False
+    if (session.get('study_session') or {}).get('date') != datetime.now(LOG_TIME_ZONE).date().isoformat():
+        return False
+    try:
+        return RESEARCH_STATE.attempt_metadata(session['session_id']) is not None
+    except (OSError, sqlite3.Error):
+        return False
+
+
+def note_student_activity():
+    """The 60-minute idle limit counts every page the participant opens, not only the search page.
+
+    Only call this from page navigations: background requests (autocomplete, frame
+    checks) run in parallel and must not write the session.
+    """
+    if session.get('user_id'):
+        session['last_active'] = datetime.now().isoformat()
+
+
 def optional_reward_asset(user_id, field, allow_video=False):
     """A question set can be collected without a puzzle or other reward media."""
     user = get_user_config(user_id)
@@ -394,39 +418,57 @@ def start_page():
     val_ids = sorted((uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']), key=participant_sort_key)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
-        assignment = scheduled_assignment(enrollment_settings, user_id)
-        if assignment is None:
-            return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                   start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
+        if untouched_run_for(user_id):
+            # Same ID submitted again before any task began (a double tap, a stale
+            # start page): continue that run instead of admitting a second, empty one.
+            return redirect(url_for('task'))
         previous_session = dict(session)
-        session.clear()
-        session['user_id'] = user_id
-        session['task_config'] = deepcopy(assignment['topics'])
-        session['question_set'] = deepcopy(assignment['question_set'])
-        session['study_session'] = {key: deepcopy(assignment['session'][key])
-                                    for key in ('id', 'name', 'date', 'theme', 'grade', 'number', 'school_year')
-                                    if key in assignment['session']}
-        session['assignment_source'] = assignment['source']
-        session['session_id'] = str(uuid.uuid4())
-        session['log_id'] = generate_log_id()
-        session['pieces_earned'] = []
-        session['tasks_started'] = []
-        session['reward_shown_logged'] = []
-        session['last_active'] = datetime.now().isoformat()
-        
-        assign_random_task_order(user_id)
+        for admission_try in range(3):
+            assignment = scheduled_assignment(enrollment_settings, user_id)
+            if assignment is None:
+                if admission_try:
+                    session.clear()
+                    session.update(previous_session)
+                return render_template('start.html', show_search=False, valid_ids=val_ids,
+                                       start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
+            session.clear()
+            session['user_id'] = user_id
+            session['task_config'] = deepcopy(assignment['topics'])
+            session['question_set'] = deepcopy(assignment['question_set'])
+            session['study_session'] = {key: deepcopy(assignment['session'][key])
+                                        for key in ('id', 'name', 'date', 'theme', 'grade', 'number', 'school_year')
+                                        if key in assignment['session']}
+            session['assignment_source'] = assignment['source']
+            session['session_id'] = str(uuid.uuid4())
+            session['log_id'] = generate_log_id()
+            session['pieces_earned'] = []
+            session['tasks_started'] = []
+            session['reward_shown_logged'] = []
+            session['last_active'] = datetime.now().isoformat()
 
-        try:
-            record_run(LOG_DIR, RESEARCH_STATE, user_id, session['session_id'],
-                       session['log_id'], session['task_order'], session['task_config'],
-                       settings=enrollment_settings,
-                       study_session=session['study_session'],
-                       question_set=session['question_set'],
-                       assignment_source=session['assignment_source'], admit=True)
-        except (OSError, ValueError, sqlite3.Error):
+            assign_random_task_order(user_id)
+
+            try:
+                record_run(LOG_DIR, RESEARCH_STATE, user_id, session['session_id'],
+                           session['log_id'], session['task_order'], session['task_config'],
+                           settings=enrollment_settings,
+                           study_session=session['study_session'],
+                           question_set=session['question_set'],
+                           assignment_source=session['assignment_source'], admit=True)
+            except ValueError as error:
+                if str(error) == 'settings_changed' and admission_try < 2:
+                    # A researcher saved settings during this request. Nothing was
+                    # admitted; check eligibility again against the saved version.
+                    enrollment_settings = RESEARCH_STATE.settings()
+                    continue
+                failure = error
+            except (OSError, sqlite3.Error) as error:
+                failure = error
+            else:
+                break
             # A committed attempt can republish its sidecar later. Without that
             # durable snapshot, do not admit a new attempt or discard an old one.
-            app.logger.error("Could not publish research run metadata", exc_info=True)
+            app.logger.error("Could not publish research run metadata", exc_info=failure)
             try:
                 durable = RESEARCH_STATE.attempt_metadata(session['session_id'])
             except (OSError, sqlite3.Error):
@@ -436,7 +478,8 @@ def start_page():
                 session.update(previous_session)
                 return render_template('start.html', show_search=False, valid_ids=val_ids,
                                        start_error="Impossibile avviare la sessione in sicurezza. Riprova o chiedi al ricercatore."), 503
-        
+            break
+
         return redirect(url_for('task'))
 
     if current_phase() != 'pre_id':
@@ -449,6 +492,7 @@ def task():
     phase = current_phase()
     if phase != 'task_intro':
         return redirect(phase_redirect_url(phase))
+    note_student_activity()
 
     user_id = session.get('user_id')
     task_number = session.get('task_number')
@@ -478,6 +522,7 @@ def result():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
+    note_student_activity()
 
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
     form = SearchForm()
@@ -640,6 +685,7 @@ def webpage():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
+    note_student_activity()
     url = request.args.get("url", "")
     query = request.args.get("query", "")
     page = request.args.get("page", "1")
@@ -770,6 +816,29 @@ def _append_log_registry(*, user_id, session_id, task_number, num_events,
         app.logger.exception("Could not append to the log registry")
 
 
+def _recovery_files(groups, recovered_from_user, files, recovered_incomplete):
+    """Add events of an unfinished experiment, grouped by (uid, sessionID), to INCOMPLETE logs."""
+    for (fuid, fsid), entries in groups.items():
+        fname = f"{_sanitize_for_filename(fuid)}_{_sanitize_for_filename(fsid)}_INCOMPLETE.log"
+        recovered_at = datetime.now(LOG_TIME_ZONE).isoformat(timespec='milliseconds')
+        recovery = [{**entry, "recovered": True, "recovered_from_user": recovered_from_user,
+                     "recovered_at": recovered_at} for entry in entries]
+        recovery.append({"type": "incompleteExperiment", "uid": fuid, "sessionID": fsid,
+                         "recovered_from_user": recovered_from_user, "recovered_at": recovered_at})
+        files[fname] = files.get(fname, '') + ''.join(json.dumps(entry) + '\n' for entry in recovery)
+        recovered_incomplete[fuid] = recovered_incomplete.get(fuid, 0) + len(entries)
+
+
+def _prepare_other_session_upload(logs, batch_session_id, user_id):
+    """Plan recovery files for a batch saved by a page of an earlier session in this browser."""
+    groups = {}
+    for entry in logs:
+        groups.setdefault((entry.get('uid') or 'unknown', entry.get('sessionID') or batch_session_id), []).append(entry)
+    files, recovered_incomplete = {}, {}
+    _recovery_files(groups, user_id, files, recovered_incomplete)
+    return files, {"status": "logged", "saved_events": 0, "recovered_incomplete": recovered_incomplete}
+
+
 def _prepare_upload(logs, user_id, server_session_id, log_id, task_number, task_order, task_position):
     """Plan all original-format files before committing the upload receipt."""
     files = {}
@@ -781,15 +850,7 @@ def _prepare_upload(logs, user_id, server_session_id, log_id, task_number, task_
             foreign_groups.setdefault((euid, entry.get('sessionID') or 'nosession'), []).append(entry)
         else:
             own_logs.append(entry)
-    for (fuid, fsid), entries in foreign_groups.items():
-        fname = f"{_sanitize_for_filename(fuid)}_{_sanitize_for_filename(fsid)}_INCOMPLETE.log"
-        recovered_at = datetime.now(LOG_TIME_ZONE).isoformat(timespec='milliseconds')
-        recovery = [{**entry, "recovered": True, "recovered_from_user": user_id,
-                     "recovered_at": recovered_at} for entry in entries]
-        recovery.append({"type": "incompleteExperiment", "uid": fuid, "sessionID": fsid,
-                         "recovered_from_user": user_id, "recovered_at": recovered_at})
-        files[fname] = files.get(fname, '') + ''.join(json.dumps(entry) + '\n' for entry in recovery)
-        recovered_incomplete[fuid] = recovered_incomplete.get(fuid, 0) + len(entries)
+    _recovery_files(foreign_groups, user_id, files, recovered_incomplete)
 
     visible_task_number = task_position + 1
     actual_topic_number = task_number
@@ -817,6 +878,29 @@ def _prepare_upload(logs, user_id, server_session_id, log_id, task_number, task_
     }
 
 
+def _accept_other_session_batch(data, batch_session_id, logs, user_id):
+    """Keep a batch saved under an earlier session of this browser as recovered data.
+
+    Rejecting it would leave the browser retrying it forever, unable to send any
+    newer events. It is stored like events of a previous, unfinished participant.
+    """
+    try:
+        receipt = LOG_STORE.accept(batch_session_id, data.get('batch_id'),
+                                   {"session_id": batch_session_id, "logs": logs},
+                                   lambda: _prepare_other_session_upload(logs, batch_session_id, user_id))
+    except UploadConflict:
+        return jsonify(error="Upload identifier already used for different data"), 409
+    except (ValueError, TypeError):
+        return jsonify(error="Invalid upload"), 400
+    except (OSError, sqlite3.Error):
+        app.logger.exception("Upload not acknowledged; pending bytes retained for recovery")
+        return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
+    _append_log_registry(user_id=user_id, session_id=batch_session_id, task_number=None,
+                         num_events=len(logs), saved_log_filename=None, status="incomplete",
+                         error="batch-from-other-session")
+    return jsonify(receipt), 200
+
+
 @app.route('/log_session', methods=['POST'])
 def log_session():
     data = request.get_json(force=False, silent=True)
@@ -829,13 +913,13 @@ def log_session():
     server_session_id = session.get('session_id')
     if not (user_id and task_number and isinstance(session_id, str) and isinstance(logs, list) and logs):
         return jsonify(error="Missing user_id, task_number, session_id or logs"), 400
-    if session_id != server_session_id:
-        return jsonify({"error": "Session mismatch"}), 409
     if any(not isinstance(entry, dict) or not isinstance(entry.get('type'), str)
            or entry.get('uid') is not None and not isinstance(entry['uid'], str)
            or entry.get('sessionID') is not None and not isinstance(entry['sessionID'], str)
            for entry in logs):
         return jsonify(error="Invalid log event"), 400
+    if session_id != server_session_id:
+        return _accept_other_session_batch(data, session_id, logs, user_id)
     warn_logging_contract_issues(logs, task_number)
     log_id = session.get('log_id')
     if not log_id:
@@ -919,6 +1003,7 @@ def end_task():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
+    note_student_activity()
     task_number = session.get('task_number')
 
     # Record the earned puzzle piece for the current task
@@ -934,7 +1019,8 @@ def next_task():
     phase = current_phase()
     if phase != 'reward':
         return redirect(phase_redirect_url(phase))
-    
+    note_student_activity()
+
     has_next_task = advance_to_next_random_task()
     
     session.pop("search_results", None)
@@ -957,6 +1043,7 @@ def reward():
     phase = current_phase()
     if phase not in ('reward', 'completed'):
         return redirect(phase_redirect_url(phase))
+    note_student_activity()
     user_id = session.get('user_id')
     task_number = session.get('task_number')
     pieces = session.get('pieces_earned', [])

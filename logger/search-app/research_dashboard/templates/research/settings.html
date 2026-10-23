@@ -14,7 +14,7 @@
   <section class="panel settings-card settings-year-card" id="school-year" {% if active_section != 'year' %}hidden{% endif %}>
     <div class="settings-section-heading"><h2>{{ t('current_school_year') }}</h2><p class="muted">{{ t('school_year_explanation') }}</p></div>
     <form method="post" data-guard {% if error and request.form.get('action') == 'save_year' %}data-unsaved{% endif %} action="{{ u('settings_page', section='year', grade=history_grade, year=history_year) }}">
-      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="save_year">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('save_year') }}"><input type="hidden" name="action" value="save_year">
       {{ school_year_input('current-school-year', 'current_school_year', school_year_value, school_years, required=false) }}
       <button class="primary" type="submit">{{ t('save_school_year') }}</button>
     </form>

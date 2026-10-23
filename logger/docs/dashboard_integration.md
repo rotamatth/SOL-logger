@@ -179,7 +179,8 @@ versioned migration. Associate multiple technical runs with the same attempt.
 Preserve existing technical IDs and log formats. Implement the uniqueness rule
 for one active attempt per participant/session in SQL, with transactional
 start/resume/submit transitions; the current foundation deliberately does **not**
-enforce that unfinished #6 policy. Starting again currently creates another run.
+enforce that unfinished #6 policy. Starting again after a task has been searched
+creates another run; a repeated start before that continues the untouched run.
 
 Store first-answer, final-answer and recap drafts separately from submissions;
 retain a progress revision for compare-and-swap writes. Retired/submitted attempts

@@ -203,6 +203,11 @@ access either: every student page and script is same-origin.
   retry publication. If durable admission fails, START fails visibly and preserves
   any existing student attempt. Historical questions and versions remain unknown
   when the original records do not contain them.
+- An upload batch saved by a page of an earlier session in the same browser (for
+  example another tab started a new run) is not rejected: it is acknowledged and
+  stored like events of a previous, unfinished participant, in
+  `<uid>_<session>_INCOMPLETE.log` with an `incompleteExperiment` marker. A rejection
+  would leave the browser retrying that batch forever and unable to send new events.
 - A task is **Completed** when its canonical logs contain a `TaskEnded` event with a
   string-valued answer. An explicitly empty string is a submitted empty answer;
   an absent field or null/non-text value is not treated as a valid recorded answer.
@@ -252,7 +257,15 @@ Old `q` and `status` URL/form parameters are ignored, so old links cannot hide r
 Each participant row shows **Logs available** or **No saved data**, with the
 completion ratio for any saved runs. Metadata without original log files is
 labelled **Record without log files**. No saved data does not prove the student
-has not started: the dashboard shows saved submissions. **Visualize logs** opens
+has not started: the dashboard shows saved submissions. A school-year (or
+year-and-session) view lists every child enrolled in that grade and year, so absent
+children appear with **No saved data**, plus anyone with runs recorded in it.
+
+A run that saved no log files (a double tap on Start, a wrong ID chosen first, a
+device that failed before the first task ended) is listed and exported, but it
+does not decide the participant's status or completion ratio. The row and the
+participant page show it separately as **Started without saved data**. A run with
+partial data still counts as incomplete. **Visualize logs** opens
 the participant's saved runs and their details. Log management remains in the
 row's **More actions** disclosure.
 
@@ -351,7 +364,12 @@ The review identifies IDs gaining or losing a complete assignment for the select
 session. The participant list shows exact IDs, assigned questions and any missing
 date, incomplete questions or pending approval. A 3rd-grade roster is optional.
 Student login lists roster IDs; the server checks the current Zurich date and that
-participant's approved session assignment before creating a run. Configuration is
+participant's approved session assignment before creating a run. The start button
+is disabled after the first tap, and submitting the same ID again before any task
+was searched continues that run instead of creating a second one. A researcher save
+at the same moment as a start is retried against the saved version rather than
+refusing the child. Line breaks typed in a question are shown to children, in the
+search-page reminder and in the researcher's student preview. Configuration is
 shared across workers without an app restart. Started runs keep their questions,
 metadata and order if settings later change.
 Removing IDs from the current roster does not delete their collected logs.
@@ -359,7 +377,14 @@ Each save changes only its named setting, so editing a session does not change
 the year or participant ranges.
 Validation errors keep the relevant editor and entered values visible. Concurrent
 edit conflicts also retain the submitted revision until **Reload saved settings**,
-so retrying cannot silently overwrite another researcher's change.
+so retrying cannot silently overwrite another researcher's change. Every save
+advances one shared settings version, so a save in another tab of the same browser
+also causes this conflict; the message names both possibilities. Only the rejected
+form keeps the old version: the page's other forms show the saved values and can
+be used immediately. If a session is removed or moved to another class or school
+year while its preparation details, questions or IDs are being edited, the save is
+refused with the typed entries kept on screen and a link that opens the saved
+session in a new tab; it never answers with a "not found" page.
 Numbers and session IDs stay stable. Missing date fields in a settings submission
 do not clear other sessions. Dates must be unique within a grade; different grades may
 use the same date. Adding sessions and updating dates retain prior settings

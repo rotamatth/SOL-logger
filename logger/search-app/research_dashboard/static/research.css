@@ -2400,7 +2400,7 @@ select {
 .preparation-add select { display:block; max-width:100%; margin:8px 0 12px }
 .preparation-add label { margin-top:12px }
 .preparation-question-list { padding-left:22px; margin:12px 0 20px }
-.preparation-question-list li { padding:4px 0; overflow-wrap:anywhere }
+.preparation-question-list li { padding:4px 0; overflow-wrap:anywhere; white-space:pre-line }
 .preparation-readiness { margin-top:20px }
 .preparation-readiness .table-wrap { overflow-x:auto }
 .preparation-readiness table { width:100% }
@@ -2472,6 +2472,9 @@ select {
 @media (pointer: coarse) {
   .dashboard-selection-controls label { min-height:44px }
   .site-header nav a, .languages a { display:inline-flex; align-items:center; min-height:44px }
+  /* One- or two-character labels (EN, IT, participant ID "1") also need tap width. */
+  .languages a { justify-content:center; min-width:44px }
+  .participant-register td:first-child a, .participant-link { display:inline-flex; align-items:center; min-width:44px }
   /* Vertical padding enlarges the tap area of a link without changing the line height. */
   main a:not(.button), main .participant-question-table td:last-child a { padding-block:12px }
   :root { --control-height:44px }

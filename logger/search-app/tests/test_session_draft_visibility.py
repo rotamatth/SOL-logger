@@ -192,7 +192,7 @@ def test_explicit_draft_save_rejects_stale_revision_and_retains_typed_values(app
     latest = worker.settings()
     response = client.post(URL, data=fields)
     assert response.status_code == 400
-    assert "Another researcher updated the settings" in response.text
+    assert "changed in another tab or by another researcher" in response.text
     returned = EditorFields(response).fields
     assert returned["theme"] == "Unsaved stale draft"
     assert returned["question_0"] == "Do not lose this text?"

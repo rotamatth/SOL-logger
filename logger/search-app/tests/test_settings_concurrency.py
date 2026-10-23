@@ -67,7 +67,7 @@ def test_stale_edit_keeps_fields_and_can_be_reapplied_after_review(app, change):
     assert "data-unsaved" in attrs
     assert {key: retained[key] for key in ("name", "date", "school_year", "revision")} == {
         key: fields[key] for key in ("name", "date", "school_year", "revision")}
-    assert "Another researcher updated the settings" in rejected.text
+    assert "changed in another tab or by another researcher" in rejected.text
     assert state.settings() == latest
     assert client.get(URL).status_code == 404  # Invalid GET pages still fail.
     assert client.post(attrs["action"], data=retained).status_code == 400

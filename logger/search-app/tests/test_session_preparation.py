@@ -164,7 +164,7 @@ def test_preparation_requires_csrf_and_preserves_stale_input(app):
     state.save_settings(changed,changed['revision'])
     saved = state.settings()
     result = client.post(PREP,data=fields)
-    assert result.status_code == 400 and 'Keep my draft' in result.text and 'Another researcher' in result.text
+    assert result.status_code == 400 and 'Keep my draft' in result.text and 'another tab or by another researcher' in result.text
     assert state.settings() == saved
 
 

@@ -278,7 +278,7 @@ def test_promotion_and_deactivation_do_not_change_started_attempt(student_module
     assert state.attempt_metadata(sid) == before
     settings = state.settings()
     next(s for s in settings['sessions'] if s['id'] == before['study_session_at_collection'])['school_year'] = ''
-    with pytest.raises(ValueError, match='session_has_records'):
+    with pytest.raises(ValueError, match='session_year_has_records'):
         state.save_settings(settings, settings['revision'])
 
 
@@ -291,7 +291,7 @@ def test_stale_confirmation_keeps_review_visible_without_a_save_button(app):
     change(state, 'update', uid='1', year='2026/2027', grade='4', active=False)
     failed = confirm(client, url, preview)
     assert failed.status_code == 400 and 'NEW-41' in failed.text
-    assert 'Another researcher' in failed.text
+    assert 'another tab or by another researcher' in failed.text
     assert '>Confirm these changes</button>' not in failed.text
     assert 'NEW-41' not in state.settings()['participant_registry']
 

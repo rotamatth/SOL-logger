@@ -4,7 +4,7 @@ import json
 
 from flask import g
 
-from .participants import GRADES
+from .participants import GRADES, participant_sort_key
 from .state import DEFAULT_STUDY_ID, identity, roster
 
 SESSION_LABEL_FIELDS = ("id", "grade", "number", "name", "date", "theme", "school_year")
@@ -37,11 +37,6 @@ def collection_runs(state, summaries, collection):
                     run["collection"] == "v2" or run["grade"] in GRADES or run.get("study_participant_id")))]
 
 
-def _participant_sort_key(person):
-    uid = person["id"]
-    return (not uid.isdecimal(), int(uid) if uid.isdecimal() else uid, uid)
-
-
 def collect_participants(state, settings, summaries, collection):
     """One entry per participant identity with their runs and known grades."""
     people = {}
@@ -69,7 +64,7 @@ def collect_participants(state, settings, summaries, collection):
         if run["grade"]:
             person["grades"].add(run["grade"])
         person["runs"].append(run)
-    return sorted(people.values(), key=_participant_sort_key)
+    return sorted(people.values(), key=lambda person: participant_sort_key(person["id"]))
 
 
 def scoped_people(state, settings, summaries, collection, grade, selected_year=None, selected_session=None):
@@ -84,15 +79,27 @@ def scoped_people(state, settings, summaries, collection, grade, selected_year=N
                              and (not selected_year or r["school_year"] == selected_year)
                              and (not selected_session or r["study_session"]
                                   and r["study_session"]["id"] == selected_session["id"])]
-        p["has_downloadable_logs"] = any(r.get("log_file_count", r["event_count"]) for r in p["visible_runs"])
+        p["has_downloadable_logs"] = any(has_logs(r) for r in p["visible_runs"])
+        # A run without saved log files (a double tap on Start, a wrong ID chosen
+        # first) is still listed and exported, but does not decide the status.
+        p["status_runs"] = [r for r in p["visible_runs"] if has_logs(r)]
+        p["empty_run_count"] = len(p["visible_runs"]) - len(p["status_runs"])
         p["dashboard_status"] = (
-            "no_data" if not p["visible_runs"] else
-            "completed" if all(run["status"] == "completed" for run in p["visible_runs"]) else "incomplete")
+            "no_data" if not p["status_runs"] else
+            "completed" if all(run["status"] == "completed" for run in p["status_runs"]) else "incomplete")
         p["recorded_grades"] = sorted({run["grade"] for run in p["visible_runs"] if run["grade"]})
         p["school_years"] = sorted({run["school_year"] for run in p["visible_runs"] if run["school_year"]},
                                    reverse=True)
         p["current_grade"] = current_roster.get(p["id"]) if p["collection"] in ("v2", "study") else None
-    return [person for person in people if person["visible_runs"]] if selected_year else people
+    if not selected_year:
+        return people
+    # A year view lists the children enrolled in that year (also those without
+    # saved data, so absent children stay visible) plus anyone with runs in it.
+    enrolled = (roster(settings, selected_year)
+                if collection in ("v2", "study") and grade not in ("unassigned", "legacy") else {})
+    return [person for person in people if person["visible_runs"] or (
+        person["collection"] in ("v2", "study") and person["id"] in enrolled
+        and (grade == "all" or enrolled[person["id"]] == grade))]
 
 
 def has_logs(run):

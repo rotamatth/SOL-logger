@@ -7,6 +7,7 @@ from flask import abort, redirect, request
 
 from .participants import GRADES, participant_sort_key, roster, school_year_for, valid_school_year
 from .question_versions import published_questions, working_questions
+from .settings_views import session_review_url
 from .state import SETTING_FIELDS, make_study_session, normalize_session_name
 from .study_config import assignment_for, question_set_problem, session_readiness
 from .year_controls import school_year_bounds, school_year_choices
@@ -58,7 +59,14 @@ def register_preparation_routes(dash):
         year = request.args.get('year', settings['current_school_year'] or school_year_for(today))
         if not valid_school_year(year):
             abort(404)
-        selected = preparation_session(settings, request.args.get('session'))
+        # A session removed or moved to another class/year while this form was open:
+        # reject the save but keep the typed details instead of answering 404.
+        rejected = None
+        if request.method == 'POST' and request.args.get('session'):
+            known = next((item for item in settings['sessions'] if item['id'] == request.args['session']), None)
+            if known and (known.get('removed') or known['grade'] != grade or known.get('school_year') not in ('', year)):
+                rejected = known
+        selected = None if rejected else preparation_session(settings, request.args.get('session'))
         if selected and (selected['grade'] != grade or selected.get('school_year') not in ('', year)):
             if request.method == 'GET' and request.args.get('context_selection') == '1':
                 selected = None  # Switching class/year starts with that context's own sessions.
@@ -67,14 +75,16 @@ def register_preparation_routes(dash):
         sessions = [item for item in settings['sessions'] if item['grade'] == grade
                     and not item.get('removed') and item.get('school_year') in ('', year)]
         sessions.sort(key=lambda item: (item['date'] or '9999', item['number']))
-        creating = request.args.get('new') == '1' and selected is None
-        if not selected and sessions and not creating:
+        creating = request.args.get('new') == '1' and selected is None and rejected is None
+        if not selected and sessions and not creating and not rejected:
             upcoming = next((item for item in sessions if item['date'] and item['date'] >= today), None)
             undated = next((item for item in sessions if not item['date']), None)
             selected = upcoming or undated or sessions[-1]
         error = None
         if request.method == 'POST':
             try:
+                if rejected:
+                    raise ValueError('prepare_session_changed')
                 revision = int(request.form['revision'])
                 if revision != settings['revision']:
                     raise ValueError('settings_changed')
@@ -103,7 +113,7 @@ def register_preparation_routes(dash):
                                   saved='1', _anchor='prepare-participants'))
             except (ValueError, KeyError) as exc:
                 allowed = {'settings_changed', 'invalid_date', 'invalid_session_name', 'session_year_mismatch',
-                           'session_has_records', 'overlapping_dates', 'session_limit'}
+                           'session_year_has_records', 'overlapping_dates', 'session_limit', 'prepare_session_changed'}
                 error = str(exc) if str(exc) in allowed else 'invalid_settings'
         readiness = session_readiness(settings, selected) if selected else None
         working = working_questions(selected) if selected else None
@@ -113,6 +123,7 @@ def register_preparation_routes(dash):
         return page('prepare', settings=settings, study_context={'grade': grade, 'school_year': year,
                     'id': selected['id'] if selected else None},
                     research_area='prepare', selected=selected, sessions=sessions, creating=creating,
+                    rejected=rejected, rejected_review_url=session_review_url(dash, settings, rejected) if rejected else None,
                     school_years=school_year_choices(settings, year), date_bounds=school_year_bounds(year),
                     readiness=readiness, error=error, today=today,
                     session_status=preparation_status(selected, readiness, today),

@@ -18,7 +18,7 @@
 {% with active_section='participants',history_grade=grade if grade in grades else '4' %}{% include 'research/settings_navigation.html' %}{% endwith %}
 <nav class="settings-subtabs" aria-label="{{ t('manage_participants') }}">{% for key, label in (('registry','participant_registry'), ('promotion','promote_year'), ('links','legacy_identity_links')) %}<a href="{{ u('enrollment_page',view=key,year=year,grade=grade,status=status,q=query) }}" {% if view == key %}aria-current="page"{% endif %}>{{ t(label) }}</a>{% endfor %}</nav>
 {% endif %}
-{% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<a href="{{ u('enrollment_page',view=view,year=year,grade=grade,status=status,q=query) }}">{{ t('reload_saved_settings') }}</a>{% endif %}{% endif %}
+{% if error %}<p class="notice warning" role="alert">{{ t(error) }}{% if error_ids %} <strong>ID: {{ error_ids|join(', ') }}</strong>{% endif %}</p>{% if error == 'settings_changed' %}<a href="{{ u('enrollment_page',view=view,year=year,grade=grade,status=status,q=query) }}">{{ t('reload_saved_settings') }}</a>{% elif workflow_review_url %}<p><a class="button" href="{{ workflow_review_url }}" target="_blank" rel="noopener">{{ t('review_saved_session') }}</a></p>{% endif %}{% endif %}
 {% if request.args.get('saved') %}<p class="notice success" role="status">{{ t('enrollment_saved') }}</p>{% endif %}
 {% if preview %}
 <section class="panel"><h2>{{ t('review_enrollment') }}</h2><p>{{ t('op_' ~ operation) }}</p>
