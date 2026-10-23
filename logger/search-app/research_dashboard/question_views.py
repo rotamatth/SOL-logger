@@ -13,14 +13,16 @@ from itsdangerous import BadSignature, URLSafeSerializer
 
 from .editor_views import recovery_key
 from .question_versions import (discard_question_draft, publish_questions, published_questions, question_draft,
-                                remove_individual_questions, save_question_draft, working_questions)
+                                question_fields, remove_individual_questions, save_question_draft,
+                                working_questions)
 from .settings_views import session_review_url
 from .state import SETTING_FIELDS, roster
 from .study_config import question_choices, question_library, session_readiness
 
 SAVE_ACTIONS = ("save_questions", "save_draft", "save_draft_return", "approve_questions")
 VISIBLE_ERRORS = {"settings_changed", "questions_incomplete", "questions_unapproved",
-                  "question_session_removed", "question_participant_moved", "duplicate_question_id"}
+                  "question_session_removed", "question_participant_moved", "duplicate_question_id",
+                  "question_set_changed_since_copy"}
 
 
 class LibraryChoices:
@@ -113,6 +115,23 @@ def register_question_routes(dash):
         signer = URLSafeSerializer(g.research_hash, salt="sol-question-draft")
         key = recovery_key(session_id, uid)
 
+        def recovered_structure(token):
+            """Question IDs and condition metadata of a recovered copy, when still safe to apply.
+
+            After a conflict the browser restores only the text. A copy made from a
+            reused set keeps that set's structure in its signed token; apply it only if
+            nobody changed this session's questions since the copy was made.
+            """
+            payload = signer.loads(token)
+            if (payload.get("session_id") != session_id or payload.get("participant") != uid
+                    or type(payload.get("revision")) is not int):
+                raise ValueError("invalid_question_set")
+            earlier = state.settings_body(payload["revision"]) or {}
+            earlier_session = next((s for s in earlier.get("sessions", []) if s["id"] == session_id), None)
+            if earlier_session is None or question_fields(earlier_session, uid) != question_fields(study_session, uid):
+                raise ValueError("question_set_changed_since_copy")
+            return deepcopy(payload["question_set"])
+
         def back_to_session(**values):
             year = study_session.get("school_year") or None
             if from_preparation:
@@ -120,6 +139,7 @@ def register_question_routes(dash):
                                        session=session_id, _anchor="prepare-questions", **values))
             return redirect(dash.u("overview", grade=study_session["grade"], session=session_id, **values))
 
+        applied_recovery = False
         if request.method == "POST":
             action = request.form.get("action", "save_questions")
             try:
@@ -132,12 +152,25 @@ def register_question_routes(dash):
                     # The signed draft may contain an earlier validation error.
                     # Apply corrections before validating the final assignment.
                     draft = deepcopy(payload["question_set"])
+                structure_problem = None
+                if request.form.get("recovered_draft_token") and (action in SAVE_ACTIONS or action == "load_questions"):
+                    try:
+                        draft = recovered_structure(request.form["recovered_draft_token"])
+                        applied_recovery = True
+                    except ValueError as exc:
+                        if str(exc) != "question_set_changed_since_copy":
+                            raise
+                        # Refuse after merging, so the page (and its recovery copy) keeps
+                        # the typed text rather than the other tab's draft.
+                        structure_problem = str(exc)
                 questions = edited_questions(draft, request.form, action, choices)
                 # Only an explicit approval publishes. The legacy save_questions
                 # action publishes only when it explicitly posts approved=1.
                 publish = action == "approve_questions" or (
                     action == "save_questions" and request.form.get("approved") == "1")
                 draft.update(questions=questions, theme=request.form.get("theme", "").strip(), approved=False)
+                if structure_problem:
+                    raise ValueError(structure_problem)
                 if unavailable:
                     raise ValueError(unavailable)
                 if revision != settings["revision"]:
@@ -185,4 +218,8 @@ def register_question_routes(dash):
                          unsaved_preview=request.method == "POST" and not error,
                          draft_token=signer.dumps({"session_id": session_id, "participant": uid,
                                                   "revision": revision, "question_set": draft}),
+                         # Once applied, the new draft token carries the recovered structure.
+                         recovered_draft_token=("" if request.method != "POST" or applied_recovery
+                                                or error == "question_set_changed_since_copy"
+                                                else request.form.get("recovered_draft_token", "")),
                          form_revision=revision, error=error), 400 if error else 200

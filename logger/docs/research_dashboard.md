@@ -203,6 +203,11 @@ access either: every student page and script is same-origin.
   retry publication. If durable admission fails, START fails visibly and preserves
   any existing student attempt. Historical questions and versions remain unknown
   when the original records do not contain them.
+- Student pages upload unsent events while the child works: when a page loads,
+  every minute, and when the page is hidden or closed, as well as when a task is
+  submitted. An interrupted run (lesson over, iPad switched off) therefore keeps
+  everything up to the last page instead of losing the unfinished task. Each batch
+  keeps its identifier until acknowledged, so retries never duplicate events.
 - An upload batch saved by a page of an earlier session in the same browser (for
   example another tab started a new run) is not rejected: it is acknowledged and
   stored like events of a previous, unfinished participant, in
@@ -262,10 +267,12 @@ year-and-session) view lists every child enrolled in that grade and year, so abs
 children appear with **No saved data**, plus anyone with runs recorded in it.
 
 A run that saved no log files (a double tap on Start, a wrong ID chosen first, a
-device that failed before the first task ended) is listed and exported, but it
+device that failed before its first page uploaded) is listed and exported, but it
 does not decide the participant's status or completion ratio. The row and the
-participant page show it separately as **Started without saved data**. A run with
-partial data still counts as incomplete. **Visualize logs** opens
+participant page show it separately as **Started without saved data**. A run made
+only of recovered `*_INCOMPLETE.log` events (from an earlier session or participant
+on that device) is shown as **Recovered fragments** and does not decide the status
+either. A run with partial data still counts as incomplete. **Visualize logs** opens
 the participant's saved runs and their details. Log management remains in the
 row's **More actions** disclosure.
 
@@ -638,6 +645,11 @@ without a warning only once the text currently on screen is stored; a second tab
 never overwrites or clears another tab's newer copy. The copy is never part of study settings or exports.
 The displayed current setup remains separate from immutable historical run labels.
 Loading a library choice displays **Unsaved changes** until explicitly saved.
+After a settings conflict, **Use this text with the current version** also brings
+back the copy's question IDs and condition metadata (for example a reused set's
+high-interest question), but only if nobody changed this session's questions since
+the copy was made. Otherwise saving is refused once with an explanation; saving
+again keeps the text without those conditions, so load the set again to keep them.
 
 Individual reuse choices are grouped by normalized topic and question wording,
 ignoring case and repeated whitespace. Experimental variants remain separate

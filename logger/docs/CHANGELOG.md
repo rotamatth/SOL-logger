@@ -65,6 +65,67 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-23 — Upload during tasks, keep reused-set conditions, ignore recovered fragments in status
+
+**Commit:** pending · **Type:** fix · **Area:** logging, task-flow, data, docs, tests
+
+**Files**
+- `search-app/static/logger.js` — `syncLogsInBackground()` uploads unsent events on
+  page load, every 60 s and when the page is hidden or closed (registered on `load`,
+  after the viewer's own `pagehide` handler); small batches use `keepalive`. A
+  successful upload no longer clears the navigation history used by `logSERP`.
+- `search-app/research_dashboard/question_views.py`, `question_versions.py`,
+  `state.py` — the `recovered_draft_token` field re-applies a recovered copy's question
+  IDs and condition metadata if this session's questions are unchanged since the copy
+  (`question_fields()`, `State.settings_body()`); otherwise
+  `question_set_changed_since_copy` is shown once and the typed text stays on screen.
+- `search-app/research_dashboard/static/editor.js`,
+  `templates/research/session_questions.html` — "Use this text with the current
+  version" also sets `recovered_draft_token`; structural fields are never shown as text.
+- `search-app/research_dashboard/index.py`, `history_data.py`,
+  `templates/research/overview_table.html`, `participant.html`, `i18n.py` — runs made
+  only of `*_INCOMPLETE.log` files are marked `recovery_only`, shown as "Recovered
+  fragments" and excluded from status; the overview footer explains when logs are saved.
+- Docs: `research_dashboard.md`, `manual_logging_walkthrough.md`.
+- Tests: `test_background_upload_browser.py`, `test_question_recovery_structure.py`,
+  `test_question_recovery_browser.py` (new); `test_reporting_scope_regressions.py`.
+
+**What changed for the participant**
+No visible change. Events now reach the server while the child works, so an
+interrupted run (lesson over, iPad switched off) keeps everything up to the last
+page instead of losing the unfinished task when the next child starts on that iPad.
+
+**What changed for researchers**
+Saved logs grow during a task. After a conflict, recovered editor text of a reused
+set keeps its question IDs and conditions (e.g. the high-interest question), unless
+the session's questions were changed meanwhile. A recovered fragment no longer
+marks a child who completed as incomplete.
+
+**How it works**
+Uploads reuse the pending-batch protocol: a batch is stored with its identifier
+before sending and resent until acknowledged, and the server deduplicates by
+`(session, batch_id)`. Events on a task's pages are uploaded while the server is on
+that task, so `task_number` attribution is unchanged; the end-of-task flow still
+waits for every queued upload before `/end`.
+
+**If something looks wrong after this, check**
+- A results page revisit appears as new `searchResultGenerated` events → the
+  navigation history must survive uploads; see `sendLogs()` and `logSERP()`.
+- More `/log_session` requests in the server log → expected: one per page load
+  with new events, at most one per minute while idle, plus page exit.
+- An editor save refused with "after your copy was made" → another tab changed
+  this session's questions; saving again keeps only the text.
+
+**Left alone**
+Uploads still require the server session of the run: events typed after the last
+page load on an iPad that is reset at once (no screen-off, no minute elapsed) can
+still be lost. No change to the start page, the provider error page or deployment.
+
+**Verified**
+Full suite with required Chromium browser tests (594 passed). The new upload test
+fails on `c0e685a`; re-adding the history reset makes the revisit test report 4
+instead of 2 `searchResultGenerated` events; the four recovery tests fail on `c0e685a`.
+
 ## 2026-10-23 — Enforce the 60-minute idle limit on every student page
 
 **Commit:** pending · **Type:** fix · **Area:** session, task-flow, tests

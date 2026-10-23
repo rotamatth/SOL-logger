@@ -154,6 +154,9 @@
 
   /* ---------- Private server recovery for long editor forms ---------- */
 
+  // Signed draft structure and version fields: never shown or applied as text.
+  var STRUCTURE_FIELDS = ['draft_token', 'revision', 'recovered_draft_token'];
+
   function Recovery(form) {
     this.form = form;
     this.key = form.getAttribute('data-recovery-key');
@@ -184,7 +187,7 @@
   Recovery.prototype.textFields = function (values) {
     var result = {};
     Object.keys(values || {}).forEach(function (name) {
-      if (name !== 'draft_token' && name !== 'revision') { result[name] = values[name]; }
+      if (STRUCTURE_FIELDS.indexOf(name) === -1) { result[name] = values[name]; }
     });
     return result;
   };
@@ -242,7 +245,7 @@
   };
 
   Recovery.prototype.plainText = function (values) {
-    return this.names.filter(function (name) { return name !== 'draft_token' && name !== 'revision'; })
+    return this.names.filter(function (name) { return STRUCTURE_FIELDS.indexOf(name) === -1; })
       .map(function (name) { return values[name] || ''; })
       .filter(Boolean).join('\n\n');
   };
@@ -450,6 +453,10 @@
     actions.className = 'actions';
     actions.appendChild(button(text('editor_use_recovered'), function () {
       self.apply(values, true);
+      // Keep the copy's signed structure (a reused set's question IDs and conditions).
+      // The server applies it only if this session's questions are unchanged since.
+      var structure = self.form.elements.namedItem('recovered_draft_token');
+      if (structure) { structure.value = values.recovered_draft_token || values.draft_token || ''; }
       box.parentNode.removeChild(box);
       self.protectedState = null;
       self.schedule();
