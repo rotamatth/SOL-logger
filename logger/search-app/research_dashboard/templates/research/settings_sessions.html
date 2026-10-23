@@ -1,0 +1,69 @@
+{% from 'research/year_input.html' import school_year_input with context %}
+<div class="settings-section-heading settings-heading-row"><div><h2>{{ t('grade_' ~ history_grade) }}</h2><p class="muted">{{ t('sessions_workspace_hint') }}</p></div><span class="settings-count">{{ history_total }} {{ t('sessions') | lower }}</span></div>
+<form class="settings-year-scope" method="get" action="{{ u('settings_page') }}">
+  <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="section" value="sessions"><input type="hidden" name="grade" value="{{ history_grade }}">{% if study_context.get('id') %}<input type="hidden" name="session" value="{{ study_context.id }}">{% endif %}
+  <label for="settings-session-year">{{ t('school_year') }}</label>
+  <select id="settings-session-year" name="year"><option value="" {% if not history_year %}selected{% endif %}>{{ t('all_school_years') }}</option>{% for year in school_years %}<option value="{{ year }}" {% if history_year == year %}selected{% endif %}>{{ year }}</option>{% endfor %}</select>
+  <button type="submit">{{ t('open_school_year') }}</button><p class="small muted">{{ t('session_year_scope_hint') }}</p>
+</form>
+<details class="settings-new-session" id="new-session" {% if open_new %}open{% endif %}>
+  <summary>{{ t('new_session') }}</summary>
+  <div class="settings-new-session-body">
+    {% if next_numbers[history_grade] <= session_limit %}
+    <p class="small muted">{{ t('session') }} {{ next_numbers[history_grade] }} · {{ t('new_session_hint') }}</p>
+    <form class="new-session-form" method="post" data-guard{% if error and request.form.get('action') == 'add_session' %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year) }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="add_session"><input type="hidden" name="grade" value="{{ history_grade }}">
+      <div>{{ school_year_input('new-year', 'school_year', request.form.get('school_year', history_year or settings.current_school_year) if open_new else history_year or settings.current_school_year, school_years) }}</div>
+      <div><label for="new-date">{{ t('date') }}</label><input id="new-date" name="date" type="date" value="{{ add_date }}" required></div>
+      <div><label for="new-name">{{ t('session_name_optional') }}</label><input id="new-name" name="name" type="text" maxlength="80" value="{{ add_name }}" placeholder="{{ t('session_name_example') }}"></div>
+      <button class="primary" type="submit">{{ t('create_session') }}</button>
+    </form>
+    {% else %}<p class="small muted">{{ t('session_limit_reached') }}</p>{% endif %}
+  </div>
+</details>
+<div class="settings-history-heading"><h3>{{ t('session_history') }}</h3><span class="small muted">{{ t('session_dates_hint') }}</span></div>
+{% if rejected_session %}
+<details class="settings-session-item" id="{{ rejected_session.id }}" open>
+  <summary><strong>{{ t('session') }} {{ rejected_session.number }}</strong></summary>
+  <div class="settings-session-body">
+    <p class="notice warning">{{ t('session_edit_outside_page') }}</p>
+    {% with study_session=rejected_session %}{% include 'research/settings_session_form.html' %}{% endwith %}
+  </div>
+</details>
+{% endif %}
+{% if history_sessions %}
+<div class="settings-session-list">
+  {% for study_session in history_sessions %}
+  <details class="settings-session-item" id="{{ study_session.id }}" {% if edit_session_id == study_session.id %}open{% endif %}>
+    <summary><strong>{{ t('session') }} {{ study_session.number }}</strong><span class="settings-session-name">{{ study_session.name or '' }}{% set summary_view = question_view(study_session) %}{% if summary_view.published or summary_view.has_draft %}{% set summary_ready = summary_view.published and question_status(summary_view.published) == 'questions_approved' %}<span class="badge {{ 'completed' if summary_ready else 'incomplete' }}">{{ t('questions_approved') if summary_ready else t('questions_draft') }}</span>{% if summary_ready and summary_view.has_draft %}<span class="badge incomplete">{{ t('pending_draft_short') }}</span>{% endif %}{% endif %}</span><span class="small muted settings-session-date">{{ study_session.date or t('date_not_set') }} · {{ study_session.school_year or t('session_year_missing') }}</span></summary>
+    <div class="settings-session-body">
+      <p><span class="badge {% if session_readiness[study_session.id].complete %}completed{% else %}incomplete{% endif %}">{{ session_readiness[study_session.id].ready }} / {{ session_readiness[study_session.id].count }} {{ t('ready_to_start') }}</span></p>
+      {% with configured_session=study_session %}{% include 'research/session_question_preview.html' %}{% endwith %}
+      {% include 'research/settings_session_form.html' %}
+      <a href="{{ u('overview', grade=history_grade, school_year=history_year or None, session=study_session.id) }}">{{ t('view_session') }} &rarr;</a>
+      <details class="session-removal"><summary>{{ t('remove_study_session') }}</summary>
+        <p class="small muted">{{ t('remove_session_hint') }}</p>
+        <p><strong>{{ t('session') }} {{ study_session.number }}</strong>{% if study_session.name %} · {{ study_session.name }}{% endif %} · {{ study_session.date or t('date_not_set') }}</p>
+        <form method="post" data-guard{% if error and request.form.get('action') == 'remove_session' and request.form.get('session_id') == study_session.id %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year, edit=study_session.id) }}">
+          <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="remove_session"><input type="hidden" name="session_id" value="{{ study_session.id }}"><input type="hidden" name="confirm_remove" value="1">
+          <button type="submit">{{ t('confirm_remove_session') }}</button>
+        </form>
+      </details>
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% if history_page_count > 1 %}<nav class="settings-pagination" aria-label="{{ t('session_history') }}">
+  {% if history_page < history_page_count %}<a href="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year, page=history_page + 1) }}#session-history">{{ t('older_sessions') }}</a>{% endif %}<span class="small muted">{{ history_page }} / {{ history_page_count }}</span>{% if history_page > 1 %}<a href="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year, page=history_page - 1) }}#session-history">{{ t('newer_sessions') }}</a>{% endif %}
+</nav>{% endif %}
+{% else %}<div class="settings-empty"><h3>{{ t('no_sessions_heading') }}</h3><p class="muted">{{ t('no_sessions_yet') }}</p></div>{% endif %}
+{% if removed_sessions %}<details class="panel removed-study-sessions" id="removed-sessions" {% if request.args.get('removed') == '1' or request.form.get('action') == 'restore_session' %}open{% endif %}>
+  <summary>{{ t('removed_study_sessions') }} ({{ removed_sessions | length }})</summary><p class="small muted">{{ t('removed_sessions_hint') }}</p>
+  {% for removed in removed_sessions %}<div class="removed-session-row"><h3>{{ t('session') }} {{ removed.number }}{% if removed.name %} · {{ removed.name }}{% endif %}</h3>
+    <form class="new-session-form" method="post" data-guard{% if error and request.form.get('action') == 'restore_session' and request.form.get('session_id') == removed.id %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year, removed='1') }}#removed-sessions">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="restore_session"><input type="hidden" name="session_id" value="{{ removed.id }}">
+      <div><label for="restore-date-{{ removed.id }}">{{ t('date') }}</label><input id="restore-date-{{ removed.id }}" type="date" name="date" value="{{ request.form.get('date', removed.date) if request.form.get('session_id') == removed.id else removed.date }}"></div>
+      <button type="submit">{{ t('restore_study_session') }}</button>
+    </form>
+  </div>{% endfor %}
+</details>{% endif %}

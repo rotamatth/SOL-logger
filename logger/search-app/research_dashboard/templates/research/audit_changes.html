@@ -1,0 +1,15 @@
+{% macro audit_value(items) %}{% for kind, value in items %}{% if not loop.first %} · {% endif %}{% if kind == 'grade' %}{{ t('grade_' ~ value) }}{% elif kind == 'status' %}{{ t('active') if value else t('inactive') }}{% elif kind == 'new' %}{{ t('audit_new_id') }}{% elif kind == 'none' %}{{ t('not_enrolled') }}{% else %}{{ value }}{% endif %}{% endfor %}{% endmacro %}
+<details class="panel audit-changes"><summary>{{ t('recent_enrollment_changes') }}</summary>
+  {% for entry in audit %}
+  <details class="audit-entry">
+    <summary>{{ entry.at }} · {{ t('op_' ~ entry.operation) }}{% if entry.school_year %} · {{ entry.school_year }}{% endif %} · {{ t('revision') }} {{ entry.revision }}{% if entry.changes %} · <span class="count">{{ entry.changes|length }} ID</span>{% endif %}</summary>
+    {% if entry.changes %}
+    <table class="audit-table">
+      <thead><tr><th scope="col">ID</th><th scope="col">{{ t('audit_before') }}</th><th scope="col">{{ t('audit_after') }}</th></tr></thead>
+      <tbody>{% for change in entry.changes[:100] %}<tr><th scope="row">{{ change.id }}</th><td data-label="{{ t('audit_before') }}">{{ audit_value(change.before) }}</td><td data-label="{{ t('audit_after') }}">{{ audit_value(change.after) }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% if entry.changes|length > 100 %}<p class="small muted">{{ t('audit_more') }} {{ entry.changes|length - 100 }}</p>{% endif %}
+    {% endif %}
+  </details>
+  {% else %}<p class="muted">—</p>{% endfor %}
+</details>

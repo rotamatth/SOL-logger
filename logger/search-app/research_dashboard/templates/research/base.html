@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="{{ language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('dashboard') }} · SOL</title>
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='research.css', v='dashboard-pale-gold') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='history.css', v='dashboard-pale-gold') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='workflow.css', v='dashboard-pale-gold') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='editor.css', v='dashboard-pale-gold') }}">
+  <script src="{{ url_for('research.static', filename='editor.js') }}" defer></script>
+  {% block page_assets %}{% endblock %}
+</head>
+<body data-editor-messages="{{ editor_messages|tojson|forceescape }}" data-editor-recovery-url="{{ u('editor_recovery') }}" data-editor-session-url="{{ u('session_check') }}" data-editor-login-url="{{ u('login') }}" data-editor-logout-check-url="{{ u('editor_logout_check') }}">
+  <a class="skip-link" href="#main-content">{{ t('skip_to_content') }}</a>
+  <header class="site-header">
+    <nav class="header-top" aria-label="{{ t('utility_navigation') }}">
+      <span class="header-logo" role="img" aria-label="Cerca con SOL">
+        <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <circle cx="29" cy="19" r="14" stroke="currentColor" stroke-width="5"/>
+          <path d="m18 30-12 12" stroke="currentColor" stroke-width="6"/>
+          <path d="M21 16a9 9 0 0 1 7-6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <div class="header-utilities">
+      {% if auth and auth.authenticated %}
+      <a href="{{ u('trash_page') }}">{{ t('trash') }}</a>
+      {% endif %}
+      <span class="languages"><a href="{{ language_url('en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>EN</a><span>/</span><a href="{{ language_url('it') }}" lang="it" {% if language == 'it' %}aria-current="true"{% endif %}>IT</a></span>
+      {% if auth and auth.authenticated %}
+      <form method="post" data-clears-editor-recovery action="{{ u('logout') }}"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><button class="quiet" type="submit">{{ t('logout') }}</button></form>
+      {% endif %}
+      </div>
+    </nav>
+      {% if auth and auth.authenticated %}
+      <nav class="header-primary" aria-label="{{ t('primary_navigation') }}">
+      <a data-section="prepare" href="{{ u('prepare_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'prepare' %}aria-current="page"{% endif %}>{{ t('prepare_session') }}</a>
+      <a data-section="history" href="{{ u('overview',collection='study',grade=study_context.grade if study_context is defined and study_context.grade in grades else 'all',school_year=study_context.school_year if study_context is defined else None,session=study_context.get('id') if study_context is defined and study_context.grade in grades else None) }}" {% if research_area|default('') == 'history' %}aria-current="page"{% endif %}>{{ t('data_and_history') }}</a>
+      <a data-section="settings" href="{{ u('settings_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'settings' or request.endpoint == 'research.settings_page' %}aria-current="page"{% endif %}>{{ t('settings') }}</a>
+      </nav>
+      {% endif %}
+  </header>
+  <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
+</body>
+</html>

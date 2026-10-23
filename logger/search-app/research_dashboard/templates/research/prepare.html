@@ -1,0 +1,87 @@
+{% extends 'research/base.html' %}
+{% from 'research/year_input.html' import school_year_input with context %}
+{% block content %}
+<div class="preparation-workspace">
+  <div class="preparation-heading"><div><h1>{{ t('prepare_session') }}</h1><p class="muted">{{ t('prepare_hint') }}</p></div></div>
+  <form class="preparation-picker" method="get" action="{{ u('prepare_page') }}">
+    <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="context_selection" value="1"><input type="hidden" name="grade" value="{{ study_context.grade }}">{% if creating %}<input type="hidden" name="new" value="1">{% endif %}
+    <div class="preparation-field">{{ school_year_input('prepare-year', 'year', study_context.school_year, school_years) }}</div>
+    <button type="submit" name="session" value="{{ selected.id if selected else '' }}">{{ t('open_school_year') }}</button>
+    <div class="preparation-field preparation-class-field">
+      <span class="picker-label" id="prepare-grade-label">{{ t('grade') }}</span>
+      <details class="preparation-menu" id="prepare-grade">
+        <summary aria-labelledby="prepare-grade-label prepare-grade-value"><span id="prepare-grade-value">{{ t('grade_' ~ study_context.grade) }}</span></summary>
+        <div class="preparation-menu-options">{% for value in grades %}<button type="submit" name="select_grade" value="{{ value }}" aria-label="{{ t('grade_' ~ value) }}" {% if study_context.grade == value %}aria-current="true" disabled{% endif %}>{{ t('grade_' ~ value) }}</button>{% endfor %}</div>
+      </details>
+    </div>
+    {% if sessions %}
+    <div class="preparation-field preparation-session-field">
+      <span class="picker-label" id="prepare-session-label">{{ t('session') }}</span>
+      <details class="preparation-menu" id="preparation-session">
+        <summary aria-labelledby="prepare-session-label prepare-session-value"><span id="prepare-session-value">{% if selected and not creating %}{{ selected.name or (t('session') ~ ' ' ~ selected.number) }} <span class="picker-date">{{ selected.date or t('date_not_set') }}</span>{% else %}{{ t('new_session') }}{% endif %}</span></summary>
+        <div class="preparation-menu-options">{% for item in sessions %}<button type="submit" name="session" value="{{ item.id }}" aria-label="{{ item.name or (t('session') ~ ' ' ~ item.number) }} · {{ item.date or t('date_not_set') }}" {% if selected and selected.id == item.id and not creating %}aria-current="true"{% endif %}><span>{{ item.name or (t('session') ~ ' ' ~ item.number) }}</span><span class="picker-date">{{ item.date or t('date_not_set') }}</span></button>{% endfor %}</div>
+      </details>
+    </div>
+    {% endif %}
+    {% if sessions %}<a class="button" href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,new='1') }}#prepare-details">+ {{ t('new_session') }}</a>{% endif %}
+  </form>
+  {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<a href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected else None) }}">{{ t('reload_saved_settings') }}</a>{% endif %}{% endif %}
+  {% if request.args.get('saved') %}<p class="notice success" role="status">{{ t('session_saved') }}</p>{% endif %}
+  {% if request.args.get('participants_saved') %}<p class="notice success" role="status">{{ t('participants_saved') }}</p>{% endif %}
+  {% if request.args.get('draft_saved') %}<p class="notice success" role="status">{{ t('question_draft_saved') }}</p>{% endif %}
+  {% if request.args.get('approved') %}<p class="notice success" role="status">{{ t('questions_published_notice') }}</p>{% endif %}
+  {% if selected and not creating %}
+  <section class="session-status-summary {{ session_status.tone }}" aria-label="{{ t('session_access_status') }}">
+    <div><strong>{{ t(session_status.title) }}{% if session_status.code == 'scheduled' %} {{ selected.date }}{% endif %}</strong><p>{{ t(session_status.hint) }}</p></div>
+    <span class="session-status-date">{{ selected.date or t('date_not_set') }} · Europe/Zurich</span>
+  </section>
+  {% endif %}
+  {% if selected and not creating %}<nav class="preparation-steps" aria-label="{{ t('prepare_session') }}"><a href="#prepare-details">1 · {{ t('session_details') }}</a><a href="#prepare-participants">2 · {{ t('participant_ids') }}</a><a href="#prepare-questions">3 · {{ t('questions_and_readiness') }}</a></nav>{% endif %}
+  <section class="panel preparation-panel" id="prepare-details">
+    <h2><span class="preparation-number">1</span> {{ t('session_details') }}</h2>
+    {% if not settings.current_school_year %}<p class="notice">{{ t('initial_prepare_year_hint') }}</p>{% endif %}
+    <form class="preparation-details" data-guard{% if error and request.form.get('action') == 'save_details' %} data-unsaved{% endif %} method="post" action="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected and not creating else None,new='1' if creating else None) }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ request.form.get('revision') if error == 'settings_changed' else settings.revision }}"><input type="hidden" name="action" value="save_details">
+      <label for="prepare-name">{{ t('session_name_optional') }}<input id="prepare-name" name="name" maxlength="80" value="{{ request.form.get('name','') if error else selected.name or '' if selected and not creating else '' }}" placeholder="{{ t('session_name_example') }}"></label>
+      <label for="prepare-date">{{ t('date') }}<input id="prepare-date" name="date" type="date" min="{{ date_bounds.min }}" max="{{ date_bounds.max }}" value="{{ request.form.get('date','') if error else selected.date if selected and not creating else '' }}" required></label>
+      <button class="primary" type="submit">{{ t('create_session') if creating or not selected else t('save_session') }}</button>
+    </form>
+    <p class="small muted">{{ study_context.school_year }} · {{ t('grade_' ~ study_context.grade) }} · Europe/Zurich</p>
+  </section>
+  {% if selected and not creating %}
+  <section class="panel preparation-panel" id="prepare-participants">
+    <div class="preparation-section-heading"><h2><span class="preparation-number">2</span> {{ t('participant_ids') }} <span class="count">{{ readiness.count }}</span></h2>{% if selected.school_year and settings.current_school_year %}<a href="{{ u('enrollment_page',year=study_context.school_year,grade=study_context.grade,prepare_session=selected.id) }}">{{ t('edit_participant_ids') }}</a>{% endif %}</div>
+    {% if not selected.school_year or not settings.current_school_year %}<p class="muted">{{ t('save_details_first') }}</p>
+    {% else %}
+    <p class="small muted">{{ t('session_ids_hint') }}</p>
+    <div class="preparation-id-list">{% for person in readiness.participants %}<span class="preparation-id">{{ person.id }}</span>{% else %}<p>{{ t('no_enrolled_ids') }}</p>{% endfor %}</div>
+    <details class="preparation-add"><summary>{{ t('add_or_enroll_ids') }}</summary>
+      <form method="post" data-guard action="{{ u('enrollment_page',year=study_context.school_year,grade=study_context.grade,prepare_session=selected.id) }}">
+        <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ settings.revision }}"><input type="hidden" name="year" value="{{ study_context.school_year }}"><input type="hidden" name="grade" value="{{ study_context.grade }}">
+        <label for="prepare-ids">{{ t('participant_ids') }}</label><textarea id="prepare-ids" name="ids" rows="2" maxlength="32000" placeholder="41, 42, 43" required></textarea><p class="small muted">{{ t('prepare_ids_hint') }}</p>
+        <label for="id-operation">{{ t('id_setup_action') }}</label><select name="operation" id="id-operation"><option value="add">{{ t('new_children_new_ids') }}</option><option value="enroll">{{ t('existing_children_same_ids') }}</option></select>
+        <button type="submit">{{ t('review_enrollment') }}</button>
+      </form>
+    </details>
+    {% endif %}
+  </section>
+  <section class="panel preparation-panel" id="prepare-questions">
+    <div class="preparation-section-heading"><h2><span class="preparation-number">3</span> {{ t('questions_and_readiness') }}</h2><span class="badge {{ 'completed' if readiness.complete else 'incomplete' }}">{{ (readiness.ready ~ ' / ' ~ readiness.count ~ ' ' ~ t('ready_to_start')) if readiness.count else t('ids_need_setup') }}</span></div>
+    {% set published_ready = published_questions and question_status(published_questions) == 'questions_approved' %}
+    <p class="published-question-state"><strong>{{ t('published_questions_label') }}</strong> <span class="badge {{ 'completed' if published_ready else 'incomplete' }}">{{ t('questions_approved') if published_ready else t('published_none') }}</span></p>
+    {% if published_ready %}<p>{{ published_questions.get('theme','') }}</p><ol class="preparation-question-list">{% for question in published_questions.questions %}<li>{{ question.get('question') }}</li>{% endfor %}</ol>{% elif not has_working_draft %}<p class="muted">{{ t('question_set_missing') }}</p>{% endif %}
+    {% if has_working_draft %}<div class="working-draft-block"><p class="notice working-draft-notice"><strong>{{ t('working_draft_label') }}</strong> {{ t('draft_keeps_published_hint') if published_ready else t('draft_approval_needed_hint') }}</p>
+    {% if working_questions and working_questions.get('questions') %}<p>{{ working_questions.get('theme','') }}</p><ol class="preparation-question-list">{% for question in working_questions.questions %}<li>{{ question.get('question') or t('draft_question_empty') }}</li>{% endfor %}</ol>{% endif %}</div>{% endif %}
+    {% if pending_individual_drafts %}<p class="small muted">{{ t('individual_drafts_waiting') }}: {{ pending_individual_drafts }}</p>{% endif %}
+    <div class="preparation-question-actions">
+      <a class="button primary" href="{{ u('session_questions',session_id=selected.id,prepare_session=selected.id) }}">{{ t('continue_editing_draft') if has_working_draft else t('edit_saved_questions') if published_questions else t('configure_questions') }}</a>
+      <a class="button" href="{{ u('student_preview',session_id=selected.id,mode='working') }}">{{ t('preview_student_questions') }}</a>
+    </div>
+    {% if readiness.count %}<details class="preparation-readiness"><summary>{{ t('participant_question_overview') }}</summary>{% with question_session=selected,from_preparation=true %}{% include 'research/participant_question_table.html' %}{% endwith %}</details>{% endif %}
+    <p class="small muted">{{ t('session_readiness_hint') }}</p>
+    {% if readiness.complete and selected.date == today %}<p class="notice success">{{ t('ready_today_hint') }} <a href="/start" target="_blank" rel="noopener">{{ t('open_student_start') }} &rarr;</a></p>{% endif %}
+  </section>
+  {% endif %}
+  <p class="preparation-administration"><a href="{{ u('settings_page',section='sessions',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected and not creating else None) }}">{{ t('all_sessions_and_administration') }}</a> · <a href="{{ u('enrollment_page',year=study_context.school_year,grade=study_context.grade) }}">{{ t('annual_enrollment_tools') }}</a></p>
+</div>
+{% endblock %}

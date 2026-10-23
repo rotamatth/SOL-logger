@@ -27,7 +27,7 @@
          data from a previous, unfinished participant and saved it as an
          incomplete experiment. -->
     <output id="stale-data-notice" aria-live="polite" hidden
-         style="display:block;position:fixed;top:0;left:0;right:0;z-index:99999;
+         style="position:fixed;top:0;left:0;right:0;z-index:99999;
                 background:#8a4b00;color:#fff;font-size:14px;line-height:1.4;
                 padding:10px 44px 10px 16px;text-align:center;
                 box-shadow:0 2px 6px rgba(0,0,0,0.3);">
@@ -38,16 +38,13 @@
                        line-height:1;cursor:pointer;padding:4px 8px;">&times;</button>
     </output>
 
-    <div id="endTaskModal" class="modal">
+    <div id="endTaskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="task-confirm-title">
         <div class="modal-content-box">
-            <span class="close" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</span>
-            <h2>Sei sicuro di voler terminare il compito?</h2>
-            <p>Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
+            <span id="task-confirm-close" class="close" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</span>
+            <h2 id="task-confirm-title">Sei sicuro di voler terminare il compito?</h2>
+            <p id="task-confirm-detail">Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
+            <p id="task-save-error" class="form-error" role="alert" hidden>Salvataggio non riuscito. La risposta è conservata in questo browser. Controlla la connessione e premi Riprova.</p>
 
-        <!-- <div id="savedDocuments">
-        <a href="#" id="toggleSavedLink" onclick="toggleSavedTitles(event)">See saved documents ▼</a>
-        <ul id="savedTitles" style="display: none;" ></ul>
-        </div> -->
 
         <div class="modal-buttons">
         <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
@@ -379,11 +376,25 @@
             });
         }
 
+        function showTaskSaveRetry() {
+            isSubmitting = false;
+            yesEndBtn.disabled = false;
+            yesEndBtn.textContent = "Riprova";
+            document.getElementById("task-confirm-title").textContent = "Completiamo il salvataggio";
+            document.getElementById("task-confirm-detail").hidden = true;
+            document.getElementById("task-confirm-close").hidden = true;
+            document.getElementById("no-end-btn").hidden = true;
+            document.getElementById("task-save-error").hidden = false;
+            document.getElementById("endTaskModal").style.display = "flex";
+            yesEndBtn.focus();
+        }
+
         if (yesEndBtn) {
             yesEndBtn.addEventListener('click', async () => {
                 if (isSubmitting) return;
                 isSubmitting = true;
                 yesEndBtn.disabled = true;
+                document.getElementById("task-save-error").hidden = true;
                 if (finalbtn) finalbtn.disabled = true;
                 if (continueBtn) continueBtn.disabled = true;
 
@@ -396,6 +407,9 @@
                 const answer = answerBox ? answerBox.value : "";
 
                 try {
+                    const submissionKey = `solTaskSubmission:${window.SESSION_ID}:${window.TASK_NUMBER}`;
+                    localStorage.setItem(submissionKey, JSON.stringify({answer, logged: window.taskEndedLogged === true}));
+                    if (!window.studyLogger) throw new Error('Logging is unavailable');
                     if (window.studyLogger) {
                         window._feedbackCloseReason = 'submitted';
                         if (typeof window.flushActiveResultExposures === "function") {
@@ -409,6 +423,7 @@
                             studyLogger.logEvent("TaskEnded", { answer });
                             window.taskEndedLogged = true;
                             window.taskEndLockout = true;
+                            localStorage.setItem(submissionKey, JSON.stringify({answer, logged: true}));
                         }
                         const endTaskBtn = document.getElementById("end-task-btn");
                         if (endTaskBtn) endTaskBtn.disabled = true;
@@ -423,26 +438,39 @@
                     });
 
                     if (response.type === 'opaqueredirect' || response.status === 0 || (response.status >= 300 && response.status < 400)) {
+                        localStorage.removeItem(submissionKey);
                         clearDraftAnswer();
                         clearClientData();
                         window.location.href = "{{ url_for('reward') }}";
                         return;
                     }
 
-                    console.error('Unexpected response:', await response.text());
-                    isSubmitting = false;
-                    yesEndBtn.disabled = false;
-                    if (finalbtn) finalbtn.disabled = false;
-                    if (continueBtn) continueBtn.disabled = false;
+                    throw new Error('Unexpected task completion response: ' + response.status);
                 } catch (err) {
                     console.error('Error ending task:', err);
-                    isSubmitting = false;
-                    yesEndBtn.disabled = false;
-                    if (finalbtn) finalbtn.disabled = false;
-                    if (continueBtn) continueBtn.disabled = false;
+                    showTaskSaveRetry();
                 }
             });
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const endTaskBtn = document.getElementById("end-task-btn");
+            if (!endTaskBtn || !window.studyLogger) return;
+            const submissionKey = `solTaskSubmission:${window.SESSION_ID}:${window.TASK_NUMBER}`;
+            const saved = localStorage.getItem(submissionKey);
+            if (!saved) return;
+            try {
+                const submission = JSON.parse(saved);
+                document.getElementById("textarea_feedback").value = submission.answer;
+                window.taskEndedLogged = submission.logged === true || studyLogger.logs.some(event => event.type === "TaskEnded");
+                window.taskEndLockout = true;
+                endTaskBtn.disabled = true;
+                document.getElementById("no-end-btn").disabled = true;
+                showTaskSaveRetry();
+            } catch (error) {
+                console.error("Could not restore pending submission", error);
+            }
+        });
 
         if (continueBtn) {
             continueBtn.addEventListener('click', () => {
@@ -479,7 +507,6 @@
             studyLogger.logEvent("ClickedOnSendAndTerminateTask");
             window.clickedEndTaskLogged = true;
         }
-        // populateSavedDocuments();
     }
 
     function openFeedbackModal() {
@@ -512,6 +539,7 @@
     });
 
     function closeEndTaskModal() {
+        if (window.taskEndLockout) return;
         document.getElementById("endTaskModal").style.display = "none";
         if (window._endTaskCloseReason === 'x-close' && window.studyLogger) {
             studyLogger.logEvent("EndTaskDialogClosed", { reason: "x-close" });
@@ -534,122 +562,8 @@
         window._feedbackCloseReason = null;
     }
 
-    function toggleSavedTitles(event) {
-        event.preventDefault();
-        const list = document.getElementById('savedTitles');
-        const link = document.getElementById('toggleSavedLink');
-
-        if (!list || !link) return;
-
-        const isVisible = list.style.display === 'block';
-        list.style.display = isVisible ? 'none' : 'block';
-        link.innerHTML = isVisible ? 'See saved documents ▼' : 'Hide saved documents ▲';
-    }
-
-    function populateSavedDocuments() {
-        const argumentSelections = JSON.parse(localStorage.getItem('argumentSelections') || '{}');
-        const savedTitles = JSON.parse(localStorage.getItem('savedTitles') || '{}');
-        const savedTitlesUl = document.getElementById('savedTitles');
-        if (!savedTitlesUl) return;
-
-        savedTitlesUl.innerHTML = '';
-
-        for (const docid in argumentSelections) {
-            const li = document.createElement('li');
-            li.textContent = (argumentSelections[docid].toUpperCase() === 'PRO' ? 'PRO: ' : 'CON: ') + (savedTitles[docid] || `ID: ${docid}`);
-            li.classList.add(argumentSelections[docid] === 'pro' ? 'pro-vote' : 'con-vote');
-            savedTitlesUl.appendChild(li);
-        }
-    }
     </script>
 
-    <script>
-    const argumentSelections = JSON.parse(localStorage.getItem('argumentSelections') || '{}');
-    const savedTitles = JSON.parse(localStorage.getItem('savedTitles') || '{}');
-
-    function toggleArgument(docid, type) {
-        const proBtn = document.getElementById(`pro-btn-${docid}`);
-        const conBtn = document.getElementById(`con-btn-${docid}`);
-        if (!proBtn || !conBtn) return;
-
-        const isPro = type === 'pro';
-        const activeBtn = isPro ? proBtn : conBtn;
-        const otherBtn = isPro ? conBtn : proBtn;
-
-        const activeClass = isPro ? 'btn-success' : 'btn-danger';
-        const outlineClass = isPro ? 'btn-outline-success' : 'btn-outline-danger';
-        const otherActiveClass = isPro ? 'btn-danger' : 'btn-success';
-        const otherOutlineClass = isPro ? 'btn-outline-danger' : 'btn-outline-success';
-
-        const currentState = argumentSelections[docid];
-
-        const titleElement = document.querySelector(`article[base_ir="${docid}"] h4 > span`);
-        let fullTitle = titleElement ? titleElement.innerText.trim() : '0. Untitled Document';
-        let title = fullTitle.replace(/^\d+\.\s*/, '');
-
-        if (currentState === type) {
-            activeBtn.classList.remove(activeClass);
-            activeBtn.classList.add(outlineClass);
-            delete argumentSelections[docid];
-            delete savedTitles[docid];
-        } else {
-            activeBtn.classList.remove(outlineClass);
-            activeBtn.classList.add(activeClass);
-            otherBtn.classList.remove(otherActiveClass);
-            otherBtn.classList.add(otherOutlineClass);
-            argumentSelections[docid] = type;
-            savedTitles[docid] = title;
-        }
-
-        localStorage.setItem('argumentSelections', JSON.stringify(argumentSelections));
-        localStorage.setItem('savedTitles', JSON.stringify(savedTitles));
-
-        updateCounters();
-    }
-
-    function restoreButtonStates() {
-        for (const docid in argumentSelections) {
-            const type = argumentSelections[docid];
-            const isPro = type === 'pro';
-
-            const proBtn = document.getElementById(`pro-btn-${docid}`);
-            const conBtn = document.getElementById(`con-btn-${docid}`);
-
-            if (!proBtn || !conBtn) continue;
-
-            if (isPro) {
-                proBtn.classList.remove('btn-outline-success');
-                proBtn.classList.add('btn-success');
-                conBtn.classList.remove('btn-danger');
-                conBtn.classList.add('btn-outline-danger');
-            } else {
-                conBtn.classList.remove('btn-outline-danger');
-                conBtn.classList.add('btn-danger');
-                proBtn.classList.remove('btn-success');
-                proBtn.classList.add('btn-outline-success');
-            }
-        }
-    }
-
-    function updateCounters() {
-        let proCount = 0, conCount = 0;
-        for (const key in argumentSelections) {
-            if (argumentSelections[key] === 'pro') proCount++;
-            if (argumentSelections[key] === 'con') conCount++;
-        }
-
-        const pcount = document.getElementById('pro-count');
-        if (pcount) pcount.textContent = proCount;
-
-        const ccount = document.getElementById('con-count');
-        if (ccount) ccount.textContent = conCount;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        restoreButtonStates();
-        updateCounters();
-    });
-    </script>
 
     <script>
     function clearClientData() {

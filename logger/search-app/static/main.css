@@ -1118,24 +1118,6 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.14);
 }
 
-#savedTitles {
-  display: none;
-  max-height: 200px;
-  overflow-y: auto;
-  padding-left: 0;
-  margin-top: 0.5em;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.pro-vote {
-  color: green;
-}
-
-.con-vote {
-  color: red;
-}
-
 @media (max-width: 900px) {
   body {
     font-size: 17px;

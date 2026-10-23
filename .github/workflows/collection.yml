@@ -1,0 +1,60 @@
+name: Study collection
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  browser:
+    name: Dashboard browser regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOL_REQUIRE_BROWSER_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: |
+            logger/search-app/requirements*.txt
+            logger/search-app/requirements.lock
+      - run: python -m pip install -r logger/search-app/requirements-browser-test.txt
+      - run: python -m pip check
+      - name: Install matching Chromium and system dependencies
+        run: python -m playwright install --with-deps --only-shell chromium
+      - name: Require dashboard browser regressions
+        run: python -m pytest logger/search-app/tests/test_*browser.py -q
+  collection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: |
+            logger/search-app/requirements*.txt
+            logger/search-app/requirements.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r logger/search-app/requirements-test.txt
+      - run: python -m pip check
+      - name: Collection, failure recovery and logging contracts
+        run: python -m pytest logger/search-app/tests -q
+      - name: Validate production container configuration
+        run: docker compose -f logger/docker-compose.yml config --quiet
+      - name: Build release image
+        run: docker build --build-arg SOL_GIT_COMMIT="$GITHUB_SHA" -t sol-collection:test logger/search-app
+      - name: Preserve attempt and upload receipt across container replacement
+        run: |
+          volume="sol-collection-check-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker volume create "$volume"
+          trap 'docker volume rm "$volume"' EXIT
+          docker run --rm -v "$volume:/checks" sol-collection:test python tools/check_collection_restart.py seed --root /checks/study
+          docker run --rm -v "$volume:/checks" sol-collection:test python tools/check_collection_restart.py verify --root /checks/study
+          docker run --rm -v "$volume:/checks" sol-collection:test python tools/backup_study.py create /checks/study.zip --root /checks/study
+          docker run --rm -v "$volume:/checks" sol-collection:test python tools/backup_study.py restore /checks/study.zip --root /checks/restored
+          docker run --rm -v "$volume:/checks" sol-collection:test python tools/check_collection_restart.py verify --root /checks/restored

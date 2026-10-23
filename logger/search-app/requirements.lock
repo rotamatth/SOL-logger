@@ -1,0 +1,37 @@
+# Exact production environment, including transitive packages.
+# Refresh deliberately and run the collection/recovery suite before deployment.
+blinker==1.9.0
+cachelib==0.14.0
+certifi==2026.4.22
+cffi==2.0.0
+charset-normalizer==3.4.7
+click==8.3.3
+cryptography==48.0.0
+Flask==3.1.3
+Flask-Session==0.8.0
+Flask-WTF==1.3.0
+google-api-core==2.30.3
+google-auth==2.52.0
+google-cloud-discoveryengine==0.19.0
+googleapis-common-protos==1.75.0
+grpcio==1.80.0
+grpcio-status==1.80.0
+gunicorn==26.0.0
+idna==3.15
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+msgspec==0.21.1
+packaging==26.2
+pillow==12.2.0
+proto-plus==1.28.0
+protobuf==6.33.6
+pyasn1==0.6.3
+pyasn1_modules==0.4.2
+pycparser==3.0
+pyspellchecker==0.9.0
+requests==2.34.1
+typing_extensions==4.15.0
+urllib3==2.7.0
+Werkzeug==3.1.8
+WTForms==3.2.2

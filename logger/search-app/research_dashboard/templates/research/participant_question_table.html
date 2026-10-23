@@ -1,0 +1,16 @@
+<p class="small muted">{{ t('personalize_questions_hint') }}</p>
+<div class="participant-question-table-wrap">
+  <table class="participant-question-table">
+    <thead><tr><th scope="col">ID</th><th scope="col">{{ t('questions_column') }}</th><th scope="col">{{ t('configuration_column') }}</th><th scope="col">{{ t('actions') }}</th></tr></thead>
+    <tbody>
+      {% for person in readiness.participants %}
+      <tr>
+        <th scope="row">{{ person.id }}</th>
+        <td data-label="{{ t('questions_column') }}">{{ t('individual_questions_short') if person.source == 'participant' else t('class_questions_short') }}{% if person.id in question_session.get('participant_question_drafts', {}) %}<span class="badge pending-question-draft">{{ t('pending_draft_short') }}</span>{% endif %}</td>
+        <td data-label="{{ t('configuration_column') }}"><span class="badge {{ 'completed' if person.ready else 'incomplete' }}">{{ t('configuration_complete_short') if person.ready else t(person.problem) }}</span></td>
+        <td class="participant-question-action" data-label="{{ t('actions') }}"><a href="{{ u('session_questions',session_id=question_session.id,participant=person.id,prepare_session=question_session.id if from_preparation|default(false) else None) }}" aria-label="{{ t('edit_questions_for_id') if person.source == 'participant' else t('personalize_questions_for_id') }} {{ person.id }}">{{ t('edit') if person.source == 'participant' else t('personalize') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
