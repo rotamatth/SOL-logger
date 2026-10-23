@@ -77,8 +77,10 @@ def test_row_status_still_uses_the_selected_session_and_school_year(app):
     assert first_session["people"][0]["dashboard_status"] == "completed"
     assert len(first_session["people"]) == 20
     year_only = overview_context(app, client, "grade=4&school_year=2026/2027")
-    assert len(year_only["people"]) == 1
+    # Enrolled children without saved data stay visible in a year view.
+    assert [person["id"] for person in year_only["people"]] == [str(n) for n in range(1, 21)]
     assert year_only["people"][0]["dashboard_status"] == "incomplete"
+    assert {person["dashboard_status"] for person in year_only["people"][1:]} == {"no_data"}
 
 
 def test_overview_keeps_visualization_selection_and_grade_downloads_without_filter_panels(app):

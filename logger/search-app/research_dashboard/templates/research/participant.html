@@ -28,7 +28,9 @@
         <span class="session-meta">
         <span class="session-label">{% if group.session %}{{ group.session.name or (t('session') ~ ' ' ~ group.session.number) }}{% if group.session.name %}<small class="muted">{{ t('session') }} {{ group.session.number }}</small>{% endif %}{% else %}{{ t('other_saved_runs') }}{% endif %}{% if group.session and person.grades|length > 1 %}<small class="muted">{{ t('grade_' ~ group.session.grade) }}</small>{% endif %}</span>
         <span class="session-date muted">{{ group.session.date if group.session else '' }}</span>
-        <span class="badge {{ 'completed' if group.runs|selectattr('status','equalto','completed')|list|length == group.runs|length else 'incomplete' }}">{{ group.runs|selectattr('status','equalto','completed')|list|length }}/{{ group.runs|length }} {{ t('completed')|lower }}</span>
+        {% set saved_runs = group.runs|selectattr('log_file_count')|list %}{% set completed_runs = saved_runs|selectattr('status','equalto','completed')|list|length %}
+        {% if saved_runs %}<span class="badge {{ 'completed' if completed_runs == saved_runs|length else 'incomplete' }}">{{ completed_runs }}/{{ saved_runs|length }} {{ t('completed')|lower }}</span>{% endif %}
+        {% if group.runs|length > saved_runs|length %}<span class="badge unknown">{{ t('runs_without_saved_data') }}: {{ group.runs|length - saved_runs|length }}</span>{% endif %}
         </span>
         <div class="record-actions">
           {% if not open_logs %}<a class="button compact" href="{{ u('participant', collection=collection, token=person.token, view='logs', grade=grade_filter, school_year=selected_year, session=group.session.id if group.session else None) }}#{{ group.session.id if group.session else 'other-runs' }}">{{ t('visualize_logs') }}</a>{% endif %}

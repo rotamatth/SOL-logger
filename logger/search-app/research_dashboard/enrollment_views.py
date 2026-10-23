@@ -4,12 +4,14 @@ from itsdangerous import BadSignature, URLSafeSerializer
 
 from .state import DEFAULT_STUDY_ID, identity
 from .preparation_views import preparation_session
+from .settings_views import session_review_url
 from .participants import GRADES, parse_ids, participant_sort_key, valid_school_year
 from .year_controls import school_year_choices
 
 ERRORS = frozenset(("settings_changed", "invalid_enrollment", "invalid_participant_ids",
                    "participant_id_reserved", "participant_not_registered", "participant_inactive", "school_year_required", "invalid_promotion_year",
-                   "enrollment_conflict", "empty_promotion", "invalid_identity_link", "identity_link_conflict"))
+                   "enrollment_conflict", "empty_promotion", "invalid_identity_link", "identity_link_conflict",
+                   "prepare_session_changed"))
 
 
 def register_enrollment_routes(dash):
@@ -21,7 +23,16 @@ def register_enrollment_routes(dash):
         view = request.args.get("view", "registry")
         if view not in ("registry", "promotion", "links"):
             abort(404)
-        workflow_session = preparation_session(settings, request.args.get("prepare_session"))
+        # The preparation session can be removed or moved while IDs are being typed:
+        # reject the POST but keep the entries visible instead of answering 404.
+        workflow_problem = None
+        if request.method == "POST" and request.args.get("prepare_session"):
+            known = next((s for s in settings["sessions"] if s["id"] == request.args["prepare_session"]), None)
+            if known and (known.get("removed") or not known.get("school_year")
+                          or request.args.get("year", known["school_year"]) != known["school_year"]
+                          or request.args.get("grade", known["grade"]) != known["grade"]):
+                workflow_problem = known
+        workflow_session = None if workflow_problem else preparation_session(settings, request.args.get("prepare_session"))
         if workflow_session and (view != "registry" or not workflow_session.get("school_year")):
             abort(404)
         form = request.form.to_dict() if request.method == "POST" else {}
@@ -37,6 +48,7 @@ def register_enrollment_routes(dash):
         query = request.args.get("q", "").strip()[:32]
         signer = URLSafeSerializer(g.research_hash, salt="sol-enrollment-review")
         preview, token, error, operation = None, None, None, form.get("operation")
+        error_ids = []
         def legacy_records():
             index.refresh()
             return [run for run in index.summaries(settings)
@@ -46,6 +58,8 @@ def register_enrollment_routes(dash):
         legacy = legacy_records() if view == "links" else []
         if request.method == "POST":
             try:
+                if workflow_problem:
+                    raise ValueError("prepare_session_changed")
                 if form.get("action") == "confirm":
                     payload = signer.loads(form["review_token"])
                     if payload.get("workflow_session") != (workflow_session["id"] if workflow_session else None):
@@ -90,6 +104,7 @@ def register_enrollment_routes(dash):
                                          workflow_session=workflow_session["id"] if workflow_session else None))
             except (ValueError, KeyError, TypeError, BadSignature) as exc:
                 error = str(exc) if str(exc) in ERRORS else "invalid_enrollment"
+                error_ids = getattr(exc, "ids", []) if error == str(exc) else []
         enrollments = settings["enrollments"].get(year, {})
         def registry_person(uid, person):
             return {"id": uid, **person, "grade": enrollments.get(uid, {}).get("grade"),
@@ -125,11 +140,12 @@ def register_enrollment_routes(dash):
             abort(404)
         audit = state.participant_changes()
         return page("enrollment", settings=settings, workflow_session=workflow_session,
+                    workflow_review_url=session_review_url(dash, settings, workflow_problem) if workflow_problem else None,
                     study_context=workflow_session or {"grade": grade, "school_year": year},
                     research_area="prepare" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
                     school_years=school_year_choices(settings, year, *(form.get(key) for key in ("year", "source_year", "target_year"))),
                     people=people[(number-1)*50:number*50], total=len(people), page_number=number,
                     page_count=page_count, editing=person, form=form,
-                    preview=preview, review_token=token, operation=operation, error=error,
+                    preview=preview, review_token=token, operation=operation, error=error, error_ids=error_ids,
                     participant_token=identity, registry_ids=sorted(settings["participant_registry"], key=participant_sort_key),
                     legacy_ids=sorted({run["participant_id"] for run in legacy}, key=participant_sort_key), audit=audit), 400 if error else 200

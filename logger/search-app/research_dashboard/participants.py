@@ -13,6 +13,14 @@ GRADES = ("3", "4", "5")
 SCHEMA_VERSION = 2
 
 
+class ParticipantError(ValueError):
+    """A rejected change; ``str()`` stays the error code, ``ids`` names the participants that caused it."""
+
+    def __init__(self, code, ids):
+        super().__init__(code)
+        self.ids = list(ids)
+
+
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -49,7 +57,8 @@ def range_roster(settings):
 
 
 def participant_sort_key(uid):
-    return (not uid.isdigit(), int(uid) if uid.isdigit() else uid, uid)
+    # isdecimal, not isdigit: "²" is a digit that int() rejects. Legacy log IDs can contain it.
+    return (not uid.isdecimal(), int(uid) if uid.isdecimal() else uid, uid)
 
 
 def roster(settings, school_year=None):
@@ -227,9 +236,10 @@ def add_participants(db, ids, year, grade):
         raise ValueError("invalid_participant_ids")
     if not valid_school_year(year):
         raise ValueError("school_year_required")
+    reserved = [uid for uid in ids if db.execute("SELECT 1 FROM participants WHERE id=?", (uid,)).fetchone()]
+    if reserved:
+        raise ParticipantError("participant_id_reserved", reserved)
     for uid in ids:
-        if db.execute("SELECT 1 FROM participants WHERE id=?", (uid,)).fetchone():
-            raise ValueError("participant_id_reserved")
         db.execute("INSERT INTO participants VALUES (?,?,1,?)", (uid, uuid.uuid4().hex, now()))
         put_enrollment(db, uid, year, grade)
     return {"ids": ids, "school_year": year, "grade": grade}
@@ -252,13 +262,15 @@ def enroll_participants(db, ids, year, grade):
     if (not isinstance(ids, list) or any(not isinstance(uid, str) for uid in ids)
             or parse_ids("\n".join(ids)) != ids):
         raise ValueError("invalid_participant_ids")
+    people = {uid: db.execute("SELECT active FROM participants WHERE id=?", (uid,)).fetchone() for uid in ids}
+    unregistered = [uid for uid in ids if not people[uid]]
+    if unregistered:
+        raise ParticipantError("participant_not_registered", unregistered)
+    inactive = [uid for uid in ids if not people[uid]["active"]]
+    if inactive:
+        raise ParticipantError("participant_inactive", inactive)
     changes = []
     for uid in ids:
-        person = db.execute("SELECT active FROM participants WHERE id=?", (uid,)).fetchone()
-        if not person:
-            raise ValueError("participant_not_registered")
-        if not person["active"]:
-            raise ValueError("participant_inactive")
         before = db.execute("SELECT grade FROM enrollments WHERE participant_id=? AND school_year=?", (uid, year)).fetchone()
         put_enrollment(db, uid, year, grade)
         changes.append({"id": uid, "before_grade": before[0] if before else None, "grade": grade})
@@ -269,13 +281,15 @@ def promotion_plan(settings, source_year, target_year):
     if (not valid_school_year(source_year) or not valid_school_year(target_year)
             or int(target_year[:4]) != int(source_year[:4]) + 1):
         raise ValueError("invalid_promotion_year")
-    plan = []
+    plan, conflicts = [], []
     for uid, grade in roster(settings, source_year).items():
         target = str(int(grade) + 1) if grade != GRADES[-1] else None
         existing = settings.get("enrollments", {}).get(target_year, {}).get(uid)
         if existing and existing["grade"] != target:
-            raise ValueError("enrollment_conflict")
+            conflicts.append(uid)
         plan.append({"id": uid, "from_grade": grade, "to_grade": target})
+    if conflicts:
+        raise ParticipantError("enrollment_conflict", conflicts)
     if not plan:
         raise ValueError("empty_promotion")
     return sorted(plan, key=lambda row: (row["from_grade"], participant_sort_key(row["id"])))

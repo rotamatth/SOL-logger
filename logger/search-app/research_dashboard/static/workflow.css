@@ -19,7 +19,7 @@
 .student-question-preview { position:relative; margin:24px 0; padding:44px 32px 32px; border-radius:16px; border:2px solid #cdd7d0; background:#fffef9; text-align:center; box-shadow:0 3px 10px #1b35300d }
 .student-question-preview h2 { font-size:30px; color:var(--accent) }
 .preview-watermark { position:absolute; right:16px; top:12px; text-transform:uppercase; letter-spacing:.04em; font-size:11px; font-weight:700; color:#6b705b }
-.preview-task-question { font-size:24px; line-height:1.5; font-weight:650; max-width:760px; margin:24px auto; overflow-wrap:anywhere }
+.preview-task-question { font-size:24px; line-height:1.5; font-weight:650; max-width:760px; margin:24px auto; overflow-wrap:anywhere; white-space:pre-line }
 .preview-task-prompt { font-size:16px }
 @media(max-width:700px) {
   .session-status-summary { align-items:flex-start; flex-direction:column; gap:8px; padding:16px }

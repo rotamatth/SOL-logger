@@ -235,7 +235,7 @@ def test_settings_require_csrf_reject_stale_revision_and_save_calendar(app):
     assert state.settings()["sessions"][0]["date"] == "2026-10-01"
     response = client.post("/dashboard/settings", data=form)
     assert response.status_code == 400
-    assert b"Another researcher" in response.data
+    assert b"another tab or by another researcher" in response.data
 
 
 def test_index_uses_full_once_preserves_order_versions_and_answers(app):
@@ -1347,7 +1347,7 @@ def test_new_session_requires_auth_csrf_and_current_revision(app):
     after = state.settings()
     form["date"] = "2026-10-05"
     stale = client.post("/dashboard/settings", data=form)
-    assert stale.status_code == 400 and b"Another researcher" in stale.data
+    assert stale.status_code == 400 and b"another tab or by another researcher" in stale.data
     assert state.settings() == after
 
 

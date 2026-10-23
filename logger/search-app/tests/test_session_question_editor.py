@@ -264,7 +264,7 @@ def test_stale_editor_retains_submitted_draft_and_never_overwrites_new_revision(
     latest = state.settings()
     for _ in range(2):
         response = client.post(URL, data=fields)
-        assert response.status_code == 400 and "Another researcher updated the settings" in response.text
+        assert response.status_code == 400 and "changed in another tab or by another researcher" in response.text
         returned = EditorFields(response).fields
         assert returned["theme"] == "My stale draft"
         assert returned["question_0"] == "My stale draft question 1?"
@@ -307,7 +307,7 @@ def test_concurrent_worker_save_is_rejected_atomically_and_retains_draft(app, mo
 
     monkeypatch.setattr(state, "save_settings", concurrent_save)
     response = client.post(URL, data=fields)
-    assert response.status_code == 400 and "Another researcher updated the settings" in response.text
+    assert response.status_code == 400 and "changed in another tab or by another researcher" in response.text
     assert EditorFields(response).fields["question_2"] == "Concurrent draft question 3?"
     latest = worker.settings()
     assert latest["current_school_year"] == "2026/2027"
@@ -342,8 +342,19 @@ def test_unknown_session_or_wrong_grade_participant_is_rejected(app, url):
     login(client)
     assert client.get(url).status_code == 404
     token = csrf(client.get(URL))
-    assert client.post(url, data={"csrf": token, "revision": 1,
-                                 "action": "save_questions", **custom_fields()}).status_code == 404
+    state = app.extensions["research"]["state"]
+    before = state.settings()
+    response = client.post(url, data={"csrf": token, "revision": before["revision"],
+                                      "action": "save_questions", **custom_fields()})
+    if url.endswith("participant=21"):
+        # A registered child outside this class (e.g. moved in another tab): the
+        # save is refused with an explanation and the typed text stays on screen.
+        assert response.status_code == 400
+        assert "no longer enrolled in this session" in response.text
+        assert custom_fields()["question_0"] in response.text
+    else:
+        assert response.status_code == 404
+    assert state.settings() == before
 
 
 @pytest.mark.parametrize("action, selection", [

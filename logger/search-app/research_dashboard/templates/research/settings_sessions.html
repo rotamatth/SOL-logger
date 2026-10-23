@@ -12,7 +12,7 @@
     {% if next_numbers[history_grade] <= session_limit %}
     <p class="small muted">{{ t('session') }} {{ next_numbers[history_grade] }} · {{ t('new_session_hint') }}</p>
     <form class="new-session-form" method="post" data-guard{% if error and request.form.get('action') == 'add_session' %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year) }}">
-      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="add_session"><input type="hidden" name="grade" value="{{ history_grade }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('add_session') }}"><input type="hidden" name="action" value="add_session"><input type="hidden" name="grade" value="{{ history_grade }}">
       <div>{{ school_year_input('new-year', 'school_year', request.form.get('school_year', history_year or settings.current_school_year) if open_new else history_year or settings.current_school_year, school_years) }}</div>
       <div><label for="new-date">{{ t('date') }}</label><input id="new-date" name="date" type="date" value="{{ add_date }}" required></div>
       <div><label for="new-name">{{ t('session_name_optional') }}</label><input id="new-name" name="name" type="text" maxlength="80" value="{{ add_name }}" placeholder="{{ t('session_name_example') }}"></div>
@@ -45,7 +45,7 @@
         <p class="small muted">{{ t('remove_session_hint') }}</p>
         <p><strong>{{ t('session') }} {{ study_session.number }}</strong>{% if study_session.name %} · {{ study_session.name }}{% endif %} · {{ study_session.date or t('date_not_set') }}</p>
         <form method="post" data-guard{% if error and request.form.get('action') == 'remove_session' and request.form.get('session_id') == study_session.id %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year, edit=study_session.id) }}">
-          <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="remove_session"><input type="hidden" name="session_id" value="{{ study_session.id }}"><input type="hidden" name="confirm_remove" value="1">
+          <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('remove_session', study_session.id) }}"><input type="hidden" name="action" value="remove_session"><input type="hidden" name="session_id" value="{{ study_session.id }}"><input type="hidden" name="confirm_remove" value="1">
           <button type="submit">{{ t('confirm_remove_session') }}</button>
         </form>
       </details>
@@ -61,7 +61,7 @@
   <summary>{{ t('removed_study_sessions') }} ({{ removed_sessions | length }})</summary><p class="small muted">{{ t('removed_sessions_hint') }}</p>
   {% for removed in removed_sessions %}<div class="removed-session-row"><h3>{{ t('session') }} {{ removed.number }}{% if removed.name %} · {{ removed.name }}{% endif %}</h3>
     <form class="new-session-form" method="post" data-guard{% if error and request.form.get('action') == 'restore_session' and request.form.get('session_id') == removed.id %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year, removed='1') }}#removed-sessions">
-      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="action" value="restore_session"><input type="hidden" name="session_id" value="{{ removed.id }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('restore_session', removed.id) }}"><input type="hidden" name="action" value="restore_session"><input type="hidden" name="session_id" value="{{ removed.id }}">
       <div><label for="restore-date-{{ removed.id }}">{{ t('date') }}</label><input id="restore-date-{{ removed.id }}" type="date" name="date" value="{{ request.form.get('date', removed.date) if request.form.get('session_id') == removed.id else removed.date }}"></div>
       <button type="submit">{{ t('restore_study_session') }}</button>
     </form>

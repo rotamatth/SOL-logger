@@ -65,6 +65,87 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-23 — Fix review findings: hidden absent children, empty runs, lost input on concurrent changes
+
+**Commit:** pending · **Type:** fix · **Area:** session, task-flow, logging, data, styling, docs, tests
+
+**Files**
+- `search-app/research_dashboard/history_data.py` — year views also list children
+  enrolled in that grade/year without runs; status and completion ratio ignore runs
+  without saved log files (`status_runs`, `empty_run_count`); one shared ID sort key.
+- `search-app/research_dashboard/history_views.py` — participant page opens for an
+  enrolled child without runs in the selected year instead of 404.
+- `search-app/research_dashboard/preparation_views.py`, `question_views.py`,
+  `enrollment_views.py` — a POST for a session removed or moved elsewhere (or a child
+  moved to another class) re-renders with the typed input, an explanation and a
+  review link instead of 404. A fresh GET is still 404.
+- `search-app/research_dashboard/settings_views.py` — `session_review_url()` shared
+  helper; `revision_for()` gives only the rejected form the stale revision.
+- `search-app/research_dashboard/participants.py` — `participant_sort_key` uses
+  `isdecimal` (legacy ID "²" crashed the links page); `ParticipantError` names the
+  IDs behind reserved/unregistered/inactive/promotion-conflict errors.
+- `search-app/research_dashboard/state.py` — year change of a session with records
+  raises `session_year_has_records` (was the removal message).
+- `search-app/research_dashboard/i18n.py` — clearer `settings_changed` wording (other
+  tab or researcher), new messages, missing `school_year_unknown`.
+- Templates: `prepare.html`, `session_questions.html`, `enrollment.html`,
+  `overview_table.html`, `participant.html`, `settings*.html`, `base.html` (CSS version).
+- `search-app/research_dashboard/static/research.css`, `workflow.css` — 44 px tap width
+  for EN/IT and participant-ID links on touch screens; preview keeps line breaks.
+- `search-app/search_app.py` — repeated start of an untouched run continues it;
+  admission retried when a researcher save races a start; idle limit counts every
+  page; a batch from an earlier session is stored as INCOMPLETE recovery, not 409.
+- `search-app/templates/start.html`, `layout.html`, `static/main.css` — start button
+  disabled after the first tap; question line breaks shown to children; CSS version.
+- `search-app/tools/seed_research_demo.py` — demo school year starts in September.
+- Tests: three new modules (`test_concurrent_session_changes.py`,
+  `test_reporting_scope_regressions.py`, `test_student_start_and_recovery.py`); assertions
+  updated for the reworded conflict message, the new year-change code, the year view,
+  the wrong-grade editor POST and the removed 409 path.
+
+**What changed for the participant**
+A double tap on **Continua** no longer creates a second, empty run. Multi-line
+questions keep their line breaks. A child who reads pages for over an hour without
+returning to the search page keeps the session; a real 60-minute pause still ends it.
+If a researcher saves settings at the moment a child starts, the start succeeds.
+
+**What changed for researchers**
+A school-year or session view lists absent children as **No saved data**. A child
+who completed one run is not marked incomplete by an empty run, which is shown as
+**Started without saved data**. Removing or moving a session (or child) in another
+tab no longer turns an open form into a 404 that loses typed input. After a
+conflict, other forms on the settings page work without reloading. Enrollment and
+promotion errors list the IDs involved.
+
+**How it works**
+`scoped_people()` adds `roster(settings, selected_year)` members when a year is
+selected (grades 3–5 and "all"; not unassigned/legacy). `has_logs(run)` decides which
+runs count. Concurrency fixes keep the stale revision or point the form at the
+changed session, so a repeated click is refused again and never saves elsewhere.
+
+**If something looks wrong after this, check**
+- A year view shows children who did not take part → expected: they are enrolled;
+  check `scoped_people()` in `history_data.py` if the wrong grade/year appears.
+- A child shows completed although a run is incomplete → only runs without log
+  files are ignored; check that run's `log_file_count` in the index.
+- A child restarted but stayed in the same run → `untouched_run_for()` in
+  `search_app.py`; it applies only before the first task's search page was opened.
+- New `*_INCOMPLETE.log` files named after a session ID → batches from an earlier
+  session of that browser; see `_accept_other_session_batch()`.
+
+**Left alone**
+The shared global settings revision (stale-write protection is unchanged); student
+progress/resume, repeat authorization and the one-active-attempt policy; the dead
+`templates/no_result.html`; Bootstrap/jQuery CDN loading on student pages; invalid
+or session-less uploads still answer 400.
+
+**Verified**
+Full suite with required Chromium browser tests; the 20 new regression tests were
+also run against an untouched copy of e19bef4: 19 fail there for the reported bug,
+1 documents unchanged behavior and passes on both. A real-browser check confirmed
+one admitted run after a double click and the visible line break. Not tested on a
+physical iPad or in Safari.
+
 ## 2026-10-23 — Complete dashboard UX and preserve concurrent session edits
 
 **Type:** feature, fix · **Area:** styling, session, logging, data, infra, docs, tests

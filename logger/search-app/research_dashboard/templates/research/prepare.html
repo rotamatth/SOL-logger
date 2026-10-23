@@ -18,14 +18,14 @@
     <div class="preparation-field preparation-session-field">
       <span class="picker-label" id="prepare-session-label">{{ t('session') }}</span>
       <details class="preparation-menu" id="preparation-session">
-        <summary aria-labelledby="prepare-session-label prepare-session-value"><span id="prepare-session-value">{% if selected and not creating %}{{ selected.name or (t('session') ~ ' ' ~ selected.number) }} <span class="picker-date">{{ selected.date or t('date_not_set') }}</span>{% else %}{{ t('new_session') }}{% endif %}</span></summary>
+        <summary aria-labelledby="prepare-session-label prepare-session-value"><span id="prepare-session-value">{% if selected and not creating %}{{ selected.name or (t('session') ~ ' ' ~ selected.number) }} <span class="picker-date">{{ selected.date or t('date_not_set') }}</span>{% elif rejected %}{{ rejected.name or (t('session') ~ ' ' ~ rejected.number) }}{% else %}{{ t('new_session') }}{% endif %}</span></summary>
         <div class="preparation-menu-options">{% for item in sessions %}<button type="submit" name="session" value="{{ item.id }}" aria-label="{{ item.name or (t('session') ~ ' ' ~ item.number) }} · {{ item.date or t('date_not_set') }}" {% if selected and selected.id == item.id and not creating %}aria-current="true"{% endif %}><span>{{ item.name or (t('session') ~ ' ' ~ item.number) }}</span><span class="picker-date">{{ item.date or t('date_not_set') }}</span></button>{% endfor %}</div>
       </details>
     </div>
     {% endif %}
     {% if sessions %}<a class="button" href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,new='1') }}#prepare-details">+ {{ t('new_session') }}</a>{% endif %}
   </form>
-  {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<a href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected else None) }}">{{ t('reload_saved_settings') }}</a>{% endif %}{% endif %}
+  {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<a href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected else None) }}">{{ t('reload_saved_settings') }}</a>{% elif rejected_review_url %}<p><a class="button" href="{{ rejected_review_url }}" target="_blank" rel="noopener">{{ t('review_saved_session') }}</a></p>{% endif %}{% endif %}
   {% if request.args.get('saved') %}<p class="notice success" role="status">{{ t('session_saved') }}</p>{% endif %}
   {% if request.args.get('participants_saved') %}<p class="notice success" role="status">{{ t('participants_saved') }}</p>{% endif %}
   {% if request.args.get('draft_saved') %}<p class="notice success" role="status">{{ t('question_draft_saved') }}</p>{% endif %}
@@ -40,11 +40,11 @@
   <section class="panel preparation-panel" id="prepare-details">
     <h2><span class="preparation-number">1</span> {{ t('session_details') }}</h2>
     {% if not settings.current_school_year %}<p class="notice">{{ t('initial_prepare_year_hint') }}</p>{% endif %}
-    <form class="preparation-details" data-guard{% if error and request.form.get('action') == 'save_details' %} data-unsaved{% endif %} method="post" action="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected and not creating else None,new='1' if creating else None) }}">
-      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ request.form.get('revision') if error == 'settings_changed' else settings.revision }}"><input type="hidden" name="action" value="save_details">
+    <form class="preparation-details" data-guard{% if error and request.form.get('action') == 'save_details' %} data-unsaved{% endif %} method="post" action="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=rejected.id if rejected else selected.id if selected and not creating else None,new='1' if creating else None) }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ request.form.get('revision') if error in ('settings_changed', 'prepare_session_changed') else settings.revision }}"><input type="hidden" name="action" value="save_details">
       <label for="prepare-name">{{ t('session_name_optional') }}<input id="prepare-name" name="name" maxlength="80" value="{{ request.form.get('name','') if error else selected.name or '' if selected and not creating else '' }}" placeholder="{{ t('session_name_example') }}"></label>
       <label for="prepare-date">{{ t('date') }}<input id="prepare-date" name="date" type="date" min="{{ date_bounds.min }}" max="{{ date_bounds.max }}" value="{{ request.form.get('date','') if error else selected.date if selected and not creating else '' }}" required></label>
-      <button class="primary" type="submit">{{ t('create_session') if creating or not selected else t('save_session') }}</button>
+      <button class="primary" type="submit">{{ t('create_session') if creating or not (selected or rejected) else t('save_session') }}</button>
     </form>
     <p class="small muted">{{ study_context.school_year }} · {{ t('grade_' ~ study_context.grade) }} · Europe/Zurich</p>
   </section>

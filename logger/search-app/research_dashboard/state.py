@@ -302,7 +302,7 @@ class State:
                 prior = previous_sessions.get(item["id"], {})
                 if prior.get("school_year") != item.get("school_year"):
                     if db.execute("SELECT 1 FROM study_attempts WHERE study_session_id=? LIMIT 1", (item["id"],)).fetchone():
-                        raise ValueError("session_has_records")
+                        raise ValueError("session_year_has_records")
                 if item.get("removed") and item["id"] not in removed_before:
                     if db.execute("SELECT 1 FROM study_attempts WHERE study_session_id=? LIMIT 1", (item["id"],)).fetchone():
                         raise ValueError("session_has_records")

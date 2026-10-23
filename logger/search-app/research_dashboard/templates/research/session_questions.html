@@ -14,7 +14,7 @@
 {% if request.args.get('saved') %}<p class="notice" role="status">{{ t('questions_saved') if draft.get('approved') else t('question_draft_saved') }}</p>{% endif %}
 {% if request.args.get('discarded') %}<p class="notice" role="status">{{ t('question_draft_discarded') }}</p>{% endif %}
 {% if unsaved_preview %}<p class="notice warning" role="status"><strong>{{ t('unsaved_question_changes') }}</strong> {{ t('save_question_preview_hint') }}</p>{% endif %}
-{% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<p><a href="{{ u('session_questions', session_id=study_session.id, participant=participant or None) }}">{{ t('reload_saved_settings') }}</a></p>{% endif %}{% endif %}
+{% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<p><a href="{{ u('session_questions', session_id=study_session.id, participant=participant or None) }}">{{ t('reload_saved_settings') }}</a></p>{% elif review_url %}<p><a class="button" href="{{ review_url }}" target="_blank" rel="noopener">{{ t('review_saved_session') if error == 'question_session_removed' else t('review_enrollment_new_tab') }}</a></p>{% endif %}{% endif %}
 <nav class="actions" aria-label="{{ t('question_assignment') }}"><a class="button" href="{{ u('session_questions', session_id=study_session.id) }}" {% if not participant %}aria-current="page"{% endif %}>{{ t('shared_questions') }}</a>{% if participant %}<strong>{{ t('participant') }} {{ participant }}</strong>{% endif %}</nav>
 <div class="panel">
   <h2>{{ t('participant_exception') ~ ' · ' ~ participant if participant else t('shared_questions') }}</h2>

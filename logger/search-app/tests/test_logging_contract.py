@@ -160,7 +160,10 @@ def test_log_session_warns_only_for_expected_logging_contract_issues():
     assert "def warn_logging_contract_issues(logs, default_task_number):" in source
     assert "warn_logging_contract_issues(logs, task_number)" in source
     assert "if session_id != server_session_id:" in source
-    assert 'return jsonify({"error": "Session mismatch"}), 409' in source
+    # A batch from an earlier session of the browser is recovered, not rejected:
+    # a permanent rejection left the browser retrying it and unable to send new events.
+    assert "return _accept_other_session_batch(data, session_id, logs, user_id)" in source
+    assert 'return jsonify({"error": "Session mismatch"}), 409' not in source
     # Events from a previous, unfinished participant are recovered into their
     # own incomplete-experiment log, never dropped and never rejected.
     assert "def _prepare_upload(" in source
