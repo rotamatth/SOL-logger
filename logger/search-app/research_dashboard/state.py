@@ -283,6 +283,12 @@ class State:
             registry = identities.projection(db)
         return {**value, **registry, "revision": row["revision"], "updated_at": row["updated_at"]}
 
+    def settings_body(self, revision):
+        """The stored settings document of an earlier revision, or None. Revisions are never deleted."""
+        with self.connect() as db:
+            row = db.execute("SELECT body FROM settings WHERE revision=?", (revision,)).fetchone()
+        return json.loads(row[0]) if row else None
+
     def save_settings(self, value, expected_revision):
         value = json.loads(json.dumps({key: value[key] for key in SETTING_FIELDS}))
         for item in value["sessions"]:

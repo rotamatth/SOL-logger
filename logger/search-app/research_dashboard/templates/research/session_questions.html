@@ -24,8 +24,9 @@
     {% if published or not participant %}<p><strong>{{ t('published_current') }}</strong> <span class="badge {{ 'completed' if published_ready else 'incomplete' }}">{{ t('questions_approved') if published_ready else t('published_none') }}</span> {% if published_ready %}{{ t('published_unchanged') }}{% else %}{{ t('no_published_questions') }}{% endif %}</p>{% endif %}
     {% if has_draft %}<p><strong>{{ t('draft_pending') }}</strong> <span class="badge incomplete">{{ t('questions_draft') }}</span> {{ t('unsaved_editor_hint') }}</p>{% endif %}
   </div>
-  <form method="post" class="question-editor" data-guard data-recovery-key="{{ recovery_key }}" data-recovery-fields="theme topic_0 question_0 topic_1 question_1 topic_2 question_2 draft_token revision"{% if unsaved_preview or error %} data-unsaved{% endif %}>
+  <form method="post" class="question-editor" data-guard data-recovery-key="{{ recovery_key }}" data-recovery-fields="theme topic_0 question_0 topic_1 question_1 topic_2 question_2 draft_token revision recovered_draft_token"{% if unsaved_preview or error %} data-unsaved{% endif %}>
     <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="draft_token" value="{{ draft_token }}">
+    <input type="hidden" name="recovered_draft_token" value="{{ recovered_draft_token }}">
     <input type="hidden" name="recovery_sequence" value="">
     <div hidden data-library-data data-library-sets="{{ library|tojson|forceescape }}" data-library-questions="{{ unique_questions|tojson|forceescape }}" data-library-labels="{{ {'search': t('library_search'), 'results': t('library_results'), 'empty': t('library_no_results'), 'preview': t('library_preview'), 'source': t('library_source'), 'condition': t('library_condition'), 'details': t('library_question_details'), 'variants': t('library_variants'), 'choose': t('library_choose'), 'selected': t('library_selected'), 'more': t('library_show_more')}|tojson|forceescape }}"></div>
     <details class="technical-details question-library" data-library-kind="sets"><summary>{{ t('reuse_question_set') }}</summary>

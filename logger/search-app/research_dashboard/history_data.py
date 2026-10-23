@@ -81,9 +81,11 @@ def scoped_people(state, settings, summaries, collection, grade, selected_year=N
                                   and r["study_session"]["id"] == selected_session["id"])]
         p["has_downloadable_logs"] = any(has_logs(r) for r in p["visible_runs"])
         # A run without saved log files (a double tap on Start, a wrong ID chosen
-        # first) is still listed and exported, but does not decide the status.
-        p["status_runs"] = [r for r in p["visible_runs"] if has_logs(r)]
-        p["empty_run_count"] = len(p["visible_runs"]) - len(p["status_runs"])
+        # first) and a recovered fragment are still listed and exported, but they
+        # do not decide the status.
+        p["status_runs"] = [r for r in p["visible_runs"] if has_logs(r) and not r.get("recovery_only")]
+        p["fragment_count"] = sum(1 for r in p["visible_runs"] if r.get("recovery_only"))
+        p["empty_run_count"] = len(p["visible_runs"]) - len(p["status_runs"]) - p["fragment_count"]
         p["dashboard_status"] = (
             "no_data" if not p["status_runs"] else
             "completed" if all(run["status"] == "completed" for run in p["status_runs"]) else "incomplete")

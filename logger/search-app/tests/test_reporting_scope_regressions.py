@@ -60,6 +60,24 @@ def test_child_with_only_an_empty_run_has_no_saved_data_status(app):
     assert child["dashboard_status"] == "no_data" and child["empty_run_count"] == 1
 
 
+def test_recovered_fragment_is_shown_but_does_not_decide_the_status(app):
+    client = logged_in(app)
+    write_run(app)
+    root = Path(app.config["RESEARCH_LOG_DIR"])
+    fragment = [{"uid": "1", "sessionID": "earlier-tab", "type": "queryBoxFocused",
+                 "timestamp": "2026-10-01T09:30:00.000", "recovered": True},
+                {"type": "incompleteExperiment", "uid": "1", "sessionID": "earlier-tab"}]
+    (root / "1_earlier-tab_INCOMPLETE.log").write_text("".join(json.dumps(event) + "\n" for event in fragment))
+    context = overview_context(app, client, f"collection=study&grade=4&school_year={YEAR}")
+    child = next(person for person in context["people"] if person["id"] == "1")
+    assert len(child["visible_runs"]) == 2 and child["fragment_count"] == 1 and child["empty_run_count"] == 0
+    assert child["dashboard_status"] == "completed"
+    page = client.get(f"/dashboard/?collection=study&grade=4&school_year={YEAR}")
+    assert "1/1 completed" in page.text and "Recovered fragments: 1" in page.text
+    detail = client.get(f"/dashboard/participants/study/{identity('1')}?school_year={YEAR}")
+    assert "1/1 completed" in detail.text and "Recovered fragments: 1" in detail.text
+
+
 def test_legacy_link_page_accepts_ids_with_non_decimal_digits(app):
     client = logged_in(app)
     event = {"uid": "²", "sessionID": "legacy-s", "type": "TaskStarted", "task_number": 1,

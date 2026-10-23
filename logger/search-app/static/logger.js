@@ -183,12 +183,16 @@
                 try { localStorage.setItem(pendingKey, JSON.stringify(pending)); }
                 catch (error) { return Promise.reject(error); }
             }
+            const body = JSON.stringify(pending);
             this.uploadInFlight = fetch('/log_session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(pending)
+                body,
+                // A small batch may finish after the page closes (browsers cap
+                // keepalive bodies at 64 KiB). Otherwise the next page retries it.
+                keepalive: new Blob([body]).size < 60000
             }).then(async response => {
                 if (!response.ok) {
                     throw new Error('Failed to send logs.');
@@ -205,8 +209,9 @@
                 }
                 localStorage.setItem('sessionLogs', JSON.stringify(this.logs));
                 localStorage.removeItem(pendingKey);
-                localStorage.removeItem('browserHistory');
-                this.historyTracker = [];
+                // The navigation history stays: uploads now also happen during a
+                // task, and logSERP uses it to tell a revisited results page from
+                // a new one. Ending a task clears all client data, history included.
                 // The server may have recovered events left behind by a
                 // previous, unfinished participant and saved them as an
                 // incomplete experiment. Surface that to the operator.
@@ -1088,3 +1093,28 @@ if (taskHelpBtn && taskHelpModal) {
         });
     }
 }
+
+// Upload while the child works, not only when a task ends: an interrupted run
+// (lesson over, iPad switched off, the next child starting on this iPad) keeps
+// everything up to the last page. Each batch keeps its identifier until it is
+// acknowledged, so a retry never writes events twice. Failures stay queued for
+// the next trigger and for the end of the task, which reports them.
+function syncLogsInBackground() {
+    // Only events of the run the server issued to this page; never after the
+    // end of a task or the experiment has cleared the client data.
+    if (!window.SESSION_ID || studyLogger.sessionID !== window.SESSION_ID) return;
+    studyLogger.sendLogs().catch((error) => console.warn("Background upload will be retried:", error));
+}
+
+const BACKGROUND_UPLOAD_INTERVAL_MS = 60000;
+
+window.addEventListener("load", () => {
+    syncLogsInBackground();
+    setInterval(syncLogsInBackground, BACKGROUND_UPLOAD_INTERVAL_MS);
+    // Registered after the page's own pagehide handlers (for example the viewer's
+    // webpageClosed event), so leaving the page includes them.
+    window.addEventListener("pagehide", syncLogsInBackground);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") syncLogsInBackground();
+    });
+});

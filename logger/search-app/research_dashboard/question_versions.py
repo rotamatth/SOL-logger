@@ -54,6 +54,15 @@ def question_draft(study_session, participant=""):
     return deepcopy(value)
 
 
+def question_fields(study_session, participant=""):
+    """Everything an editor save can replace: the approved version and the working copy."""
+    _participant(participant)
+    if participant:
+        return (study_session.get("participant_questions", {}).get(participant),
+                study_session.get("participant_question_drafts", {}).get(participant))
+    return study_session.get("question_set"), study_session.get("question_draft")
+
+
 def working_questions(study_session, participant=""):
     """Return the editor's isolated working copy without changing admission.
 

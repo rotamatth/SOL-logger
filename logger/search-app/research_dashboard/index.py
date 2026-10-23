@@ -316,6 +316,10 @@ class Index:
                    "log_file_count": sum(f["kind"] != "metadata" and bool(f.get("sha256")) for f in files),
                    "last_saved": max((f["mtime"] for f in files), default=0), "issue_count": len(issues),
                    "technical_session_ids": sorted(sessions),
+                   # Only INCOMPLETE files: events recovered from an earlier session or
+                   # participant on a device, not an attempt of its own.
+                   "recovery_only": (any(f["kind"] == "recovery" for f in files)
+                                     and all(f["kind"] in ("recovery", "metadata") for f in files)),
                    "log_id": meta.get("log_id") or (filename_log_id[1] if filename_log_id else None),
                    "log_id_source": "metadata" if meta.get("log_id") else "filename" if filename_log_id else None,
                    "started_at": meta.get("started_at")}
