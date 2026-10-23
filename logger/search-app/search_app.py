@@ -298,14 +298,28 @@ def untouched_run_for(user_id):
         return False
 
 
-def note_student_activity():
-    """The 60-minute idle limit counts every page the participant opens, not only the search page.
+STUDENT_IDLE_SECONDS = 60 * 60
 
+
+def idle_session_expired():
+    """Apply the 60-minute idle limit on a page navigation; True once the run has ended.
+
+    Every page the participant opens counts as activity, and every page enforces
+    the limit, so a run left open on a device cannot continue days later.
     Only call this from page navigations: background requests (autocomplete, frame
     checks) run in parallel and must not write the session.
     """
-    if session.get('user_id'):
-        session['last_active'] = datetime.now().isoformat()
+    if not session.get('user_id'):
+        return False
+    try:
+        idle = (datetime.now() - datetime.fromisoformat(session.get('last_active', ''))).total_seconds()
+    except (TypeError, ValueError):
+        idle = 0
+    if idle > STUDENT_IDLE_SECONDS:
+        session.clear()
+        return True
+    session['last_active'] = datetime.now().isoformat()
+    return False
 
 
 def optional_reward_asset(user_id, field, allow_video=False):
@@ -392,14 +406,9 @@ def search_page():
     if phase not in ('task_intro', 'searching'):
         return redirect(phase_redirect_url(phase))
 
-    # Check session TTL — expire after 60 minutes of inactivity
-    last_active = session.get('last_active')
-    if last_active:
-        elapsed = (datetime.now() - datetime.fromisoformat(last_active)).total_seconds()
-        if elapsed > 3600:  # 60 minutes
-            session.clear()
-            return redirect(url_for('welcome'))
-    session['last_active'] = datetime.now().isoformat()
+    # Expire after 60 minutes of inactivity (counted across every page).
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
 
     # Mark this task as started — phase advances to 'searching'.
     task_number = session.get('task_number')
@@ -492,7 +501,8 @@ def task():
     phase = current_phase()
     if phase != 'task_intro':
         return redirect(phase_redirect_url(phase))
-    note_student_activity()
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
 
     user_id = session.get('user_id')
     task_number = session.get('task_number')
@@ -522,7 +532,8 @@ def result():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
-    note_student_activity()
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
 
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
     form = SearchForm()
@@ -685,7 +696,8 @@ def webpage():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
-    note_student_activity()
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
     url = request.args.get("url", "")
     query = request.args.get("query", "")
     page = request.args.get("page", "1")
@@ -1003,7 +1015,8 @@ def end_task():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
-    note_student_activity()
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
     task_number = session.get('task_number')
 
     # Record the earned puzzle piece for the current task
@@ -1019,7 +1032,8 @@ def next_task():
     phase = current_phase()
     if phase != 'reward':
         return redirect(phase_redirect_url(phase))
-    note_student_activity()
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
 
     has_next_task = advance_to_next_random_task()
     
@@ -1043,7 +1057,8 @@ def reward():
     phase = current_phase()
     if phase not in ('reward', 'completed'):
         return redirect(phase_redirect_url(phase))
-    note_student_activity()
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
     user_id = session.get('user_id')
     task_number = session.get('task_number')
     pieces = session.get('pieces_earned', [])

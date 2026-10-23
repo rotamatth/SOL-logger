@@ -80,23 +80,35 @@ def test_batch_from_an_earlier_session_is_recovered_instead_of_blocking_uploads(
     assert client.post("/log_session", json=newer).status_code == 200
 
 
-def test_idle_limit_counts_every_page_not_only_the_search_page(student_modules):
+def test_idle_limit_counts_and_applies_on_every_page(student_modules):
     module = student_modules()
     schedule(module)
     client = module.app.test_client()
     client.post("/start", data={"user_id": "1"})
     client.get("/task")
     client.get("/search")
-    with client.session_transaction() as student:
-        student["last_active"] = (datetime.now() - timedelta(minutes=70)).isoformat()
-    # Reading a result page is activity, so returning to search keeps the run.
+
+    def idle(minutes):
+        with client.session_transaction() as student:
+            student["last_active"] = (datetime.now() - timedelta(minutes=minutes)).isoformat()
+
+    # Reading a result page is activity: a long task does not end while the child keeps going.
+    idle(50)
     assert client.get("/webpage?url=https://example.org/page").status_code == 200
+    with client.session_transaction() as student:
+        assert datetime.now() - datetime.fromisoformat(student["last_active"]) < timedelta(minutes=1)
     assert client.get("/search").status_code == 200
-    with client.session_transaction() as student:
-        assert student["user_id"] == "1"
-    with client.session_transaction() as student:
-        student["last_active"] = (datetime.now() - timedelta(minutes=70)).isoformat()
-    assert client.get("/search").status_code == 302  # A real 60-minute pause still ends the session.
+    # A run left open for an hour ends on whichever page is opened first, so it
+    # cannot continue days later on the same device.
+    for path in ("/webpage?url=https://example.org/page", "/result?query=api&page=1", "/search"):
+        client.post("/start", data={"user_id": "1"})
+        client.get("/task")
+        client.get("/search")
+        idle(70)
+        response = client.get(path)
+        assert response.status_code == 302 and response.location.endswith("/welcome"), path
+        with client.session_transaction() as student:
+            assert "user_id" not in student, path
 
 
 def test_children_see_the_line_breaks_of_a_multi_line_question():

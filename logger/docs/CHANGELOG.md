@@ -65,6 +65,38 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-23 — Enforce the 60-minute idle limit on every student page
+
+**Commit:** pending · **Type:** fix · **Area:** session, task-flow, tests
+
+**Files**
+- `search-app/search_app.py` — `idle_session_expired()` replaces `note_student_activity()`
+  and the search page's own check: each page navigation (task, search, result, viewer,
+  end task, reward, next task) first enforces the limit, then records activity.
+- `search-app/tests/test_student_start_and_recovery.py` — the idle test now checks
+  both halves of the rule on the viewer, result and search pages.
+
+**What changed for the participant**
+A run left open for over an hour ends on whichever page is opened first, and the
+child returns to the welcome page. A child who keeps opening pages is not stopped.
+
+**How it works**
+The previous commit refreshed `last_active` on every page but checked it only on
+the search page, so a run left open on an iPad could continue days later through
+the results or viewer pages. Checking and refreshing now happen together.
+
+**If something looks wrong after this, check**
+- A child is sent to the welcome page mid-task → `last_active` in the student
+  session; more than 60 minutes passed without opening any page.
+
+**Left alone**
+Background requests (autocomplete, frame checks, uploads) neither count as activity
+nor end the run; `/log_session` still accepts uploads from an expiring page.
+
+**Verified**
+Full suite with required Chromium browser tests; the new idle test fails on the
+previous commit (`bc3f7df`) at the viewer page.
+
 ## 2026-10-23 — Fix review findings: hidden absent children, empty runs, lost input on concurrent changes
 
 **Commit:** pending · **Type:** fix · **Area:** session, task-flow, logging, data, styling, docs, tests
