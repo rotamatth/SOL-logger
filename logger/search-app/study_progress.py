@@ -1,4 +1,4 @@
-"""Durable attempts, drafts and first answers, independent of browser sessions.
+"""Durable attempts, drafts and original answers, independent of browser sessions.
 
 Participant routes and logging are integrated in a later increment of issue 6.
 """
@@ -86,6 +86,12 @@ SCHEMA = (
         CHECK((outcome = 'unknown' AND text IS NULL)
             OR (outcome = 'answered' AND text IS NOT NULL AND length(trim(text)) > 0))
     )""",
+    """CREATE TABLE IF NOT EXISTS progress_final_answers (
+        attempt_id TEXT NOT NULL, question_number INTEGER NOT NULL,
+        text TEXT NOT NULL CHECK(length(trim(text)) > 0), submitted_at TEXT NOT NULL,
+        PRIMARY KEY(attempt_id, question_number),
+        FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number)
+    )""",
 )
 
 
@@ -117,11 +123,11 @@ class ProgressStore:
             db.close()
         with self._transaction(write=True) as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1, 2):
+            if version not in (0, 1, 2, 3):
                 raise ValueError("Unsupported progress database schema version")
             for statement in SCHEMA:
                 db.execute(statement)
-            db.execute("PRAGMA user_version=2")
+            db.execute("PRAGMA user_version=3")
 
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=self.timeout, isolation_level=None)
@@ -162,7 +168,7 @@ class ProgressStore:
         attempt["is_test"] = bool(attempt["is_test"])
         attempt["metadata"] = json.loads(attempt["metadata"])
         tasks = [{"number": task["number"], "snapshot": json.loads(task["snapshot"]),
-                  "drafts": {}, "first_answer": None}
+                  "drafts": {}, "first_answer": None, "final_answer": None}
                  for task in db.execute("""SELECT number, snapshot FROM progress_tasks
                      WHERE attempt_id = ? ORDER BY number""", (row["attempt_id"],))]
         for draft in db.execute("SELECT * FROM progress_drafts WHERE attempt_id = ?", (row["attempt_id"],)):
@@ -173,6 +179,10 @@ class ProgressStore:
             tasks[answer["question_number"] - 1]["first_answer"] = {
                 "text": answer["text"], "outcome": answer["outcome"],
                 "submitted_at": answer["submitted_at"]}
+        for answer in db.execute("SELECT * FROM progress_final_answers WHERE attempt_id = ?",
+                                 (row["attempt_id"],)):
+            tasks[answer["question_number"] - 1]["final_answer"] = {
+                "text": answer["text"], "submitted_at": answer["submitted_at"]}
         attempt["tasks"] = tasks
         return attempt
 
@@ -241,6 +251,9 @@ class ProgressStore:
             if phase == "first-answer" and db.execute("""SELECT 1 FROM progress_first_answers
                     WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone():
                 raise SubmissionConflict("The first answer is already submitted")
+            if phase == "final-answer" and db.execute("""SELECT 1 FROM progress_final_answers
+                    WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone():
+                raise SubmissionConflict("The final answer is already submitted")
             draft_key = (attempt_id, question_number, phase)
             current = db.execute("""SELECT revision FROM progress_drafts
                 WHERE attempt_id = ? AND question_number = ? AND phase = ?""", draft_key).fetchone()
@@ -290,6 +303,43 @@ class ProgressStore:
                 (attempt_id, question_number, text, outcome, submitted_at) VALUES (?, ?, ?, ?, ?)""",
                        (attempt_id, question_number, text, outcome, answer["submitted_at"]))
             db.execute("UPDATE progress_attempts SET phase = 'search' WHERE attempt_id = ?", (attempt_id,))
+        return answer
+
+    def submit_final_answer(self, key, attempt_id, question_number, text):
+        """Preserve a confirmed post-search answer and atomically advance once.
+
+        Identical retries return the original, including after Q3 completes the
+        attempt into recap. Finishing the recap/session is a separate action.
+        Retired attempts reject all submissions, including identical retries.
+        """
+        if (type(question_number) is not int or not 1 <= question_number <= 3
+                or not isinstance(text, str) or not text.strip()):
+            raise ValueError("A valid question number and non-blank final answer are required")
+        with self._transaction(write=True) as db:
+            attempt = self._find_attempt(db, key, attempt_id)
+            if attempt["status"] == "retired":
+                raise SubmissionConflict("Cannot submit to a retired attempt")
+            existing = db.execute("""SELECT text, submitted_at FROM progress_final_answers
+                WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone()
+            if existing is not None:
+                if existing["text"] != text:
+                    raise SubmissionConflict("The original final answer cannot be replaced")
+                return dict(existing)
+            first = db.execute("""SELECT 1 FROM progress_first_answers
+                WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone()
+            if (attempt["status"] != "active" or attempt["question_number"] != question_number
+                    or attempt["phase"] != "search" or first is None):
+                raise SubmissionConflict("The final answer requires the current question's search phase and first answer")
+            answer = {"text": text, "submitted_at": _now()}
+            db.execute("""INSERT INTO progress_final_answers
+                (attempt_id, question_number, text, submitted_at) VALUES (?, ?, ?, ?)""",
+                       (attempt_id, question_number, text, answer["submitted_at"]))
+            if question_number < 3:
+                db.execute("""UPDATE progress_attempts SET question_number = ?, phase = 'first-answer'
+                    WHERE attempt_id = ?""", (question_number + 1, attempt_id))
+            else:
+                db.execute("""UPDATE progress_attempts SET status = 'completed', phase = 'recap'
+                    WHERE attempt_id = ?""", (attempt_id,))
         return answer
 
 
