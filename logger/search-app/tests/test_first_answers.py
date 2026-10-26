@@ -118,7 +118,7 @@ def test_competing_submissions_preserve_one_original_answer(tmp_path):
             return None
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(submit, zip(workers, ["Answer A", "Answer B"])))
+        results = list(pool.map(submit, zip(workers, ["Answer A", "Answer B"], strict=True)))
     accepted = [answer for answer in results if answer is not None]
     assert len(accepted) == 1
     saved = store.get_attempt(key, attempt_id)

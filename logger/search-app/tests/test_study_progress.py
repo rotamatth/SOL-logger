@@ -167,7 +167,7 @@ def test_concurrent_draft_updates_accept_one_revision_and_reject_the_other(tmp_p
             return None
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(write, zip(workers, ["From tab A", "From tab B"])))
+        results = list(pool.map(write, zip(workers, ["From tab A", "From tab B"], strict=True)))
     committed = [r for r in results if r is not None]
     assert len(committed) == 1
     assert store.get_attempt(key, attempt_id)["tasks"][0]["drafts"]["first-answer"] == committed[0]

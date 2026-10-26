@@ -119,7 +119,7 @@ def test_concurrent_final_submissions_advance_only_once(tmp_path, same_text):
             return None
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(submit, zip(workers, texts)))
+        results = list(pool.map(submit, zip(workers, texts, strict=True)))
     accepted = [answer for answer in results if answer is not None]
     assert len(accepted) == (2 if same_text else 1)
     assert all(answer == accepted[0] for answer in accepted)

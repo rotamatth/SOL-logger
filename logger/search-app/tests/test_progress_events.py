@@ -15,7 +15,7 @@ def test_answer_events_survive_restart_with_original_context_and_no_duplicates(t
     final = store.submit_final_answer(key, attempt_id, 1, "  After\n")
     events = store.pending_events(key, attempt_id)
     assert [event["type"] for event in events] == ["OwnKnowledgeAnswerSubmitted", "TaskEnded"]
-    for event, answer, phase in zip(events, [first, final], ["pre-search", "post-search"]):
+    for event, answer, phase in zip(events, [first, final], ["pre-search", "post-search"], strict=True):
         payload = event["payload"]
         assert payload["event_id"] == event["event_id"]
         assert payload["timestamp"] == answer["submitted_at"] == event["created_at"]
@@ -166,10 +166,12 @@ def test_commit_failure_keeps_answers_and_pending_events_recoverable(tmp_path, o
     before = store.get_attempt(key, attempt_id)
     events = store.pending_events(key, attempt_id)
     if operation == "acknowledge":
-        action = lambda: store.acknowledge_event(key, attempt_id, events[0]["event_id"])
+        def action():
+            return store.acknowledge_event(key, attempt_id, events[0]["event_id"])
     else:
         submit = store.submit_first_answer if operation == "first-answer" else store.submit_final_answer
-        action = lambda: submit(key, attempt_id, 1, "Retryable")
+        def action():
+            return submit(key, attempt_id, 1, "Retryable")
     reader = sqlite3.connect(store.path)
     try:
         reader.execute("BEGIN")
