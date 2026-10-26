@@ -1801,8 +1801,8 @@ def test_existing_settings_load_without_historical_fields_or_migration(app):
     old = default_settings()
     del old["historical_grades"]
     del old["current_school_year"]
-    for session in old["sessions"]:
-        del session["name"]
+    for study_session in old["sessions"]:
+        del study_session["name"]
     with state.connect() as db:
         db.execute("DELETE FROM settings WHERE revision > 1")
         db.execute("UPDATE settings SET body = ? WHERE revision = 1", (json.dumps(old),))

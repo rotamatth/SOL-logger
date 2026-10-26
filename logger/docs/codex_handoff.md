@@ -2,6 +2,10 @@
 
 _Last updated: 2026-10-20 · branch `session-preparation-ux` · previous checkpoint `ca66c95`_
 
+**Open checks first:** [follow_up_checks.md](follow_up_checks.md) (added 2026-10-26,
+review by 2026-11-09) lists what still has to be verified on real devices, the server
+and in repository settings. Work through it before anything else and tick what you check.
+
 Read this before changing the research dashboard or the student app. It covers what
 was done since your assessment, what is still open, and the risks to keep in mind.
 `docs/CHANGELOG.md` has the per-change detail (search it by **Area** tag).

@@ -35,7 +35,8 @@ def test_interrupted_append_completes_exact_bytes_after_new_worker(tmp_path, mon
         original(name, offset, content)
     monkeypatch.setattr(store, "_write", interrupted)
     body = '{"answer":"pioggia ☔"}\n'
-    prepare = lambda: ({"a_FULL.log": body, "a_task1.log": body}, {"status": "logged"})
+    def prepare():
+        return {"a_FULL.log": body, "a_task1.log": body}, {"status": "logged"}
     with pytest.raises(OSError):
         store.accept("run", "batch", {"answer": "pioggia"}, prepare)
     replacement = LogStore(tmp_path)
