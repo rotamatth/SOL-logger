@@ -92,6 +92,12 @@ SCHEMA = (
         PRIMARY KEY(attempt_id, question_number),
         FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number)
     )""",
+    """CREATE TABLE IF NOT EXISTS progress_events (
+        event_id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE,
+        attempt_id TEXT NOT NULL, question_number INTEGER NOT NULL,
+        type TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL, published_at TEXT,
+        FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number)
+    )""",
 )
 
 
@@ -123,11 +129,13 @@ class ProgressStore:
             db.close()
         with self._transaction(write=True) as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1, 2, 3):
+            if version not in (0, 1, 2, 3, 4):
                 raise ValueError("Unsupported progress database schema version")
             for statement in SCHEMA:
                 db.execute(statement)
-            db.execute("PRAGMA user_version=3")
+            if version < 4:
+                self._backfill_events(db)
+            db.execute("PRAGMA user_version=4")
 
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=self.timeout, isolation_level=None)
@@ -226,6 +234,65 @@ class ProgressStore:
         with self._transaction() as db:
             return self._snapshot(db, self._find_attempt(db, key, attempt_id))
 
+    @staticmethod
+    def _queue_answer_event(db, attempt, number, answer, event_type):
+        event_id = uuid.uuid4().hex
+        topics = [json.loads(row["snapshot"])["topic_id"] for row in db.execute(
+            "SELECT snapshot FROM progress_tasks WHERE attempt_id = ? ORDER BY number", (attempt["attempt_id"],))]
+        payload = {"event_id": event_id, "type": event_type, "timestamp": answer["submitted_at"],
+                   "uid": attempt["participant_id"], "study_id": attempt["study_id"],
+                   "study_session_id": attempt["study_session_id"], "attempt_id": attempt["attempt_id"],
+                   "is_test": bool(attempt["is_test"]), "task_number": number,
+                   "actual_topic_number": topics[number - 1], "task_order": topics,
+                   "answer": answer["text"],
+                   "answerPhase": "post-search" if event_type == "TaskEnded" else "pre-search"}
+        if event_type == "OwnKnowledgeAnswerSubmitted":
+            payload["outcome"] = answer["outcome"]
+        db.execute("""INSERT INTO progress_events
+            (event_id, event_key, attempt_id, question_number, type, payload, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(event_key) DO NOTHING""",
+                   (event_id, f"{attempt['attempt_id']}:{number}:{event_type}", attempt["attempt_id"],
+                    number, event_type, _json(payload), answer["submitted_at"]))
+
+    def _backfill_events(self, db):
+        answers = db.execute("""SELECT attempt_id, question_number, text, outcome, submitted_at,
+                'OwnKnowledgeAnswerSubmitted' AS type, 0 AS position FROM progress_first_answers
+            UNION ALL SELECT attempt_id, question_number, text, NULL, submitted_at,
+                'TaskEnded', 1 FROM progress_final_answers
+            ORDER BY attempt_id, question_number, position""").fetchall()
+        for answer in answers:
+            attempt = db.execute("SELECT * FROM progress_attempts WHERE attempt_id = ?",
+                                 (answer["attempt_id"],)).fetchone()
+            self._queue_answer_event(db, attempt, answer["question_number"], answer, answer["type"])
+
+    def pending_events(self, key, attempt_id):
+        """Read durable intents; reading never acknowledges log publication.
+
+        Payloads contain logical study context. The later publisher must bind
+        technical-run metadata and preserve the log store's receipt semantics.
+        """
+        with self._transaction() as db:
+            self._find_attempt(db, key, attempt_id)
+            return [{"event_id": row["event_id"], "type": row["type"],
+                     "created_at": row["created_at"], "payload": json.loads(row["payload"])}
+                    for row in db.execute("""SELECT * FROM progress_events
+                        WHERE attempt_id = ? AND published_at IS NULL ORDER BY rowid""", (attempt_id,))]
+
+    def acknowledge_event(self, key, attempt_id, event_id):
+        """An internal publisher calls this only after durable log acknowledgement."""
+        with self._transaction(write=True) as db:
+            self._find_attempt(db, key, attempt_id)
+            event = db.execute("""SELECT published_at FROM progress_events
+                WHERE attempt_id = ? AND event_id = ?""", (attempt_id, event_id)).fetchone()
+            if event is None:
+                raise ValueError("Event not found in this attempt")
+            published_at = event["published_at"]
+            if published_at is None:
+                published_at = _now()
+                db.execute("UPDATE progress_events SET published_at = ? WHERE event_id = ?",
+                           (published_at, event_id))
+        return published_at
+
     def runtime_settings(self):
         """Report the actual connection settings for deployment verification."""
         pragmas = ("journal_mode", "synchronous", "foreign_keys", "busy_timeout")
@@ -302,6 +369,7 @@ class ProgressStore:
             db.execute("""INSERT INTO progress_first_answers
                 (attempt_id, question_number, text, outcome, submitted_at) VALUES (?, ?, ?, ?, ?)""",
                        (attempt_id, question_number, text, outcome, answer["submitted_at"]))
+            self._queue_answer_event(db, attempt, question_number, answer, "OwnKnowledgeAnswerSubmitted")
             db.execute("UPDATE progress_attempts SET phase = 'search' WHERE attempt_id = ?", (attempt_id,))
         return answer
 
@@ -334,6 +402,7 @@ class ProgressStore:
             db.execute("""INSERT INTO progress_final_answers
                 (attempt_id, question_number, text, submitted_at) VALUES (?, ?, ?, ?)""",
                        (attempt_id, question_number, text, answer["submitted_at"]))
+            self._queue_answer_event(db, attempt, question_number, answer, "TaskEnded")
             if question_number < 3:
                 db.execute("""UPDATE progress_attempts SET question_number = ?, phase = 'first-answer'
                     WHERE attempt_id = ?""", (question_number + 1, attempt_id))

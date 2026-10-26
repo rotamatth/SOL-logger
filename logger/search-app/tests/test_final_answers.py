@@ -174,7 +174,7 @@ def test_schema_two_upgrade_preserves_first_answers_and_drafts(tmp_path):
         db.execute("PRAGMA user_version=2")
     upgraded, _ = make_store(tmp_path)
     saved = upgraded.get_attempt(key, attempt_id)
-    assert upgraded.runtime_settings()["schema_version"] == 3
+    assert upgraded.runtime_settings()["schema_version"] == 4
     assert saved["tasks"][0]["first_answer"]["text"] == "Before searching"
     assert saved["tasks"][0]["drafts"]["final-answer"]["text"] == "Version two draft"
     assert saved["tasks"][0]["final_answer"] is None and saved["phase"] == "search"

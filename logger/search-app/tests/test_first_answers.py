@@ -198,7 +198,7 @@ def test_version_one_database_upgrades_without_changing_existing_progress(tmp_pa
         db.execute("PRAGMA user_version=1")
     upgraded, _ = make_store(tmp_path)
     saved = upgraded.get_attempt(key, attempt_id)
-    assert upgraded.runtime_settings()["schema_version"] == 3
+    assert upgraded.runtime_settings()["schema_version"] == 4
     assert [task["snapshot"] for task in saved["tasks"]] == QUESTIONS
     assert saved["tasks"][0]["drafts"]["first-answer"]["text"] == "Version one draft"
     assert saved["phase"] == "first-answer"
