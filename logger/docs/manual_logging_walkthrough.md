@@ -4,6 +4,10 @@ This file documents the current SOL logging event types and gives a short
 manual walkthrough for checking that each event family is still emitted in the
 expected user flow.
 
+Events are kept in the browser and uploaded when a page loads, every minute, when
+the page is hidden or closed, and when a task is submitted. During a manual check,
+the saved log therefore grows while the task is still open.
+
 ## Event catalogue
 
 ### Session and task flow

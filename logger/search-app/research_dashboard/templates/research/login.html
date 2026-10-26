@@ -5,7 +5,7 @@
   <h1>{{ t('login') }}</h1>
   <p class="muted">{{ t('login_hint') }}</p>
   {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}
-  <form method="post" action="{{ u('login') }}">
+  <form method="post" action="{{ u('login',next=request.args.get('next')) }}">
     <input type="hidden" name="csrf" value="{{ auth.csrf }}">
     <label for="password">{{ t('password') }}</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" autofocus>

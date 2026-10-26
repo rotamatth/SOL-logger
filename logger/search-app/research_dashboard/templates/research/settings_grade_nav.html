@@ -1,3 +1,3 @@
 <nav class="settings-grade-nav" aria-label="{{ t('grade') }}">
-  {% for grade in grades %}<a href="{{ u('settings_page', section=active_section, grade=grade) }}" {% if grade == history_grade %}aria-current="page"{% endif %}>{{ t('grade_short_' ~ grade) }}</a>{% endfor %}
+  {% for grade in grades %}<a href="{{ u('settings_page', section=active_section, grade=grade,year=history_year,session=study_context.get('id') if grade == history_grade else None) }}" {% if grade == history_grade %}aria-current="page"{% endif %}>{{ t('grade_short_' ~ grade) }}</a>{% endfor %}
 </nav>

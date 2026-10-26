@@ -1,9 +1,13 @@
 """Enrollment uses temporary settings and logs; no real collection is modified."""
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import importlib.util
 import json
 import sys
 import types
+
+from .enrollment_helpers import enroll_initial_roster, school_year
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -11,6 +15,19 @@ from werkzeug.security import generate_password_hash
 from .test_research_dashboard import APP_ROOT, PASSWORD, app, csrf, login
 from research_dashboard.student_config import eligible_students, task_catalog
 from research_dashboard.collection import record_run
+from .test_study_enrollment import question_set
+
+
+def configure_session_questions(app, grades=("4", "5")):
+    state = app.extensions["research"]["state"]
+    settings = state.settings()
+    for study_session in settings["sessions"]:
+        if study_session["grade"] in grades and study_session["number"] == 1:
+            study_session["date"] = datetime.now(ZoneInfo("Europe/Zurich")).date().isoformat()
+            study_session["question_set"] = question_set(f"Grade {study_session['grade']}")
+    enroll_initial_roster(settings, school_year(datetime.now(ZoneInfo("Europe/Zurich")).date()))
+    state.save_settings(settings, settings["revision"])
+    return state.settings()
 
 
 def ranges_form(app, client, **changes):
@@ -22,8 +39,6 @@ def ranges_form(app, client, **changes):
         grade = rule["grade"]
         for key in ("start", "end", "width", "prefix"):
             fields[f"{grade}_{key}"] = rule[key]
-        fields[f"{grade}_task_set"] = "saved" if rule.get("assignment") else "existing"
-        fields[f"{grade}_assignment_mode"] = rule.get("assignment", {}).get("mode", "missing")
         if grade == "3":
             fields["3_enabled"] = "1"
     fields.update(changes)
@@ -34,35 +49,31 @@ def test_preview_shows_readiness_exact_ids_and_changes_without_saving(app):
     client = app.test_client()
     login(client)
     state = app.extensions["research"]["state"]
-    before = state.settings()
-    task_set = task_catalog(app)[0]
-    assert len(eligible_students(app, before)) == 18
+    before = configure_session_questions(app, grades=("4",))
     response = client.post("/dashboard/settings?grade=4", data=ranges_form(
-        app, client, action="preview_ranges", **{"4_end": 22, "5_start": 23,
-                                                 "5_task_set": task_set["id"]}))
+        app, client, action="preview_ranges", **{"4_end": 22, "5_start": 23}))
     assert response.status_code == 200
     assert "Preview — changes have not been saved" in response.text
-    assert "18 / 22 ready to start" in response.text
-    assert "<strong>18</strong> IDs becoming available in student login" in response.text
+    assert "22 / 22 configuration complete" in response.text
+    assert "<strong>2</strong> IDs becoming ready for this session" in response.text
     assert "2 IDs changing grade" in response.text
     assert 'name="4_end" value="22"' in response.text
     assert state.settings() == before
 
 
-def test_preview_explains_student_access_and_effective_question_changes(app):
+def test_preview_uses_selected_session_questions_and_explains_student_access(app):
     client = app.test_client()
     login(client)
-    catalog = task_catalog(app)
-    before = app.extensions["research"]["state"].settings()
+    before = configure_session_questions(app)
     response = client.post("/dashboard/settings", data=ranges_form(
-        app, client, action="preview_ranges", **{"4_task_set": catalog[0]["id"],
-                                                 "4_assignment_mode": "all"}))
+        app, client, action="preview_ranges", **{"4_end": 22, "5_start": 23}))
     assert response.status_code == 200
-    assert "<strong>2</strong> IDs becoming available in student login" in response.text
-    assert "<strong>8</strong> IDs receiving different questions or rewards" in response.text
-    assert "Review each participant&#39;s assignment (20)" in response.text
-    assert "20 / 20 ready to start" in response.text
-    unconfigured = client.get("/dashboard/settings?section=participants&grade=5")
+    assert "<strong>2</strong> IDs becoming ready for this session" in response.text
+    assert "<strong>0</strong> IDs receiving different questions" in response.text
+    assert "Review each participant&#39;s assignment (22)" in response.text
+    assert "22 / 22 configuration complete" in response.text
+    assert "Grade 4 question 1" in response.text
+    unconfigured = client.get("/dashboard/settings?section=participants&grade=5&participant_session=grade-5-session-2")
     assert "No task set assigned" in unconfigured.text
     assert "Cannot start yet" in unconfigured.text
     assert "C-001" not in response.text
@@ -84,7 +95,7 @@ def test_stale_range_form_keeps_values_and_requires_reload_before_resubmitting(a
         participant_section = response.text.split('id="participant-ids"', 1)[1]
         assert 'name="4_end" value="19"' in participant_section
         assert f'name="revision" value="{fields["revision"]}"' in participant_section
-        assert "Another researcher updated the settings" in participant_section
+        assert "changed in another tab or by another researcher" in participant_section
         assert state.settings() == latest
 
 
@@ -175,6 +186,10 @@ def student_app(tmp_path, monkeypatch):
 
 
 def test_saving_assignment_enables_new_student_and_snapshots_running_tasks(student_app, tmp_path):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from research_dashboard.study_config import question_set_topics
+
     module = student_app
     app = module.app
     researcher = app.test_client()
@@ -182,11 +197,28 @@ def test_saving_assignment_enables_new_student_and_snapshots_running_tasks(stude
     login(researcher)
     catalog = task_catalog(app)
     assert len(catalog) == 2
-    assert 'value="21"' not in student.get("/start").text
-    response = researcher.post("/dashboard/settings", data=ranges_form(
-        app, researcher, **{"5_task_set": catalog[0]["id"], "5_assignment_mode": "all"}))
-    assert response.status_code == 302
     assert 'value="21"' in student.get("/start").text
+    assert student.post("/start", data={"user_id": "21"}).status_code == 400
+    state = module.RESEARCH_STATE
+    settings = state.settings()
+    study_session = next(item for item in settings["sessions"] if item["id"] == "grade-5-session-1")
+    study_session["date"] = datetime.now(ZoneInfo("Europe/Zurich")).date().isoformat()
+    enroll_initial_roster(settings, school_year(study_session["date"]))
+    state.save_settings(settings, settings["revision"])
+    path = "/dashboard/settings/questions/grade-5-session-1"
+
+    def save_questions(task_set):
+        page = researcher.get(path)
+        fields = {"csrf": csrf(page), "revision": state.settings()["revision"],
+                  "action": "save_questions", "approved": "1"}
+        for slot in range(3):
+            fields[f"topic_{slot}"] = task_set["topics"][f"{slot + 1}_short"]
+            fields[f"question_{slot}"] = task_set["topics"][f"{slot + 1}_full"]
+        return researcher.post(path, data=fields)
+
+    response = save_questions(catalog[0])
+    assert response.status_code == 302
+    initial_assignment = module.scheduled_assignment(state.settings(), "21")
     assert student.post("/start", data={"user_id": "21"}).status_code == 302
     with student.session_transaction() as active:
         topic = active["task_number"]
@@ -195,13 +227,13 @@ def test_saving_assignment_enables_new_student_and_snapshots_running_tasks(stude
     metadata = json.loads(next((tmp_path / "v2").glob("*.run.json")).read_text())
     assert metadata["participant_id"] == "21" and metadata["grade_at_collection"] == "5"
     assert metadata["tasks"][0]["question"] == question
-    assert researcher.post("/dashboard/settings", data=ranges_form(
-        app, researcher, **{"5_task_set": catalog[1]["id"], "5_assignment_mode": "all"})).status_code == 302
+    assert save_questions(catalog[1]).status_code == 302
+    latest_session = next(item for item in state.settings()["sessions"] if item["id"] == "grade-5-session-1")
     with app.test_request_context():
-        assert module.get_user_config("21") == catalog[1]["topics"]
+        assert module.get_user_config("21") == question_set_topics(latest_session["question_set"])
     assert student.get("/task").status_code == 200
     with student.session_transaction() as active:
-        assert active["task_config"] == catalog[0]["topics"]
+        assert active["task_config"] == initial_assignment["topics"]
     assert student.post("/start", data={"user_id": "999999"}).status_code == 400
     with student.session_transaction() as active:
         assert active["session_id"] == first_run
@@ -209,9 +241,20 @@ def test_saving_assignment_enables_new_student_and_snapshots_running_tasks(stude
 
 
 def test_removing_ids_blocks_new_runs_and_keeps_in_progress_run(student_app):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
     app = student_app.app
     researcher, student = app.test_client(), app.test_client()
     login(researcher)
+    settings = student_app.RESEARCH_STATE.settings()
+    study_session = next(item for item in settings["sessions"] if item["id"] == "grade-4-session-1")
+    study_session.update(date=datetime.now(ZoneInfo("Europe/Zurich")).date().isoformat(),
+                         question_set={"approved": True, "questions": [
+                             {"id": f"configured-{number}", "topic": f"Topic {number}", "question": f"Question {number}"}
+                             for number in range(1, 4)]})
+    enroll_initial_roster(settings, school_year(study_session["date"]))
+    student_app.RESEARCH_STATE.save_settings(settings, settings["revision"])
     assert student.post("/start", data={"user_id": "1"}).status_code == 302
     assert researcher.post("/dashboard/settings", data=ranges_form(
         app, researcher, **{"4_start": 2})).status_code == 302

@@ -6,12 +6,22 @@ UI. It uses Flask/Jinja, with its own templates, styles, server-side authenticat
 CSRF tokens and storage. Student session resets and browser storage do not grant
 or reuse research access. The research pages never load the student logger.
 
+The header keeps the gold search mark and utility controls on the top row. The
+second row centers **Prepare a session**, **Data and history** and **Study settings**.
+The mark is decorative; there is no separate dashboard-home link. Pale-gold
+highlights follow the selected section and grade, with text labels for status.
+
+For remaining merge checks and the next V2 integration work, see
+[Merge and V2 readiness](merge_v2_readiness.md).
+
 ## First deployment
 
-1. Back up the existing `logger/logs` and any existing research state before a
-   deployment. This feature does not move, delete, rename or rewrite old files.
-2. Deploy the code using `scripts/deploy.sh`. The build records the Git revision,
-   adding `-dirty` when the server checkout has uncommitted changes. Normal Compose
+1. Follow the [production readiness and recovery guide](production_readiness.md).
+   Schedule the first upgrade after all children have finished: it replaces the old
+   shared signing key. Back up all collection/state directories before upgrading.
+2. Build the image and configure the private credentials below before running
+   `scripts/deploy.sh`. The deploy script refuses a dirty server checkout, preserves
+   the previous image, takes a verified backup and waits for readiness. Normal Compose
    builds from a clean checkout should supply the revision explicitly:
    `SOL_GIT_COMMIT="$(git rev-parse HEAD)" docker compose build search_app`
    (run from `logger`). The app-version label defaults to `v2`; override
@@ -21,6 +31,8 @@ or reuse research access. The research pages never load the student logger.
 
    ```bash
    mkdir -p research-secrets
+   docker compose build search_app
+   python3 search-app/tools/setup_runtime_secret.py research-secrets/student-secret
    docker compose run --rm --no-deps --volume "$PWD/research-secrets:/secrets" search_app python tools/set_research_password.py /secrets/password.hash
    ```
 
@@ -30,21 +42,50 @@ or reuse research access. The research pages never load the student logger.
    configuration disables research access (503), including exports and APIs.
    No credential is committed. Rotating the hash invalidates existing research
    sessions on their next request; no app restart is needed.
-4. Open `/dashboard`, log in, choose a UI language, and open **Study settings**.
+4. Open `/dashboard`, log in, choose a UI language, and use **Prepare a session**.
+   Choose the school year and class, then open a session or choose **New session**.
+   The class/session menus show choices directly on the page. Choosing one opens
+   it immediately; **Open year** applies the year field. The session list includes
+   each saved name and date and scrolls for longer lists.
+   Save its name and date in step 1. On initial setup, this also confirms the first
+   school year (September–August) and enrolls the default IDs in one transaction.
    Defaults are exact IDs `1`–`20` for 4th Grade and `21`–`40` for 5th Grade.
-   Set **Current school year** (for example, `2026/2027`) for newly started runs.
-   In **Sessions**, choose one grade. Expand a session in **Session history** to set
-   its name or date and save that session. Use **New session** in the same grade view
-   to add a dated session with an optional name, up to 100 per grade. History shows
-   ten sessions at a time, newest first, with older pages available. Dates use Europe/Zurich.
-   Unknown dates may remain blank on existing sessions. Dates can be entered after collection.
+   Check and correct the class IDs in step 2. **Add or enroll IDs** distinguishes
+   new children needing new IDs from existing children keeping their permanent IDs.
+   Review the proposed changes before confirming. All active IDs enrolled in that
+   class/year are included automatically in every session; no attendance selection
+   is required. Inactive children cannot be enrolled through this shortcut.
+   **Edit participant IDs** searches for one complete, case-sensitive ID: `1`, `001`
+   and `Child-A` remain distinct. **Clear filters** restores the class list without
+   changing the session/year. Filtering never changes student availability. Session
+   enrollment forms keep the year fixed; choose another session/year in preparation
+   or use the permanent register for other annual changes.
+   Dates use Europe/Zurich. Planning another year does not switch the current year.
+   Prepare the three V2 sessions per grade with explicit dates; no monthly spacing is required.
+   In step 3, enter three topics/questions or explicitly load previous questions
+   from the library, edit them, and approve the assignment. Drafts remain visible
+   in the preparation page and can be reopened. Saving a draft and returning, or
+   approving questions, returns to the same session with the year/class retained.
+   Missing session years/dates, missing annual enrollment and incomplete/unapproved
+   drafts stay unavailable to students.
+   The library remains available without puzzle files. No old per-ID assignment is carried
+   into V2 Session 1. Existing extra sessions and their history remain accessible.
    3rd Grade starts without any numbered sessions. Saved historical assignments
-   remain active, but their editing controls are currently hidden.
+   remain active, but their editing controls are currently hidden. **Study settings**
+   retains the full session history, removal controls, annual promotion and historical
+   links, up to 100 sessions per grade. **Data and history** opens the reporting view.
 5. Verify a test run, its question/answer association and a task/participant ZIP
-   before classroom collection. **Participant ID ranges** now controls student
-   enrollment as well as the dashboard roster. IDs 1–18 retain their original
-   assignments from `data/uids.txt` and `data/user_topics.csv`. Other IDs need a
-   question/puzzle set selected in the dashboard before they can start.
+   before classroom collection. **Permanent participants** manages exact IDs, yearly
+   enrollment and active/inactive status. The preparation page shows questions and
+   readiness together. All IDs use that grade/session
+   shared question set unless **Set individual questions** saves an exception for that ID.
+   Removing an exception returns that ID to the shared set. A saved incomplete exception
+   blocks that participant rather than falling back to shared or legacy questions.
+   **Questions by participant** uses the same table in preparation and the question
+   editor: ID, question source, configuration and actions. **Personalize** opens
+   individual questions; **Edit** appears when that ID already has its own set.
+   Students can start only on the configured date in Europe/Zurich; otherwise the app
+   displays **Session not available**. Missing an earlier session does not block today.
    Each child must retain the same ID across all study sessions; a tablet number
    may serve as that ID only if the assignment to the child is maintained.
 
@@ -57,16 +98,20 @@ No importer, external collection service or cross-server synchronization is adde
 | --- | --- |
 | `logger/logs` | Existing archive, mounted read-only at `/app/legacy_logs` |
 | `logger/logs-v2` | Fresh V2 log collection, mounted at `/app/logs` |
-| `logger/research-state` | Private settings history, auth, throttle state and rebuildable index |
-| `logger/research-secrets` | Private password hash; never indexed or exported |
+| `logger/research-state` | Private settings history, immutable attempt snapshots, auth, throttle state and rebuildable index |
+| `logger/research-secrets` | Private password hash and stable student signing key; never indexed or exported |
+| `logger/student-sessions` | Persistent student cookies’ server-side state and frozen task order/questions |
 
-All four directories should be backed up with access restricted to researchers
+All five directories should be backed up with access restricted to researchers
 and server administrators. Do not publish them through a web server's static root.
 An empty V2 directory is intentionally separate from the old collection. **Legacy**
 records have their own identities; numeric ID `6` in Legacy is not automatically
 the V2 child `6`. Explicitly classified historical records appear alongside the
 current collection in the dashboard's grade/session downloads, with separate
-collection identities and archive folders. API exports explicitly selecting
+source IDs and archive folders. **Link historical records** lets a researcher review
+a date-scoped continuity link against the study register. Only confirmed links
+combine the child’s historical and V2 records in a study participant view/export.
+API exports explicitly selecting
 `collection=v2` continue to contain only V2 sources.
 
 | Setting | Default / meaning |
@@ -78,6 +123,10 @@ collection identities and archive folders. API exports explicitly selecting
 | `RESEARCH_PASSWORD_HASH` | Alternative secure server configuration; only used without a hash file |
 | `RESEARCH_COOKIE_SECURE` | `0` for the explicitly selected existing HTTP/VPN deployment; set `1` with HTTPS |
 | `SESSION_COOKIE_SECURE` | Student cookie HTTPS setting; set `1` with HTTPS |
+| `SOL_ENV` | Compose sets `production`; production requires a configured private signing key |
+| `SOL_SESSION_DIR` | Persistent filesystem sessions; Compose sets `/app/flask_session` |
+| `FLASK_SECRET_KEY_FILE` | Stable private student key; Compose sets `/app/research-secrets/student-secret` |
+| `FLASK_SECRET_KEY` | Alternative private environment value; at least 32 characters |
 | `SOL_APP_VERSION`, `SOL_GIT_COMMIT` | Build-time version metadata captured for newly started runs |
 
 For direct local Flask use from `search-app`, set `RESEARCH_LEGACY_LOG_DIR=../logs`
@@ -105,15 +154,33 @@ Five failed attempts per source IP in a rolling 15-minute window (and a global c
 of 100 attempts) throttle further password checks. A NAT/proxy can make several
 researchers share the same source-IP limit. All research POSTs, including login,
 require a session-bound CSRF token. Research responses use `no-store`, escaped
-templates, a restrictive CSP, and no credentialed CORS. Existing student CORS
-explicitly excludes `/dashboard` and its descendants.
+templates, a restrictive CSP, and no CORS. The student app grants no cross-origin
+access either: every student page and script is same-origin.
+
+### Student app safeguards
+
+- Search titles/snippets are shown as text; only the engine's emphasis tags
+  (`<b>`, `<strong>`, `<i>`, `<em>`, `<br>`) are kept. Queries are always escaped.
+- The page viewer opens only `http`/`https` addresses.
+- `/iframe_check` (frame-embedding probe) and `/autocomplete` (paid API) work only
+  for a participant in an active session; the probe re-checks every redirect
+  target against private, loopback and reserved addresses.
+- Uploads are limited to 16 MiB. Student responses send `nosniff`,
+  `X-Frame-Options: SAMEORIGIN` and `Referrer-Policy: same-origin`, so children's
+  queries in our URLs are never sent to the pages they open.
+- Server log warnings name only the event type and position, never queries or answers;
+  the search backend logs neither corrected queries nor autocomplete suggestions.
+- Malformed result addresses are refused like any other non-web address.
 
 ## Research interpretation
 
 - A **study session** is the configured grade/date classroom experiment. It is
   separate from the technical session UUID, log ID and application run.
-- Run start dates determine date assignment in Europe/Zurich. Crossing midnight
-  does not silently create a second numbered session. Every restart/run is retained;
+- New runs snapshot the explicitly selected session ID, name, date, question theme,
+  stable question IDs, wording, metadata and randomized order. Editing the calendar or
+  assignment does not change those snapshots or reclassify recorded runs. Older
+  sidecars with a session ID keep that ID; records without an ID retain date-based
+  historical classification. Crossing midnight does not change the chosen session. Every restart/run is retained;
   repeated runs appear separately and are never merged into one answer set.
 - The roster preserves exact strings, including configured prefixes and digit
   padding. `01` and `1` are different. Overlapping generated IDs and duplicate dates
@@ -130,9 +197,22 @@ explicitly excludes `/dashboard` and its descendants.
 - Starting a V2 run writes an immutable `.run.json` sidecar containing the original
   participant ID, technical IDs, Swiss start date, grade, school year and session mapping then
   known, settings revision, actual app version/commit, and presented task order with
-  topic IDs, titles and question text. Failed sidecar writes are reported server-side
-  without discarding student logs. Historical questions and versions remain unknown
+  topic IDs, titles and question text. The snapshot is first committed to
+  `research.sqlite3` in the same transaction that rechecks admission. If sidecar
+  publication fails, the snapshot remains recoverable; uploads and dashboard refresh
+  retry publication. If durable admission fails, START fails visibly and preserves
+  any existing student attempt. Historical questions and versions remain unknown
   when the original records do not contain them.
+- Student pages upload unsent events while the child works: when a page loads,
+  every minute, and when the page is hidden or closed, as well as when a task is
+  submitted. An interrupted run (lesson over, iPad switched off) therefore keeps
+  everything up to the last page instead of losing the unfinished task. Each batch
+  keeps its identifier until acknowledged, so retries never duplicate events.
+- An upload batch saved by a page of an earlier session in the same browser (for
+  example another tab started a new run) is not rejected: it is acknowledged and
+  stored like events of a previous, unfinished participant, in
+  `<uid>_<session>_INCOMPLETE.log` with an `incompleteExperiment` marker. A rejection
+  would leave the browser retrying that batch forever and unable to send new events.
 - A task is **Completed** when its canonical logs contain a `TaskEnded` event with a
   string-valued answer. An explicitly empty string is a submitted empty answer;
   an absent field or null/non-text value is not treated as a valid recorded answer.
@@ -182,7 +262,17 @@ Old `q` and `status` URL/form parameters are ignored, so old links cannot hide r
 Each participant row shows **Logs available** or **No saved data**, with the
 completion ratio for any saved runs. Metadata without original log files is
 labelled **Record without log files**. No saved data does not prove the student
-has not started: the dashboard shows saved submissions. **Visualize logs** opens
+has not started: the dashboard shows saved submissions. A school-year (or
+year-and-session) view lists every child enrolled in that grade and year, so absent
+children appear with **No saved data**, plus anyone with runs recorded in it.
+
+A run that saved no log files (a double tap on Start, a wrong ID chosen first, a
+device that failed before its first page uploaded) is listed and exported, but it
+does not decide the participant's status or completion ratio. The row and the
+participant page show it separately as **Started without saved data**. A run made
+only of recovered `*_INCOMPLETE.log` events (from an earlier session or participant
+on that device) is shown as **Recovered fragments** and does not decide the status
+either. A run with partial data still counts as incomplete. **Visualize logs** opens
 the participant's saved runs and their details. Log management remains in the
 row's **More actions** disclosure.
 
@@ -243,6 +333,25 @@ Each grade supports up to 100 sessions. Existing IDs, dates, participant ranges 
 logs are preserved; the initial 1–3 sessions remain available. Numbered study
 sessions are independent of the three tasks within each run.
 
+### Removing an unused session
+
+Expand the session in Study settings, open **Remove session**, review its identity
+and confirm. Removal retains a tombstone (`removed: true`) in settings history,
+reserving its number and ID and preserving its questions and participant exceptions.
+It hides the session from normal calendars and new student eligibility. Other
+sessions are never renumbered. **Removed sessions** provides restore, with a date
+field to resolve any date conflict. Removed entries still count toward the existing
+100-number limit per grade.
+
+The server refreshes the index and checks original records before removing a
+session, including metadata-only starts, trashed runs and classified historical
+records. A session with records is protected; uncertain source availability also
+blocks removal. No log files are erased. Removal and durable attempt admission
+share an atomic settings check: either removal wins and START is rejected, or
+START wins and removal is blocked, including while a sidecar is still unpublished.
+#6 should extend this admission boundary when adding durable progress. Removing/cancelling a session with
+collected data is not provided by this unused-session control.
+
 **Study settings** shows one section at a time: **School year**, **Sessions** or
 **Participants**. School year is the entry view and applies to newly started runs.
 Sessions and Participants have compact grade navigation; links retain the selected
@@ -252,29 +361,37 @@ which runs belong to that session. **Session history** shows ten sessions per pa
 newest first. Expand a session to edit its name or date with **Save session** or to open
 its dashboard results. Older pages keep all 100 sessions accessible. **Participants**
 opens a saved setup view with readiness counts and ten participants per page.
-**Need tasks** filters the IDs that cannot start. Choose **Edit setup** to edit only
-the selected grade's ID range and question/puzzle assignment; custom ID formatting
+**Need tasks** filters IDs whose selected session configuration is incomplete.
+Choose **Edit setup** to edit only the selected grade's ID range; custom ID formatting
 is optional. **Review changes** validates the draft without saving and opens a review
-screen showing the proposed IDs, readiness and assignment. **Back to editing** retains
+screen showing the proposed IDs and readiness for the selected session. **Back to editing** retains
 the draft; **Save changes** applies it and returns to the saved setup view.
 The other grades, school year and session calendars are preserved.
-It also identifies IDs becoming available in student login, losing access for new
-runs, or receiving different questions/rewards. Each grade's participant assignment
-list shows the exact IDs, their questions, readiness and the reason an ID cannot start.
-Choose an existing three-question/puzzle set for participants without a complete
-individual assignment, or explicitly apply that set to everyone in the grade.
-Original individual assignments remain the default. A 3rd-grade roster is optional.
-Only IDs in the saved roster with all three questions and reward assets appear in
-student login; the server rejects unavailable IDs before creating a run.
-Assignments are stored as snapshots in the shared settings database and take effect
-for new runs across workers without restarting the app. Each started student session
-keeps its questions and rewards if enrollment settings later change.
+The review identifies IDs gaining or losing a complete assignment for the selected
+session. The participant list shows exact IDs, assigned questions and any missing
+date, incomplete questions or pending approval. A 3rd-grade roster is optional.
+Student login lists roster IDs; the server checks the current Zurich date and that
+participant's approved session assignment before creating a run. The start button
+is disabled after the first tap, and submitting the same ID again before any task
+was searched continues that run instead of creating a second one. A researcher save
+at the same moment as a start is retried against the saved version rather than
+refusing the child. Line breaks typed in a question are shown to children, in the
+search-page reminder and in the researcher's student preview. Configuration is
+shared across workers without an app restart. Started runs keep their questions,
+metadata and order if settings later change.
 Removing IDs from the current roster does not delete their collected logs.
 Each save changes only its named setting, so editing a session does not change
 the year or participant ranges.
 Validation errors keep the relevant editor and entered values visible. Concurrent
 edit conflicts also retain the submitted revision until **Reload saved settings**,
-so retrying cannot silently overwrite another researcher's change.
+so retrying cannot silently overwrite another researcher's change. Every save
+advances one shared settings version, so a save in another tab of the same browser
+also causes this conflict; the message names both possibilities. Only the rejected
+form keeps the old version: the page's other forms show the saved values and can
+be used immediately. If a session is removed or moved to another class or school
+year while its preparation details, questions or IDs are being edited, the save is
+refused with the typed entries kept on screen and a link that opens the saved
+session in a new tab; it never answers with a "not found" page.
 Numbers and session IDs stay stable. Missing date fields in a settings submission
 do not clear other sessions. Dates must be unique within a grade; different grades may
 use the same date. Adding sessions and updating dates retain prior settings
@@ -411,14 +528,165 @@ contract is documented in [research_diagram_contract.md](research_diagram_contra
 
 ## Verification
 
-Run from the repository root in an environment with Flask, Flask-Cors, Flask-Session,
+Run from the repository root in an environment with Flask, Flask-Session,
 Flask-WTF, cachelib, requests, pytest and Node installed:
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider logger/search-app/tests/test_research_dashboard.py logger/search-app/tests/test_logging_contract.py logger/search-app/tests/test_manual_logging_walkthrough.py
+python -m pytest -q logger/search-app/tests
 ```
 
 Research tests use temporary synthetic data and stub the search backend when testing
 student integration. No real participant files, credentials or external searches
-are used or changed. Existing Selenium suites additionally require a running app,
-browser driver and a configured test participant.
+are used or changed. The old Selenium modules are retired compatibility entry
+points; their navigation and persisted-pageshow coverage now runs through
+`tests/test_student_navigation_browser.py` with a temporary synthetic server.
+
+`tests/test_editor_browser.py` reproduces the editor's timing races (autosave while
+leaving, typing during load, two tabs, expired login and discarding recovery) in a
+real browser. It starts its own temporary server with synthetic data. To require
+these checks locally, install the pinned browser-test dependencies and matching
+Chromium, then run:
+
+```bash
+python -m pip install -r logger/search-app/requirements-browser-test.txt
+python -m playwright install --only-shell chromium
+SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest -q logger/search-app/tests/test_*browser.py
+```
+
+The **Dashboard browser regressions** CI job runs this required mode, including
+browser system dependencies. Missing Playwright, a missing Chromium binary or a
+browser launch failure fails the job. Ordinary local suite runs may still skip the
+browser module when its dependencies are unavailable.
+
+The additional UI modules cover scoped bulk selection, keyboard navigation,
+unsaved edits in sibling forms, logout recovery, and navigation after preparation
+validation errors. The [22 October review](dashboard_review_2026-10-22.md) records
+the fixes and the completed UI/UX work.
+
+Repeat the layout and long-question save/reopen/preview checks with WebKit:
+
+```bash
+python -m playwright install webkit
+SOL_REQUIRE_BROWSER_TESTS=1 SOL_ACCEPTANCE_WEBKIT=1 python -m pytest -q \
+  logger/search-app/tests/test_dashboard_acceptance_browser.py
+```
+
+Set `SOL_DASHBOARD_SCREENSHOTS` to a temporary directory to retain screenshots.
+WebKit touch emulation complements physical iPad/Safari acceptance; it does not
+replace it. Logout checks stored private copies and live/suspended-tab flags before
+revocation; those flags contain timestamps only, never form text. A successful
+sign-out notifies other editors and invalidates their recovery claims.
+
+
+
+## Session question contract for progress saving (#6)
+
+The additive JSON configuration keeps `schema_version: 1` and the existing
+append-only settings revisions. This JSON format version is separate from
+`research.sqlite3`'s SQLite `PRAGMA user_version`, currently **2** for the permanent
+registry and annual-enrollment schema. Each `sessions` entry may contain:
+
+```json
+{
+  "id": "grade-4-session-1",
+  "grade": "4",
+  "number": 1,
+  "date": "2026-10-15",
+  "name": "Nature",
+  "question_set": {
+    "theme": "Rivers",
+    "approved": true,
+    "metadata": {"condition": "shared"},
+    "questions": [
+      {"id": "river-name", "topic": "River names", "question": "Name a river."},
+      {"id": "river-source", "topic": "River sources", "question": "Where does it begin?"},
+      {"id": "river-mouth", "topic": "River mouths", "question": "Where does it end?"}
+    ]
+  },
+  "participant_questions": {}
+}
+```
+
+`participant_questions` maps exact participant ID strings to full question-set
+objects of the same shape. Absent exceptions inherit the shared set; an explicit
+incomplete exception never inherits it. Question IDs are stable source identities;
+`presented_number` and existing positional `topic_id` remain distinct. Optional
+set/question `metadata` objects preserve experimental conditions. Loading a legacy
+library set preserves its condition columns and source question identity; it never
+copies the old participant ID or approves the assignment automatically.
+
+Use `research_dashboard.study_config.assignment_for(settings, uid, session_id)` to
+inspect an assignment and its `ready`/`problem` fields. Use
+`scheduled_assignment(settings, uid, now=None)` for student eligibility. It returns
+only today's approved assignment in Europe/Zurich, including copied `session`,
+`question_set`, renderer `topics`, `source`, and `settings_revision`. It reads no
+process-local cache: callers obtain the latest `State.settings()` revision per
+operation. Settings saves use atomic SQLite revision checks; a stale editor must
+reload and retains its draft without overwriting another researcher's save.
+
+The authenticated editor lives at `/dashboard/settings/questions/<session_id>`;
+`?participant=<exact ID>` edits an individual exception. Library loading is an
+unsaved draft. Signed form drafts preserve selected IDs and metadata across workers.
+Use **Save draft** to persist incomplete work, **Save draft and return to session**
+to persist and leave the editor, and **Approve questions** when the assignment is
+complete. A saved draft is stored separately: the approved questions stay available
+to children until **Approve questions** replaces them for new starts (attempts
+already started keep their original questions). **Discard working draft** returns
+to the approved version. Session settings and the selected session overview show the
+approved questions, any working draft and a link to resume the editor without retyping.
+
+While typing, the editor keeps a private recovery copy on the server for 8 hours
+(this browser only; logout deletes it). Switching language, reloading or signing in
+again after the 30-minute idle logout offers the unsaved text back. If the login has
+expired, saving is held back and the text stays on the page until you sign in again
+in another tab; the ID, session-detail and enrollment forms do the same through a
+login check (`GET /dashboard/session`) before submitting. Leaving the page is allowed
+without a warning only once the text currently on screen is stored; a second tab
+never overwrites or clears another tab's newer copy. The copy is never part of study settings or exports.
+The displayed current setup remains separate from immutable historical run labels.
+Loading a library choice displays **Unsaved changes** until explicitly saved.
+After a settings conflict, **Use this text with the current version** also brings
+back the copy's question IDs and condition metadata (for example a reused set's
+high-interest question), but only if nobody changed this session's questions since
+the copy was made. Otherwise saving is refused once with an explanation; saving
+again keeps the text without those conditions, so load the set again to keep them.
+
+Individual reuse choices are grouped by normalized topic and question wording,
+ignoring case and repeated whitespace. Experimental variants remain separate
+complete-set choices. Standalone copying preserves common source metadata; when a
+complete set's explicit condition is already selected, an unambiguous matching
+source retains that condition. Conflicting source metadata is never chosen arbitrarily.
+Only saving creates a settings revision. Approval requires three complete questions;
+puzzle media are optional and missing media use the ordinary completion controls.
+Student pages receive only their current question, never future session assignments.
+Question editor POSTs allow up to 4 MiB for signed metadata drafts; other dashboard
+forms retain their 64 KiB limit. Each metadata object remains limited to 32,000
+serialized characters and is validated before saving.
+
+New `.run.json` sidecars include `study_session_snapshot`, `question_set_snapshot`,
+`assignment_source`, stable per-task `question_id` and `question_metadata`, alongside
+the existing `tasks`, `task_order` and log identity. These snapshots are immutable.
+#18 also stores this snapshot in `study_attempts` at START. #6 should extend that
+record instead of creating a second source of attempt identity; #15's authorized
+reset/repeat must reuse the source attempt's original snapshot/order instead of
+resolving the latest settings. Durable resume, repeat authorization and completion
+gating belong to #6/#15 and are not supplied by this configuration change.
+
+Issue #14 validation: 212 automated tests passed, including settings races, stale
+and tampered drafts, library provenance, metadata boundaries, student flow,
+historical snapshots and existing logging contracts. The offline checker reported
+no warnings on synthetic FULL/per-task logs from complete three-question runs.
+The editor and readiness were also checked in a browser using synthetic data.
+The two pre-existing Selenium suites were not run; external search was stubbed.
+
+## Annual enrollment and developer handover
+
+Use **Permanent participants → Prepare the next school year** to review promotion.
+IDs remain permanent; earlier enrollments and session years are preserved. Individual
+changes and inactive status also require a review before saving. Grade 5 IDs stay
+reserved even when there is no next-year enrollment. Historical identity links
+can be revoked while preserving source records and an audit trail.
+
+The [dashboard integration guide](dashboard_integration.md) describes the source
+contracts for Samuele’s progress work, schema migration, supported deployment
+topology and remaining work in #6/#15/#17.

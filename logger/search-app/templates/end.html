@@ -6,6 +6,7 @@
   <section class="app-panel completion-panel">
     <div class="completion-container">
     <h2>Complimenti, hai completato l'esperimento!</h2>
+    {% if full_puzzle_static_filename %}
     <p>Hai raccolto tutti i pezzi del puzzle. Ora puoi scoprire il premio finale.</p>
 
     <div class="final-reward-stage">
@@ -41,10 +42,13 @@
         </div>
         </div>
     </div>
+    {% else %}
+    <p>Hai risposto a tutte le domande. Grazie per la tua partecipazione!</p>
+    {% endif %}
 
-    <p id="end-status-msg" hidden>Premi il pulsante qui sotto per salvare la sessione e concludere l'esperimento.</p>
+    <p id="end-status-msg"{% if full_puzzle_static_filename %} hidden{% else %} class="is-visible"{% endif %}>Premi il pulsante qui sotto per salvare la sessione e concludere l'esperimento.</p>
 
-    <button id="finish-experiment-btn" class="app-btn app-btn-primary" hidden>
+    <button id="finish-experiment-btn" class="app-btn app-btn-primary{% if not full_puzzle_static_filename %} is-visible{% endif %}"{% if full_puzzle_static_filename %} hidden{% endif %}>
         Salva e chiudi
     </button>
     </div>
@@ -160,8 +164,12 @@ document.getElementById("finish-experiment-btn").addEventListener("click", async
     btn.textContent = "Salvataggio...";
 
     try {
+        if (!window.studyLogger) throw new Error('Logging is unavailable');
         if (window.studyLogger) {
-            studyLogger.logEvent("experimentFinished");
+            if (!window.experimentFinishedLogged && !studyLogger.logs.some(event => event.type === "experimentFinished")) {
+                studyLogger.logEvent("experimentFinished");
+                window.experimentFinishedLogged = true;
+            }
             await studyLogger.sendLogs();
         }
 

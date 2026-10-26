@@ -1,0 +1,8 @@
+{% from 'research/year_input.html' import school_year_input with context %}
+<form class="new-session-form" method="post" data-guard{% if error and request.form.get('action') == 'save_session' and request.form.get('session_id') == study_session.id %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year, page=history_page if history_page > 1 else None) }}">
+  <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('save_session', study_session.id) }}"><input type="hidden" name="action" value="save_session"><input type="hidden" name="session_id" value="{{ study_session.id }}">
+  <div>{{ school_year_input('year_' ~ study_session.id, 'school_year', request.form.get('school_year', study_session.school_year) if error and edit_session_id == study_session.id else study_session.school_year, school_years) }}</div>
+  <div><label for="date_{{ study_session.id }}">{{ t('date') }}</label><input id="date_{{ study_session.id }}" name="date" type="date" value="{{ edit_date if error and edit_session_id == study_session.id else study_session.date }}"></div>
+  <div><label for="name_{{ study_session.id }}">{{ t('session_name_optional') }}</label><input id="name_{{ study_session.id }}" name="name" type="text" maxlength="80" value="{{ edit_name if error and edit_session_id == study_session.id else study_session.name or '' }}"></div>
+  <button class="primary" type="submit">{{ t('save_session') }}</button>
+</form>

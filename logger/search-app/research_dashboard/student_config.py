@@ -1,4 +1,8 @@
-"""Shared participant enrollment and existing question/reward assignments."""
+"""Legacy question library, metadata and roster compatibility helpers.
+
+V2 access is resolved by study_config.scheduled_assignment; legacy assignment
+helpers remain for reading existing settings and compatibility tooling only.
+"""
 from hashlib import sha256
 from pathlib import Path
 import csv
@@ -16,9 +20,27 @@ def load_topics(path):
             for key in TOPIC_FIELDS} for row in csv.DictReader(source)}
 
 
+def load_topic_metadata(path):
+    """Keep CSV conditions separate from the strict legacy task/reward shape."""
+    with open(path, newline="", encoding="utf-8") as source:
+        return {row["uid"]: {key: (value or "").strip() for key, value in row.items()
+                             if isinstance(key, str) and key not in ("uid", "full_gif")
+                             and not re.fullmatch(r"topic[0-9]+_(keyword|question|gif)", key)}
+                for row in csv.DictReader(source)}
+
+
 def configure_students(app):
+    topics_path = app.config.get("STUDENT_TOPICS_PATH", APP_ROOT / "data/user_topics.csv")
     if "STUDENT_TOPICS" not in app.config:
-        app.config["STUDENT_TOPICS"] = load_topics(APP_ROOT / "data/user_topics.csv")
+        app.config["STUDENT_TOPICS"] = load_topics(topics_path)
+    if "STUDENT_TOPIC_METADATA" not in app.config:
+        source_topics = load_topics(topics_path)
+        metadata = load_topic_metadata(topics_path)
+        # Preloaded topics from the app use this same CSV; custom content cannot
+        # accidentally inherit a different source participant's condition.
+        app.config["STUDENT_TOPIC_METADATA"] = {
+            uid: metadata[uid] for uid, topics in app.config["STUDENT_TOPICS"].items()
+            if uid in metadata and topics == source_topics.get(uid)}
     if "STUDENT_LEGACY_IDS" not in app.config:
         app.config["STUDENT_LEGACY_IDS"] = set((APP_ROOT / "data/uids.txt").read_text().split())
     app.config.setdefault("STUDENT_ASSET_DIR", str(APP_ROOT / "static/puzzle_pieces"))
@@ -79,6 +101,7 @@ def configured_topics(app, rule, uid):
 
 
 def eligible_students(app, settings):
+    """Legacy assignment inventory; use scheduled_assignment for V2 eligibility."""
     return {uid: topics for rule in settings["ranges"] for uid in range_ids(rule)
             if (topics := configured_topics(app, rule, uid))
             and topics_ready(topics, app.config["STUDENT_ASSET_DIR"])}
