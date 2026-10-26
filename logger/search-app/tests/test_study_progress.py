@@ -238,7 +238,7 @@ def test_runtime_uses_rollback_journal_full_sync_foreign_keys_and_bounded_wait(t
     assert settings["synchronous"] == 2
     assert settings["foreign_keys"] == 1
     assert settings["busy_timeout"] == 5000
-    assert settings["schema_version"] == 1
+    assert settings["schema_version"] == 2
     assert settings["sqlite_version"] == sqlite3.sqlite_version
 
 

@@ -1,7 +1,6 @@
-"""Durable logical attempts and drafts, independent of browser sessions and logs.
+"""Durable attempts, drafts and first answers, independent of browser sessions.
 
-This is the storage foundation for issue 6. Participant routes and confirmed
-answer/phase transitions are intentionally integrated in a later increment.
+Participant routes and logging are integrated in a later increment of issue 6.
 """
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -24,6 +23,10 @@ class AttemptNotFound(LookupError):
 
 class DraftConflict(ValueError):
     """The draft changed since the caller last read it."""
+
+
+class SubmissionConflict(ValueError):
+    """A submission is immutable or does not match the active question/phase."""
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,15 @@ SCHEMA = (
         PRIMARY KEY(attempt_id, question_number, phase),
         FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number)
     )""",
+    """CREATE TABLE IF NOT EXISTS progress_first_answers (
+        attempt_id TEXT NOT NULL, question_number INTEGER NOT NULL,
+        text TEXT, outcome TEXT NOT NULL CHECK(outcome IN ('answered', 'unknown')),
+        submitted_at TEXT NOT NULL,
+        PRIMARY KEY(attempt_id, question_number),
+        FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number),
+        CHECK((outcome = 'unknown' AND text IS NULL)
+            OR (outcome = 'answered' AND text IS NOT NULL AND length(trim(text)) > 0))
+    )""",
 )
 
 
@@ -105,11 +117,11 @@ class ProgressStore:
             db.close()
         with self._transaction(write=True) as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1):
+            if version not in (0, 1, 2):
                 raise ValueError("Unsupported progress database schema version")
             for statement in SCHEMA:
                 db.execute(statement)
-            db.execute("PRAGMA user_version=1")
+            db.execute("PRAGMA user_version=2")
 
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=self.timeout, isolation_level=None)
@@ -149,12 +161,18 @@ class ProgressStore:
         attempt = dict(row)
         attempt["is_test"] = bool(attempt["is_test"])
         attempt["metadata"] = json.loads(attempt["metadata"])
-        tasks = [{"number": task["number"], "snapshot": json.loads(task["snapshot"]), "drafts": {}}
+        tasks = [{"number": task["number"], "snapshot": json.loads(task["snapshot"]),
+                  "drafts": {}, "first_answer": None}
                  for task in db.execute("""SELECT number, snapshot FROM progress_tasks
                      WHERE attempt_id = ? ORDER BY number""", (row["attempt_id"],))]
         for draft in db.execute("SELECT * FROM progress_drafts WHERE attempt_id = ?", (row["attempt_id"],)):
             tasks[draft["question_number"] - 1]["drafts"][draft["phase"]] = {
                 "text": draft["text"], "revision": draft["revision"], "saved_at": draft["saved_at"]}
+        for answer in db.execute("SELECT * FROM progress_first_answers WHERE attempt_id = ?",
+                                 (row["attempt_id"],)):
+            tasks[answer["question_number"] - 1]["first_answer"] = {
+                "text": answer["text"], "outcome": answer["outcome"],
+                "submitted_at": answer["submitted_at"]}
         attempt["tasks"] = tasks
         return attempt
 
@@ -220,6 +238,9 @@ class ProgressStore:
             attempt = self._find_attempt(db, key, attempt_id)
             if attempt["status"] != "active":
                 raise ValueError("Cannot write to a completed or retired attempt")
+            if phase == "first-answer" and db.execute("""SELECT 1 FROM progress_first_answers
+                    WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone():
+                raise SubmissionConflict("The first answer is already submitted")
             draft_key = (attempt_id, question_number, phase)
             current = db.execute("""SELECT revision FROM progress_drafts
                 WHERE attempt_id = ? AND question_number = ? AND phase = ?""", draft_key).fetchone()
@@ -233,6 +254,43 @@ class ProgressStore:
                     text = excluded.text, revision = excluded.revision, saved_at = excluded.saved_at""",
                        (*draft_key, saved["text"], saved["revision"], saved["saved_at"]))
         return saved
+
+    def submit_first_answer(self, key, attempt_id, question_number, text=None, *, unknown_confirmed=False):
+        """Atomically preserve an original first answer and enter the search phase.
+
+        Unknown answers require an explicit boolean confirmation and no text.
+        Identical retries return the original answer; different payloads conflict.
+        This storage method does not register routes or emit logging events.
+        """
+        if (type(question_number) is not int or not 1 <= question_number <= 3
+                or type(unknown_confirmed) is not bool):
+            raise ValueError("Invalid question number or unknown-answer confirmation")
+        if unknown_confirmed:
+            if text is not None:
+                raise ValueError("A confirmed unknown answer must not include answer text")
+            outcome = "unknown"
+        else:
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError("A non-blank first answer or confirmed unknown choice is required")
+            outcome = "answered"
+        with self._transaction(write=True) as db:
+            attempt = self._find_attempt(db, key, attempt_id)
+            if attempt["status"] != "active":
+                raise SubmissionConflict("Cannot submit to a completed or retired attempt")
+            existing = db.execute("""SELECT text, outcome, submitted_at FROM progress_first_answers
+                WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone()
+            if existing is not None:
+                if existing["text"] != text or existing["outcome"] != outcome:
+                    raise SubmissionConflict("The original first answer cannot be replaced")
+                return dict(existing)
+            if attempt["question_number"] != question_number or attempt["phase"] != "first-answer":
+                raise SubmissionConflict("The submission does not match the current question and phase")
+            answer = {"text": text, "outcome": outcome, "submitted_at": _now()}
+            db.execute("""INSERT INTO progress_first_answers
+                (attempt_id, question_number, text, outcome, submitted_at) VALUES (?, ?, ?, ?, ?)""",
+                       (attempt_id, question_number, text, outcome, answer["submitted_at"]))
+            db.execute("UPDATE progress_attempts SET phase = 'search' WHERE attempt_id = ?", (attempt_id,))
+        return answer
 
 
 def init_progress(app):
