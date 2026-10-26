@@ -24,6 +24,7 @@ services:
       SOL_LOG_DIR: "/app/logs"
       RESEARCH_LEGACY_LOG_DIR: "/app/legacy_logs"
       RESEARCH_STATE_DIR: "/app/research_state"
+      SOL_PROGRESS_DB_PATH: "${SOL_PROGRESS_DB_PATH:-/app/research_state/study-progress.sqlite3}"
       RESEARCH_PASSWORD_HASH_FILE: "/app/research-secrets/password.hash"
       RESEARCH_COOKIE_SECURE: "${RESEARCH_COOKIE_SECURE:-0}"
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-0}"

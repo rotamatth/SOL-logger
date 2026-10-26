@@ -20,6 +20,7 @@ services:
       - ./search-app/search_app.py:/app/search_app.py:ro
       - ./search-app/search_backend.py:/app/search_backend.py:ro
       - ./search-app/forms.py:/app/forms.py:ro
+      - ./search-app/study_progress.py:/app/study_progress.py:ro
       - ./search-app/research_dashboard:/app/research_dashboard:ro
       - ./search-app/templates:/app/templates:ro
       - ./search-app/static:/app/static:ro

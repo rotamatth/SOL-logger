@@ -19,6 +19,20 @@ logger/search-app/logs_v2/
 logger/search-app/research_state/
 logger/search-app/flask_session/
 
+# Generated SQLite databases and transaction sidecars (including custom paths)
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-journal
+*.sqlite3-journal
+*.db-journal
+*.sqlite-wal
+*.sqlite3-wal
+*.db-wal
+*.sqlite-shm
+*.sqlite3-shm
+*.db-shm
+
 # unsused document collections
 logger/search-engine/datasets/kid-friend-en/
 logger/search-engine/datasets/argsme.zip
