@@ -1,0 +1,19 @@
+# Python lint rules checked on every pull request (job "Code quality").
+# Run locally from the repository root: ruff check logger/search-app
+target-version = "py314"
+# The PyTerrier search engine is a separate, optional service (compose profile
+# "pyterrier"); it is not part of the classroom deployment and is not linted yet.
+extend-exclude = ["logger/search-engine", "experiments", "dist"]
+
+[lint]
+# Pyflakes (undefined names, unused variables/imports), syntax/statement errors,
+# and flake8-bugbear (likely bugs such as mutable defaults or loop closures).
+select = ["E4", "E7", "E9", "F", "B"]
+
+[lint.per-file-ignores]
+# Tests import pytest fixtures by name and then receive them as arguments.
+"logger/search-app/tests/*" = ["F401", "F811", "E402"]
+# Translation tables are merged at the bottom of the module on purpose.
+"logger/search-app/research_dashboard/i18n.py" = ["E402"]
+# Tools add the application directory to sys.path before importing it.
+"logger/search-app/tools/*" = ["E402"]

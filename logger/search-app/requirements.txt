@@ -3,6 +3,5 @@ requests
 Flask-WTF
 pyspellchecker
 Flask-Session
-Pillow
 google-cloud-discoveryengine
 gunicorn

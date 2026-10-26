@@ -28,7 +28,7 @@ does not provide student progress persistence.
 | Synthetic regression suite, required browser mode | Results recorded under Verification below. The two standalone legacy Selenium suites remain excluded. |
 | Production image, replacement and restore checks | Results recorded below; these use disposable synthetic storage. |
 | Latest main and branch integration | Refresh remote refs, inspect the full stack and test the actual proposed merge. Local `main` is older than the stored `origin/main`; neither is proof of the current remote head. |
-| Hosted CI | Require both **Dashboard browser regressions** and **collection** for the proposed merge. A workflow being present does not configure branch protection or prove a successful hosted run. |
+| Hosted CI | Require **Dashboard browser regressions**, **collection** and **Code quality** for the proposed merge (see `CONTRIBUTING.md` for branch protection). A workflow being present does not configure branch protection or prove a successful hosted run. |
 | Presentation acceptance | Review the final pale-gold interface in English and Italian on PC and a real iPad. Earlier browser walkthroughs do not establish acceptance of this final layout. |
 | Files in the commit | Source, tests and documentation only. Keep credentials, generated logs, Docker volumes, backups and session databases out of Git. |
 

@@ -113,7 +113,6 @@ def test_stale_identity_change_cannot_overwrite_newer_settings(tmp_path):
 def test_migration_reserves_ids_from_prior_settings_without_linking_legacy(tmp_path):
     path = tmp_path / 'state'
     state = configured(tmp_path)
-    first = state.settings()
     changed = state.settings()
     changed['ranges'][0]['start'] = 2
     state.save_settings(changed, changed['revision'])

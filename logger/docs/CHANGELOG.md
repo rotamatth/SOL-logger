@@ -65,6 +65,58 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-10-26 — Code quality checks, patched dependencies and contribution workflow
+
+**Commit:** pending · **Type:** infra · **Area:** infra, tests, docs
+
+**Files**
+- `.github/workflows/collection.yml` — new `Code quality` job: Ruff lint, JavaScript
+  syntax, `pip-audit` of `requirements.lock`, tests with coverage, and the SonarQube
+  Cloud scan with its quality gate (runs once the `SONAR_TOKEN` secret exists; the
+  `SONAR_REQUIRED` variable makes a missing token fail). Pushes now run CI only on
+  `main` and `matthias-dev`; every pull request still runs it, and a newer push
+  cancels the running check. Manual runs via `workflow_dispatch`.
+- `ruff.toml`, `.coveragerc`, `sonar-project.properties` (new, repository root) —
+  lint rules, coverage scope, SonarQube Cloud scope (application code only).
+  `.gitignore` ignores the local coverage and Ruff cache files.
+- `search-app/requirements.lock`, `requirements.txt` — certifi 2026.10.23,
+  cryptography 50.0.2, pyasn1 0.6.4, urllib3 2.8.0, Werkzeug 3.1.9 (all with known
+  vulnerabilities fixed); unused Pillow removed.
+- `search-app/requirements-quality.txt` (new) — pinned Ruff, pip-audit, pytest-cov.
+- `CONTRIBUTING.md`, `.github/pull_request_template.md` (new) — branch model,
+  draft pull request workflow, checks, local commands and one-time admin setup.
+- `docs/follow_up_checks.md` (new), `docs/codex_handoff.md` — dated list of open checks
+  (real search after the update, devices, SonarQube Cloud, branch protection) and a
+  pointer to it at the top of the Codex handoff.
+- `docs/merge_v2_readiness.md` — the hosted CI gate names the new check.
+- Tests: three small lint fixes in `test_collection_recovery.py`,
+  `test_permanent_participants.py`, `test_research_dashboard.py`.
+
+**What changed for the participant**
+No visible change. The patched packages run in the production image.
+
+**How it works**
+`pip-audit --no-deps --disable-pip` audits exactly the pinned lock file. Coverage
+uses relative paths so SonarQube Cloud can match `coverage.xml`. The SonarQube Cloud
+token is given only to its own step, never to tests or package installs.
+
+**If something looks wrong after this, check**
+- `Code quality` fails on the audit step → a new advisory was published for a
+  pinned package: update that pin in its own pull request.
+- Requests to Google or proxy/TLS errors after deployment → the urllib3, certifi or
+  cryptography bump; compare with the previous image.
+- A feature branch has no checks → it has no pull request yet; open a draft one.
+
+**Left alone**
+The PyTerrier search engine (`logger/search-engine`) is not linted or analysed yet.
+Branch protection and SonarQube Cloud need repository settings and an account, so
+they are documented in `CONTRIBUTING.md`, not applied.
+
+**Verified**
+Full suite in a fresh environment with the new pins: 594 passed (Chromium browser
+tests required); `pip check` and `pip-audit` clean; `ruff check` clean; `actionlint`
+accepts the workflow. The container build and Python 3.14 run happen in CI.
+
 ## 2026-10-23 — Upload during tasks, keep reused-set conditions, ignore recovered fragments in status
 
 **Commit:** pending · **Type:** fix · **Area:** logging, task-flow, data, docs, tests
