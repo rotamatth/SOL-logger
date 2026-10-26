@@ -1,0 +1,10 @@
+{% set context_session = workflow_session if workflow_session is defined else study_session %}
+<div class="preparation-context">
+  <a href="{{ u('prepare_page', grade=context_session.grade, year=context_session.school_year or None, session=context_session.id) }}">&larr; {{ t('prepare_session') }}</a>
+  <p><strong>{{ t('grade_' ~ context_session.grade) }} · {{ context_session.school_year or t('session_year_missing') }}</strong> · {{ context_session.name or (t('session') ~ ' ' ~ context_session.number) }} · {{ context_session.date or t('date_not_set') }}</p>
+  <nav class="preparation-steps" aria-label="{{ t('prepare_session') }}">
+    <a href="{{ u('prepare_page',grade=context_session.grade,year=context_session.school_year or None,session=context_session.id,_anchor='prepare-details') }}">1 · {{ t('session_details') }}</a>
+    <a href="{{ u('prepare_page',grade=context_session.grade,year=context_session.school_year or None,session=context_session.id,_anchor='prepare-participants') }}">2 · {{ t('participant_ids') }}</a>
+    <a href="{{ u('session_questions',session_id=context_session.id,prepare_session=context_session.id) }}" {% if request.endpoint == 'research.session_questions' %}aria-current="step"{% endif %}>3 · {{ t('questions_and_readiness') }}</a>
+  </nav>
+</div>

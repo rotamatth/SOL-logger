@@ -33,11 +33,27 @@
     errorMsg.style.display = "none";
   });
 
+  const startIdButton = document.getElementById("continue-btn");
+
   form.addEventListener("submit", function(e) {
     if (!validIDs.includes(input.value)) {
       errorMsg.style.display = "block";
       e.preventDefault();
+      return;
     }
+    // A second tap would start a second, empty run for the same child.
+    if (form.dataset.submitting === "1") {
+      e.preventDefault();
+      return;
+    }
+    form.dataset.submitting = "1";
+    startIdButton.disabled = true;
+  });
+
+  // Coming back to this page from the browser cache must allow a new start.
+  window.addEventListener("pageshow", function() {
+    form.dataset.submitting = "";
+    startIdButton.disabled = false;
   });
 </script>
 

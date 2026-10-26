@@ -1,5 +1,93 @@
 """Research UI translations. Source questions, answers and event fields are never translated."""
 TEXT = {
+    "library_show_more": ("Show more results", "Mostra altri risultati"),
+    "choose_school_year": ("Choose school year", "Scegli l’anno scolastico"),
+    "new_school_year": ("New school year", "Nuovo anno scolastico"),
+    "use_new_school_year": ("Use this school year", "Usa questo anno scolastico"),
+    "choose_or_enter_school_year": ("Choose an existing year or enter a new school year (YYYY/YYYY).", "Scegli un anno esistente oppure inserisci un nuovo anno scolastico (AAAA/AAAA)."),
+    "session_year_scope_hint": ("Show sessions from one school year, or choose all school years.", "Mostra le sessioni di un anno scolastico oppure scegli tutti gli anni scolastici."),
+    "library_search": ("Search questions, topics or conditions", "Cerca domande, argomenti o condizioni"),
+    "library_results": ("Matching options", "Opzioni corrispondenti"),
+    "library_no_results": ("No matching questions or sets.", "Nessuna domanda o gruppo corrispondente."),
+    "library_preview": ("Selected preview", "Anteprima selezionata"),
+    "library_source": ("Source", "Origine"),
+    "library_condition": ("Condition", "Condizione"),
+    "library_question_details": ("Question details", "Dettagli della domanda"),
+    "library_variants": ("Several source conditions. Choose a complete set to retain a specific condition.", "Più condizioni di origine. Scegli un gruppo completo per mantenere una condizione specifica."),
+    "library_choose": ("Select this option", "Seleziona questa opzione"),
+    "library_selected": ("Selected", "Selezionato"),
+    "jump_to_id": ("Jump to participant ID", "Vai all’ID partecipante"),
+    "jump_to_participant": ("Find ID", "Trova ID"),
+    "jump_id_missing": ("No participant with that exact ID in this view.", "Nessun partecipante con questo ID esatto in questa vista."),
+    "jump_id_hint": ("Enter an exact ID. Every participant stays in the list.", "Inserisci un ID esatto. Tutti i partecipanti restano nell’elenco."),
+    "skip_to_content": ("Skip to content", "Vai al contenuto"),
+    "utility_navigation": ("Utilities", "Utilità"),
+    "primary_navigation": ("Main navigation", "Navigazione principale"),
+    "select_available_logs": ("Select all available logs", "Seleziona tutti i log disponibili"),
+    "selection_count": ("Selected", "Selezionati"),
+    "invalid_recorded_started_at": ("The recorded start time is invalid; the log date is used when available.", "L'ora di inizio registrata non è valida; viene usata la data dei log, se disponibile."),
+    "storage_unavailable": ("Research data is temporarily unavailable. Your saved data has been preserved. Try again or contact the administrator.", "I dati di ricerca sono temporaneamente non disponibili. I dati salvati sono conservati. Riprova o contatta l'amministratore."),
+    "remove_study_session": ("Remove session", "Rimuovi sessione"),
+    "confirm_remove_session": ("Confirm session removal", "Conferma rimozione della sessione"),
+    "remove_session_hint": ("Remove an unused session from the schedule. Sessions with participant records are protected. Saved questions are kept and can be restored; other session numbers stay unchanged.", "Rimuovi dal calendario una sessione inutilizzata. Le sessioni con dati dei partecipanti sono protette. Le domande salvate vengono conservate e possono essere ripristinate; i numeri delle altre sessioni restano invariati."),
+    "removed_study_sessions": ("Removed sessions", "Sessioni rimosse"),
+    "removed_sessions_hint": ("These sessions are unavailable to students. Restore a session with its saved questions; choose another date if its original date is already in use.", "Queste sessioni non sono disponibili agli studenti. Ripristina una sessione con le domande salvate; scegli un'altra data se quella originale è già utilizzata."),
+    "restore_study_session": ("Restore session", "Ripristina sessione"),
+    "study_session_removed": ("Session removed. You can restore it from Removed sessions.", "Sessione rimossa. Puoi ripristinarla da Sessioni rimosse."),
+    "study_session_restored": ("Session restored with its saved questions.", "Sessione ripristinata con le domande salvate."),
+    "session_removed": ("Session removed", "Sessione rimossa"),
+    "session_has_records": ("This session has participant records and cannot be removed. Its history must be retained.", "Questa sessione contiene dati dei partecipanti e non può essere rimossa. Lo storico deve essere conservato."),
+    "session_year_has_records": ("This session has participant records, so its school year cannot change. Its records keep the year they were collected in.", "Questa sessione contiene dati dei partecipanti, quindi il suo anno scolastico non può cambiare. I dati mantengono l’anno in cui sono stati raccolti."),
+    "session_usage_unavailable": ("Unable to verify that this session is unused. Check saved-data availability before trying again.", "Non è possibile verificare che questa sessione sia inutilizzata. Controlla la disponibilità dei dati salvati prima di riprovare."),
+    "session_removal_confirmation": ("Use the confirmation button to remove this session.", "Usa il pulsante di conferma per rimuovere questa sessione."),
+    "questions_draft": ("Draft", "Bozza"),
+    "questions_approved": ("Approved", "Approvato"),
+    "continue_editing_draft": ("Continue editing draft", "Continua a modificare la bozza"),
+    "edit_saved_questions": ("Edit questions", "Modifica domande"),
+    "draft_question_empty": ("Question not written yet", "Domanda non ancora scritta"),
+    "individual_assignments": ("Individual assignments", "Assegnazioni individuali"),
+    "current_session_questions": ("Session questions", "Domande della sessione"),
+    "session_configuration_hint": ("Current saved setup for new attempts. Started attempts keep their original questions.", "Configurazione salvata per i nuovi tentativi. I tentativi già iniziati mantengono le domande originali."),
+    "question_draft_saved": ("Draft saved. You can leave this page and continue from the study session.", "Bozza salvata. Puoi lasciare questa pagina e riprendere dalla sessione di studio."),
+    "unsaved_question_changes": ("Unsaved changes", "Modifiche non salvate"),
+    "save_question_preview_hint": ("The questions are in the editor. Save a draft to keep them before leaving.", "Le domande sono nell'editor. Salva una bozza per conservarle prima di uscire."),
+    "save_draft_hint": ("Save a draft at any point and return to it from the session. Approve questions when all three are ready for students.", "Salva una bozza in qualsiasi momento e riaprila dalla sessione. Approva le domande quando tutte e tre sono pronte per gli studenti."),
+    "save_question_draft": ("Save draft", "Salva bozza"),
+    "save_draft_return": ("Save draft and return to session", "Salva bozza e torna alla sessione"),
+    "approve_question_assignment": ("Approve questions", "Approva domande"),
+    "unique_question_metadata_hint": ("Each previous question appears once. Reuse a complete set to keep a specific experimental condition.", "Ogni domanda precedente compare una sola volta. Riutilizza un gruppo completo per mantenere una condizione sperimentale specifica."),
+    "editable_question": ("Question", "Domanda"),
+    "v2_roster_questions_hint": ("Question assignments are configured separately for each session. Changing this roster keeps those assignments.", "Le domande vengono configurate separatamente per ogni sessione. Modificare l'elenco mantiene queste assegnazioni."),
+    "v2_questions_hint": ("Assign three questions for this grade and session. Existing questions are a library; each V2 assignment starts fresh. Changes apply to new attempts.", "Assegna tre domande a questa classe e sessione. Le domande precedenti restano nella libreria; le assegnazioni V2 vanno configurate da zero. Le modifiche si applicano ai nuovi tentativi."),
+    "configure_questions": ("Configure questions", "Configura domande"),
+    "questions_saved": ("Question assignment saved.", "Assegnazione delle domande salvata."),
+    "question_assignment": ("Question assignment", "Assegnazione delle domande"),
+    "shared_questions": ("Shared questions", "Domande condivise"),
+    "participant_exception": ("Individual assignment", "Assegnazione individuale"),
+    "new_exception_hint": ("This draft copies the shared questions. Save to create an individual assignment for this ID only.", "Questa bozza copia le domande condivise. Salva per creare un'assegnazione individuale solo per questo ID."),
+    "reuse_question_set": ("Reuse a previous question set", "Riutilizza un gruppo di domande"),
+    "question_library": ("Question library", "Libreria delle domande"),
+    "choose_question_set": ("Choose a question set", "Scegli un gruppo di domande"),
+    "load_question_set": ("Load into editor", "Carica nell'editor"),
+    "library_load_hint": ("Loading replaces the editor content. Save a draft to keep it, then approve when ready.", "Il caricamento sostituisce il contenuto dell'editor. Salva una bozza per conservarlo, poi approva quando è pronto."),
+    "question_theme": ("Session theme", "Tema della sessione"),
+    "question_topic": ("Topic", "Argomento"),
+    "question_text": ("Question text", "Testo della domanda"),
+    "reuse_question": ("Choose a previous question", "Scegli una domanda precedente"),
+    "keep_question": ("Keep the text above", "Mantieni il testo sopra"),
+    "apply_question_selections": ("Apply selected previous questions", "Applica le domande precedenti selezionate"),
+    "approve_questions": ("I approve these three questions for this assignment", "Approvo queste tre domande per questa assegnazione"),
+    "questions_draft_hint": ("Unapproved or incomplete drafts can be saved, but students cannot start them. Puzzle assets are optional.", "Puoi salvare bozze incomplete o non approvate, ma gli studenti non possono iniziarle. I puzzle sono facoltativi."),
+    "save_questions": ("Save questions", "Salva domande"),
+    "use_shared_questions": ("Remove individual assignment and use shared questions", "Rimuovi l'assegnazione individuale e usa le domande condivise"),
+    "edit_exception": ("Set individual questions", "Imposta domande individuali"),
+    "session_readiness_hint": ("Ready means a date and three approved questions are configured. Students can start only on that date in Europe/Zurich.", "Pronto significa che sono configurate una data e tre domande approvate. Gli studenti possono iniziare solo in quella data, nel fuso Europe/Zurich."),
+    "session_date_missing": ("Session date missing", "Data della sessione mancante"),
+    "question_set_missing": ("No questions assigned", "Nessuna domanda assegnata"),
+    "questions_incomplete": ("Complete all three topics and questions", "Completa tutti e tre gli argomenti e le domande"),
+    "questions_unapproved": ("Questions awaiting approval", "Domande in attesa di approvazione"),
+    "questions_invalid": ("Question assignment is invalid", "Assegnazione delle domande non valida"),
+    "invalid_question_set": ("Use three different questions with a topic and text, within the field limits.", "Usa tre domande diverse con argomento e testo, entro i limiti dei campi."),
     "dashboard": ("Research dashboard", "Dashboard di ricerca"),
     "dashboard_purpose": ("Browse participant logs and inspect their details.", "Consulta i log dei partecipanti ed esplora i dettagli."),
     "dashboard_download_a_grade": ("Download a full grade", "Scarica una classe completa"),
@@ -19,6 +107,9 @@ TEXT = {
     "dashboard_status_completed": ("Completed", "Completati"),
     "dashboard_status_incomplete": ("Incomplete", "Incompleti"),
     "dashboard_status_no_data": ("No saved data", "Senza dati salvati"),
+    "runs_without_saved_data": ("Started without saved data", "Avviati senza dati salvati"),
+    "recovered_fragments": ("Recovered fragments", "Frammenti recuperati"),
+    "school_year_unknown": ("School year not set", "Anno scolastico non impostato"),
     "dashboard_matching": ("ID contains", "L'ID contiene"),
     "download_filtered": ("Download filtered results", "Scarica risultati filtrati"),
     "dashboard_filtered_export_hint": ("All participants with saved logs matching the filters above, in one ZIP.", "Tutti i partecipanti con log salvati che corrispondono ai filtri, in un unico ZIP."),
@@ -26,7 +117,7 @@ TEXT = {
     "dashboard_session_export_hint": ("Everyone in this session and school year, regardless of search or status.", "Tutti i partecipanti della sessione e dell'anno selezionati, senza filtri per ID o stato."),
     "dashboard_grade_export_hint": ("Entire grade history, across all years and sessions.", "Storico completo della classe, per tutti gli anni e le sessioni."),
     "dashboard_selection_hint": ("Tick one or more participants below to download their logs in one ZIP.", "Seleziona uno o più partecipanti nell'elenco per scaricare i loro log in un unico ZIP."),
-    "dashboard_saved_hint": ("Logs appear after task submission or experiment finish.", "I log compaiono alla consegna dei compiti o alla fine dell'esperimento."),
+    "dashboard_saved_hint": ("Logs are saved while children work (on each page and every minute) and when a task is submitted. Refresh to see the latest.", "I log vengono salvati mentre i bambini lavorano (a ogni pagina e ogni minuto) e alla consegna dei compiti. Aggiorna per vedere gli ultimi."),
     "dashboard_actions_for": ("More actions for participant", "Altre azioni per il partecipante"),
     "dashboard_no_matches": ("No participants match these filters", "Nessun partecipante corrisponde ai filtri"),
     "dashboard_no_matches_hint": ("Try another ID or clear the filters to see the full list.", "Prova un altro ID o azzera i filtri per vedere l'elenco completo."),
@@ -63,7 +154,7 @@ TEXT = {
     "back_to_editing": ("Back to editing", "Torna alla modifica"),
     "cancel": ("Cancel", "Annulla"),
     "grade_roster_disabled": ("No participant IDs for this grade", "Nessun ID partecipante per questa classe"),
-    "grade_roster_empty_hint": ("Set an ID range and choose the students' tasks to get started.", "Imposta un intervallo di ID e scegli i compiti degli studenti per iniziare."),
+    "grade_roster_empty_hint": ("Set an ID range, then configure questions for each session.", "Imposta un intervallo di ID, poi configura le domande per ogni sessione."),
     "set_up_participants": ("Set up participants", "Configura i partecipanti"),
     "all_participants_ready": ("Every participant is ready to start.", "Tutti i partecipanti sono pronti per iniziare."),
     "all": ("All", "Tutti"),
@@ -98,7 +189,7 @@ TEXT = {
     "roster_hint": ("Choose the IDs for each grade and assign questions and puzzle rewards. Only IDs with a complete assignment can start in the student app. Use Preview to check your changes before saving.", "Scegli gli ID per ogni classe e assegna domande e ricompense del puzzle. Solo gli ID con un'assegnazione completa possono iniziare nell'app degli studenti. Usa Anteprima per controllare le modifiche prima di salvare."),
     "participant_readiness": ("Participant readiness", "Preparazione dei partecipanti"),
     "configured_ids": ("participant IDs", "ID partecipanti"),
-    "ready_to_start": ("ready to start", "pronti per iniziare"),
+    "ready_to_start": ("configuration complete", "configurazione completa"),
     "needs_assignment": ("need tasks", "senza compiti"),
     "ranges_preview": ("Preview — changes have not been saved", "Anteprima — le modifiche non sono state salvate"),
     "ranges_preview_hint": ("These counts show the proposed roster. Save participant IDs to apply it to the dashboard and student app.", "Questi conteggi mostrano l'elenco proposto. Salva gli ID partecipanti per applicarlo alla dashboard e all'app degli studenti."),
@@ -106,9 +197,9 @@ TEXT = {
     "ids_removed": ("IDs removed from the current roster", "ID rimossi dall'elenco attuale"),
     "ids_moved": ("IDs changing grade", "ID che cambiano classe"),
     "student_access_changes": ("Student access and assignment changes", "Modifiche all'accesso e ai compiti degli studenti"),
-    "ids_enabled": ("IDs becoming available in student login", "ID che diventano disponibili nell'accesso degli studenti"),
-    "ids_disabled": ("IDs no longer available for new runs", "ID non più disponibili per nuove esecuzioni"),
-    "ids_tasks_changed": ("IDs receiving different questions or rewards", "ID che riceveranno domande o ricompense diverse"),
+    "ids_enabled": ("IDs becoming ready for this session", "ID che diventano pronti per questa sessione"),
+    "ids_disabled": ("IDs no longer ready for this session", "ID non più pronti per questa sessione"),
+    "ids_tasks_changed": ("IDs receiving different questions", "ID che riceveranno domande diverse"),
     "show_ids": ("Show IDs", "Mostra ID"),
     "review_participant_assignments": ("Review each participant's assignment", "Controlla i compiti di ogni partecipante"),
     "student_assignment": ("Assigned questions", "Domande assegnate"),
@@ -296,7 +387,15 @@ TEXT = {
     "invalid_sessions": ("Invalid study-session configuration.", "Configurazione delle sessioni non valida."),
     "invalid_date": ("Use valid calendar dates.", "Usa date di calendario valide."),
     "overlapping_dates": ("Two sessions of the same grade cannot use the same date.", "Due sessioni della stessa classe non possono avere la stessa data."),
-    "settings_changed": ("Another researcher updated the settings. Reload before saving.", "Un altro ricercatore ha aggiornato le impostazioni. Ricarica prima di salvare."),
+    "settings_changed": ("The settings were changed in another tab or by another researcher since this page opened. Nothing was saved. Reload before saving.", "Le impostazioni sono state modificate in un’altra scheda o da un altro ricercatore dopo l’apertura di questa pagina. Non è stato salvato nulla. Ricarica prima di salvare."),
+    "prepare_session_changed": ("This session was removed or moved to another class or school year, in another tab or by another researcher. Nothing was saved; your entries are kept below. Review the saved session in a new tab before entering your changes there.", "Questa sessione è stata rimossa o spostata in un’altra classe o in un altro anno scolastico, in un’altra scheda o da un altro ricercatore. Non è stato salvato nulla; i dati inseriti sono conservati qui sotto. Controlla la sessione salvata in una nuova scheda prima di inserire lì le modifiche."),
+    "question_session_removed": ("This session was removed in another tab or by another researcher. Nothing was saved; your text is kept below. Copy it, or restore the session before saving.", "Questa sessione è stata rimossa in un’altra scheda o da un altro ricercatore. Non è stato salvato nulla; il testo è conservato qui sotto. Copialo, oppure ripristina la sessione prima di salvare."),
+    "question_participant_moved": ("This participant is no longer enrolled in this session’s class and school year (changed in another tab or by another researcher). Nothing was saved; your text is kept below.", "Questo partecipante non è più iscritto alla classe e all’anno scolastico di questa sessione (modifica fatta in un’altra scheda o da un altro ricercatore). Non è stato salvato nulla; il testo è conservato qui sotto."),
+    "question_set_changed_since_copy": ("This session’s questions were changed in another tab or by another researcher after your copy was made. Nothing was saved. Saving again keeps your text but not the reused set’s conditions and question IDs; to keep them, load the set again.", "Le domande di questa sessione sono state modificate in un’altra scheda o da un altro ricercatore dopo che è stata fatta la tua copia. Non è stato salvato nulla. Salvando di nuovo si conserva il testo, ma non le condizioni e gli ID delle domande del gruppo riutilizzato; per conservarli, carica di nuovo il gruppo."),
+    "duplicate_question_id":("The same previous question was chosen for two slots. Choose a different question for one of them.", "La stessa domanda precedente è stata scelta per due posizioni. Scegli una domanda diversa per una delle due."),
+    "review_enrollment_new_tab":("Review the enrollment in a new tab", "Controlla l’iscrizione in una nuova scheda"),
+    "review_saved_session": ("Review saved session in a new tab", "Controlla la sessione salvata in una nuova scheda"),
+    "session_edit_outside_page": ("This session is no longer on this page. Your unsaved details are kept below. Review the saved session before applying your changes.", "Questa sessione non si trova più in questa pagina. I dati non salvati sono conservati qui sotto. Controlla la sessione salvata prima di applicare le modifiche."),
     "source_changed_refresh": ("This file changed. Refresh saved data to view the latest records.", "Il file è cambiato. Aggiorna i dati salvati per visualizzare gli ultimi record."),
     "source_unavailable": ("The source file cannot be read.", "Il file di origine non può essere letto."),
     "malformed_or_partial_line": ("Malformed or partially written record; original bytes are retained in exports.", "Record non valido o scritto parzialmente; i byte originali vengono conservati nelle esportazioni."),
@@ -304,6 +403,210 @@ TEXT = {
     "empty_export": ("No records are available for this export.", "Nessun record disponibile per questa esportazione."),
     "storage_error": ("Research storage is temporarily unavailable. Try again later.", "L'archivio di ricerca non è temporaneamente disponibile. Riprova più tardi."),
 }
+
+
+TEXT.update({'op_initial_enrollment': ('Confirm initial school-year enrollment',
+                           'Conferma delle iscrizioni al primo anno scolastico'),
+ 'range_editor_retired': ('Use the permanent register to edit annual enrollments. Initial ranges cannot be '
+                          'changed after multiple school years are recorded.',
+                          'Usa il registro permanente per modificare le iscrizioni annuali. Gli intervalli '
+                          'iniziali non possono essere modificati dopo aver registrato più anni scolastici.'),
+ 'permanent_participants': ('Permanent participants', 'Partecipanti permanenti'),
+ 'participant_registry': ('Participant register', 'Registro dei partecipanti'),
+ 'permanent_ids_hint': ('Each ID belongs to one child for the whole study. Enrollment records the grade for '
+                        'each school year. IDs are never reassigned.',
+                        'Ogni ID appartiene a un solo bambino per tutto lo studio. L’iscrizione registra la '
+                        'classe per ogni anno scolastico. Gli ID non vengono mai riassegnati.'),
+ 'promote_year': ('Prepare the next school year', 'Prepara il prossimo anno scolastico'),
+ 'legacy_identity_links': ('Link historical records', 'Collega i dati storici'),
+ 'review_enrollment': ('Review changes', 'Rivedi le modifiche'),
+ 'confirm_enrollment': ('Confirm these changes', 'Conferma queste modifiche'),
+ 'enrollment_saved': ('Participant changes saved. Previous records and started attempts are preserved.',
+                      'Modifiche ai partecipanti salvate. I dati precedenti e i tentativi già iniziati sono '
+                      'conservati.'),
+ 'promotion_hint': ('Review promotion from grade 3 to 4 and 4 to 5. Grade 5 IDs remain reserved without '
+                    'enrollment in the next year. Confirmation selects the next year for planning; earlier '
+                    'enrollments and sessions keep their own year.',
+                    'Rivedi il passaggio dalla terza alla quarta e dalla quarta alla quinta. Gli ID della '
+                    'quinta restano riservati senza iscrizione nell’anno successivo. La conferma seleziona '
+                    'il nuovo anno per la pianificazione; iscrizioni e sessioni precedenti mantengono il '
+                    'proprio anno.'),
+ 'inactive_hint': ('Inactive participants cannot start new attempts. Their ID, previous enrollments and '
+                   'records remain available. Reactivate only for the same child. Started attempts retain '
+                   'their original setup.',
+                   'I partecipanti non attivi non possono iniziare nuovi tentativi. L’ID, le iscrizioni e i '
+                   'dati precedenti restano disponibili. Riattiva solo per lo stesso bambino. I tentativi '
+                   'iniziati mantengono la configurazione originale.'),
+ 'legacy_link_hint': ('Confirm identity using your study register. Equal numbers alone do not identify the '
+                      'same child. Links apply only to the selected dates and can be revoked; original files '
+                      'and source IDs are preserved.',
+                      'Conferma l’identità usando il registro dello studio. Numeri uguali da soli non '
+                      'identificano lo stesso bambino. I collegamenti valgono solo per le date scelte e '
+                      'possono essere revocati; i file e gli ID originali vengono conservati.'),
+ 'from_grade': ('Previous grade', 'Classe precedente'),
+ 'to_grade': ('Next grade', 'Classe successiva'),
+ 'no_next_enrollment': ('ID retained; no next-year enrollment',
+                        'ID conservato; nessuna iscrizione al nuovo anno'),
+ 'active': ('Active', 'Attivo'),
+ 'inactive': ('Inactive', 'Non attivo'),
+ 'not_enrolled': ('Not enrolled for this year', 'Non iscritto per questo anno'),
+ 'edit_enrollment': ('Edit enrollment', 'Modifica iscrizione'),
+ 'enrollment_history': ('Enrollment history', 'Storico iscrizioni'),
+ 'add_participants': ('Add new participants', 'Aggiungi nuovi partecipanti'),
+ 'exact_participant_ids': ('New IDs', 'Nuovi ID'),
+ 'exact_ids_hint': ('Enter each exact ID, separated by spaces or commas, for example: 41, 42, 43. Ranges are '
+                    'not expanded. Use only letters, numbers, hyphens or underscores; do not enter names. '
+                    'Existing IDs cannot be reused.',
+                    'Inserisci ogni ID esatto, separato da spazi o virgole, ad esempio: 41, 42, 43. Gli '
+                    'intervalli non vengono espansi. Usa solo lettere, numeri, trattini o trattini bassi; '
+                    'non inserire nomi. Gli ID esistenti non possono essere riutilizzati.'),
+ 'from_year': ('Previous school year', 'Anno scolastico precedente'),
+ 'to_year': ('Next school year', 'Anno scolastico successivo'),
+ 'from_date': ('From date', 'Dalla data'),
+ 'to_date': ('Through date', 'Alla data'),
+ 'legacy_source_id': ('ID in historical collection', 'ID nella raccolta storica'),
+ 'permanent_id': ('Permanent study ID', 'ID permanente dello studio'),
+ 'link_confirmation_note': ('Reason for confirming this identity (no names)',
+                            'Motivo della conferma dell’identità (senza nomi)'),
+ 'revoke_link': ('Review removal of this link', 'Rivedi la rimozione del collegamento'),
+ 'recent_enrollment_changes': ('Recent participant changes', 'Modifiche recenti ai partecipanti'),
+ 'revision': ('Revision', 'Revisione'),
+ 'op_add': ('Add participants', 'Aggiunta di partecipanti'),
+ 'op_update': ('Update enrollment or status', 'Modifica di iscrizione o stato'),
+ 'op_promote': ('Promote participants to the next year', 'Passaggio dei partecipanti al prossimo anno'),
+ 'op_link': ('Confirm historical identity link', 'Conferma di un collegamento storico'),
+ 'op_unlink': ('Revoke historical identity link', 'Revoca di un collegamento storico'),
+ 'op_migration': ('Initialize permanent register', 'Inizializzazione del registro permanente'),
+ 'op_range_edit': ('Update initial ID ranges', 'Modifica degli intervalli ID iniziali'),
+ 'range_editor_hint': ('Use the permanent register for annual enrollment and individual changes. This older '
+                       'editor changes the initial ranges.',
+                       'Usa il registro permanente per le iscrizioni annuali e le modifiche individuali. '
+                       'Questo editor precedente modifica gli intervalli iniziali.'),
+ 'school_year_required': ('Choose a school year in the format 2026/2027 (September through August).',
+                          'Scegli un anno scolastico nel formato 2026/2027 (da settembre ad agosto).'),
+ 'session_year_missing': ('Session school year missing', 'Anno scolastico della sessione mancante'),
+ 'session_year_mismatch': ('The session date must fall between September and August of its school year.',
+                           'La data della sessione deve essere compresa tra settembre e agosto del suo anno '
+                           'scolastico.'),
+ 'invalid_enrollment': ('Unable to apply this enrollment change. Check the participant, year and grade, then '
+                        'review again.',
+                        'Impossibile applicare la modifica. Controlla partecipante, anno e classe, poi '
+                        'rivedi le modifiche.'),
+ 'invalid_participant_ids': ('Enter unique IDs of 1–32 characters using letters, numbers, hyphens or '
+                             'underscores (at most 1000 at a time).',
+                             'Inserisci ID unici da 1 a 32 caratteri usando lettere, numeri, trattini o '
+                             'trattini bassi (massimo 1000 alla volta).'),
+ 'participant_id_reserved': ('An ID is already registered. Edit its enrollment for the same child, or choose '
+                             'a new ID for a new child.',
+                             'Un ID è già registrato. Modifica l’iscrizione per lo stesso bambino oppure '
+                             'scegli un nuovo ID per un nuovo bambino.'),
+ 'participant_inactive': ('This ID is reserved for an inactive participant. Use the permanent register to '
+                          'reactivate the same child.',
+                          'Questo ID è riservato a un partecipante non attivo. Usa il registro permanente '
+                          'per riattivare lo stesso bambino.'),
+ 'invalid_promotion_year': ('Choose two consecutive school years, such as 2026/2027 and 2027/2028.',
+                            'Scegli due anni scolastici consecutivi, ad esempio 2026/2027 e 2027/2028.'),
+ 'enrollment_conflict': ('A participant already has a different enrollment in the next year. Review '
+                         'individual enrollments before promotion. No changes were saved.',
+                         'Un partecipante ha già un’iscrizione diversa nel prossimo anno. Controlla le '
+                         'iscrizioni individuali prima del passaggio. Nessuna modifica salvata.'),
+ 'empty_promotion': ('No active participants are enrolled in the selected source year.',
+                     'Nessun partecipante attivo è iscritto nell’anno di partenza selezionato.'),
+ 'invalid_identity_link': ('Choose an existing historical ID and date interval containing its records, a '
+                           'permanent participant, and a confirmation note.',
+                           'Scegli un ID storico esistente e un intervallo di date contenente i suoi dati, '
+                           'un partecipante permanente e una nota di conferma.'),
+ 'identity_link_conflict': ('This historical ID already has a link overlapping those dates. Review or revoke '
+                            'that link first.',
+                            'Questo ID storico ha già un collegamento che si sovrappone alle date scelte. '
+                            'Rivedi o revoca prima quel collegamento.'),
+ 'apply_filters': ('Apply filters', 'Applica filtri'),
+ 'find_exact_id': ('Find an ID', 'Cerca un ID'),
+ 'no_participants': ('No participants to show', 'Nessun partecipante da mostrare'),
+ 'exact_id_search_hint': ('Enter the complete ID. For example, 1 and 001 are different participants.',
+                          'Inserisci l’ID completo. Ad esempio, 1 e 001 sono partecipanti diversi.'),
+ 'participant_study_status': ('Status in the study', 'Stato nello studio'),
+ 'enrollment_filter_context': ('Filters only change this list. Every active ID in this class remains available in every session.',
+                                'I filtri modificano solo questo elenco. Tutti gli ID attivi della classe restano disponibili in ogni sessione.'),
+ 'enrollment_fixed_year': ('This change applies to the selected session’s school year.',
+                           'Questa modifica riguarda l’anno scolastico della sessione selezionata.'),
+ 'cancel': ('Cancel', 'Annulla'),
+ 'all': ('All', 'Tutti'),
+ 'school_year_explanation': ('September through August. The first confirmation enrolls the initial roster. '
+                             'Changing this planning year does not move participants or relabel sessions: '
+                             'use yearly promotion and set each session’s own year.',
+                             'Da settembre ad agosto. La prima conferma iscrive l’elenco iniziale. Cambiare '
+                             'l’anno di pianificazione non sposta i partecipanti e non riassegna le '
+                             'sessioni: usa il passaggio annuale e imposta l’anno di ogni sessione.'),
+ 'enrollment': ('Confirmed annual enrollment', 'Iscrizione annuale confermata')})
+
+
+TEXT.update({'prepare_session': ('Prepare a session', 'Prepara una sessione'),
+ 'open_school_year': ('Open year', 'Apri anno'),
+ 'participant_question_overview': ('Questions by participant', 'Domande per partecipante'),
+ 'questions_column': ('Questions', 'Domande'),
+ 'configuration_column': ('Configuration', 'Configurazione'),
+ 'class_questions_short': ('Class questions', 'Della classe'),
+ 'individual_questions_short': ('Personalized', 'Personalizzate'),
+ 'configuration_complete_short': ('Complete', 'Completa'),
+ 'personalize': ('Personalize', 'Personalizza'),
+ 'edit': ('Edit', 'Modifica'),
+ 'personalize_questions_for_id': ('Personalize questions for ID', 'Personalizza le domande per ID'),
+ 'edit_questions_for_id': ('Edit questions for ID', 'Modifica le domande per ID'),
+ 'personalize_questions_hint': ('Everyone uses the class questions. Personalize only when a child needs different questions.',
+                                'Tutti usano le domande della classe. Personalizza solo se un bambino ha bisogno di domande diverse.'),
+ 'prepare_hint': ('Choose the class and year, check participant IDs, then prepare the questions.',
+                  'Scegli la classe e l’anno, controlla gli ID dei partecipanti e prepara le domande.'),
+ 'data_and_history': ('Data and history', 'Dati e storico'),
+ 'session_details': ('Session details', 'Dettagli della sessione'),
+ 'questions_and_readiness': ('Questions and readiness', 'Domande e accesso'),
+ 'initial_prepare_year_hint': ('Saving confirms this first school year and enrolls the initial ID list. You '
+                               'can then adjust the IDs below.',
+                               'Il salvataggio conferma questo primo anno scolastico e iscrive l’elenco '
+                               'iniziale di ID. Potrai poi modificare gli ID qui sotto.'),
+ 'edit_participant_ids': ('Edit participant IDs', 'Modifica gli ID'),
+ 'save_details_first': ('Save the session details first to confirm the school year and set up IDs.',
+                        'Salva prima i dettagli della sessione per confermare l’anno scolastico e impostare '
+                        'gli ID.'),
+ 'session_ids_hint': ('These children are enrolled in this class for the selected school year. Their '
+                      'permanent IDs stay the same in every session.',
+                      'Questi bambini sono iscritti a questa classe per l’anno scolastico selezionato. I '
+                      'loro ID permanenti restano uguali in tutte le sessioni.'),
+ 'no_enrolled_ids': ('No IDs are enrolled in this class and school year yet.',
+                     'Nessun ID è ancora iscritto a questa classe e anno scolastico.'),
+ 'add_or_enroll_ids': ('Add or enroll IDs', 'Aggiungi o iscrivi ID'),
+ 'id_setup_action': ('Which participants are these?', 'Di quali partecipanti si tratta?'),
+ 'new_children_new_ids': ('New children — create new IDs', 'Nuovi bambini — crea nuovi ID'),
+ 'existing_children_same_ids': ('Children already in the study — keep their IDs',
+                                'Bambini già nello studio — conserva i loro ID'),
+ 'check_each_participant': ('Check each participant and individual questions',
+                            'Controlla i partecipanti e le domande individuali'),
+ 'ready_today_hint': ('This session is configured for today. Each child can start with their own ID.',
+                      'La sessione è configurata per oggi. Ogni bambino può iniziare con il proprio ID.'),
+ 'open_student_start': ('Open student start page', 'Apri la pagina di accesso degli studenti'),
+ 'all_sessions_and_administration': ('All sessions and session administration',
+                                     'Tutte le sessioni e gestione delle sessioni'),
+ 'annual_enrollment_tools': ('Annual enrollment and historical links',
+                             'Iscrizioni annuali e collegamenti storici'),
+ 'op_enroll': ('Enroll existing participants, keeping their IDs',
+               'Iscrivi i partecipanti esistenti conservando i loro ID'),
+ 'participant_not_registered': ('An ID is not registered. Use “New children” to create new IDs, or correct '
+                                'the existing IDs.',
+                                'Un ID non è registrato. Usa “Nuovi bambini” per creare nuovi ID oppure '
+                                'correggi gli ID esistenti.')})
+
+TEXT.update({
+    'ids_need_setup': ('Set up participant IDs', 'ID da impostare'),
+    'prepare_ids_hint': ('Enter each ID separated by commas, for example: 1, 2, 3. Choose whether these are new children or children already in the study. Keep existing children’s original IDs. Do not enter names.', 'Inserisci ogni ID separato da virgole, ad esempio: 1, 2, 3. Scegli se sono nuovi bambini o bambini già nello studio. Per i bambini già presenti conserva gli ID originali. Non inserire nomi.'),
+})
+
+from .workflow_i18n import WORKFLOW_TEXT
+from .history_i18n import TEXT as HISTORY_TEXT
+from .editor_i18n import EDITOR_TEXT
+
+TEXT.update(WORKFLOW_TEXT)
+TEXT.update(HISTORY_TEXT)
+TEXT.update(EDITOR_TEXT)
 
 
 def translate(key, language):

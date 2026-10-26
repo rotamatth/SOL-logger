@@ -11,6 +11,12 @@ TEST_USER_ID = "Participant1"
 DEFAULT_APP_URL = "http://localhost:7001"
 
 
+@pytest.fixture(autouse=True)
+def isolated_runtime(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOL_SESSION_DIR", str(tmp_path / "runtime-sessions"))
+    monkeypatch.setenv("FLASK_SECRET_KEY", "synthetic-test-signing-secret-at-least-32-characters")
+
+
 def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line(

@@ -1,4 +1,7 @@
-import requests, json
+import html
+import json
+
+import requests
 import math
 import os
 import csv
@@ -8,28 +11,30 @@ import ipaddress
 import search_backend
 import uuid
 import random
-import traceback
+from copy import deepcopy
 import sqlite3
-from time import time
+import tempfile
 
-from urllib import response
 from flask import Flask, render_template, url_for, request, session, redirect, jsonify
+from markupsafe import Markup, escape
 from flask_session import Session
-from flask_cors import CORS
 from forms import SearchForm
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+from research_dashboard.participants import participant_sort_key
 from research_dashboard import init_dashboard
-from research_dashboard.collection import record_run
-from research_dashboard.student_config import eligible_students
+from research_dashboard.collection import record_run, publish_metadata
+from research_dashboard.log_store import LogStore, UploadConflict
+from research_dashboard.runtime import configure_runtime
+from research_dashboard.study_config import scheduled_assignment
 
 app = Flask(__name__)
 
 # -------------------------------------------------
 # 1. Core app + session configuration FIRST
 # -------------------------------------------------
-app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or "OtulwLo7gQ"
+configure_runtime(app)
 
 app.config.update(
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
@@ -43,21 +48,17 @@ app.config["SESSION_USE_SIGNER"] = True
 # Initialize server-side sessions
 Session(app)
 
-# -------------------------------------------------
-# 2. Enable CORS LAST
-# -------------------------------------------------
-CORS(app, resources={r"/(?!dashboard(?:/|$)).*": {"origins": "*"}}, supports_credentials=True)
-rpp = 10  # results per page for pagination; may be changed later
+# All student pages and their scripts are same-origin; no cross-origin access (CORS)
+# is granted. Uploads are bounded; the dashboard sets its own tighter limits.
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-# cache storage for query autocomplete suggestions
-AUTOCOMPLETE_CACHE = {}
-CACHE_TTL = 600  # 10 minutes
 SEARCH_BACKEND = os.getenv("SEARCH_BACKEND", "vertex").lower()
 
 LOG_DIR = os.getenv("SOL_LOG_DIR", "logs_v2")
 LOG_TIME_ZONE = ZoneInfo("Europe/Zurich")
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_REGISTRY_PATH = os.path.join(LOG_DIR, 'log_registry.jsonl')
+LOG_STORE = LogStore(LOG_DIR)
 
 SERP_QUERY_FIELD_EVENTS = {
     'querySubmitted',
@@ -112,6 +113,32 @@ app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PUZZLE_ASSET_DIR = 'puzzle_pieces'
 
+
+@app.get('/health/ready')
+def ready():
+    """Check collection dependencies without exposing configuration or secrets."""
+    try:
+        RESEARCH_STATE.settings()
+        with RESEARCH_STATE.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.rollback()
+        if os.getenv("SOL_ENV") == "production" and not app.extensions["research"]["credential_ready"]():
+            raise RuntimeError("Research authentication is unconfigured")
+        LOG_STORE.recover()
+        for directory in (LOG_DIR, RESEARCH_STATE.path.parent, app.config["SESSION_FILE_DIR"]):
+            fd, name = tempfile.mkstemp(prefix=".health-", dir=directory)
+            try:
+                with os.fdopen(fd, 'wb') as probe:
+                    probe.write(b'ready')
+                    probe.flush()
+                    os.fsync(probe.fileno())
+            finally:
+                os.unlink(name)
+        return jsonify(status="ok")
+    except (OSError, ValueError, RuntimeError, sqlite3.Error):
+        app.logger.exception("Collection readiness check failed")
+        return jsonify(status="unavailable"), 503
+
 # ------------------------------------------------------------------------------------------------------------------------------------------
 # TEMPORARY TESTING FLAG - If API GOOGLE IS NOT AVAILABLE, SET TO TRUE TO ALLOW ANSWER SUBMISSION WITHOUT SEARCH RESULTS.
 # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -144,7 +171,7 @@ def assign_random_task_order(user_id):
     session["task_position"] = 0
     session["task_number"] = task_order[0] if task_order else None
     
-    print(f"[Task Randomization] user_id={user_id}, session_id={session.get('session_id')}, task_order={task_order}")
+    app.logger.debug("Task order for session %s: %s", session.get('session_id'), task_order)
 
     return task_order
 
@@ -207,7 +234,30 @@ def add_no_store_headers(response):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+    # Student pages: no MIME sniffing, no framing by other sites, and children's
+    # queries in our URLs are never sent as a referrer to the pages they open.
+    # (The dashboard sets its own stricter headers.)
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'same-origin')
     return response
+
+
+RICH_TEXT_TAGS = re.compile(r'&lt;(/?)(b|strong|i|em)&gt;|&lt;br\s*/?&gt;', re.IGNORECASE)
+
+
+@app.template_filter('rich_text')
+def rich_text(value):
+    """Render search-engine titles/snippets as text, keeping only emphasis tags.
+
+    The engine highlights matches with <b>; anything else from a web page is
+    shown as text, never interpreted as HTML.
+    """
+    text = str(escape(html.unescape(str(value or ''))))
+
+    def allowed(match):
+        return f"<{match.group(1)}{match.group(2).lower()}>" if match.group(2) else "<br>"
+    return Markup(RICH_TEXT_TAGS.sub(allowed, text))
 
 class PuzzleConfigError(Exception):
     pass
@@ -225,12 +275,64 @@ def render_puzzle_config_error(message):
 def get_user_config(user_id):
     user = session.get('task_config') if session.get('user_id') == user_id else None
     if not user:
-        user = eligible_students(app, RESEARCH_STATE.settings()).get(user_id)
+        assignment = scheduled_assignment(RESEARCH_STATE.settings(), user_id)
+        user = assignment['topics'] if assignment else None
     if not user:
         raise PuzzleConfigError(
             f"No complete student task assignment found for user '{user_id}'."
         )
     return user
+
+
+def untouched_run_for(user_id):
+    """This browser already holds today's admitted run for the ID, and no task has been searched yet."""
+    if not user_id or session.get('user_id') != user_id or not session.get('session_id'):
+        return False
+    if session.get('tasks_started') or session.get('pieces_earned') or session.get('task_position', 0):
+        return False
+    if (session.get('study_session') or {}).get('date') != datetime.now(LOG_TIME_ZONE).date().isoformat():
+        return False
+    try:
+        return RESEARCH_STATE.attempt_metadata(session['session_id']) is not None
+    except (OSError, sqlite3.Error):
+        return False
+
+
+STUDENT_IDLE_SECONDS = 60 * 60
+
+
+def idle_session_expired():
+    """Apply the 60-minute idle limit on a page navigation; True once the run has ended.
+
+    Every page the participant opens counts as activity, and every page enforces
+    the limit, so a run left open on a device cannot continue days later.
+    Only call this from page navigations: background requests (autocomplete, frame
+    checks) run in parallel and must not write the session.
+    """
+    if not session.get('user_id'):
+        return False
+    try:
+        idle = (datetime.now() - datetime.fromisoformat(session.get('last_active', ''))).total_seconds()
+    except (TypeError, ValueError):
+        idle = 0
+    if idle > STUDENT_IDLE_SECONDS:
+        session.clear()
+        return True
+    session['last_active'] = datetime.now().isoformat()
+    return False
+
+
+def optional_reward_asset(user_id, field, allow_video=False):
+    """A question set can be collected without a puzzle or other reward media."""
+    user = get_user_config(user_id)
+    filename = user.get(field, '').strip()
+    allowed = ('.gif', '.mp4') if allow_video else ('.gif',)
+    if (not filename or os.path.basename(filename) != filename
+            or not filename.lower().endswith(allowed)):
+        return None
+    if not os.path.isfile(os.path.join(app.static_folder, PUZZLE_ASSET_DIR, filename)):
+        return None
+    return f'{PUZZLE_ASSET_DIR}/{filename}'
 
 def validate_reward_asset(user_id, csv_field, allow_video=False):
     user = get_user_config(user_id)
@@ -259,7 +361,7 @@ def get_unlocked_piece(user_id, task_number, display_task_number=None):
     try:
         task_num = int(task_number)
     except (TypeError, ValueError):
-        raise PuzzleConfigError(f"Invalid task number for puzzle reward: '{task_number}'.")
+        raise PuzzleConfigError(f"Invalid task number for puzzle reward: '{task_number}'.") from None
 
     label_number = display_task_number if display_task_number is not None else task_num
 
@@ -304,14 +406,9 @@ def search_page():
     if phase not in ('task_intro', 'searching'):
         return redirect(phase_redirect_url(phase))
 
-    # Check session TTL — expire after 60 minutes of inactivity
-    last_active = session.get('last_active')
-    if last_active:
-        elapsed = (datetime.now() - datetime.fromisoformat(last_active)).total_seconds()
-        if elapsed > 3600:  # 60 minutes
-            session.clear()
-            return redirect(url_for('welcome'))
-    session['last_active'] = datetime.now().isoformat()
+    # Expire after 60 minutes of inactivity (counted across every page).
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
 
     # Mark this task as started — phase advances to 'searching'.
     task_number = session.get('task_number')
@@ -327,33 +424,71 @@ def search_page():
 @app.route('/start', methods=['GET', 'POST'])
 def start_page():
     enrollment_settings = RESEARCH_STATE.settings()
-    student_configs = eligible_students(app, enrollment_settings)
-    val_ids = list(student_configs)
+    val_ids = sorted((uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']), key=participant_sort_key)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
-        if user_id not in student_configs:
-            return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                   start_error="Questo ID non è disponibile. Chiedi al ricercatore di controllare l'assegnazione dei compiti."), 400
-        session.clear()
-        session['user_id'] = user_id
-        session['task_config'] = dict(student_configs[user_id])
-        session['session_id'] = str(uuid.uuid4())
-        session['log_id'] = generate_log_id()
-        session['pieces_earned'] = []
-        session['tasks_started'] = []
-        session['reward_shown_logged'] = []
-        session['last_active'] = datetime.now().isoformat()
-        
-        assign_random_task_order(user_id)
+        if untouched_run_for(user_id):
+            # Same ID submitted again before any task began (a double tap, a stale
+            # start page): continue that run instead of admitting a second, empty one.
+            return redirect(url_for('task'))
+        previous_session = dict(session)
+        for admission_try in range(3):
+            assignment = scheduled_assignment(enrollment_settings, user_id)
+            if assignment is None:
+                if admission_try:
+                    session.clear()
+                    session.update(previous_session)
+                return render_template('start.html', show_search=False, valid_ids=val_ids,
+                                       start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
+            session.clear()
+            session['user_id'] = user_id
+            session['task_config'] = deepcopy(assignment['topics'])
+            session['question_set'] = deepcopy(assignment['question_set'])
+            session['study_session'] = {key: deepcopy(assignment['session'][key])
+                                        for key in ('id', 'name', 'date', 'theme', 'grade', 'number', 'school_year')
+                                        if key in assignment['session']}
+            session['assignment_source'] = assignment['source']
+            session['session_id'] = str(uuid.uuid4())
+            session['log_id'] = generate_log_id()
+            session['pieces_earned'] = []
+            session['tasks_started'] = []
+            session['reward_shown_logged'] = []
+            session['last_active'] = datetime.now().isoformat()
 
-        try:
-            record_run(LOG_DIR, RESEARCH_STATE, user_id, session['session_id'],
-                       session['log_id'], session['task_order'], session['task_config'],
-                       settings=enrollment_settings)
-        except (OSError, ValueError, sqlite3.Error):
-            # Research metadata failure must not discard student interaction logs.
-            app.logger.warning("Could not record research run metadata", exc_info=True)
-        
+            assign_random_task_order(user_id)
+
+            try:
+                record_run(LOG_DIR, RESEARCH_STATE, user_id, session['session_id'],
+                           session['log_id'], session['task_order'], session['task_config'],
+                           settings=enrollment_settings,
+                           study_session=session['study_session'],
+                           question_set=session['question_set'],
+                           assignment_source=session['assignment_source'], admit=True)
+            except ValueError as error:
+                if str(error) == 'settings_changed' and admission_try < 2:
+                    # A researcher saved settings during this request. Nothing was
+                    # admitted; check eligibility again against the saved version.
+                    enrollment_settings = RESEARCH_STATE.settings()
+                    continue
+                failure = error
+            except (OSError, sqlite3.Error) as error:
+                failure = error
+            else:
+                break
+            # A committed attempt can republish its sidecar later. Without that
+            # durable snapshot, do not admit a new attempt or discard an old one.
+            app.logger.error("Could not publish research run metadata", exc_info=failure)
+            try:
+                durable = RESEARCH_STATE.attempt_metadata(session['session_id'])
+            except (OSError, sqlite3.Error):
+                durable = None
+            if durable is None:
+                session.clear()
+                session.update(previous_session)
+                return render_template('start.html', show_search=False, valid_ids=val_ids,
+                                       start_error="Impossibile avviare la sessione in sicurezza. Riprova o chiedi al ricercatore."), 503
+            break
+
         return redirect(url_for('task'))
 
     if current_phase() != 'pre_id':
@@ -366,6 +501,8 @@ def task():
     phase = current_phase()
     if phase != 'task_intro':
         return redirect(phase_redirect_url(phase))
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
 
     user_id = session.get('user_id')
     task_number = session.get('task_number')
@@ -395,6 +532,8 @@ def result():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
 
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
     form = SearchForm()
@@ -557,12 +696,24 @@ def webpage():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
     url = request.args.get("url", "")
     query = request.args.get("query", "")
     page = request.args.get("page", "1")
-    if not url:
+    # Only web addresses: a javascript:/data: URL would run inside our own origin.
+    if not _is_web_address(url):
         return redirect(url_for('search_page'))
     return render_template("webpage.html", url=url, query=query, page=page, show_search=False)
+
+def _is_web_address(url):
+    """True for a well-formed http(s) address with a host; malformed input is simply refused."""
+    try:
+        parsed = urlparse(url)
+    except (ValueError, TypeError):
+        return False
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+
 
 def _is_safe_iframe_url(url):
     try:
@@ -583,24 +734,46 @@ def _is_safe_iframe_url(url):
         return False, f"dns-error:{type(e).__name__}"
     return True, None
 
+
+IFRAME_PROBE_MAX_REDIRECTS = 5
+
+
+def _probe_frame_headers(url):
+    """HEAD (or GET) the page, re-checking every redirect target before following it."""
+    for _ in range(IFRAME_PROBE_MAX_REDIRECTS + 1):
+        safe, reason = _is_safe_iframe_url(url)
+        if not safe:
+            return None, f"ssrf-rejected:{reason}"
+        r = requests.head(url, allow_redirects=False, timeout=3)
+        if r.status_code == 405:
+            r = requests.get(url, allow_redirects=False, timeout=3, stream=True)
+            r.close()
+        location = r.headers.get("location")
+        if r.is_redirect and location:
+            try:
+                url = urljoin(url, location)
+            except ValueError:
+                return None, "ssrf-rejected:malformed-url"
+            continue
+        return r, None
+    return None, "too-many-redirects"
+
 @app.route("/iframe_check")
 def iframe_check():
     """Probe a target URL's headers to predict whether it can be embedded in an iframe.
     Used by webpage.html to log webpageLoadSucceeded / webpageLoadFailed.
     """
+    # Only a participant who is currently searching can make the server probe a URL.
+    if current_phase() != 'searching':
+        return jsonify({"blocked": None, "reason": "no-active-search"})
     url = request.args.get("url", "")
     if not url:
         return jsonify({"blocked": None, "reason": "empty-url"})
 
-    safe, ssrf_reason = _is_safe_iframe_url(url)
-    if not safe:
-        return jsonify({"blocked": None, "reason": f"ssrf-rejected:{ssrf_reason}"})
-
     try:
-        r = requests.head(url, allow_redirects=True, timeout=3)
-        if r.status_code == 405:
-            r = requests.get(url, allow_redirects=True, timeout=3, stream=True)
-            r.close()
+        r, problem = _probe_frame_headers(url)
+        if r is None:
+            return jsonify({"blocked": None, "reason": problem})
         headers = {k.lower(): v for k, v in r.headers.items()}
         xfo = headers.get("x-frame-options", "").lower()
         csp = headers.get("content-security-policy", "").lower()
@@ -609,7 +782,9 @@ def iframe_check():
         if "frame-ancestors" in csp:
             return jsonify({"blocked": True, "reason": "csp:frame-ancestors"})
         return jsonify({"blocked": False, "reason": None})
-    except requests.RequestException as e:
+    except (requests.RequestException, ValueError) as e:
+        # requests can parse Location even with allow_redirects=False and raise
+        # a plain ValueError before returning the response.
         return jsonify({"blocked": None, "reason": f"request-error:{type(e).__name__}"})
 
 # Powers the search-bar autocomplete dropdown in layout.html.
@@ -617,12 +792,9 @@ def iframe_check():
 def autocomplete():
     query = request.args.get("query")
 
-    if not query or len(query) < 3:
+    # Suggestions call the paid search API: only for a participant in a session.
+    if not session.get('user_id') or not query or len(query) < 3:
         return jsonify({"suggestions": [], "source": "none", "query_model": None})
-    
-    cached = AUTOCOMPLETE_CACHE.get(query)
-    if cached and time() - cached["time"] < CACHE_TTL:
-        return cached["data"]
 
     try:
         suggestions, source = search_backend.autocomplete(query)
@@ -631,8 +803,9 @@ def autocomplete():
             "source": source,
             "query_model": search_backend.autocomplete_query_model(),
         })
-    except Exception:
-        traceback.print_exc()
+    except Exception as error:
+        # Provider exceptions can contain the query or credentials; omit their text.
+        app.logger.warning("Autocomplete failed (%s)", type(error).__name__)
         return jsonify({"suggestions": [], "source": "none", "query_model": None}), 200
 
 def _append_log_registry(*, user_id, session_id, task_number, num_events,
@@ -652,261 +825,198 @@ def _append_log_registry(*, user_id, session_id, task_number, num_events,
         with open(LOG_REGISTRY_PATH, 'a', encoding='utf-8') as f:
             f.write(json.dumps(entry) + '\n')
     except Exception:
-        traceback.print_exc()
+        app.logger.exception("Could not append to the log registry")
 
 
-def _write_incomplete_recovery(foreign_groups, recovered_from_user):
-    """Persist events left behind by a previous, unfinished participant.
+def _recovery_files(groups, recovered_from_user, files, recovered_incomplete):
+    """Add events of an unfinished experiment, grouped by (uid, sessionID), to INCOMPLETE logs."""
+    for (fuid, fsid), entries in groups.items():
+        fname = f"{_sanitize_for_filename(fuid)}_{_sanitize_for_filename(fsid)}_INCOMPLETE.log"
+        recovered_at = datetime.now(LOG_TIME_ZONE).isoformat(timespec='milliseconds')
+        recovery = [{**entry, "recovered": True, "recovered_from_user": recovered_from_user,
+                     "recovered_at": recovered_at} for entry in entries]
+        recovery.append({"type": "incompleteExperiment", "uid": fuid, "sessionID": fsid,
+                         "recovered_from_user": recovered_from_user, "recovered_at": recovered_at})
+        files[fname] = files.get(fname, '') + ''.join(json.dumps(entry) + '\n' for entry in recovery)
+        recovered_incomplete[fuid] = recovered_incomplete.get(fuid, 0) + len(entries)
 
-    ``foreign_groups`` maps (foreign_uid, client_session_id) -> list of that
-    participant's log entries that arrived mixed into another participant's
-    submission. Each group is appended to its own deterministic
-    ``<uid>_<sid>_INCOMPLETE.log`` file (so repeated recoveries accumulate
-    instead of spawning new files) and the file is closed with an
-    ``incompleteExperiment`` marker line. Returns a {uid: num_events} summary.
-    Never raises.
+
+def _prepare_other_session_upload(logs, batch_session_id, user_id):
+    """Plan recovery files for a batch saved by a page of an earlier session in this browser."""
+    groups = {}
+    for entry in logs:
+        groups.setdefault((entry.get('uid') or 'unknown', entry.get('sessionID') or batch_session_id), []).append(entry)
+    files, recovered_incomplete = {}, {}
+    _recovery_files(groups, user_id, files, recovered_incomplete)
+    return files, {"status": "logged", "saved_events": 0, "recovered_incomplete": recovered_incomplete}
+
+
+def _prepare_upload(logs, user_id, server_session_id, log_id, task_number, task_order, task_position):
+    """Plan all original-format files before committing the upload receipt."""
+    files = {}
+    recovered_incomplete = {}
+    own_logs, foreign_groups = [], {}
+    for entry in logs:
+        euid = entry.get('uid')
+        if euid and euid != user_id:
+            foreign_groups.setdefault((euid, entry.get('sessionID') or 'nosession'), []).append(entry)
+        else:
+            own_logs.append(entry)
+    _recovery_files(foreign_groups, user_id, files, recovered_incomplete)
+
+    visible_task_number = task_position + 1
+    actual_topic_number = task_number
+    safe_user = _sanitize_for_filename(user_id)
+    combined_filename = f"{safe_user}_{log_id}_FULL.log"
+    task_filename     = f"{safe_user}_{log_id}_task{visible_task_number}_topic{actual_topic_number}.log"
+    lines = []
+    for entry in own_logs:
+        enriched = dict(entry)
+        enriched['task_number'] = visible_task_number
+        enriched['actual_topic_number'] = actual_topic_number
+        enriched['task_order'] = task_order
+        enriched['sessionID'] = server_session_id
+        if not enriched.get('uid'):
+            enriched['uid'] = user_id
+        lines.append(json.dumps(enriched) + '\n')
+    if lines:
+        files[combined_filename] = ''.join(lines)
+        files[task_filename] = ''.join(lines)
+    return files, {
+        "status": "logged", "saved_events": len(own_logs),
+        "combined_file": combined_filename,
+        "task_file":     task_filename,
+        "recovered_incomplete": recovered_incomplete,
+    }
+
+
+def _accept_other_session_batch(data, batch_session_id, logs, user_id):
+    """Keep a batch saved under an earlier session of this browser as recovered data.
+
+    Rejecting it would leave the browser retrying it forever, unable to send any
+    newer events. It is stored like events of a previous, unfinished participant.
     """
-    recovered_summary = {}
-    for (fuid, fsid), entries in foreign_groups.items():
-        try:
-            safe_fuid  = _sanitize_for_filename(fuid)
-            short_fsid = _sanitize_for_filename(fsid)[:8]
-            fname = f"{safe_fuid}_{short_fsid}_INCOMPLETE.log"
-            fpath = os.path.join(LOG_DIR, fname)
-            recovered_at = datetime.now(LOG_TIME_ZONE).isoformat(timespec='milliseconds')
-            with open(fpath, 'a', encoding='utf-8') as f:
-                for entry in entries:
-                    enriched = dict(entry)
-                    enriched['recovered']           = True
-                    enriched['recovered_from_user'] = recovered_from_user
-                    enriched['recovered_at']        = recovered_at
-                    f.write(json.dumps(enriched) + '\n')
-                f.write(json.dumps({
-                    "type": "incompleteExperiment",
-                    "uid": fuid,
-                    "sessionID": fsid,
-                    "recovered_from_user": recovered_from_user,
-                    "recovered_at": recovered_at,
-                }) + '\n')
-            print(
-                f"[log] RECOVER incomplete uid={fuid} session={fsid} "
-                f"events={len(entries)} file={fname} recovered_from={recovered_from_user}"
-            )
-            _append_log_registry(
-                user_id=fuid, session_id=fsid, task_number=None,
-                num_events=len(entries), saved_log_filename=fname,
-                status="incomplete", error=f"recovered-from:{recovered_from_user}",
-            )
-            recovered_summary[fuid] = recovered_summary.get(fuid, 0) + len(entries)
-        except Exception:
-            traceback.print_exc()
-    return recovered_summary
+    try:
+        receipt = LOG_STORE.accept(batch_session_id, data.get('batch_id'),
+                                   {"session_id": batch_session_id, "logs": logs},
+                                   lambda: _prepare_other_session_upload(logs, batch_session_id, user_id))
+    except UploadConflict:
+        return jsonify(error="Upload identifier already used for different data"), 409
+    except (ValueError, TypeError):
+        return jsonify(error="Invalid upload"), 400
+    except (OSError, sqlite3.Error):
+        app.logger.exception("Upload not acknowledged; pending bytes retained for recovery")
+        return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
+    _append_log_registry(user_id=user_id, session_id=batch_session_id, task_number=None,
+                         num_events=len(logs), saved_log_filename=None, status="incomplete",
+                         error="batch-from-other-session")
+    return jsonify(receipt), 200
 
 
 @app.route('/log_session', methods=['POST'])
 def log_session():
-    data = request.get_json(force=False, silent=True) or {}
-
+    data = request.get_json(force=False, silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="Invalid upload"), 400
     session_id = data.get('session_id')
     logs = data.get('logs')
-    num_events = len(logs) if isinstance(logs, list) else 0
-
     user_id = session.get('user_id')
     task_number = session.get('task_number')
     server_session_id = session.get('session_id')
-
-    if not (user_id and task_number and session_id and isinstance(logs, list) and logs):
-        print(f"[log] ERROR missing-data user={user_id} session={session_id} task={task_number}")
-        _append_log_registry(
-            user_id=user_id, session_id=session_id, task_number=task_number,
-            num_events=num_events, saved_log_filename=None,
-            status="error", error="missing-data",
-        )
-        return jsonify({"error": "Missing user_id, task_number, session_id or logs"}), 400
-
+    if not (user_id and task_number and isinstance(session_id, str) and isinstance(logs, list) and logs):
+        return jsonify(error="Missing user_id, task_number, session_id or logs"), 400
+    if any(not isinstance(entry, dict) or not isinstance(entry.get('type'), str)
+           or entry.get('uid') is not None and not isinstance(entry['uid'], str)
+           or entry.get('sessionID') is not None and not isinstance(entry['sessionID'], str)
+           for entry in logs):
+        return jsonify(error="Invalid log event"), 400
     if session_id != server_session_id:
-        print(
-            f"[log] REJECT session-mismatch user={user_id} "
-            f"client={session_id} server={server_session_id}"
-        )
-        _append_log_registry(
-            user_id=user_id, session_id=session_id, task_number=task_number,
-            num_events=num_events, saved_log_filename=None,
-            status="error", error="session-mismatch",
-        )
-        return jsonify({"error": "Session mismatch"}), 409
-
-    # If events from a different participant (a previous, unfinished session on
-    # the same device) arrived mixed into this submission, never reject the
-    # batch — the old behaviour lost the real participant's data too. Keep the
-    # current participant's events (and uid-less / generic ones) for the normal
-    # log, and recover the other participant's events into their own
-    # incomplete-experiment log instead of discarding them.
-    own_logs = []
-    foreign_groups = {}
-    for entry in logs:
-        euid = entry.get('uid') if isinstance(entry, dict) else None
-        if euid and euid != user_id:
-            esid = entry.get('sessionID') or 'nosession'
-            foreign_groups.setdefault((euid, esid), []).append(entry)
-        else:
-            own_logs.append(entry)
-
-    recovered_incomplete = {}
-    if foreign_groups:
-        recovered_incomplete = _write_incomplete_recovery(foreign_groups, user_id)
-        logs = own_logs
-        num_events = len(logs)
-        if not logs:
-            # The whole batch belonged to a previous participant; it has been
-            # recovered. Return OK so the client clears its buffer and the
-            # study can proceed.
-            return jsonify({
-                "status": "logged",
-                "saved_events": 0,
-                "recovered_incomplete": recovered_incomplete,
-            }), 200
-
+        return _accept_other_session_batch(data, session_id, logs, user_id)
     warn_logging_contract_issues(logs, task_number)
-
     log_id = session.get('log_id')
     if not log_id:
         log_id = generate_log_id()
         session['log_id'] = log_id
-
-    visible_task_number = session.get("task_position", 0) + 1
-    actual_topic_number = task_number
-    task_order          = session.get("task_order", [])
-
-    safe_user = _sanitize_for_filename(user_id)
-    combined_filename = f"{safe_user}_{log_id}_FULL.log"
-    task_filename     = f"{safe_user}_{log_id}_task{visible_task_number}_topic{actual_topic_number}.log"
-
-    combined_path = os.path.join(LOG_DIR, combined_filename)
-    task_path     = os.path.join(LOG_DIR, task_filename)
-
-    with open(combined_path, 'a', encoding='utf-8') as full_f, \
-         open(task_path, 'a', encoding='utf-8') as task_f:
-        for entry in logs:
-            enriched = dict(entry)
-            enriched['task_number']         = visible_task_number
-            enriched['actual_topic_number'] = actual_topic_number
-            enriched['task_order']          = task_order
-            if server_session_id:
-                enriched['sessionID'] = server_session_id
-            if not enriched.get('uid') and user_id:
-                enriched['uid'] = user_id
-
-            line = json.dumps(enriched) + '\n'
-            full_f.write(line)
-            task_f.write(line)
-
-    is_last_task = bool(task_order) and session.get("task_position", 0) >= len(task_order) - 1
-    is_session_end = any(
-        isinstance(e, dict) and e.get("type") == "experimentFinished"
-        for e in logs
-    )
-
-    if is_session_end:
-        marker = "SESSION_END"
-    elif is_last_task:
-        marker = "LAST_TASK"
-    else:
-        marker = None
-
-    if marker:
-        print(
-            f"[log] OK {marker} user={user_id} session={session_id} "
-            f"task={visible_task_number}/{len(task_order) or '?'} events={num_events} "
-            f"task_file={task_filename} full_file={combined_filename}"
-        )
-    else:
-        print(
-            f"[log] OK user={user_id} session={session_id} "
-            f"task={visible_task_number} events={num_events} file={task_filename}"
-        )
-    _append_log_registry(
-        user_id=user_id, session_id=session_id, task_number=visible_task_number,
-        num_events=num_events, saved_log_filename=task_filename,
-        status="success", error=None,
-    )
-
-    return jsonify({
-        "status":        "logged",
-        "combined_file": combined_filename,
-        "task_file":     task_filename,
-        "recovered_incomplete": recovered_incomplete,
-    }), 200
+    try:
+        receipt = LOG_STORE.accept(session_id, data.get('batch_id'),
+            {"session_id": session_id, "logs": logs},
+            lambda: _prepare_upload(logs, user_id, server_session_id, log_id, task_number,
+                                    session.get('task_order', []), session.get('task_position', 0)))
+    except UploadConflict:
+        return jsonify(error="Upload identifier already used for different data"), 409
+    except (ValueError, TypeError):
+        return jsonify(error="Invalid upload"), 400
+    except (OSError, sqlite3.Error):
+        app.logger.exception("Upload not acknowledged; pending bytes retained for recovery")
+        return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
+    # Attempt context is already durable in research.sqlite3. A missing sidecar
+    # can be recreated without blocking an acknowledgement of saved interactions.
+    try:
+        metadata = RESEARCH_STATE.attempt_metadata(session_id)
+        if metadata:
+            publish_metadata(LOG_DIR, metadata)
+            RESEARCH_STATE.mark_attempt_published(session_id)
+    except (OSError, ValueError, sqlite3.Error):
+        app.logger.exception("Run context is pending publication")
+    _append_log_registry(user_id=user_id, session_id=session_id,
+                         task_number=session.get('task_position', 0) + 1,
+                         num_events=len(logs), saved_log_filename=receipt.get('task_file'),
+                         status="success", error=None)
+    return jsonify(receipt), 200
 
 def warn_logging_contract_issues(logs, default_task_number):
-    previous_query_submit = None
+    """Warn about client logging gaps.
 
+    Only the event position and type are written to the server log, never the
+    event itself: events contain children's queries and answers.
+    """
+    def warn(message, index, entry):
+        app.logger.warning("%s at log entry %d (type=%s)", message, index,
+                           entry.get('type') if isinstance(entry, dict) else type(entry).__name__)
+
+    previous_query_submit = None
     for index, entry in enumerate(logs, start=1):
         if not isinstance(entry, dict):
-            print(f"[Logging WARN] log entry {index} is not an object: {entry}")
+            warn("[Logging WARN] log entry is not an object", index, entry)
             previous_query_submit = None
             continue
 
         event_type = entry.get('type')
 
         if event_type == 'querySubmitted':
-            marker = (
-                entry.get('task_number') or default_task_number,
-                (entry.get('query') or '').strip(),
-            )
+            marker = (entry.get('task_number') or default_task_number, (entry.get('query') or '').strip())
             if marker == previous_query_submit:
-                print(
-                    "[Logging WARN] duplicate consecutive querySubmitted "
-                    f"for task/query at log entry {index}: {entry}"
-                )
+                warn("[Logging WARN] duplicate consecutive querySubmitted", index, entry)
             previous_query_submit = marker
         else:
             previous_query_submit = None
 
         if event_type == 'webpageClosed':
-            missing_fields = [
-                field for field in ('url', 'durationMs', 'exitReason')
-                if field not in entry
-            ]
-            if missing_fields:
-                print(
-                    "[Logging WARN] webpageClosed missing fields "
-                    f"{missing_fields} at log entry {index}: {entry}"
-                )
+            missing = [field for field in ('url', 'durationMs', 'exitReason') if field not in entry]
+            if missing:
+                warn(f"[Logging WARN] webpageClosed missing fields {missing}", index, entry)
 
         if event_type == 'pageNavigationClicked' and entry.get('toPage') is None:
-            print(
-                "[Logging WARN] pageNavigationClicked has null toPage "
-                f"at log entry {index}: {entry}"
-            )
+            warn("[Logging WARN] pageNavigationClicked has null toPage", index, entry)
 
         if event_type in ('browserBackBlocked', 'customBackButtonClicked'):
-            missing_fields = [
-                field for field in ('fromURL', 'toURL')
-                if not entry.get(field)
-            ]
-            if missing_fields:
-                print(
-                    f"[Logging WARN] {event_type} missing navigation fields "
-                    f"{missing_fields} at log entry {index}: {entry}"
-                )
+            missing = [field for field in ('fromURL', 'toURL') if not entry.get(field)]
+            if missing:
+                warn(f"[Logging WARN] {event_type} missing navigation fields {missing}", index, entry)
 
         if event_type in SERP_QUERY_FIELD_EVENTS:
-            missing_fields = [
-                field for field in ('rawQuery', 'sanitizedQuery')
-                if field not in entry
-            ]
-            if missing_fields:
-                print(
-                    "[Logging WARN] SERP event missing query fields "
-                    f"{missing_fields} at log entry {index}: {entry}"
-                )
+            missing = [field for field in ('rawQuery', 'sanitizedQuery') if field not in entry]
+            if missing:
+                warn(f"[Logging WARN] SERP event missing query fields {missing}", index, entry)
+
 
 @app.route('/end', methods=['POST'])
 def end_task():
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
     task_number = session.get('task_number')
 
     # Record the earned puzzle piece for the current task
@@ -922,7 +1032,9 @@ def next_task():
     phase = current_phase()
     if phase != 'reward':
         return redirect(phase_redirect_url(phase))
-    
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
+
     has_next_task = advance_to_next_random_task()
     
     session.pop("search_results", None)
@@ -945,6 +1057,8 @@ def reward():
     phase = current_phase()
     if phase not in ('reward', 'completed'):
         return redirect(phase_redirect_url(phase))
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
     user_id = session.get('user_id')
     task_number = session.get('task_number')
     pieces = session.get('pieces_earned', [])
@@ -953,10 +1067,12 @@ def reward():
     display_task_number = session.get("task_position", 0) + 1
     reward_log_key = f"{display_task_number}:{task_number}"
     reward_shown_logged = session.get('reward_shown_logged', [])
-    try:
-        unlocked_piece = get_unlocked_piece(user_id, task_number, display_task_number)
-    except PuzzleConfigError as err:
-        return render_puzzle_config_error(str(err))
+    reward_asset = optional_reward_asset(user_id, f'{task_number}_gif')
+    unlocked_piece = None
+    if reward_asset:
+        unlocked_piece = {'task_num': task_number,
+                          'label': {1: 'primo', 2: 'secondo', 3: 'ultimo'}.get(display_task_number, str(display_task_number)),
+                          'static_filename': reward_asset}
 
     log_id = session.get('log_id')
     if log_id and user_id and reward_log_key not in reward_shown_logged:
@@ -978,9 +1094,10 @@ def reward():
                 "source": "server"
             }
             line = json.dumps(entry) + '\n'
-            for path in (combined_path, task_path):
-                with open(path, 'a', encoding='utf-8') as f:
-                    f.write(line)
+            LOG_STORE.accept(session.get('session_id'), 'reward:' + reward_log_key,
+                             {"type": "rewardShown", "task": reward_log_key},
+                             lambda: ({os.path.basename(combined_path): line,
+                                       os.path.basename(task_path): line}, {"status": "logged"}))
             reward_shown_logged.append(reward_log_key)
             session['reward_shown_logged'] = reward_shown_logged
         except Exception as exc:
@@ -1003,10 +1120,7 @@ def thank_you():
     user_id = session.get('user_id')
     pieces = session.get('pieces_earned', [])
     total_tasks = get_total_tasks(user_id)
-    try:
-        full_puzzle_static_filename = validate_reward_asset(user_id, 'full_gif', allow_video=True)
-    except PuzzleConfigError as err:
-        return render_puzzle_config_error(str(err))
+    full_puzzle_static_filename = optional_reward_asset(user_id, 'full_gif', allow_video=True)
     # Don't clear session yet — the "Finish Experiment" button needs
     # user_id/task_number to send final logs via /log_session.
     # Session will be cleared client-side via clearClientData().
