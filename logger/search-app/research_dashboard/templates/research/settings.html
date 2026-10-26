@@ -1,0 +1,32 @@
+{% extends 'research/base.html' %}
+{% from 'research/year_input.html' import school_year_input with context %}
+{% block content %}
+<div class="settings-workspace">
+  <div class="settings-page-heading">
+    <div><a class="settings-back" href="{{ u('prepare_page',grade=history_grade,year=study_context.school_year or None,session=study_context.get('id')) }}">&larr; {{ t('prepare_session') }}</a><h1>{{ t('settings') }}</h1><p class="muted">{{ t('settings_workspace_hint') }}</p></div>
+    {% if settings.current_school_year %}<span class="settings-year-tag">{{ settings.current_school_year }}</span>{% endif %}
+  </div>
+  {% include 'research/settings_navigation.html' %}
+  {% if request.args.get('saved_action') in ('remove_session', 'restore_session') %}<p class="notice success" role="status">{{ t('study_session_removed') if request.args.get('saved_action') == 'remove_session' else t('study_session_restored') }}</p>{% endif %}
+  {% if request.args.get('saved') == '1' and request.args.get('saved_action') not in ('remove_session', 'restore_session') %}<p class="notice success settings-notice" role="status">{{ t('participants_saved') if request.args.get('saved_action') == 'save_ranges' else t('school_year_saved') if request.args.get('saved_action') == 'save_year' else t('session_saved') if request.args.get('saved_action') in ('save_session', 'save_dates') else t('saved') }}</p>{% endif %}
+  {% if error and not ranges_error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}
+  {% if error == 'settings_changed' %}<p>{% if saved_session_url %}<a class="button" href="{{ saved_session_url }}" target="_blank" rel="noopener">{{ t('review_saved_session') }}</a>{% else %}<a class="button" href="{{ u('settings_page', section=active_section, grade=history_grade, year=history_year, edit_participants='1' if active_section == 'participants' else None) }}">{{ t('reload_saved_settings') }}</a>{% endif %}</p>{% endif %}
+  <section class="panel settings-card settings-year-card" id="school-year" {% if active_section != 'year' %}hidden{% endif %}>
+    <div class="settings-section-heading"><h2>{{ t('current_school_year') }}</h2><p class="muted">{{ t('school_year_explanation') }}</p></div>
+    <form method="post" data-guard {% if error and request.form.get('action') == 'save_year' %}data-unsaved{% endif %} action="{{ u('settings_page', section='year', grade=history_grade, year=history_year) }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('save_year') }}"><input type="hidden" name="action" value="save_year">
+      {{ school_year_input('current-school-year', 'current_school_year', school_year_value, school_years, required=false) }}
+      <button class="primary" type="submit">{{ t('save_school_year') }}</button>
+    </form>
+    <div class="settings-next"><span class="small muted">{{ t('continue_setup') }}</span><a href="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year) }}">{{ t('manage_sessions') }} &rarr;</a><a href="{{ u('enrollment_page', grade=history_grade, year=history_year or None) }}">{{ t('manage_participants') }} &rarr;</a></div>
+  </section>
+  <section class="settings-section" id="session-history" {% if active_section != 'sessions' %}hidden{% endif %}>
+    {% include 'research/settings_grade_nav.html' %}
+    {% include 'research/settings_sessions.html' %}
+  </section>
+  <section class="settings-section" id="participant-ids" {% if active_section != 'participants' %}hidden{% endif %}>
+    {% if participants_mode == 'view' %}{% include 'research/settings_grade_nav.html' %}{% endif %}
+    {% include 'research/settings_participants.html' %}
+  </section>
+</div>
+{% endblock %}

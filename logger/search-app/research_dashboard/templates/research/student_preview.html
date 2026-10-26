@@ -1,0 +1,36 @@
+{% extends 'research/base.html' %}
+{% block content %}
+<div class="student-preview-workspace">
+  <a href="{{ u('prepare_page',grade=study_session.grade,year=study_session.school_year or None,session=study_session.id) }}#prepare-questions">&larr; {{ t('prepare_session') }}</a>
+  <h1>{{ t('preview_student_questions') }}</h1>
+  <p class="muted">{{ study_session.name or (t('session') ~ ' ' ~ study_session.number) }} · {{ t('grade_' ~ study_session.grade) }} · {{ study_session.school_year or t('school_year_unknown') }} · {{ study_session.date or t('date_not_set') }}</p>
+  <p class="notice preview-safety-notice"><strong>{{ t('research_preview_only') }}</strong> {{ t('research_preview_safety_hint') }}</p>
+  <nav class="preview-version-tabs" aria-label="{{ t('preview_question_version') }}">
+    {% for value, label in (('working','working_questions_label'),('published','published_questions_label')) %}<a class="button" href="{{ u('student_preview',session_id=study_session.id,participant=participant or None,mode=value,question=number) }}" {% if mode == value %}aria-current="page"{% endif %}>{{ t(label) }}</a>{% endfor %}
+  </nav>
+  <div class="preview-participant-picker">
+    <span id="preview-participant-label">{{ t('preview_for_participant') }}</span>
+    <details class="preparation-menu">
+      <summary aria-labelledby="preview-participant-label preview-participant-value"><span id="preview-participant-value">{{ 'ID ' ~ participant if participant else t('class_questions_short') }}</span></summary>
+      <div class="preparation-menu-options">
+        <a href="{{ u('student_preview',session_id=study_session.id,mode=mode,question=number) }}" {% if not participant %}aria-current="true"{% endif %}>{{ t('class_questions_short') }}</a>
+        {% for uid in participant_ids %}<a href="{{ u('student_preview',session_id=study_session.id,participant=uid,mode=mode,question=number) }}" {% if uid == participant %}aria-current="true"{% endif %}>ID {{ uid }}</a>{% endfor %}
+      </div>
+    </details>
+  </div>
+  <p class="small muted">{{ t('individual_questions_short') if question_source == 'participant' else t('class_questions_short') }} · {{ t('working_questions_label') if mode == 'working' else t('published_questions_label') }}. {{ t('preview_order_hint') }}</p>
+  <nav class="preview-question-tabs" aria-label="{{ t('editable_question') }}">
+    {% for value in (1,2,3) %}<a href="{{ u('student_preview',session_id=study_session.id,participant=participant or None,mode=mode,question=value) }}" {% if number == value %}aria-current="page"{% endif %}>{{ t('editable_question') }} {{ value }}</a>{% endfor %}
+  </nav>
+  <section class="student-question-preview" aria-label="{{ t('student_question_content') }}">
+    <span class="preview-watermark">{{ t('research_preview_only') }}</span>
+    <h2>#{{ number }}</h2>
+    {% if preview_question and preview_question.get('question') %}
+    <p class="preview-task-prompt">{{ t('preview_task_prompt') }}</p>
+    <p class="preview-task-question">{{ preview_question.question }}</p>
+    <p>{{ t('preview_search_prompt') }}</p>
+    {% else %}<p class="notice">{{ t('preview_question_missing') }}</p>{% endif %}
+  </section>
+  <p class="small muted">{{ t('preview_question_only_hint') }}</p>
+</div>
+{% endblock %}

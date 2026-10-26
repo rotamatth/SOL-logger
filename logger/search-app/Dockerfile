@@ -11,10 +11,15 @@ RUN apt-get update && \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements.txt
-RUN python -m pip install -r requirements.txt
+COPY requirements.lock requirements.lock
+RUN python -m pip install -r requirements.lock && python -m pip check
 
 COPY . .
+
+ARG SOL_GIT_COMMIT=unknown
+ARG SOL_APP_VERSION=v2
+ENV SOL_GIT_COMMIT=${SOL_GIT_COMMIT}
+ENV SOL_APP_VERSION=${SOL_APP_VERSION}
 
 EXPOSE 7001
 

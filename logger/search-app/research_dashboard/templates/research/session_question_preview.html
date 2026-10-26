@@ -1,0 +1,20 @@
+<div class="session-question-preview">
+  {% set view = question_view(configured_session) %}
+  {% set published = view.published %}
+  {% set published_ready = published and question_status(published) == 'questions_approved' %}
+  {% set has_draft = view.has_draft or (published and not published_ready) %}
+  {% set assignment = view.working if has_draft else published %}
+  <div class="settings-heading-row"><h3>{{ t('shared_questions') }}</h3><span class="badge {{ 'completed' if published_ready else 'incomplete' }}">{{ t(question_status(published)) if published_ready or not has_draft else t('questions_draft') }}</span>{% if published_ready and has_draft %}<span class="badge incomplete">{{ t('pending_draft_short') }}</span>{% endif %}</div>
+  {% if published_ready and has_draft %}<p class="small muted">{{ t('draft_keeps_published_hint') }}</p>{% endif %}
+  {% if assignment %}
+  {% if assignment.get('theme') %}<p class="small muted">{{ assignment.theme }}</p>{% endif %}
+  <ol class="saved-question-list">{% for slot in range(3) %}{% set question = assignment.questions[slot] if slot < assignment.questions | length else {} %}<li>{% if question.get('topic') %}<strong>{{ question.topic }}</strong>{% endif %}<p>{{ question.get('question') or t('draft_question_empty') }}</p></li>{% endfor %}</ol>
+  {% else %}<p class="muted">{{ t('question_set_missing') }}</p>{% endif %}
+  <a class="button" href="{{ u('session_questions', session_id=configured_session.id) }}">{{ t('continue_editing_draft') if has_draft else t('edit_saved_questions') if assignment else t('configure_questions') }} &rarr;</a>
+  {% set individual_ids = (configured_session.get('participant_questions', {}).keys() | list) + (configured_session.get('participant_question_drafts', {}).keys() | list) %}
+  {% if individual_ids %}
+  <details class="technical-details"><summary>{{ t('individual_assignments') }} ({{ individual_ids | unique | list | length }})</summary>
+    {% for uid in individual_ids | unique %}{% set individual = question_view(configured_session, uid) %}{% set individual_ready = individual.published and question_status(individual.published) == 'questions_approved' %}{% set individual_draft = individual.has_draft or (individual.published and not individual_ready) %}<p>{{ t('participant') }} {{ uid }} · {% if individual.published %}<span class="badge {{ 'completed' if individual_ready else 'incomplete' }}">{{ t(question_status(individual.published)) }}</span>{% else %}<span class="badge">{{ t('class_questions_short') }}</span>{% endif %}{% if individual.has_draft %} <span class="badge incomplete">{{ t('pending_draft_short') }}</span>{% endif %} <a href="{{ u('session_questions', session_id=configured_session.id, participant=uid) }}">{{ t('continue_editing_draft') if individual_draft else t('edit_saved_questions') }}</a></p>{% endfor %}
+  </details>
+  {% endif %}
+</div>
