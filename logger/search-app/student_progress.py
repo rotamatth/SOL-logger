@@ -26,7 +26,7 @@ class StudentProgress:
         app.add_url_rule("/first-answer", "first_answer", self.submit_first, methods=["POST"])
         app.add_url_rule("/first-answer/draft", "first_answer_draft", self.save_first_draft, methods=["POST"])
         app.before_request(self.guard_search)
-        app.context_processor(lambda: {"study_context": self.context()})
+        app.context_processor(lambda: {"study_context": self.context(), "search_first_answer": self.search_answer()})
 
     @staticmethod
     def key(metadata):
@@ -44,6 +44,16 @@ class StudentProgress:
         if not session.get("progress_id"):
             return None
         return {"attempt_id": session["progress_id"], "task_number": session["task_position"] + 1}
+
+    def search_answer(self):
+        if request.endpoint not in ("search_page", "result", "webpage"):
+            return None
+        attempt = self.current()
+        if (not attempt or attempt["status"] != "active"
+                or attempt["metadata"]["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat()):
+            return None
+        task = attempt["tasks"][session["task_position"]]
+        return task["first_answer"] if task["final_answer"] is None else None
 
     @contextmanager
     def admission_lock(self):

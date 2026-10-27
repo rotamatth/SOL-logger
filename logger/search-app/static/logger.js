@@ -1078,7 +1078,7 @@ if (taskHelpBtn && taskHelpModal) {
     const taskHelpPayload = () => {
         const payload = { fromURL: window.location.href };
         const tn = taskHelpBtn.dataset.taskNumber;
-        if (tn) payload.task_number = tn;
+        if (tn) payload.task_number = Number(tn);
         return payload;
     };
 
@@ -1093,6 +1093,47 @@ if (taskHelpBtn && taskHelpModal) {
             studyLogger.logEvent("taskQuestionHelpClosed", taskHelpPayload());
         });
     }
+}
+
+const firstAnswerBtn = document.getElementById("search-first-answer-btn");
+const firstAnswerDialog = document.getElementById("search-first-answer-dialog");
+if (firstAnswerBtn && firstAnswerDialog) {
+    let firstAnswerOpen = false;
+    const firstAnswerPayload = () => ({
+        fromURL: window.location.href, outcome: firstAnswerBtn.dataset.outcome, answerPhase: "pre-search"
+    });
+    const recordFirstAnswerClosed = reason => {
+        if (!firstAnswerOpen) return;
+        firstAnswerOpen = false;
+        studyLogger.logEvent("firstAnswerClosed", {...firstAnswerPayload(), reason});
+    };
+    firstAnswerBtn.addEventListener("click", () => {
+        if (window.taskEndLockout || firstAnswerDialog.open) return;
+        firstAnswerDialog.returnValue = "";
+        firstAnswerDialog.showModal();
+        firstAnswerOpen = true;
+        studyLogger.logEvent("firstAnswerOpened", firstAnswerPayload());
+    });
+    document.getElementById("search-first-answer-close").addEventListener("click", () => {
+        firstAnswerDialog.close("button");
+    });
+    firstAnswerDialog.addEventListener("close", () => {
+        if (firstAnswerDialog.open) return; // Ignore a queued close from before a restored page reopened it.
+        recordFirstAnswerClosed(firstAnswerDialog.returnValue || "escape");
+        firstAnswerBtn.focus();
+    });
+    firstAnswerDialog.addEventListener("click", event => {
+        const bounds = firstAnswerDialog.getBoundingClientRect();
+        if (event.target === firstAnswerDialog && (event.clientX < bounds.left || event.clientX > bounds.right
+                || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+            firstAnswerDialog.close("backdrop");
+        }
+    });
+    window.addEventListener("pagehide", () => {
+        if (!firstAnswerDialog.open) return;
+        recordFirstAnswerClosed("pagehide");
+        firstAnswerDialog.close("pagehide");
+    });
 }
 
 // Upload while the child works, not only when a task ends: an interrupted run
