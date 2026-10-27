@@ -140,6 +140,7 @@
                 timestamp: formatSwissTimestamp(),
                 sessionID: this.sessionID,
                 uid: window.USER_ID || null,
+                ...(window.STUDY_PROGRESS_CONTEXT || {}),
                 ...details
             };
             console.log("[LOG]", event);

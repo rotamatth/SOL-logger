@@ -5,6 +5,7 @@ import re
 
 from .test_study_enrollment import APP_ROOT, schedule, student_modules  # noqa: F401
 from research_dashboard.state import SETTING_FIELDS
+from .progress_helpers import confirm_first, final_event
 
 
 def attempts(module):
@@ -27,15 +28,16 @@ def test_same_id_submitted_twice_continues_the_untouched_run(student_modules, tm
     assert len(list((tmp_path / "v2").glob("*.run.json"))) == 1
 
 
-def test_start_after_searching_still_creates_a_new_run(student_modules):
+def test_start_after_searching_resumes_the_same_logical_attempt(student_modules):
     module = student_modules()
     schedule(module)
     client = module.app.test_client()
     client.post("/start", data={"user_id": "1"})
     client.get("/task")
+    confirm_first(client)
     client.get("/search")
     assert client.post("/start", data={"user_id": "1"}).status_code == 302
-    assert len(attempts(module)) == 2
+    assert len(attempts(module)) == 1
 
 
 def test_researcher_save_during_a_start_is_retried_instead_of_refused(student_modules, monkeypatch):
@@ -64,6 +66,7 @@ def test_batch_from_an_earlier_session_is_recovered_instead_of_blocking_uploads(
     schedule(module)
     client = module.app.test_client()
     client.post("/start", data={"user_id": "1"})
+    confirm_first(client)
     client.get("/search")
     with client.session_transaction() as student:
         current = student["session_id"]
@@ -76,7 +79,7 @@ def test_batch_from_an_earlier_session_is_recovered_instead_of_blocking_uploads(
     assert client.post("/log_session", json=earlier).json == first.json  # a retry is not written twice
     recovered = (tmp_path / "v2" / "1_earlier-session_INCOMPLETE.log").read_text().splitlines()
     assert [json.loads(line)["type"] for line in recovered] == ["TaskStarted", "incompleteExperiment"]
-    newer = {"session_id": current, "batch_id": "newer", "logs": [{"uid": "1", "sessionID": current, "type": "TaskEnded", "answer": "a"}]}
+    newer = {"session_id": current, "batch_id": "newer", "logs": [final_event(client, "a")]}
     assert client.post("/log_session", json=newer).status_code == 200
 
 
@@ -86,6 +89,7 @@ def test_idle_limit_counts_and_applies_on_every_page(student_modules):
     client = module.app.test_client()
     client.post("/start", data={"user_id": "1"})
     client.get("/task")
+    confirm_first(client)
     client.get("/search")
 
     def idle(minutes):

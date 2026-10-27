@@ -28,6 +28,8 @@ from research_dashboard.collection import record_run, publish_metadata
 from research_dashboard.log_store import LogStore, UploadConflict
 from research_dashboard.runtime import configure_runtime
 from research_dashboard.study_config import scheduled_assignment
+from study_progress import init_progress, SubmissionConflict
+from student_progress import SessionUnavailable, StudentProgress
 
 app = Flask(__name__)
 
@@ -111,6 +113,8 @@ def load_user_topics(filepath='data/user_topics.csv'):
 USER_TOPICS = load_user_topics()
 app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
+PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
+                           lambda *args: _prepare_upload(*args))
 PUZZLE_ASSET_DIR = 'puzzle_pieces'
 
 
@@ -125,6 +129,7 @@ def ready():
         if os.getenv("SOL_ENV") == "production" and not app.extensions["research"]["credential_ready"]():
             raise RuntimeError("Research authentication is unconfigured")
         LOG_STORE.recover()
+        PROGRESS.recover_pending()
         for directory in (LOG_DIR, RESEARCH_STATE.path.parent, app.config["SESSION_FILE_DIR"]):
             fd, name = tempfile.mkstemp(prefix=".health-", dir=directory)
             try:
@@ -196,6 +201,15 @@ def current_phase():
     user_id = session.get('user_id')
     if not user_id:
         return 'pre_id'
+
+    progress = PROGRESS.current()
+    if progress:
+        task = progress['tasks'][session.get('task_position', 0)]
+        if task['final_answer']:
+            return 'completed' if progress['status'] == 'completed' else 'reward'
+        if not task['first_answer']:
+            return 'task_intro'
+        return 'searching'
 
     task_number = session.get('task_number')
     pieces = session.get('pieces_earned', [])
@@ -422,9 +436,12 @@ def search_page():
     return render_template(HOME_URL, form=form, show_search=True, reminder=reminder)
 
 @app.route('/start', methods=['GET', 'POST'])
+@PROGRESS.start_route
 def start_page():
     enrollment_settings = RESEARCH_STATE.settings()
-    val_ids = sorted((uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']), key=participant_sort_key)
+    resumable = RESEARCH_STATE.progress_ids_for_date(datetime.now(LOG_TIME_ZONE).date().isoformat())
+    val_ids = sorted({uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']}
+                     | resumable, key=participant_sort_key)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         if untouched_run_for(user_id):
@@ -463,7 +480,7 @@ def start_page():
                            settings=enrollment_settings,
                            study_session=session['study_session'],
                            question_set=session['question_set'],
-                           assignment_source=session['assignment_source'], admit=True)
+                           assignment_source=session['assignment_source'], admit=True, progress_enabled=True)
             except ValueError as error:
                 if str(error) == 'settings_changed' and admission_try < 2:
                     # A researcher saved settings during this request. Nothing was
@@ -498,6 +515,10 @@ def start_page():
 
 @app.route('/task', methods=['GET', 'POST'])
 def task():
+    if PROGRESS.current():
+        if idle_session_expired():
+            return redirect(url_for('welcome'))
+        return PROGRESS.page()
     phase = current_phase()
     if phase != 'task_intro':
         return redirect(phase_redirect_url(phase))
@@ -940,14 +961,22 @@ def log_session():
     try:
         receipt = LOG_STORE.accept(session_id, data.get('batch_id'),
             {"session_id": session_id, "logs": logs},
-            lambda: _prepare_upload(logs, user_id, server_session_id, log_id, task_number,
-                                    session.get('task_order', []), session.get('task_position', 0)))
+            lambda: PROGRESS.prepare_logs(logs, lambda entries: _prepare_upload(
+                entries, user_id, server_session_id, log_id, task_number,
+                session.get('task_order', []), session.get('task_position', 0))))
     except UploadConflict:
         return jsonify(error="Upload identifier already used for different data"), 409
+    except SubmissionConflict:
+        return jsonify(error="La risposta è già confermata oppure la domanda è cambiata."), 409
+    except SessionUnavailable:
+        return jsonify(error="La sessione non è disponibile oggi."), 403
     except (ValueError, TypeError):
         return jsonify(error="Invalid upload"), 400
     except (OSError, sqlite3.Error):
         app.logger.exception("Upload not acknowledged; pending bytes retained for recovery")
+        return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
+    progress = PROGRESS.current()
+    if progress and not PROGRESS.publish(progress):
         return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
     # Attempt context is already durable in research.sqlite3. A missing sidecar
     # can be recreated without blocking an acknowledgement of saved interactions.
@@ -1012,6 +1041,11 @@ def warn_logging_contract_issues(logs, default_task_number):
 
 @app.route('/end', methods=['POST'])
 def end_task():
+    progress = PROGRESS.current()
+    if progress:
+        if not progress['tasks'][session['task_position']]['final_answer']:
+            return jsonify(error="Conferma la risposta finale prima di continuare."), 409
+        return PROGRESS.next_page()
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
@@ -1029,6 +1063,8 @@ def end_task():
 
 @app.route('/next_task')
 def next_task():
+    if PROGRESS.current():
+        return PROGRESS.next_page()
     phase = current_phase()
     if phase != 'reward':
         return redirect(phase_redirect_url(phase))
@@ -1054,6 +1090,8 @@ def next_task():
 
 @app.route('/reward')
 def reward():
+    if PROGRESS.current():
+        return PROGRESS.next_page()
     phase = current_phase()
     if phase not in ('reward', 'completed'):
         return redirect(phase_redirect_url(phase))
@@ -1114,6 +1152,11 @@ def reward():
 
 @app.route('/thank_you')
 def thank_you():
+    progress = PROGRESS.current()
+    if progress:
+        if progress['status'] != 'completed':
+            return PROGRESS.next_page()
+        return render_template('study_handoff.html')
     phase = current_phase()
     if phase != 'completed':
         return redirect(phase_redirect_url(phase))

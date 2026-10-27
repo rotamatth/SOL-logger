@@ -45,11 +45,18 @@ def seed(root):
     module.RESEARCH_STATE.save_settings(settings, settings["revision"])
     client = module.app.test_client()
     assert client.post("/start", data={"user_id": "1"}).status_code == 302
+    assert client.get("/task").status_code == 200
+    with client.session_transaction() as active:
+        first_context = {"csrf_token": active["progress_csrf"], "attempt_id": active["progress_id"],
+                         "question_number": active["task_position"] + 1}
+    assert client.post("/first-answer", data={**first_context, "outcome": "answered",
+                                             "text": "Synthetic first answer"}).status_code == 303
     assert client.get("/search").status_code == 200
     with client.session_transaction() as active:
         sid, questions = active["session_id"], active["task_config"]
     body = {"session_id": sid, "batch_id": "synthetic-lost-ack", "logs": [
-        {"type": "TaskEnded", "answer": "Synthetic answer after restart"}]}
+        {"type": "TaskEnded", "answer": "Synthetic answer after restart",
+         "attempt_id": first_context["attempt_id"], "task_number": 1, "sessionID": sid, "uid": "1"}]}
     response = client.post("/log_session", json=body)
     assert response.status_code == 200
     assert client.post("/end").status_code == 302
@@ -80,7 +87,23 @@ def verify(root):
     assert evidence["snapshot"]["participant_key"] == settings["participant_registry"]["1"]["key"]
     records = [json.loads(line) for line in next((root / "logs-v2").glob("*_FULL.log")).read_text().splitlines()]
     assert len([entry for entry in records if entry["type"] == "TaskEnded"]) == 1
-    assert not list((root / "logs-v2").glob("*_task2_*.log"))
+    assert len([entry for entry in records if entry["type"] == "OwnKnowledgeAnswerSubmitted"]) == 1
+    # Viewing Q2 now emits TaskStarted; a late Q1 retry must never become its final answer.
+    for path in (root / "logs-v2").glob("*_task2_*.log"):
+        assert all(json.loads(line)["type"] != "TaskEnded" for line in path.read_text().splitlines())
+    # A fresh browser must resume the same logical attempt after process/backup replacement.
+    fresh = module.app.test_client()
+    assert fresh.post("/start", data={"user_id": "1"}).status_code == 302
+    with fresh.session_transaction() as active:
+        assert active["progress_id"] == evidence["body"]["logs"][0]["attempt_id"]
+        assert active["task_position"] == 1
+        assert active["task_config"] == evidence["questions"]
+    assert fresh.get("/search").status_code == 302
+    with fresh:
+        fresh.get("/task")
+        progress = module.PROGRESS.current()
+        assert progress["tasks"][0]["first_answer"]["text"] == "Synthetic first answer"
+        assert progress["tasks"][0]["final_answer"]["text"] == "Synthetic answer after restart"
     assert client.get("/task").status_code == 200
     assert client.get("/health/ready").status_code == 200
 

@@ -80,6 +80,7 @@ def test_corrupt_reporting_index_does_not_stop_student_app(student_modules, tmp_
 
 
 def test_unavailable_reporting_index_leaves_student_collection_running(student_modules, tmp_path):
+    from .progress_helpers import confirm_first, final_event
     module = student_modules()
     schedule(module)
     # A directory at the cache filename cannot be rebuilt as a SQLite file.
@@ -88,7 +89,8 @@ def test_unavailable_reporting_index_leaves_student_collection_running(student_m
     assert client.post("/start", data={"user_id": "1"}).status_code == 302
     with client.session_transaction() as active:
         sid = active["session_id"]
-    assert client.post("/log_session", json={"session_id": sid, "logs": [{"type": "TaskEnded", "answer": "ok"}]}).status_code == 200
+    confirm_first(client)
+    assert client.post("/log_session", json={"session_id": sid, "logs": [final_event(client, "ok")]}).status_code == 200
 
 
 def test_reporting_cache_recovers_corrupt_table_pages_not_just_a_bad_header(tmp_path):
@@ -141,14 +143,16 @@ def test_start_failure_preserves_existing_attempt(student_modules, monkeypatch):
 
 
 def test_server_replacement_and_lost_ack_preserve_attempt_and_no_duplicate_answers(student_modules, tmp_path):
+    from .progress_helpers import confirm_first, final_event
     module = student_modules()
     schedule(module)
     client = module.app.test_client()
     client.post("/start", data={"user_id": "1"})
+    confirm_first(client)
     client.get("/search")
     with client.session_transaction() as active:
         sid, config = active["session_id"], active["task_config"]
-    body = {"session_id": sid, "batch_id": "stable-batch", "logs": [{"type": "TaskEnded", "answer": "rain"}]}
+    body = {"session_id": sid, "batch_id": "stable-batch", "logs": [final_event(client, "rain")]}
     first = client.post("/log_session", json=body)
     assert first.status_code == 200
     client.post("/end")
@@ -166,15 +170,17 @@ def test_server_replacement_and_lost_ack_preserve_attempt_and_no_duplicate_answe
 
 
 def test_foreign_events_are_acknowledged_only_after_all_files_are_durable(student_modules, tmp_path, monkeypatch):
+    from .progress_helpers import confirm_first, final_event
     module = student_modules()
     schedule(module)
     client = module.app.test_client()
     client.post("/start", data={"user_id": "1"})
+    confirm_first(client)
     with client.session_transaction() as active:
         sid = active["session_id"]
     body = {"session_id": sid, "batch_id": "recovered", "logs": [
         {"type": "TaskEnded", "uid": "old", "sessionID": "old-run", "answer": "old answer"},
-        {"type": "TaskEnded", "uid": "1", "answer": "new answer"}]}
+        final_event(client, "new answer")]}
     original = module.LOG_STORE._write
     monkeypatch.setattr(module.LOG_STORE, "_write", lambda *args: (_ for _ in ()).throw(OSError("unavailable")))
     assert client.post("/log_session", json=body).status_code == 503

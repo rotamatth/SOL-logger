@@ -4,6 +4,7 @@ import logging
 import pytest
 
 from .test_study_enrollment import schedule, student_modules  # noqa: F401 - pytest fixture
+from .progress_helpers import confirm_first
 
 HOSTILE_QUERY = '"><script>alert(1)</script> "luna"'
 
@@ -17,6 +18,7 @@ def searching_client(module, results=()):
     client = module.app.test_client()
     assert client.post("/start", data={"user_id": "1"}).status_code == 302
     assert client.get("/task").status_code == 200
+    confirm_first(client)
     assert client.get("/search").status_code == 200
     return client
 
