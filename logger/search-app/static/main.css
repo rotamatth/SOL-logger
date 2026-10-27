@@ -1052,6 +1052,59 @@ a:hover {
   margin: 16px 0 28px;
 }
 
+/* Read-only original answer on the search surfaces. */
+.search-first-answer-trigger {
+  margin-left: auto;
+  white-space: normal;
+  text-align: center;
+}
+
+.search-first-answer-dialog {
+  width: min(720px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  margin: auto;
+  padding: 34px;
+  overflow: auto;
+  border: 0;
+  border-radius: 20px;
+  color: var(--text-main);
+}
+
+.search-first-answer-dialog::backdrop {
+  background: rgb(17 24 39 / 50%);
+}
+
+.search-first-answer-dialog h2 {
+  margin: 0 28px 24px 0;
+  font-size: 1.5rem;
+}
+
+.search-first-answer-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 2rem;
+  cursor: pointer;
+}
+
+.search-first-answer-text {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--soft-border);
+  border-radius: 16px;
+  color: var(--text-main);
+  background: #fff;
+  font: inherit;
+}
+
 /* Modals */
 #endTaskModal,
 #feedbackModal,

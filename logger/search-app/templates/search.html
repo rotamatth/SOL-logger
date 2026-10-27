@@ -3,6 +3,7 @@
 <div class="app-page">
   <div class="app-toolbar">
     <a href="{{ back_url or url_for('search_page') }}" id="serp-back-btn" class="app-btn app-btn-back">&larr; Indietro</a>
+    {% include "search_first_answer.html" %}
     {% if search_results or allow_answer_without_results_for_testing %}
       <button type="button"
               onclick="openFeedbackModal()"
