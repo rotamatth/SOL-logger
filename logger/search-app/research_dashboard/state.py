@@ -396,6 +396,28 @@ class State:
             row = db.execute("SELECT metadata FROM study_attempts WHERE technical_session_id=?", (technical_session_id,)).fetchone()
         return json.loads(row[0]) if row else None
 
+    def progress_run_for_date(self, participant_id, study_date):
+        """Recover a progress-enabled admission from its frozen collection date."""
+        with self.connect() as db:
+            rows = db.execute("SELECT metadata FROM study_attempts WHERE participant_id=? ORDER BY rowid",
+                              (participant_id,)).fetchall()
+        for row in rows:
+            metadata = json.loads(row[0])
+            if (metadata.get("progress_enabled") is True
+                    and metadata.get("study_id_at_collection") == DEFAULT_STUDY_ID
+                    and metadata.get("study_session_snapshot", {}).get("date") == study_date):
+                return metadata
+        return None
+
+    def progress_ids_for_date(self, study_date):
+        """Already admitted children remain available for same-day resume."""
+        with self.connect() as db:
+            rows = db.execute("SELECT participant_id,metadata FROM study_attempts").fetchall()
+        return {row["participant_id"] for row in rows
+                if (metadata := json.loads(row["metadata"])).get("progress_enabled") is True
+                and metadata.get("study_id_at_collection") == DEFAULT_STUDY_ID
+                and metadata.get("study_session_snapshot", {}).get("date") == study_date}
+
     def pending_attempts(self):
         with self.connect() as db:
             return [json.loads(row[0]) for row in db.execute("SELECT metadata FROM study_attempts WHERE published=0")]

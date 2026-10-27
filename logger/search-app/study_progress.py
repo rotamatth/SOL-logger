@@ -234,6 +234,14 @@ class ProgressStore:
         with self._transaction() as db:
             return self._snapshot(db, self._find_attempt(db, key, attempt_id))
 
+    def latest_attempt(self, key):
+        """Include retired attempts so admission cannot silently authorize a retake."""
+        with self._transaction() as db:
+            row = db.execute("""SELECT * FROM progress_attempts WHERE study_id = ?
+                AND participant_id = ? AND study_session_id = ? AND is_test = ?
+                ORDER BY rowid DESC LIMIT 1""", key.scope).fetchone()
+            return self._snapshot(db, row) if row is not None else None
+
     @staticmethod
     def _queue_answer_event(db, attempt, number, answer, event_type):
         event_id = uuid.uuid4().hex
@@ -278,6 +286,28 @@ class ProgressStore:
                     for row in db.execute("""SELECT * FROM progress_events
                         WHERE attempt_id = ? AND published_at IS NULL ORDER BY rowid""", (attempt_id,))]
 
+    def mark_task_started(self, key, attempt_id, question_number):
+        """Queue TaskStarted once when the current first-answer page is shown."""
+        if type(question_number) is not int or not 1 <= question_number <= 3:
+            raise ValueError("Invalid question")
+        with self._transaction(write=True) as db:
+            attempt = self._find_attempt(db, key, attempt_id)
+            if attempt["status"] != "active" or attempt["question_number"] != question_number:
+                raise SubmissionConflict("This question is no longer active")
+            topics = [json.loads(row["snapshot"])["topic_id"] for row in db.execute(
+                "SELECT snapshot FROM progress_tasks WHERE attempt_id=? ORDER BY number", (attempt_id,))]
+            timestamp = _now()
+            payload = {"event_id": uuid.uuid4().hex, "type": "TaskStarted", "timestamp": timestamp,
+                       "uid": key.participant_id, "study_id": key.study_id,
+                       "study_session_id": key.study_session_id, "attempt_id": attempt_id,
+                       "is_test": key.is_test, "task_number": question_number,
+                       "actual_topic_number": topics[question_number - 1], "task_order": topics}
+            db.execute("""INSERT INTO progress_events
+                (event_id,event_key,attempt_id,question_number,type,payload,created_at)
+                VALUES (?,?,?,?,?,?,?) ON CONFLICT(event_key) DO NOTHING""",
+                       (payload["event_id"], f"{attempt_id}:{question_number}:TaskStarted", attempt_id,
+                        question_number, "TaskStarted", _json(payload), timestamp))
+
     def acknowledge_event(self, key, attempt_id, event_id):
         """An internal publisher calls this only after durable log acknowledgement."""
         with self._transaction(write=True) as db:
@@ -292,6 +322,13 @@ class ProgressStore:
                 db.execute("UPDATE progress_events SET published_at = ? WHERE event_id = ?",
                            (published_at, event_id))
         return published_at
+
+    def unpublished_attempts(self):
+        """Internal recovery reads only attempts whose durable outbox needs delivery."""
+        with self._transaction() as db:
+            return [self._snapshot(db, row) for row in db.execute("""SELECT * FROM progress_attempts a
+                WHERE EXISTS (SELECT 1 FROM progress_events e
+                              WHERE e.attempt_id=a.attempt_id AND e.published_at IS NULL)""").fetchall()]
 
     def runtime_settings(self):
         """Report the actual connection settings for deployment verification."""
