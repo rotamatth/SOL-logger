@@ -257,8 +257,10 @@ def test_removing_ids_blocks_new_runs_and_keeps_in_progress_run(student_app):
     student_app.RESEARCH_STATE.save_settings(settings, settings["revision"])
     assert student.post("/start", data={"user_id": "1"}).status_code == 302
     assert researcher.post("/dashboard/settings", data=ranges_form(
-        app, researcher, **{"4_start": 2})).status_code == 302
+        app, researcher, **{"4_start": 3})).status_code == 302
     assert student.get("/task").status_code == 200
     fresh = app.test_client()
-    assert 'value="1"' not in fresh.get("/start").text
-    assert fresh.post("/start", data={"user_id": "1"}).status_code == 400
+    assert 'value="1"' in fresh.get("/start").text  # Today's admitted child can resume.
+    assert 'value="2"' not in fresh.get("/start").text
+    assert fresh.post("/start", data={"user_id": "1"}).status_code == 302
+    assert fresh.post("/start", data={"user_id": "2"}).status_code == 400

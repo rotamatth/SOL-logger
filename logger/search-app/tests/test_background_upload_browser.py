@@ -69,7 +69,10 @@ def start(page, base, uid):
     page.select_option("#id-box", uid)
     page.click("#continue-btn")
     page.wait_for_url("**/task")
-    page.click("#task-btn")
+    page.fill("#first-answer-text", "Idea iniziale prima della ricerca")
+    page.get_by_role("button", name="Conferma risposta", exact=True).click()
+    page.locator("a#first-answer-search").wait_for()
+    page.click("a#first-answer-search")
     page.wait_for_url("**/search*")
     page.wait_for_load_state("load")
 
@@ -137,11 +140,12 @@ def test_the_answer_is_saved_once_with_background_uploads(student_site):
     page.fill("#textarea_feedback", "Le api producono il miele dal nettare.")
     page.click("#feedback-btn")
     page.click("#yes-end-btn")
-    page.wait_for_url("**/reward")
+    page.wait_for_url("**/task")
     events = saved(root, "1")
     answers = types_of(events, "TaskEnded")
     assert [event["answer"] for event in answers] == ["Le api producono il miele dal nettare."]
     assert len(types_of(events, "searchResultGenerated")) == len(RESULTS)
     assert len(events) == len({json.dumps(event, sort_keys=True) for event in events})  # no duplicate events
-    assert all(event["task_number"] == 1 for event in events)
+    assert all(event["task_number"] == 1 for event in events if event["type"] != "TaskStarted")
+    assert not types_of(events, "rewardShown")
     assert datetime.fromisoformat(answers[0]["timestamp"])

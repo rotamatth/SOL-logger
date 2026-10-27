@@ -551,6 +551,7 @@ def test_deeply_nested_and_oversized_bad_lines_do_not_hide_other_runs(app):
 
 
 def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monkeypatch):
+    from .progress_helpers import confirm_first, final_event
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
@@ -588,10 +589,11 @@ def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monke
     assert client.post("/start", data={"user_id":"1"}).status_code == 302
     assert client.get("/dashboard").status_code == 200
     assert client.get("/task").status_code == 200
+    confirm_first(client)
     assert client.get("/search").status_code == 200
     with client.session_transaction() as student:
         sid, topic = student["session_id"], student["task_number"]
-    payload = {"session_id":sid,"logs":[{"uid":"1","sessionID":sid,"type":"TaskEnded","answer":"integration answer"}]}
+    payload = {"session_id":sid,"logs":[final_event(client, "integration answer")]}
     response = client.post("/log_session", json=payload)
     assert response.status_code == 200
     root = tmp_path / "v2"

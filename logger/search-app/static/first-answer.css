@@ -2,6 +2,10 @@
   padding: 84px 16px 16px;
 }
 
+.first-answer-page [hidden] {
+  display: none;
+}
+
 .first-answer-panel {
   position: relative;
   display: flex;
@@ -28,6 +32,7 @@
 }
 
 .first-answer-panel h1 {
+  white-space: pre-line;
   max-width: 1040px;
   margin: 0 64px 26px 0;
   color: var(--sol-blue);

@@ -154,7 +154,8 @@ def test_settings_changes_apply_across_running_workers_and_preserve_started_atte
 
 
 @pytest.mark.parametrize("missing_reward", [False, True])
-def test_three_questions_finish_without_puzzle_media_and_keep_reward_events(student_modules, tmp_path, missing_reward):
+def test_three_questions_keep_original_answers_and_skip_reward_screens(student_modules, tmp_path, missing_reward):
+    from .progress_helpers import confirm_first, final_event
     module = student_modules()
     schedule(module, shared=question_set(missing_reward=missing_reward))
     client = module.app.test_client()
@@ -163,30 +164,27 @@ def test_three_questions_finish_without_puzzle_media_and_keep_reward_events(stud
         sid = active["session_id"]
     for position in range(1, 4):
         assert client.get("/task").status_code == 200
+        confirm_first(client)
         assert client.get("/search").status_code == 200
         response = client.post("/log_session", json={"session_id": sid, "logs": [
-            {"type": "TaskEnded", "uid": "1", "sessionID": sid, "answer": f"answer {position}",
-             "timestamp": datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]}]})
+            final_event(client, f"answer {position}",
+                timestamp=datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3])]})
         assert response.status_code == 200
         assert client.post("/end").status_code == 302
         reward = client.get("/reward")
-        assert reward.status_code == 200
-        assert f"Avete completato la domanda {position}!" in reward.text
-        assert 'id="reward-piece-img"' not in reward.text
-        assert "missing.gif" not in reward.text
-        assert client.get("/reward").status_code == 200
+        assert reward.status_code == 302
         if position < 3:
             assert client.get("/next_task").status_code == 302
     completion = client.get("/thank_you")
     assert completion.status_code == 200
     assert 'class="final-reward-media"' not in completion.text
-    assert 'id="finish-experiment-btn" class="app-btn app-btn-primary is-visible">' in completion.text
+    assert 'Hai risposto alle tre domande' in completion.text
     response = client.post("/log_session", json={"session_id": sid, "logs": [
         {"type": "experimentFinished", "uid": "1", "sessionID": sid,
          "timestamp": datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]}]})
     assert response.status_code == 200
     events = [json.loads(line) for line in next((tmp_path / "v2").glob("*_FULL.log")).read_text().splitlines()]
-    assert len([event for event in events if event["type"] == "rewardShown"]) == 3
+    assert not [event for event in events if event["type"] == "rewardShown"]
     assert [event["task_number"] for event in events if event["type"] == "TaskEnded"] == [1, 2, 3]
     assert events[-1]["type"] == "experimentFinished"
     from tools.check_logs import check_path
