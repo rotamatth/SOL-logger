@@ -25,8 +25,9 @@ class StudentProgress:
         self.prepare_upload = prepare_upload
         app.add_url_rule("/first-answer", "first_answer", self.submit_first, methods=["POST"])
         app.add_url_rule("/first-answer/draft", "first_answer_draft", self.save_first_draft, methods=["POST"])
+        app.add_url_rule("/final-answer/draft", "final_answer_draft", self.save_final_draft, methods=["POST"])
         app.before_request(self.guard_search)
-        app.context_processor(lambda: {"study_context": self.context(), "search_first_answer": self.search_answer()})
+        app.context_processor(lambda: {"study_context": self.context(), **self.search_context()})
 
     @staticmethod
     def key(metadata):
@@ -45,15 +46,20 @@ class StudentProgress:
             return None
         return {"attempt_id": session["progress_id"], "task_number": session["task_position"] + 1}
 
-    def search_answer(self):
+    def search_context(self):
         if request.endpoint not in ("search_page", "result", "webpage"):
-            return None
+            return {}
         attempt = self.current()
         if (not attempt or attempt["status"] != "active"
                 or attempt["metadata"]["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat()):
-            return None
+            return {}
         task = attempt["tasks"][session["task_position"]]
-        return task["first_answer"] if task["final_answer"] is None else None
+        if not task["first_answer"] or task["final_answer"] is not None:
+            return {}
+        draft = task["drafts"].get("final-answer", {"text": "", "revision": 0})
+        return {"search_first_answer": task["first_answer"], "final_answer_draft": {
+            **draft, "csrf_token": session["progress_csrf"], "attempt_id": attempt["attempt_id"],
+            "question_number": session["task_position"] + 1, "url": url_for("final_answer_draft")}}
 
     @contextmanager
     def admission_lock(self):
@@ -233,6 +239,29 @@ class StudentProgress:
                                           data.get("revision"))
         except (DraftConflict, SubmissionConflict):
             return jsonify(error="La bozza è cambiata. Conserva il testo e ricarica la pagina."), 409
+        except ValueError:
+            return jsonify(error="Bozza non valida"), 400
+        except (OSError, sqlite3.Error):
+            return jsonify(error="Salvataggio non riuscito. Conserva il testo e riprova."), 503
+        return jsonify(saved)
+
+    def save_final_draft(self):
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(error="Bozza non valida"), 400
+        try:
+            attempt, error = self.checked_context(data)
+            if error:
+                return error
+            number = int(data["question_number"])
+            task = attempt["tasks"][number - 1]
+            if (attempt["status"] != "active" or attempt["phase"] != "search"
+                    or attempt["question_number"] != number or not task["first_answer"] or task["final_answer"]):
+                raise SubmissionConflict("Final draft requires the current search phase")
+            saved = self.store.save_draft(self.key(attempt["metadata"]), attempt["attempt_id"],
+                                          number, "final-answer", data.get("text"), data.get("revision"))
+        except (DraftConflict, SubmissionConflict):
+            return jsonify(error="La bozza o la domanda è cambiata. Conserva il testo e ricarica la pagina."), 409
         except ValueError:
             return jsonify(error="Bozza non valida"), 400
         except (OSError, sqlite3.Error):
