@@ -1105,6 +1105,23 @@ a:hover {
   font: inherit;
 }
 
+#feedback [hidden] {
+  display: none;
+}
+
+.final-answer-draft-status {
+  display: block;
+  margin: 8px 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+#feedback details textarea {
+  width: 100%;
+  margin: 8px 0;
+  font: inherit;
+}
+
 /* Modals */
 #endTaskModal,
 #feedbackModal,

@@ -61,8 +61,17 @@
         <h2>Hai completato la risposta?</h2>
 
             <div id="feedback">
-                <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>
+                <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5">{% if final_answer_draft %}
+{{ final_answer_draft.text }}{% endif %}</textarea>
                 <p id="answer-error-message" class="form-error" hidden>Inserisci una risposta</p>
+                {% if final_answer_draft %}
+                <output id="final-answer-draft-status" class="final-answer-draft-status" aria-live="polite"
+                        data-url="{{ final_answer_draft.url }}" data-revision="{{ final_answer_draft.revision }}"
+                        data-csrf-token="{{ final_answer_draft.csrf_token }}"
+                        data-attempt-id="{{ final_answer_draft.attempt_id }}"
+                        data-question-number="{{ final_answer_draft.question_number }}">{% if final_answer_draft.revision %}Bozza salvata.{% endif %}</output>
+                <button id="final-answer-draft-retry" class="app-btn app-btn-secondary" type="button" hidden>Riprova salvataggio</button>
+                {% endif %}
             </div>
 
             <div class="modal-buttons">
@@ -393,6 +402,7 @@
             yesEndBtn.addEventListener('click', async () => {
                 if (isSubmitting) return;
                 isSubmitting = true;
+                if (window.finalAnswerDraft) window.finalAnswerDraft.pause();
                 yesEndBtn.disabled = true;
                 document.getElementById("task-save-error").hidden = true;
                 if (finalbtn) finalbtn.disabled = true;
@@ -488,12 +498,15 @@
         return `answer_${sid}_${tnum}`;
     }
     function loadDraftAnswer() {
+        if (window.finalAnswerDraft) return window.finalAnswerDraft.value();
         try { return sessionStorage.getItem(answerStorageKey()) || ""; } catch (_) { return ""; }
     }
     function saveDraftAnswer(value) {
+        if (window.finalAnswerDraft) { window.finalAnswerDraft.update(value); return; }
         try { sessionStorage.setItem(answerStorageKey(), value); } catch (_) {}
     }
     function clearDraftAnswer() {
+        if (window.finalAnswerDraft) { window.finalAnswerDraft.clear(); return; }
         try { sessionStorage.removeItem(answerStorageKey()); } catch (_) {}
     }
 
@@ -592,6 +605,7 @@
         window.STUDY_PROGRESS_CONTEXT = {{ study_context|default(none)|tojson }};
     </script>
     <script src="{{ url_for('static', filename='logger.js') }}"></script>
+    {% if final_answer_draft %}<script src="{{ url_for('static', filename='final-answer-draft.js') }}"></script>{% endif %}
 
     <script>
     (function () {
