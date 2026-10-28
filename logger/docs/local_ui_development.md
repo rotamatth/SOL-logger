@@ -42,13 +42,21 @@ study settings are preserved. Repeating the command does not duplicate the fixtu
 
 To test collection:
 
-1. Open **Study settings** and set the relevant grade's **Session 1** date to today
-   (Europe/Zurich), then save.
-2. Open http://localhost:7001/welcome in another tab and start a student run
-   with an existing configured ID from **1–18**. In **Study settings → Participants**,
-   choose a grade and **Edit setup** to assign a question/puzzle set to additional IDs.
-   **Review changes** shows readiness and roster changes without saving; saving
-   makes ready IDs available in the student app immediately.
+1. Open **Study settings → Sessions**, choose the grade and set the session date
+   to today (Europe/Zurich), with an optional name. Prepare the three V2 session
+   dates explicitly; dates do not have to be a month apart.
+2. Open **Configure questions** for today's session. Enter three topics/questions,
+   or load a previous set/question into the editor and edit it. **Save draft** keeps
+   incomplete work; **Save draft and return to session** also opens the session's
+   question preview. Saved drafts have a **Continue editing draft** link in the
+   session settings and session overview, with all fields restored on reopening.
+   **Approve questions** validates all three and makes the assignment ready.
+   Each individual question appears once in the reuse list; complete-set choices
+   retain their explicit experimental variants. Readiness must show the intended participants as ready.
+   Use **Set individual questions** for an ID exception. V2 starts without legacy
+   per-ID assignments and puzzle files are optional. In another tab, open
+   http://localhost:7001/welcome and start with a configured ID. Outside the date,
+   or with missing/unapproved questions, the app shows **Session not available**.
 3. Submit a task answer, then return to the dashboard and select
    the **Refresh saved data** icon in the header. Interaction logs and answers reach the dashboard at
    task submission; unfinished work is not uploaded periodically.
@@ -78,13 +86,20 @@ To test collection:
    supports up to 100 sessions. Expand a session in **Session history** to edit its
    name or date, then press **Save session**. History shows ten sessions per page,
    newest first. Existing session numbers and source files are preserved.
+   For an accidentally created or unused session, expand **Remove session** and
+   confirm. It disappears from the schedule. **Removed sessions → Restore session**
+   restores the original number and saved questions; its date can be adjusted if
+   another active session uses that date. Sessions with participant records,
+   including started attempts and records in log Trash, cannot be removed.
 7. In **Study settings**, set **Current school year** for newly started runs.
    **Save school year** changes only the year. **Participants** shows the saved
    setup for one grade, with a **Need tasks** filter and ten participants per page.
-   **Edit setup → Review changes → Save changes** controls the dashboard roster and
-   ready student IDs. Assign a task set to IDs without complete tasks or everyone in a grade.
+   **Edit setup → Review changes → Save changes** controls the shared participant roster.
+   Choose a session in Participants to check its date/question readiness. Assignments
+   are edited from **Sessions → Configure questions**, with a shared set per grade/session
+   and optional individual exceptions.
    Prefixes and digit padding are preserved exactly; the 3rd-grade roster is optional.
-   Started runs retain their questions and rewards if settings later change.
+   Started runs retain their session, questions, metadata and order if settings later change.
    Historical assignment editing is hidden while that workflow is reconsidered.
    Any previously saved assignments still classify the corresponding records;
    other archived records can be inspected at

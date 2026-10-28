@@ -4,6 +4,10 @@ This file documents the current SOL logging event types and gives a short
 manual walkthrough for checking that each event family is still emitted in the
 expected user flow.
 
+Events are kept in the browser and uploaded when a page loads, every minute, when
+the page is hidden or closed, and when a task is submitted. During a manual check,
+the saved log therefore grows while the task is still open.
+
 ## Event catalogue
 
 ### Session and task flow
@@ -47,6 +51,8 @@ expected user flow.
 - `logoOnSerpClicked`: emitted when the SERP logo link is clicked.
 - `taskQuestionHelpClicked`: emitted when the task help modal is opened.
 - `taskQuestionHelpClosed`: emitted when the task help modal is closed.
+- `firstAnswerOpened`: emitted when the persisted first answer is opened in search, results, or the resource viewer.
+- `firstAnswerClosed`: emitted on button, Escape, backdrop, or pagehide closure; includes the reason without copying the answer text.
 
 ### Resource viewer and iframe tracking
 
@@ -100,6 +106,8 @@ expected user flow.
 - `experimentFinished`
 - `finalRewardRevealClicked`
 - `finalRewardRevealCompleted`
+- `firstAnswerClosed`
+- `firstAnswerOpened`
 - `generatedDidYouMean`
 - `hoverOverDidYouMean`
 - `hoverOverQuerySuggestions`
@@ -193,6 +201,10 @@ available and confirm `iframeBackNavigation`. On cross-origin pages, confirm
 navigation.
 
 ### 8. Exercise answer modal and task-end logging
+
+Open **La mia prima risposta** after confirming an answer (also try confirmed
+**Non lo so**). Confirm read-only content and paired `firstAnswerOpened` /
+`firstAnswerClosed` events in FULL/per-task logs, including after a page restore.
 
 Open the answer modal and confirm `ClickedOnSendAndTerminateTask` and
 `OpenedAnswerBox`. Close it once to confirm `AnswerBoxClosed`, then reopen it,

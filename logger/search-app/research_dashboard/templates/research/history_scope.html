@@ -1,0 +1,31 @@
+<section class="panel history-scope" aria-label="{{ t('history_filters') }}">
+  <div class="history-scope-picker">
+    <form method="get" action="{{ u('overview') }}">
+      <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="collection" value="{{ collection }}"><input type="hidden" name="grade" value="{{ grade }}">
+      <span class="picker-label" id="history-year-label">{{ t('school_year') }}</span>
+      <details class="preparation-menu">
+        <summary aria-labelledby="history-year-label history-year-value"><span id="history-year-value">{{ selected_year or t('history_all_years') }}</span></summary>
+        <div class="preparation-menu-options">
+          <button type="submit" name="school_year" value="" {% if not selected_year %}aria-current="true"{% endif %}>{{ t('history_all_years') }}</button>
+          {% for year in school_years %}<button type="submit" name="school_year" value="{{ year }}" {% if selected_year == year %}aria-current="true"{% endif %}>{{ year }}</button>{% endfor %}
+        </div>
+      </details>
+    </form>
+    {% if grade in grades %}
+    <form method="get" action="{{ u('overview') }}">
+      <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="collection" value="{{ collection }}"><input type="hidden" name="grade" value="{{ grade }}">
+      {% if selected_year %}<input type="hidden" name="school_year" value="{{ selected_year }}">{% endif %}
+      <span class="picker-label" id="history-session-label">{{ t('session') }}</span>
+      <details class="preparation-menu">
+        <summary aria-labelledby="history-session-label history-session-value"><span id="history-session-value">{% if selected_session %}{{ selected_session.name or (t('session') ~ ' ' ~ selected_session.number) }}{% else %}{{ t('history_all_sessions') }}{% endif %}</span></summary>
+        <div class="preparation-menu-options">
+          <button type="submit" name="session" value="" {% if not selected_session %}aria-current="true"{% endif %}>{{ t('history_all_sessions') }}</button>
+          {% for item in history_sessions %}<button type="submit" name="session" value="{{ item.id }}" aria-label="{{ item.name or (t('session') ~ ' ' ~ item.number) }} · {{ item.date or t('date_not_set') }}" {% if selected_session and selected_session.id == item.id %}aria-current="true"{% endif %}><span>{{ item.name or (t('session') ~ ' ' ~ item.number) }}</span><span class="picker-date">{{ item.date or t('date_not_set') }}</span></button>{% endfor %}
+        </div>
+      </details>
+    </form>
+    {% endif %}
+    {% if selected_year or selected_session %}<a href="{{ u('overview',collection=collection,grade=grade) }}">{{ t('dashboard_full_history') }}</a>{% endif %}
+  </div>
+  <p class="small muted">{{ t('history_filter_hint') }}</p>
+</section>

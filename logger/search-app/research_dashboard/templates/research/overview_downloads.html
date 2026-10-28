@@ -1,17 +1,19 @@
-{% if grade in grades %}
 <div class="dashboard-grade-download">
-  {% if grade_has_logs[grade] %}<a class="button" href="{{ u('export', scope='grade', collection=collection, grade=grade) }}" aria-label="{{ t('download_grade_' ~ grade) }}" title="{{ t('dashboard_grade_export_hint') }}">{{ icons.download() }} {{ t('download_grade_' ~ grade) }}</a>
-  {% else %}<button type="button" disabled title="{{ t('no_logs_available') }}">{{ icons.download() }} {{ t('download_grade_' ~ grade) }}</button>{% endif %}
+  {% if grade in grades %}
+    {% if scoped_grade_has_logs[grade] %}<a class="button" href="{{ u('export',scope='grade_session' if selected_session else 'grade',collection=collection,grade=grade,school_year=selected_year,session=selected_session.id if selected_session else None) }}" aria-label="{{ t('download_grade_' ~ grade) if not selected_session and not selected_year else t('history_download_view') ~ ': ' ~ t('grade_' ~ grade) ~ ' · ' ~ (selected_year or t('history_all_years')) ~ ' · ' ~ ((selected_session.name or (t('session') ~ ' ' ~ selected_session.number)) if selected_session else t('history_all_sessions')) }}">{{ icons.download() }} {{ t('history_download_view') }}</a>
+    {% else %}<button type="button" disabled title="{{ t('no_logs_available') }}">{{ icons.download() }} {{ t('history_download_view') }}</button>{% endif %}
+  {% else %}
+    <button class="button" form="selected-export" type="submit" name="mode" value="visible" {% if not downloadable_count %}disabled{% endif %}>{{ icons.download() }} {{ t('history_download_view') }}</button>
+    <details class="history-full-download">
+      <summary>{{ t('history_grade_download') }}</summary>
+      {% for value in grades %}{% if scoped_grade_has_logs[value] %}<p><a href="{{ u('export',scope='grade',collection=collection,grade=value,school_year=selected_year) }}"{% if not selected_year %} aria-label="{{ t('download_grade_' ~ value) }}"{% endif %}>{{ t('grade_' ~ value) }} · {{ selected_year or t('history_all_years') }}</a></p>{% endif %}{% endfor %}
+    </details>
+  {% endif %}
+  <small class="history-download-scope"><strong>{{ t('history_download_scope') }}:</strong> {{ t('grade_' ~ grade) if grade in grades else t('all_participants') }} · {{ selected_year or t('history_all_years') }} · {{ selected_session.name or (t('session') ~ ' ' ~ selected_session.number) if selected_session else t('history_all_sessions') }}</small>
+  {% if selected_year or selected_session %}
+  <details class="history-full-download">
+    <summary>{{ t('history_other_downloads') }}</summary><p class="small muted">{{ t('history_full_grade_hint') }}</p>
+    {% for value in grades %}{% if (grade not in grades or value == grade) and grade_has_logs[value] %}<p><a href="{{ u('export',scope='grade',collection=collection,grade=value) }}" aria-label="{{ t('download_grade_' ~ value) }}">{{ t('grade_' ~ value) }} · {{ t('history_all_years') }} · {{ t('history_all_sessions') }}</a></p>{% endif %}{% endfor %}
+  </details>
+  {% endif %}
 </div>
-{% else %}
-<details class="dashboard-grade-download">
-  <summary class="button">{{ icons.download() }} {{ t('dashboard_download_a_grade') }} <span aria-hidden="true">▾</span></summary>
-  <div class="dashboard-grade-download-menu">
-    <p>{{ t('dashboard_grade_export_hint') }}</p>
-    {% for value in grades %}
-    {% if grade_has_logs[value] %}<a href="{{ u('export', scope='grade', collection=collection, grade=value) }}" aria-label="{{ t('download_grade_' ~ value) }}">{{ t('download_grade_' ~ value) }}</a>
-    {% else %}<span aria-disabled="true">{{ t('download_grade_' ~ value) }}<small>{{ t('no_logs_available') }}</small></span>{% endif %}
-    {% endfor %}
-  </div>
-</details>
-{% endif %}

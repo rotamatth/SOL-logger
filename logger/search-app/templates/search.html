@@ -2,7 +2,8 @@
 {% block content %}
 <div class="app-page">
   <div class="app-toolbar">
-    <a href="{{ (back_url or url_for('search_page'))|safe }}" id="serp-back-btn" class="app-btn app-btn-back">&larr; Indietro</a>
+    <a href="{{ back_url or url_for('search_page') }}" id="serp-back-btn" class="app-btn app-btn-back">&larr; Indietro</a>
+    {% include "search_first_answer.html" %}
     {% if search_results or allow_answer_without_results_for_testing %}
       <button type="button"
               onclick="openFeedbackModal()"
@@ -58,7 +59,7 @@
     {% if no_results_message %}
       {% if query == corrected_query %}
       {% elif page==1 %}
-      <small class="container-info"><p>Forse cercavi: <a id="did-you-mean" source="{{query_correction_source}}" href="{{ url_for('result', query=corrected_query, page=1)|safe }}"><b>{{ corrected_query|safe }}</b></a></p></small>
+      <small class="container-info"><p>Forse cercavi: <a id="did-you-mean" source="{{query_correction_source}}" href="{{ url_for('result', query=corrected_query, page=1) }}"><b>{{ corrected_query }}</b></a></p></small>
       {% else %}
       {% endif %}
     <div class="no-results-inline"
@@ -73,43 +74,43 @@
     {% else %}
       {% if query == corrected_query %}
       {% elif page==1 %}
-      <small class="container-info"><p>Forse cercavi: <a id="did-you-mean" source="{{query_correction_source}}" href="{{ url_for('result', query=corrected_query, page=1)|safe }}"><b>{{ corrected_query|safe }}</b></a></p></small>
+      <small class="container-info"><p>Forse cercavi: <a id="did-you-mean" source="{{query_correction_source}}" href="{{ url_for('result', query=corrected_query, page=1) }}"><b>{{ corrected_query }}</b></a></p></small>
       {% else %}
       {% endif %}
 
 {% for s in search_results %}
   <article class="media content-section"
            id="result-{{ loop.index }}"
-           base_ir="{{ s.docid|safe }}"
-           query="{{ query|safe }}"
+           base_ir="{{ s.docid }}"
+           query="{{ query }}"
            data-raw-query="{{ raw_query if raw_query is defined else query }}"
-           data-sanitized-query="{{ query|safe }}"
-           page="{{ page|safe }}">
+           data-sanitized-query="{{ query }}"
+           page="{{ page }}">
     <div class="media-body">
 
       <div class="result-source-line">
         <div class="result-favicon"></div>
         <div class="article-metadata" id="metadata-{{ loop.index }}_l">
-          <small>{{ s.displayed_link|safe }}</small>
+          <small>{{ s.displayed_link }}</small>
         </div>
       </div>
 
       <h4>
-        <a class="result-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link|safe }}">{{ s.title|safe }}</a>
+        <a class="result-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="abstract-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link }}">{{ s.title|rich_text }}</a>
       </h4>
 
       {% if s.thumbnail %}
       <div class="imageflex">
         <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
-          {{ s.snippet|safe }}
-          <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link|safe }}" aria-hidden="true"></a>
+          {{ s.snippet|rich_text }}
+          <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link }}" aria-hidden="true"></a>
         </p>
-        <img src="{{ s.thumbnail|safe }}" alt="Result thumbnail">
+        <img src="{{ s.thumbnail }}" alt="Result thumbnail">
       </div>
       {% else %}
       <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
-        {{ s.snippet|safe }}
-        <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link|safe }}" aria-hidden="true"></a>
+        {{ s.snippet|rich_text }}
+        <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link }}" aria-hidden="true"></a>
       </p>
       {% endif %}
 
@@ -122,17 +123,17 @@
   <ul class="pagination justify-content-center">
 
     <li class="page-item {% if page == 1 %}disabled{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=page-1)|safe }}" tabindex="-1">« Precedente</a>
+      <a class="page-link" href="{{ url_for('result', query=query, page=page-1) }}" tabindex="-1">« Precedente</a>
     </li>
 
     {% for p in range(1, total_pages + 1) %}
     <li class="page-item {% if page == p %}active{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=p)|safe }}">{{ p }}</a>
+      <a class="page-link" href="{{ url_for('result', query=query, page=p) }}">{{ p }}</a>
     </li>
     {% endfor %}
 
     <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-      <a class="page-link" href="{{ url_for('result', query=query, page=page+1)|safe }}">Successiva »</a>
+      <a class="page-link" href="{{ url_for('result', query=query, page=page+1) }}">Successiva »</a>
     </li>
 
   </ul>

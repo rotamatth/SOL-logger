@@ -1,0 +1,17 @@
+{% if search_first_answer %}
+<button type="button" id="search-first-answer-btn" class="app-btn app-btn-back search-first-answer-trigger"
+        aria-haspopup="dialog" aria-controls="search-first-answer-dialog"
+        data-outcome="{{ search_first_answer.outcome }}">La mia prima risposta</button>
+<dialog id="search-first-answer-dialog" class="search-first-answer-dialog" aria-labelledby="search-first-answer-title">
+  <button type="button" id="search-first-answer-close" class="search-first-answer-close"
+          aria-label="Chiudi prima risposta" autofocus>&times;</button>
+  <h2 id="search-first-answer-title">La mia prima risposta</h2>
+  {% if search_first_answer.outcome == 'unknown' %}
+  <p>Non lo so</p>
+  {% else %}
+  <textarea id="search-first-answer-text" class="search-first-answer-text" rows="5" readonly
+            aria-label="La mia prima risposta">
+{{ search_first_answer.text }}</textarea>
+  {% endif %}
+</dialog>
+{% endif %}

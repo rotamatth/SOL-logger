@@ -4,7 +4,8 @@ import re
 from urllib.parse import parse_qs, urlsplit
 
 from .test_research_dashboard import app, csrf, login
-from .test_participant_enrollment import ranges_form
+from .test_participant_enrollment import configure_session_questions, ranges_form
+from .test_enrollment_controls import Controls
 from research_dashboard.student_config import task_catalog
 
 
@@ -36,7 +37,11 @@ def test_navigation_exposes_one_section_and_retains_selected_grade(app):
         assert response.status_code == 200
         assert f'id="{active_id}" >' in response.text
         assert 'id="school-year" hidden' in response.text
-        assert f'section={selected}&amp;grade=5&amp;lang=it" aria-current="page"' in response.text
+        current = next(link for link in Controls(response).links
+                       if link.get("aria-current") == "page"
+                       and parse_qs(urlsplit(link["href"]).query).get("section") == [selected])
+        assert parse_qs(urlsplit(current["href"]).query, keep_blank_values=True) == {
+            "section": [selected], "grade": ["5"], "year": [""], "lang": ["it"]}
     assert client.get("/dashboard/settings?section=unknown").status_code == 404
 
 
@@ -46,9 +51,21 @@ def test_participant_view_has_no_setup_fields_and_filters_missing_tasks(app):
     view = participant_section(client.get("/dashboard/settings?section=participants&grade=4"))
     assert "Edit setup" in view and "first number" not in view.lower()
     assert 'name="4_start"' not in view and 'name="4_task_set"' not in view
+    assert "Session school year missing" in view
+    state = app.extensions["research"]["state"]
+    settings = configure_session_questions(app, grades=("4",))
+    settings["sessions"][0]["participant_questions"] = {
+        uid: {"questions": [], "approved": False} for uid in ("19", "20")}
+    state.save_settings(settings, settings["revision"])
     filtered = participant_section(client.get("/dashboard/settings?section=participants&grade=4&status=missing"))
     assert re.findall(r'<th scope="row">([^<]+)</th>', filtered) == ["19", "20"]
     assert "No task set assigned" in filtered
+    other_session = participant_section(client.get(
+        "/dashboard/settings?section=participants&grade=4&participant_session=grade-4-session-2&status=missing&roster_page=2"))
+    assert re.findall(r'<th scope="row">([^<]+)</th>', other_session) == [str(n) for n in range(11, 21)]
+    assert "Session date missing" in other_session
+    assert 'value="grade-4-session-2" selected' in other_session
+    assert client.get("/dashboard/settings?section=participants&grade=4&participant_session=grade-5-session-1").status_code == 404
     second_page = participant_section(client.get("/dashboard/settings?section=participants&grade=4&roster_page=2"))
     assert re.findall(r'<th scope="row">([^<]+)</th>', second_page) == [str(n) for n in range(11, 21)]
     assert client.get("/dashboard/settings?section=participants&grade=4&roster_page=3").status_code == 404
@@ -61,20 +78,20 @@ def test_grade_scoped_review_edit_and_save_keep_other_grades_and_calendars(app):
     settings = state.settings()
     settings["ranges"].append({"grade": "3", "start": 41, "end": 42, "prefix": "", "width": 0})
     state.save_settings(settings, settings["revision"])
-    before = state.settings()
-    task_set = task_catalog(app)[0]
+    before = configure_session_questions(app, grades=("5",))
     editor = client.get("/dashboard/settings?section=participants&grade=5&edit_participants=1")
     section = participant_section(editor)
     assert 'name="5_start"' in section and 'name="4_start"' not in section
+    assert 'name="5_task_set"' not in section
     assert 'value="save_ranges"' not in section
     fields = {"csrf": csrf(editor), "revision": before["revision"], "ranges_editor": "1", "range_grade": "5",
               "action": "preview_ranges", "5_start": "21", "5_end": "39", "5_prefix": "", "5_width": "0",
-              "5_task_set": task_set["id"], "5_assignment_mode": "all", "4_end": "2"}
+              "4_end": "2"}
     review = client.post("/dashboard/settings?section=participants&grade=5", data=fields)
     assert review.status_code == 200 and state.settings() == before
     review_body = participant_section(review)
     assert 'type="number"' not in review_body and 'value="save_ranges"' in review_body
-    assert "19 / 19 ready to start" in review_body
+    assert "19 / 19 configuration complete" in review_body
     draft = FormFields(review_body).fields
     editing = client.post("/dashboard/settings?section=participants&grade=5", data={**draft, "action": "edit_ranges"})
     assert editing.status_code == 200 and state.settings() == before
@@ -99,8 +116,7 @@ def test_third_grade_enable_preview_cancel_and_save(app):
     view = client.get("/dashboard/settings?section=participants&grade=3")
     assert "No participant IDs for this grade" in participant_section(view)
     fields = ranges_form(app, client, action="preview_ranges", range_grade="3", **{
-        "3_enabled": "1", "3_start": "1", "3_end": "2", "3_prefix": "C-", "3_width": "3",
-        "3_task_set": task_catalog(app)[0]["id"], "3_assignment_mode": "all"})
+        "3_enabled": "1", "3_start": "1", "3_end": "2", "3_prefix": "C-", "3_width": "3"})
     review = client.post("/dashboard/settings?section=participants&grade=3", data=fields)
     assert review.status_code == 200 and "C-001–C-002" in review.text
     assert state.settings() == before
@@ -141,7 +157,7 @@ def test_stale_session_and_year_forms_preserve_input_and_revision(app):
     assert response.status_code == 400
     assert 'id="grade-4-session-1" open' in response.text
     assert 'value="My classroom"' in response.text and 'value="2026-10-12"' in response.text
-    assert "Reload saved settings" in response.text
+    assert "Review saved session in a new tab" in response.text
     assert f'name="revision" value="{before["revision"]}"' in response.text
     year = client.post("/dashboard/settings?section=year", data={
         "action": "save_year", "csrf": token, "revision": before["revision"],
@@ -180,9 +196,10 @@ def test_disabling_third_grade_then_editing_retains_saved_assignment(app):
     review = client.post("/dashboard/settings?section=participants&grade=3", data=fields)
     assert review.status_code == 200
     draft = FormFields(participant_section(review)).fields
-    assert "3_enabled" not in draft and draft["3_task_set"] == "saved"
+    assert "3_enabled" not in draft and "3_task_set" not in draft
     editing = client.post("/dashboard/settings?section=participants&grade=3", data={**draft, "action": "edit_ranges"})
     section = participant_section(editing)
-    assert editing.status_code == 200 and 'value="saved" selected' in section
+    assert editing.status_code == 200 and 'name="3_task_set"' not in section
     assert 'name="3_prefix" value="C-"' in section
     assert state.settings() == before
+    assert state.settings()["ranges"][-1]["assignment"]["id"] == task_set["id"]

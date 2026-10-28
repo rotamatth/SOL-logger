@@ -1,0 +1,6 @@
+{% set navigation_year = history_year if history_year is defined else study_context.school_year or '' %}
+<nav class="settings-tabs" aria-label="{{ t('settings') }}">
+  {% for section, label in (('year','school_year'), ('sessions','sessions'), ('participants','overview')) %}
+  <a href="{{ u('enrollment_page',grade=history_grade,year=navigation_year or None) if section == 'participants' else u('settings_page',section=section,grade=history_grade,year=navigation_year,session=study_context.get('id')) }}" {% if active_section == section %}aria-current="page"{% endif %}>{{ t(label) }}</a>
+  {% endfor %}
+</nav>

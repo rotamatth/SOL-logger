@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prima risposta · Domanda {{ task_number }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css') }}">
+  <script src="{{ url_for('static', filename='first-answer.js') }}" defer></script>
+</head>
+<body class="first-answer-page">
+  <main class="first-answer-panel" aria-labelledby="first-answer-question">
+    <span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>
+    <p class="first-answer-intro">Pensi di sapere la risposta a questa domanda?</p>
+    <h1 id="first-answer-question">{{ topic }}</h1>
+
+    {% if error %}
+    <p id="first-answer-error" class="first-answer-error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    {% if first_answer %}
+    <section class="first-answer-content" aria-label="La mia prima risposta">
+      <p class="first-answer-label">La mia prima risposta</p>
+      {% if first_answer.outcome == 'unknown' %}
+      <p class="first-answer-saved-unknown">Non lo so</p>
+      {% else %}
+      <textarea class="first-answer-text" rows="5" readonly aria-label="La mia prima risposta">
+{{ first_answer.text }}</textarea>
+      {% endif %}
+      <p class="first-answer-hint" role="status">Prima risposta confermata. Ora puoi cercare informazioni.</p>
+    </section>
+    {% else %}
+    <form id="first-answer-form" class="first-answer-content" action="{{ submit_url }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="attempt_id" value="{{ attempt_id }}">
+      <input type="hidden" name="question_number" value="{{ task_number }}">
+      <label class="first-answer-label" for="first-answer-text">Secondo te, qual è la risposta?</label>
+      <div class="first-answer-row">
+        <textarea id="first-answer-text" class="first-answer-text" name="text" rows="5" required
+                  aria-describedby="first-answer-hint{% if error %} first-answer-error{% endif %}"
+                  {% if error %}aria-invalid="true"{% endif %}
+                  placeholder="Scrivi qui la tua risposta">
+{{ draft_text }}</textarea>
+        <button id="first-answer-unknown" class="app-btn first-answer-outline" type="button"
+                aria-haspopup="dialog" aria-controls="first-answer-unknown-dialog">Non lo so</button>
+      </div>
+      {% if draft_url %}<output id="first-answer-draft-status" class="first-answer-hint" aria-live="polite"
+          data-url="{{ draft_url }}" data-revision="{{ draft_revision }}"></output>
+      <button id="first-answer-retry-draft" class="app-btn first-answer-outline" type="button" hidden>Riprova salvataggio</button>{% endif %}
+      <div class="first-answer-confirm-row">
+        <p id="first-answer-hint" class="first-answer-hint">Conferma la tua risposta per iniziare la ricerca.</p>
+        <button class="app-btn app-btn-primary" type="submit" name="outcome" value="answered">Conferma risposta</button>
+      </div>
+    </form>
+
+    <dialog id="first-answer-unknown-dialog" class="first-answer-dialog"
+            aria-labelledby="first-answer-dialog-title" aria-describedby="first-answer-dialog-description">
+      <h2 id="first-answer-dialog-title">Non sai la risposta?</h2>
+      <p id="first-answer-dialog-description">Puoi confermare “Non lo so” e poi cercare informazioni.</p>
+      <form action="{{ submit_url }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="attempt_id" value="{{ attempt_id }}">
+        <input type="hidden" name="question_number" value="{{ task_number }}">
+        <input type="hidden" name="outcome" value="unknown">
+        <div class="first-answer-dialog-actions">
+          <button id="first-answer-cancel-unknown" class="app-btn first-answer-outline" type="button" autofocus>Torna alla risposta</button>
+          <button class="app-btn app-btn-primary" type="submit">Confermo: non lo so</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+
+    <div class="first-answer-search">
+      {% if first_answer %}
+      <a id="first-answer-search" class="app-btn app-btn-primary" href="{{ search_url }}">Entra nel motore di ricerca</a>
+      {% else %}
+      <button id="first-answer-search" class="app-btn app-btn-primary" type="button" disabled>Entra nel motore di ricerca</button>
+      {% endif %}
+    </div>
+  </main>
+  {% if study_context %}
+  <script>
+    window.SESSION_ID = {{ session.get('session_id')|tojson }};
+    window.TASK_NUMBER = {{ session.get('task_number')|tojson }};
+    window.USER_ID = {{ session.get('user_id')|tojson }};
+    window.STUDY_PROGRESS_CONTEXT = {{ study_context|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='logger.js') }}" defer></script>
+  {% endif %}
+</body>
+</html>

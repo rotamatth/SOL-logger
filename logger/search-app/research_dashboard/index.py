@@ -11,8 +11,11 @@ import re
 import sqlite3
 import stat
 import time
+import fcntl
+import uuid
 
-from .state import DEFAULT_STUDY_ID, GRADES, historical_grade, identity, roster, valid_school_year
+from .participants import resolve_identity, school_year_for
+from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
 
 MAX_LINE = 1024 * 1024
 MODULUS = 2 ** 256
@@ -53,14 +56,25 @@ def safe_open(root, name):
 
 
 class Index:
-    def __init__(self, directory, roots, refresh_seconds=30):
+    def __init__(self, directory, roots, refresh_seconds=30, initialize=True):
         self.path = Path(directory) / "index.sqlite3"
         self.roots = {name: Path(path).resolve() for name, path in roots.items()}
         if len(set(self.roots.values())) != len(self.roots):
             raise ValueError("v2 and legacy must use different directories")
         self.refresh_seconds = refresh_seconds
-        with self.connect() as db:
-            db.executescript("""
+        self._initialized = False
+        if initialize:
+            self._initialize()
+
+    def _initialize(self):
+        # Reporting cache availability must not be a prerequisite for app boot.
+        # Only this disposable index is rebuilt; research settings are never reset.
+        with open(self.path.with_suffix(".lock"), "a+b") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            for attempt in range(2):
+                db = sqlite3.connect(self.path, timeout=30)
+                try:
+                    db.executescript("""
                 CREATE TABLE IF NOT EXISTS files (
                     id TEXT PRIMARY KEY, collection TEXT NOT NULL, name TEXT NOT NULL,
                     signature TEXT NOT NULL, info TEXT NOT NULL);
@@ -71,16 +85,44 @@ class Index:
                 CREATE INDEX IF NOT EXISTS task_events ON events(file_id, task, line);
                 CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, summary TEXT NOT NULL, detail TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS scan (id INTEGER PRIMARY KEY, at REAL NOT NULL, problems TEXT NOT NULL);
-            """)
-        self.path.chmod(0o600)
+                    """)
+                    if db.execute("PRAGMA quick_check(1)").fetchall() != [("ok",)]:
+                        error = sqlite3.DatabaseError("Corrupt reporting cache")
+                        error.sqlite_errorcode = sqlite3.SQLITE_CORRUPT
+                        raise error
+                    if db.execute("PRAGMA user_version").fetchone()[0] < 2:
+                        db.execute("DELETE FROM scan")
+                        db.execute("PRAGMA user_version=2")
+                    db.commit()
+                    self.path.chmod(0o600)
+                    self._initialized = True
+                    return
+                except sqlite3.DatabaseError as exc:
+                    code = getattr(exc, "sqlite_errorcode", 0) & 0xff
+                    if attempt or code not in (sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB):
+                        raise
+                    db.close()
+                    quarantine = self.path.parent / ("index-corrupt-" + uuid.uuid4().hex)
+                    quarantine.mkdir(mode=0o700)
+                    for suffix in ("", "-journal", "-wal", "-shm"):
+                        source = Path(str(self.path) + suffix)
+                        if source.exists():
+                            source.rename(quarantine / source.name)
+                finally:
+                    db.close()
 
     @contextmanager
     def connect(self):
+        if not self._initialized:
+            self._initialize()
         db = sqlite3.connect(self.path, timeout=60)
         db.row_factory = sqlite3.Row
         try:
             with db:
                 yield db
+        except sqlite3.DatabaseError:
+            self._initialized = False
+            raise
         finally:
             db.close()
 
@@ -254,34 +296,8 @@ class Index:
             if (sum(f["event_count"] for f in full), sum(f["signature_sum"] for f in full) % MODULUS) != (
                     sum(f["event_count"] for f in task_files), sum(f["signature_sum"] for f in task_files) % MODULUS):
                 issues.append("full_and_task_copies_differ")
-        tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "events": 0} for n in (1, 2, 3)}
-        for f in canonical:
-            for number, t in f["tasks"].items():
-                if number not in tasks:
-                    issues.append(f"unrecognized_task_number:{number}")
-                    continue
-                dest = tasks.setdefault(number, {"number": number, "topics": [], "questions": [], "answers": [], "events": 0})
-                dest["events"] += t["events"]
-                dest["answers"].extend(t["answers"])
-                for field in ("topics", "questions"):
-                    dest[field] = list(dict.fromkeys(dest[field] + t[field]))
-        for recorded in meta.get("tasks", []):
-            number = str(recorded.get("presented_number"))
-            if number not in tasks:
-                continue
-            for field, key in (("topics", "topic_id"), ("questions", "question")):
-                value = recorded.get(key)
-                if isinstance(value, (str, int)) and str(value) not in tasks[number][field]:
-                    tasks[number][field].append(str(value))
-        for t in tasks.values():
-            t["status"] = "completed" if any(a["present"] and isinstance(a["value"], str) for a in t["answers"]) else "incomplete" if t["events"] else "no_data"
-            if len(t["topics"]) > 1 or len(t["questions"]) > 1:
-                t["status"] = "unknown"
-                issues.append(f"conflicting_task_metadata:task={t['number']}")
-            if len(t["answers"]) > 1:
-                issues.append(f"multiple_answer_records:task={t['number']}")
-            if any(a["present"] and not isinstance(a["value"], str) for a in t["answers"]):
-                issues.append(f"non_text_answer:task={t['number']}")
+        tasks = _merge_tasks(canonical, meta, issues)
+        _assign_task_status(tasks, issues)
         event_count = sum(f["event_count"] for f in canonical)
         complete = all(tasks[str(n)]["status"] == "completed" for n in (1, 2, 3))
         date = date_of(meta.get("started_at")) or min((d for f in canonical for d in f["dates"]), default=None)
@@ -290,6 +306,8 @@ class Index:
                    "participant_id": uid, "participant_token": identity(uid) if uid is not None else None,
                    "date": date, "study_id_at_collection": meta.get("study_id_at_collection"),
                    "grade_at_collection": meta.get("grade_at_collection"),
+                   "participant_key_at_collection": meta.get("participant_key"),
+                   "enrollment_id": meta.get("enrollment_id"),
                    "school_year_at_collection": meta.get("school_year_at_collection"),
                    "app_version": meta.get("app_version"), "git_commit": meta.get("git_commit"),
                    "status": "unknown" if uid is None else "completed" if complete else "incomplete",
@@ -298,9 +316,18 @@ class Index:
                    "log_file_count": sum(f["kind"] != "metadata" and bool(f.get("sha256")) for f in files),
                    "last_saved": max((f["mtime"] for f in files), default=0), "issue_count": len(issues),
                    "technical_session_ids": sorted(sessions),
+                   # Only INCOMPLETE files: events recovered from an earlier session or
+                   # participant on a device, not an attempt of its own.
+                   "recovery_only": (any(f["kind"] == "recovery" for f in files)
+                                     and all(f["kind"] in ("recovery", "metadata") for f in files)),
                    "log_id": meta.get("log_id") or (filename_log_id[1] if filename_log_id else None),
                    "log_id_source": "metadata" if meta.get("log_id") else "filename" if filename_log_id else None,
                    "started_at": meta.get("started_at")}
+        # Missing predates session recording; explicit null records that no session
+        # was selected. Preserve the distinction when rebuilding the file index.
+        for key in ("study_session_at_collection", "study_session_snapshot"):
+            if key in meta:
+                summary[key] = meta[key]
         detail = {**summary, "files": files, "tasks": tasks, "issues": issues,
                   "metadata": meta, "canonical_files": [f["id"] for f in canonical]}
         return summary, detail
@@ -359,9 +386,82 @@ class Index:
         return result, total
 
 
+def _study_session_for_run(run, settings, study_id, grade, issues):
+    if study_id != DEFAULT_STUDY_ID:
+        return None
+    if run["collection"] == "v2" and "study_session_at_collection" in run:
+        session_id = run["study_session_at_collection"]
+        if session_id is None:
+            return None
+        if not isinstance(session_id, str):
+            issues.append("invalid_recorded_study_session")
+            return None
+        snapshot = run.get("study_session_snapshot")
+        if snapshot is not None:
+            if (isinstance(snapshot, dict) and snapshot.get("id") == session_id
+                    and snapshot.get("grade") in GRADES
+                    and type(snapshot.get("number")) is int and 1 <= snapshot["number"] <= MAX_STUDY_SESSIONS
+                    and session_id == f"grade-{snapshot['grade']}-session-{snapshot['number']}"
+                    and isinstance(snapshot.get("name", ""), str)
+                    and isinstance(snapshot.get("theme", ""), str)
+                    and isinstance(snapshot.get("date"), str)
+                    and (not snapshot["date"] or date_of(snapshot["date"]) == snapshot["date"])):
+                return dict(snapshot)
+            issues.append("invalid_recorded_study_session_snapshot")
+        # Older sidecars recorded the ID only. A moved calendar date must not
+        # silently attach these runs to a different session.
+        return next((s for s in settings["sessions"] if s["id"] == session_id), None)
+    return next((s for s in settings["sessions"] if s["grade"] == grade
+                 and s["date"] and s["date"] == run["date"]), None)
+
+
+
+def _merge_tasks(canonical, meta, issues):
+    """Combine per-task events, answers, topics and questions of the canonical logs."""
+    tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "events": 0} for n in (1, 2, 3)}
+    for f in canonical:
+        for number, task in f["tasks"].items():
+            if number not in tasks:
+                issues.append(f"unrecognized_task_number:{number}")
+                continue
+            dest = tasks[number]
+            dest["events"] += task["events"]
+            dest["answers"].extend(task["answers"])
+            for field in ("topics", "questions"):
+                dest[field] = list(dict.fromkeys(dest[field] + task[field]))
+    # The run snapshot records what was presented even when no event mentions it.
+    for recorded in meta.get("tasks", []):
+        number = str(recorded.get("presented_number"))
+        if number not in tasks:
+            continue
+        for field, key in (("topics", "topic_id"), ("questions", "question")):
+            value = recorded.get(key)
+            if isinstance(value, (str, int)) and str(value) not in tasks[number][field]:
+                tasks[number][field].append(str(value))
+    return tasks
+
+
+def _assign_task_status(tasks, issues):
+    """completed: a text answer was recorded; unknown: conflicting task identity."""
+    for task in tasks.values():
+        answered = any(a["present"] and isinstance(a["value"], str) for a in task["answers"])
+        task["status"] = "completed" if answered else "incomplete" if task["events"] else "no_data"
+        if len(task["topics"]) > 1 or len(task["questions"]) > 1:
+            task["status"] = "unknown"
+            issues.append(f"conflicting_task_metadata:task={task['number']}")
+        if len(task["answers"]) > 1:
+            issues.append(f"multiple_answer_records:task={task['number']}")
+        if any(a["present"] and not isinstance(a["value"], str) for a in task["answers"]):
+            issues.append(f"non_text_answer:task={task['number']}")
+
 def classify(run, settings):
     grade, school_year, source, rule_id, current_grade = None, None, "unknown", None, None
     issues = list(run.get("issues", []))
+    # Validate both cached and freshly indexed labels; the raw metadata stays intact.
+    started_at = run.get("started_at")
+    if started_at is not None and not isinstance(started_at, str):
+        started_at = None
+        issues.append("invalid_recorded_started_at")
     year_source = "unknown"
     recorded_study = run.get("study_id_at_collection")
     study_id = DEFAULT_STUDY_ID if recorded_study is None else recorded_study
@@ -386,18 +486,34 @@ def classify(run, settings):
                 issues.append("historical_grade_conflict")
         elif rule:
             grade, source = rule["grade"], "historical_assignment"
-        elif current_grade:
-            grade, source = current_grade, "current_roster"
+
         if rule and rule["grade"] == grade:
             if school_year and school_year != rule["school_year"]:
                 issues.append("historical_school_year_conflict")
             elif not school_year:
                 school_year, year_source = rule["school_year"], "historical_assignment"
-    study_session = next((s for s in settings["sessions"]
-                          if study_id == DEFAULT_STUDY_ID and s["grade"] == grade
-                          and s["date"] and s["date"] == run["date"]), None)
-    return {**run, "study_id": study_id, "grade": grade, "study_session": study_session,
-            "school_year": school_year, "grade_source": source, "historical_assignment_id": rule_id,
+    canonical = resolve_identity(settings, run["collection"], run["participant_id"], run["date"]) if study_id == DEFAULT_STUDY_ID else None
+    if canonical and run.get("participant_key_at_collection") not in (None, canonical["key"]):
+        issues.append("participant_identity_conflict")
+        canonical = None
+    enrolled = None
+    if canonical:
+        dated_year = school_year_for(run["date"])
+        enrolled = settings.get("enrollments", {}).get(dated_year, {}).get(canonical["id"])
+        current_grade = roster(settings).get(canonical["id"])
+        if enrolled and grade is None:
+            grade, source = enrolled["grade"], "enrollment"
+        if enrolled and not school_year and grade == enrolled["grade"]:
+            school_year, year_source = dated_year, "enrollment"
+    study_session = _study_session_for_run(run, settings, study_id, grade, issues)
+    return {**run, "started_at": started_at, "study_id": study_id, "grade": grade, "study_session": study_session,
+            "school_year": school_year, "grade_source": source,
+            "study_participant_id": canonical["id"] if canonical else None,
+            "enrollment_id": run.get("enrollment_id") or (enrolled["id"] if enrolled else None),
+            "participant_key": canonical["key"] if canonical else None,
+            "identity_source": canonical["source"] if canonical else "unlinked",
+            "identity_link_id": canonical.get("link_id") if canonical else None,
+            "identity_link_revision": canonical.get("link_revision") if canonical else None, "historical_assignment_id": rule_id,
             "school_year_source": year_source,
             "current_grade": current_grade, "issues": issues,
             "issue_count": run["issue_count"] + len(issues) - len(run.get("issues", [])),

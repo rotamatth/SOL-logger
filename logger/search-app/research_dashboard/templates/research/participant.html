@@ -1,11 +1,12 @@
 {% extends 'research/base.html' %}
 {% import 'research/icons.html' as icons %}
 {% block content %}
-<p class="breadcrumbs"><a href="{{ u('overview', grade=grade, school_year=selected_year) }}">{{ t('grade_' ~ grade) if grade in grades else t('overview') }}</a> / {{ person.id }}{% if collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}{% if selected_year %} · {{ selected_year }}{% endif %}</p>
+<p class="breadcrumbs"><a href="{{ u('overview', collection=collection, grade=grade, school_year=selected_year, session=selected_session) }}">{{ t('grade_' ~ grade) if grade in grades else t('overview') }}</a> / {{ person.id }}{% if collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}{% if selected_year %} · {{ selected_year }}{% endif %}</p>
 <div class="page-heading">
   <h1>{{ t('participant') }} {{ person.id }}</h1>
   {% if person.runs %}<a class="button" href="{{ u('export', scope='participant', collection=collection, participant=person.token, grade=grade_filter, school_year=selected_year) }}" title="{{ t('participant_export_hint') }}">{{ icons.download() }} {{ t('download_participant') }}</a>{% endif %}
 </div>
+{% if person.runs %}<p class="small muted participant-download-scope">{{ t('participant_export_hint') }}{% if selected_year %} · {{ selected_year }}{% endif %}{% if grade_filter %} · {{ t('grade_' ~ grade_filter) }}{% endif %}</p>{% endif %}
 <form class="session-selector participant-session-selector" method="get" action="{{ u('participant', collection=collection, token=person.token) }}">
   <input type="hidden" name="lang" value="{{ language }}">
   <input type="hidden" name="view" value="logs">
@@ -27,7 +28,10 @@
         <span class="session-meta">
         <span class="session-label">{% if group.session %}{{ group.session.name or (t('session') ~ ' ' ~ group.session.number) }}{% if group.session.name %}<small class="muted">{{ t('session') }} {{ group.session.number }}</small>{% endif %}{% else %}{{ t('other_saved_runs') }}{% endif %}{% if group.session and person.grades|length > 1 %}<small class="muted">{{ t('grade_' ~ group.session.grade) }}</small>{% endif %}</span>
         <span class="session-date muted">{{ group.session.date if group.session else '' }}</span>
-        <span class="badge {{ 'completed' if group.runs|selectattr('status','equalto','completed')|list|length == group.runs|length else 'incomplete' }}">{{ group.runs|selectattr('status','equalto','completed')|list|length }}/{{ group.runs|length }} {{ t('completed')|lower }}</span>
+        {% set fragments = group.runs|selectattr('recovery_only')|list|length %}{% set saved_runs = group.runs|selectattr('log_file_count')|rejectattr('recovery_only')|list %}{% set completed_runs = saved_runs|selectattr('status','equalto','completed')|list|length %}
+        {% if saved_runs %}<span class="badge {{ 'completed' if completed_runs == saved_runs|length else 'incomplete' }}">{{ completed_runs }}/{{ saved_runs|length }} {{ t('completed')|lower }}</span>{% endif %}
+        {% if group.runs|length > saved_runs|length + fragments %}<span class="badge unknown">{{ t('runs_without_saved_data') }}: {{ group.runs|length - saved_runs|length - fragments }}</span>{% endif %}
+        {% if fragments %}<span class="badge unknown">{{ t('recovered_fragments') }}: {{ fragments }}</span>{% endif %}
         </span>
         <div class="record-actions">
           {% if not open_logs %}<a class="button compact" href="{{ u('participant', collection=collection, token=person.token, view='logs', grade=grade_filter, school_year=selected_year, session=group.session.id if group.session else None) }}#{{ group.session.id if group.session else 'other-runs' }}">{{ t('visualize_logs') }}</a>{% endif %}
@@ -39,8 +43,10 @@
         {% for run in group.runs %}
         <article class="run-row">
           <strong>{{ t('run') }} {{ loop.index }}</strong>
+          {% if run.identity_source == 'confirmed_link' %}<span class="small muted">{{ t('legacy') }} · ID {{ run.participant_id }}</span>{% endif %}
           {% if manage %}<span class="mono small muted">{{ run.id[:12] }}</span>{% endif %}
           <span class="muted small">{{ run.started_at or run.date or '—' }}</span>
+          {% if run.study_session %}<span class="muted small">{{ run.study_session.name or (t('session') ~ ' ' ~ run.study_session.number) }}{% if run.study_session.date %} · {{ run.study_session.date }}{% endif %}</span>{% endif %}
           {% if run.grade %}<span class="muted small">{{ t('grade_' ~ run.grade) }}{% if run.school_year %} · {{ run.school_year }}{% endif %}</span>{% endif %}
           <span class="badge {{ run.status }}">{{ t(run.status) }}</span>
           {% if run.issue_count %}<span class="muted small">{{ t('issues') }}: {{ run.issue_count }}</span>{% endif %}
