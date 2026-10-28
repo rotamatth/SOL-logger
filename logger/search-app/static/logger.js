@@ -1107,6 +1107,11 @@ if (firstAnswerBtn && firstAnswerDialog) {
         firstAnswerOpen = false;
         studyLogger.logEvent("firstAnswerClosed", {...firstAnswerPayload(), reason});
     };
+    const closeFirstAnswer = reason => {
+        if (!firstAnswerDialog.open) return;
+        firstAnswerDialog.close(reason);
+        recordFirstAnswerClosed(reason);
+    };
     firstAnswerBtn.addEventListener("click", () => {
         if (window.taskEndLockout || firstAnswerDialog.open) return;
         firstAnswerDialog.returnValue = "";
@@ -1115,7 +1120,11 @@ if (firstAnswerBtn && firstAnswerDialog) {
         studyLogger.logEvent("firstAnswerOpened", firstAnswerPayload());
     });
     document.getElementById("search-first-answer-close").addEventListener("click", () => {
-        firstAnswerDialog.close("button");
+        closeFirstAnswer("button");
+    });
+    firstAnswerDialog.addEventListener("cancel", event => {
+        event.preventDefault();
+        closeFirstAnswer("escape");
     });
     firstAnswerDialog.addEventListener("close", () => {
         if (firstAnswerDialog.open) return; // Ignore a queued close from before a restored page reopened it.
@@ -1126,13 +1135,12 @@ if (firstAnswerBtn && firstAnswerDialog) {
         const bounds = firstAnswerDialog.getBoundingClientRect();
         if (event.target === firstAnswerDialog && (event.clientX < bounds.left || event.clientX > bounds.right
                 || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
-            firstAnswerDialog.close("backdrop");
+            closeFirstAnswer("backdrop");
         }
     });
     window.addEventListener("pagehide", () => {
-        if (!firstAnswerDialog.open) return;
-        recordFirstAnswerClosed("pagehide");
-        firstAnswerDialog.close("pagehide");
+        if (firstAnswerDialog.open) closeFirstAnswer("pagehide");
+        else recordFirstAnswerClosed(firstAnswerDialog.returnValue || "pagehide");
     });
 }
 

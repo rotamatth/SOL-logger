@@ -1,6 +1,8 @@
 """The read-only original and its view events use real routes and durable logs."""
 import json
 
+import pytest
+
 from .test_background_upload_browser import student_site, saved, search, types_of  # noqa: F401
 from .test_first_answer_flow_browser import open_first
 
@@ -128,3 +130,25 @@ def test_persisted_page_restore_can_reopen_before_the_old_native_close_event(stu
     assert page.evaluate("document.activeElement.id") == "search-first-answer-btn"
     per_task = [json.loads(line) for path in root.glob("*_task1_*.log") for line in path.read_text().splitlines()]
     assert len(types_of(per_task, "firstAnswerOpened")) == len(types_of(per_task, "firstAnswerClosed")) == 2
+
+
+@pytest.mark.parametrize("reason", ["button", "backdrop"])
+def test_explicit_close_is_recorded_before_its_native_callback_and_immediate_pagehide(student_site, reason):
+    page, base, root = student_site
+    enter(page, base)
+    show(page)
+    immediate = page.evaluate("""reason => {
+        const dialog = document.getElementById('search-first-answer-dialog');
+        if (reason === 'button') document.getElementById('search-first-answer-close').click();
+        else dialog.dispatchEvent(new MouseEvent('click', {clientX: 1, clientY: 1, bubbles: true}));
+        // Native close is queued: pagehide and a final upload may happen first.
+        window.dispatchEvent(new PageTransitionEvent('pagehide', {persisted: true}));
+        return window.studyLogger.logs.filter(event => event.type === 'firstAnswerClosed').map(event => event.reason);
+    }""", reason)
+    assert immediate == [reason]
+    page.evaluate("() => window.studyLogger.sendLogs()")
+    records = saved(root, "1")
+    assert [event["reason"] for event in types_of(records, "firstAnswerClosed")] == [reason]
+    assert len(types_of(records, "firstAnswerOpened")) == 1
+    task = [json.loads(line) for path in root.glob("*_task1_*.log") for line in path.read_text().splitlines()]
+    assert [event["reason"] for event in types_of(task, "firstAnswerClosed")] == [reason]
