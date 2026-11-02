@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-02 — Patch pyasn1 and keep SonarQube running when the audit fails
+
+**Commit:** pending · **Type:** fix, infra · **Area:** infra
+
+**Files**
+- `search-app/requirements.lock` — pyasn1 0.6.4 → 0.6.5 (four advisories published
+  after the 26 October update; found by the `Code quality` audit on PR #20).
+- `.github/workflows/collection.yml` — the audit step no longer stops the job: tests,
+  coverage and SonarQube Cloud still run, and a final step fails the job if the audit
+  found anything.
+
+**What changed for the participant**
+No visible change.
+
+**If something looks wrong after this, check**
+- `Code quality` fails on "Known vulnerabilities block the merge" → open the audit
+  step's log for the package and fixed version; update that pin.
+
+**Left alone**
+No other package changed; `pyasn1_modules` 0.4.2 supports pyasn1 0.6.5.
+
+**Verified**
+Fresh environment: `pip check` and `pip-audit` clean; 594 tests pass (browser tests
+required); `actionlint` accepts the workflow.
+
 ## 2026-11-02 — Record the researcher password policy
 
 **Commit:** pending · **Type:** content · **Area:** docs

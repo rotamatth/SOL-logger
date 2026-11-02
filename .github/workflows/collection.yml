@@ -99,6 +99,10 @@ jobs:
             node --check "$file"
           done
       - name: Known vulnerabilities in production dependencies
+        id: audit
+        # Reported by the last step, so tests and SonarQube Cloud still run when a
+        # new advisory is published for a pinned package.
+        continue-on-error: true
         run: pip-audit -r logger/search-app/requirements.lock --no-deps --disable-pip --progress-spinner off
       - name: Tests with coverage (settings in .coveragerc)
         run: python -m pytest logger/search-app/tests -q --ignore-glob='*browser.py' --cov --cov-report=xml --cov-report=term
@@ -117,3 +121,8 @@ jobs:
         with:
           # Fail this job when the quality gate fails, so it can block the merge.
           args: -Dsonar.qualitygate.wait=true
+      - name: Known vulnerabilities block the merge
+        if: steps.audit.outcome == 'failure'
+        run: |
+          echo "::error::requirements.lock pins a package with a known vulnerability (see the audit step). Update that pin."
+          exit 1
