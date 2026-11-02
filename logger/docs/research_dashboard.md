@@ -169,8 +169,9 @@ access either: every student page and script is same-origin.
   (`<b>`, `<strong>`, `<i>`, `<em>`, `<br>`) are kept. Queries are always escaped.
 - The page viewer opens only `http`/`https` addresses.
 - `/iframe_check` (frame-embedding probe) and `/autocomplete` (paid API) work only
-  for a participant in an active session; the probe re-checks every redirect
-  target against private, loopback and reserved addresses.
+  for a participant in an active session. The probe fetches only a result link shown
+  in the current task (any other address gets `not-a-search-result`) and re-checks
+  every redirect target against private, loopback and reserved addresses.
 - Uploads are limited to 16 MiB. Student responses send `nosniff`,
   `X-Frame-Options: SAMEORIGIN` and `Referrer-Policy: same-origin`, so children's
   queries in our URLs are never sent to the pages they open.

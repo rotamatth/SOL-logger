@@ -65,6 +65,54 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-02 — Probe only shown result links and clear the SonarQube findings
+
+**Commit:** pending · **Type:** fix · **Area:** result-viewer, serp, data, infra
+
+**Files**
+- `search-app/search_app.py` — `/iframe_check` looks the address up among the result
+  links shown in the current task (`results_by_query`) and probes our stored copy;
+  any other address answers `not-a-search-result` without a request. Clears the
+  SonarQube SSRF findings (S5144).
+- `search-app/research_dashboard/index.py` — `file_identity()` parses
+  `<stem>_<suffix>.log` right to left instead of with a backtracking regex (S8786).
+  Same results as the old pattern on 300,000 generated names, including topics with
+  `_`, nested `_task…_topic…` parts and line breaks.
+- `search-app/research_dashboard/security.py` — the throttled login builds its response
+  with `make_response` to set `Retry-After: 900` (S8495); status and header unchanged.
+- `search-app/research_dashboard/templates/research/login.html` — no `autofocus` on the
+  password field (S9379).
+- `search-app/templates/search.html` — the empty, hidden "read more" links get
+  `tabindex="-1"`: the keyboard no longer stops on an invisible link (S6825).
+- `search-app/tests/test_student_security.py` — probe tests search first; new tests for
+  refused addresses, results cleared on the next task, and links with quotes, `&`, `#`,
+  `+`, `%2F`, spaces and accents reaching the probe unchanged.
+- `docs/research_dashboard.md`, `docs/manual_logging_walkthrough.md` — the new reason.
+
+**What changed for the participant**
+No visible change. Keyboard Tab on the result page skips the invisible link after each
+snippet. Researchers click into the password field before typing.
+
+**How it works**
+`/webpage` is only reached from a result link, and the viewer probes on page load, while
+the task's results are still in the session.
+
+**If something looks wrong after this, check**
+- More `webpageLoadCheckUnknown` with reason `not-a-search-result` → the link changed
+  between the result page and the viewer; compare `url` with the result's
+  `data-original-url` in the log.
+- Dashboard missing a task, full or recovery file → `file_identity()` in `index.py`.
+
+**Left alone**
+Redirect re-checks, private-address rules and the 3-second timeout; the participants
+table keeps `tabindex="0"` so the keyboard can scroll it (S6845 accepted in SonarQube);
+`State.connect()` (S8706 is a false positive: the path is the operator's own
+`--state-dir`, opened as a file, not a URI).
+
+**Verified**
+Full suite with browser tests required; Ruff clean; differential check of
+`file_identity()` against the old regex.
+
 ## 2026-11-02 — Patch pyasn1 and keep SonarQube running when the audit fails
 
 **Commit:** pending · **Type:** fix, infra · **Area:** infra

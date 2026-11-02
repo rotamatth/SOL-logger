@@ -758,6 +758,16 @@ def _probe_frame_headers(url):
         return r, None
     return None, "too-many-redirects"
 
+
+def _shown_result_link(url):
+    """Our stored copy of a result link shown in this task, so the server never fetches
+    an address of the browser's choosing (results are cleared when the task ends)."""
+    for cached in session.get("results_by_query", {}).values():
+        for result in cached.get("results", []):
+            if result.get("link") == url:
+                return result["link"]
+    return None
+
 @app.route("/iframe_check")
 def iframe_check():
     """Probe a target URL's headers to predict whether it can be embedded in an iframe.
@@ -769,9 +779,12 @@ def iframe_check():
     url = request.args.get("url", "")
     if not url:
         return jsonify({"blocked": None, "reason": "empty-url"})
+    link = _shown_result_link(url)
+    if link is None:
+        return jsonify({"blocked": None, "reason": "not-a-search-result"})
 
     try:
-        r, problem = _probe_frame_headers(url)
+        r, problem = _probe_frame_headers(link)
         if r is None:
             return jsonify({"blocked": None, "reason": problem})
         headers = {k.lower(): v for k, v in r.headers.items()}

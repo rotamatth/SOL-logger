@@ -6,7 +6,7 @@ participant Flask session. Every non-GET request needs the session-bound CSRF to
 import secrets
 import sqlite3
 
-from flask import g, jsonify, redirect, request
+from flask import g, jsonify, make_response, redirect, request
 from werkzeug.security import check_password_hash
 
 from .dashboard import COOKIE, EDITOR_COOKIE, PREFIX, is_dashboard_path, safe_research_next, wants_json
@@ -116,7 +116,9 @@ def register_security(dash):
             return dash.page("login", error=None)
         attempt = state.reserve_login_attempt(request.remote_addr or "unknown")
         if not attempt:
-            return dash.page("login", error="throttled"), 429, {"Retry-After": "900"}
+            response = make_response(dash.page("login", error="throttled"), 429)
+            response.headers["Retry-After"] = "900"
+            return response
         supplied = request.form.get("password", "")
         try:
             accepted = len(supplied) <= 1024 and check_password_hash(g.research_hash, supplied)
