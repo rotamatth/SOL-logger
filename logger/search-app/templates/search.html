@@ -102,14 +102,14 @@
       <div class="imageflex">
         <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
           {{ s.snippet|rich_text }}
-          <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link }}" aria-hidden="true"></a>
+          <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link }}" tabindex="-1" aria-hidden="true"></a>
         </p>
         <img src="{{ s.thumbnail }}" alt="Result thumbnail">
       </div>
       {% else %}
       <p class="article-content imageflexcontent" id="abstract-preview-{{ loop.index }}">
         {{ s.snippet|rich_text }}
-        <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link }}" aria-hidden="true"></a>
+        <a class="readmore-link" href="{{ url_for('webpage', url=s.link, query=query, page=page) }}" id="readmore-link-{{ loop.index }}" result_rank="{{ loop.index }}" data-original-url="{{ s.link }}" tabindex="-1" aria-hidden="true"></a>
       </p>
       {% endif %}
 
