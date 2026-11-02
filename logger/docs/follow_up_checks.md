@@ -51,6 +51,12 @@ history of what was checked stays visible.
 - [ ] **Declined for now (2026-10-26):** Italian text for the search-provider error page
   children see (`templates/error.html` is English), listing only IDs that can start
   today on the start page, protecting against iPad swaps mid-run.
+- [ ] **Researcher login (decided 2026-11-02):** keep one shared, non-expiring password,
+  changed or reset only with `tools/set_research_password.py` (command in
+  `research_dashboard.md`). Later options: SWITCH edu-ID single sign-on, or password
+  recovery. Revisit when more researchers need their own accounts.
+- [ ] **SonarQube Cloud flag:** once the `Code quality` check shows the SonarQube step
+  passing on a pull request, set the repository variable `SONAR_REQUIRED=true`.
 - [ ] **Not yet linted or analysed:** `logger/search-engine` (12 Ruff findings); add it
   to `ruff.toml` and `sonar-project.properties` if the PyTerrier service is used again.
 - [ ] **GitHub Actions versions:** the workflow pins `actions/checkout@v4`,
