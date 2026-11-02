@@ -42,6 +42,12 @@ For remaining merge checks and the next V2 integration work, see
    configuration disables research access (503), including exports and APIs.
    No credential is committed. Rotating the hash invalidates existing research
    sessions on their next request; no app restart is needed.
+
+   The shared password does not expire. The same command is the only way to change
+   it and to reset a forgotten one (decided 2026-11-02). Only sign-in sessions end:
+   after 30 minutes without activity or 8 hours, researchers sign in again with the
+   same password. Single sign-on (SWITCH edu-ID) or self-service recovery may come
+   later; see `follow_up_checks.md`.
 4. Open `/dashboard`, log in, choose a UI language, and use **Prepare a session**.
    Choose the school year and class, then open a session or choose **New session**.
    The class/session menus show choices directly on the page. Choosing one opens

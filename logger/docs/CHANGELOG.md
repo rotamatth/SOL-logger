@@ -65,6 +65,26 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-02 — Record the researcher password policy
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `docs/research_dashboard.md` — the shared password never expires and is changed or
+  reset only with `tools/set_research_password.py`; sessions still end after 30 minutes
+  idle or 8 hours.
+- `docs/follow_up_checks.md` — single sign-on (SWITCH edu-ID) or recovery as a later
+  option; reminder to set `SONAR_REQUIRED=true` after the first passing analysis.
+
+**What changed for the participant**
+No visible change.
+
+**Left alone**
+No code changed: login, session limits and the reset command behave as before.
+
+**Verified**
+Documentation only.
+
 ## 2026-10-26 — Code quality checks, patched dependencies and contribution workflow
 
 **Commit:** pending · **Type:** infra · **Area:** infra, tests, docs
