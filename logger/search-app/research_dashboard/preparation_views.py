@@ -10,7 +10,7 @@ from .question_versions import published_questions, working_questions
 from .settings_views import session_review_url
 from .state import SETTING_FIELDS, make_study_session, normalize_session_name
 from .study_config import assignment_for, question_set_problem, session_readiness
-from .year_controls import school_year_bounds, school_year_choices
+from .year_controls import school_year_choices
 
 
 def preparation_session(settings, session_id):
@@ -21,6 +21,24 @@ def preparation_session(settings, session_id):
     if selected is None:
         abort(404)
     return selected
+
+
+def import_choices(settings, year, grade):
+    """Active children not in this class this year, grouped by their class this year.
+
+    Children not enrolled this year come last, with their most recent class and year.
+    """
+    registry, enrollments = settings.get('participant_registry') or {}, settings.get('enrollments', {})
+    groups = {}
+    for uid in sorted((uid for uid, person in registry.items() if person['active']), key=participant_sort_key):
+        current = enrollments.get(year, {}).get(uid)
+        if current and current['grade'] == grade:
+            continue
+        last = None if current else next(((other, enrollments[other][uid]['grade'])
+                                          for other in sorted(enrollments, reverse=True)
+                                          if uid in enrollments[other]), None)
+        groups.setdefault(current['grade'] if current else None, []).append({'id': uid, 'last': last})
+    return [{'grade': key, 'people': groups[key]} for key in (*GRADES, None) if key in groups]
 
 
 def preparation_status(study_session, readiness, today):
@@ -56,7 +74,7 @@ def register_preparation_routes(dash):
         if grade not in GRADES:
             abort(404)
         today = datetime.now(ZoneInfo('Europe/Zurich')).date().isoformat()
-        year = request.args.get('year', settings['current_school_year'] or school_year_for(today))
+        year = request.args.get('select_year', request.args.get('year', settings['current_school_year'] or school_year_for(today)))
         if not valid_school_year(year):
             abort(404)
         # A session removed or moved to another class/year while this form was open:
@@ -90,26 +108,23 @@ def register_preparation_routes(dash):
                     raise ValueError('settings_changed')
                 if request.form.get('action') != 'save_details':
                     raise ValueError('invalid_settings')
+                name, study_date = request.form.get('name', ''), request.form.get('date', '')
+                # The school year follows from the date (September–August); it is never typed.
+                session_year = school_year_for(study_date)
+                if not session_year:
+                    raise ValueError('invalid_date')
+                updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
                 if not settings['current_school_year']:
                     # Initial enrollment and session setup must share one revision.
-                    updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
-                    updated['current_school_year'] = year
-                else:
-                    updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
-                name, study_date = request.form.get('name', ''), request.form.get('date', '')
-                if not study_date:
-                    raise ValueError('invalid_date')
+                    updated['current_school_year'] = session_year
                 if selected and not creating:
                     target = next(item for item in updated['sessions'] if item['id'] == selected['id'])
-                    target.update(name=normalize_session_name(name), date=study_date, school_year=year)
-                    state.save_settings(updated, revision)
-                    session_id = target['id']
+                    target.update(name=normalize_session_name(name), date=study_date, school_year=session_year)
                 else:
-                    target = make_study_session(updated, grade, study_date, name, year)
-                    session_id = target['id']
+                    target = make_study_session(updated, grade, study_date, name, session_year)
                     updated['sessions'].append(target)
-                    state.save_settings(updated, revision)
-                return redirect(u('prepare_page', grade=grade, year=year, session=session_id,
+                state.save_settings(updated, revision)
+                return redirect(u('prepare_page', grade=grade, year=session_year, session=target['id'],
                                   saved='1', _anchor='prepare-participants'))
             except (ValueError, KeyError) as exc:
                 allowed = {'settings_changed', 'invalid_date', 'invalid_session_name', 'session_year_mismatch',
@@ -124,12 +139,14 @@ def register_preparation_routes(dash):
                     'id': selected['id'] if selected else None},
                     research_area='prepare', selected=selected, sessions=sessions, creating=creating,
                     rejected=rejected, rejected_review_url=session_review_url(dash, settings, rejected) if rejected else None,
-                    school_years=school_year_choices(settings, year), date_bounds=school_year_bounds(year),
+                    school_years=school_year_choices(settings, year, school_year_for(today)),
                     readiness=readiness, error=error, today=today,
                     session_status=preparation_status(selected, readiness, today),
                     working_questions=working, published_questions=published,
                     has_working_draft=pending_draft,
-                    pending_individual_drafts=len(selected.get('participant_question_drafts', {})) if selected else 0), 400 if error else 200
+                    pending_individual_drafts=len(selected.get('participant_question_drafts', {})) if selected else 0,
+                    import_groups=import_choices(settings, year, grade) if selected else [],
+                    known_ids=sorted(settings.get('participant_registry') or {}, key=participant_sort_key)), 400 if error else 200
 
     @bp.get('/prepare/<session_id>/preview')
     def student_preview(session_id):

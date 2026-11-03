@@ -70,7 +70,8 @@
 </details>
 {% endif %}
 <p class="small muted">{{ total }} {{ t('participant' if total == 1 else 'overview') | lower }} · {{ year or t('school_year_unknown') }}</p>
-{% if not total %}<p class="notice" role="status">{{ t('dashboard_no_matches') }}. {{ t('dashboard_no_matches_hint') }}</p>{% endif %}
+{% if id_search %}<p class="notice" role="status" id="id-search-result"><strong>ID {{ query }}</strong> {{ t(id_search.code) }}{% if id_search.where %} <strong>{{ t('grade_' ~ id_search.where[0]) }} · {{ id_search.where[1] }}</strong>.{% endif %}{% if id_search.code == 'id_search_status' %} <strong>{{ t('active' if id_search.active else 'inactive') }}</strong>.{% endif %}{% if id_search.url %} <a href="{{ id_search.url }}">{{ t('id_search_show') }}</a>{% endif %}</p>
+{% elif not total %}<p class="notice" role="status">{{ t('dashboard_no_matches') }}. {{ t('dashboard_no_matches_hint') }}</p>{% endif %}
 <div class="table-wrap">
 <table class="participant-register">
   <thead><tr><th>ID</th><th>{{ t('status') }}</th><th>{{ t('grade') }}</th>{% if not workflow_session %}<th>{{ t('enrollment_history') }}</th>{% endif %}<th></th></tr></thead>

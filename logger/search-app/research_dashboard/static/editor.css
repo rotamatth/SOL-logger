@@ -34,7 +34,11 @@ button.quiet:hover { background:var(--selection) }
   .editor-action-bar .actions button { flex:1 1 auto }
 }
 
-/* Enrollment change history: affected IDs with before/after values. */
+/* Enrollment change history: affected IDs with before/after values. A quiet, third-level
+   section outside the cards, so it does not compete with the page's own task. */
+.audit-changes { margin:24px 0 0; color:var(--muted) }
+.audit-changes > summary { display:inline-flex; align-items:center; min-height:44px; cursor:pointer; font-size:14px; font-weight:600 }
+.audit-changes[open] { color:var(--ink) }
 .audit-entry { border-top:1px solid var(--line); padding:8px 0 }
 .audit-entry > summary { cursor:pointer; font-size:14px }
 .audit-table { width:100%; margin-top:8px; border-collapse:collapse; font-size:13px }

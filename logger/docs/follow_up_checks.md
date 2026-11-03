@@ -21,7 +21,14 @@ history of what was checked stays visible.
   frequency in the server log during the first real lesson.
 - [ ] **iPad/Safari acceptance** still outstanding from the 23 October review: start
   button double tap, multi-line questions on the task page, editor sticky action bar
-  with the on-screen keyboard, dashboard tap targets.
+  with the on-screen keyboard, dashboard tap targets. Since 3 November also: the two
+  participant-ID pop-ups (open, tick, Annulla, review), the "Sei sicuro di voler
+  uscire?" Sì/No pop-up (No, Sì, and the keyboard's Esc if one is attached), and
+  ticking runs to download on a participant page.
+- [ ] **Colleague re-test of the dashboard feedback (3 November).** Ask the researcher
+  who recorded the feedback to repeat her walkthrough: new session from name and date,
+  importing an ID from another class, the warning colour, Cestino on Dati e storico.
+  Done when she confirms or files new points.
 - [ ] **First V2 deploy rollback path.** If `scripts/deploy.sh` rolls back on the first
   V2 deployment, the old image starts with `logs-v2` mounted at `/app/logs` and would
   write old-format logs there. Watch the first deploy; if a rollback happens, stop and
@@ -29,11 +36,12 @@ history of what was checked stays visible.
 
 ## Setup that needs Matthias
 
-- [ ] **SonarQube Cloud** (`CONTRIBUTING.md` → One-time setup → 1): account and import
+- [x] **SonarQube Cloud** (`CONTRIBUTING.md` → One-time setup → 1): account and import
   (the repository is a fork; create the project manually if it is not listed), secret
   `SONAR_TOKEN`, keys match `sonar-project.properties`, first analysis visible on a
   pull request, then variable `SONAR_REQUIRED=true`. Review the first quality gate and
-  any security hotspots.
+  any security hotspots. _Done 2026-11-02: gate passes on PR #20 (commit `e080010`),
+  hotspots 100% reviewed; S8706 and six S8707 marked false positive, S6845 to accept._
 - [ ] **Branch protection right after PR #20 is merged** into `matthias-dev`: protect
   `matthias-dev` and `main` (checks `collection`, `Dashboard browser regressions`,
   `Code quality`; 1 approval; admins may bypass). Command in `CONTRIBUTING.md` →
@@ -55,8 +63,9 @@ history of what was checked stays visible.
   changed or reset only with `tools/set_research_password.py` (command in
   `research_dashboard.md`). Later options: SWITCH edu-ID single sign-on, or password
   recovery. Revisit when more researchers need their own accounts.
-- [ ] **SonarQube Cloud flag:** once the `Code quality` check shows the SonarQube step
+- [x] **SonarQube Cloud flag:** once the `Code quality` check shows the SonarQube step
   passing on a pull request, set the repository variable `SONAR_REQUIRED=true`.
+  _Set 2026-11-02._
 - [ ] **Not yet linted or analysed:** `logger/search-engine` (12 Ruff findings); add it
   to `ruff.toml` and `sonar-project.properties` if the PyTerrier service is used again.
 - [ ] **GitHub Actions versions:** the workflow pins `actions/checkout@v4`,

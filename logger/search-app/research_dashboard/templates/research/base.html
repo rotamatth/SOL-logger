@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ t('dashboard') }} · SOL</title>
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='research.css', v='dashboard-review-20261023') }}">
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='history.css', v='dashboard-review-20261023') }}">
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='workflow.css', v='dashboard-review-20261023') }}">
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='editor.css', v='dashboard-review-20261023') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='research.css', v='dashboard-feedback-20261103') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='history.css', v='dashboard-feedback-20261103') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='workflow.css', v='dashboard-feedback-20261103') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='editor.css', v='dashboard-feedback-20261103') }}">
   <script src="{{ url_for('research.static', filename='editor.js') }}" defer></script>
   {% block page_assets %}{% endblock %}
 </head>
@@ -15,20 +15,24 @@
   <a class="skip-link" href="#main-content">{{ t('skip_to_content') }}</a>
   <header class="site-header">
     <nav class="header-top" aria-label="{{ t('utility_navigation') }}">
-      <span class="header-logo" role="img" aria-label="Cerca con SOL">
+      {% set logo_mark %}
         <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
           <circle cx="29" cy="19" r="14" stroke="currentColor" stroke-width="5"/>
           <path d="m18 30-12 12" stroke="currentColor" stroke-width="6"/>
           <path d="M21 16a9 9 0 0 1 7-6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
         </svg>
-      </span>
+      {% endset %}
+      {% if auth and auth.authenticated %}<a class="header-logo" href="{{ u('prepare_page') }}" aria-label="Cerca con SOL · {{ t('prepare_session') }}">{{ logo_mark }}</a>
+      {% else %}<span class="header-logo" role="img" aria-label="Cerca con SOL">{{ logo_mark }}</span>{% endif %}
       <div class="header-utilities">
-      {% if auth and auth.authenticated %}
-      <a href="{{ u('trash_page') }}">{{ t('trash') }}</a>
-      {% endif %}
       <span class="languages"><a href="{{ language_url('en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>EN</a><span>/</span><a href="{{ language_url('it') }}" lang="it" {% if language == 'it' %}aria-current="true"{% endif %}>IT</a></span>
       {% if auth and auth.authenticated %}
+      <span class="header-separator" aria-hidden="true"></span>
       <form method="post" data-clears-editor-recovery action="{{ u('logout') }}"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><button class="quiet" type="submit">{{ t('logout') }}</button></form>
+      <dialog id="logout-dialog" class="confirm-dialog" aria-labelledby="logout-dialog-text">
+        <p id="logout-dialog-text">{{ editor_messages.editor_logout_question }}</p>
+        <div class="id-dialog-actions"><button type="button" value="no" data-logout-answer>{{ t('confirm_no') }}</button><button class="primary" type="button" value="yes" data-logout-answer>{{ t('confirm_yes') }}</button></div>
+      </dialog>
       {% endif %}
       </div>
     </nav>

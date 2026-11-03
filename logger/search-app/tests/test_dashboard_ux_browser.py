@@ -21,6 +21,15 @@ def confirmation_page(live, login=True):
     return live.login(page) if login else page, choice
 
 
+def answer_logout(page, accept):
+    """Press Esci and answer the Sì/No pop-up; returns the question it asked."""
+    page.locator('form[action*="logout"] button').click()
+    page.locator("#logout-dialog").wait_for(state="visible")
+    question = page.inner_text("#logout-dialog-text")
+    page.locator('#logout-dialog [value="%s"]' % ("yes" if accept else "no")).click()
+    return question
+
+
 @pytest.mark.parametrize("language,touch", [("en", False), ("it", True)])
 def test_bulk_selection_counts_only_available_rows_and_submits_them(live, language, touch):
     write_run(live.app, uid="1", suffix="selection-one")
@@ -63,42 +72,46 @@ def test_keyboard_skip_link_reaches_main_content(live):
     assert page.locator('#main-content').evaluate('(main) => main === document.activeElement')
 
 
-@pytest.mark.parametrize('submit_ids', [True, False])
-def test_submitting_one_preparation_form_warns_about_the_other(live, submit_ids):
+def test_id_pop_up_warns_about_unsaved_details_and_cancel_discards_its_ids(live):
     page, choice = confirmation_page(live)
     page.goto(live.base + PREPARE)
     page.fill('#prepare-name', 'Details to keep')
-    page.locator('.preparation-add summary').click()
-    page.fill('#prepare-ids', 'SYNTH-NEW')
+    page.locator('[data-open-dialog="create-ids-dialog"]').click()
+    page.fill('#create-ids', 'SYNTH-NEW')
     before = page.url
-    target = '.preparation-add' if submit_ids else '.preparation-details'
-    page.locator(target + ' button[type=submit]').click()
+    page.locator('#create-ids-dialog button[type=submit]').click()
     assert live.dialogs and 'unsaved changes' in live.dialogs[-1]
     assert page.url == before  # The fixture dismisses the warning.
     assert page.input_value('#prepare-name') == 'Details to keep'
-    assert page.input_value('#prepare-ids') == 'SYNTH-NEW'
-    # Accepting the warning still submits the chosen form normally.
-    choice['accept'] = True
+    assert page.input_value('#create-ids') == 'SYNTH-NEW'
+    # Cancel discards the typed IDs, so saving the details warns about nothing else.
+    page.locator('#create-ids-dialog [data-close-dialog]').click()
+    assert not page.locator('#create-ids-dialog').evaluate('(dialog) => dialog.open')
+    assert page.input_value('#create-ids') == ''
+    warnings = len(live.dialogs)
     with page.expect_navigation():
-        page.locator(target + ' button[type=submit]').click()
-    assert page.url != before
-    if not submit_ids:
-        assert live.app.extensions['research']['state'].settings()['sessions'][0]['name'] == 'Details to keep'
+        page.locator('.preparation-details button[type=submit]').click()
+    assert len(live.dialogs) == warnings
+    assert live.app.extensions['research']['state'].settings()['sessions'][0]['name'] == 'Details to keep'
+    # With nothing else unsaved, the pop-up goes straight to the review of the new ID.
+    page.locator('[data-open-dialog="create-ids-dialog"]').click()
+    page.fill('#create-ids', 'SYNTH-NEW')
+    with page.expect_navigation():
+        page.locator('#create-ids-dialog button[type=submit]').click()
+    assert len(live.dialogs) == warnings
+    assert '/settings/enrollment' in page.url and 'SYNTH-NEW' in page.inner_text('main')
 
 
 def test_logout_warns_before_deleting_protected_unsaved_edits(live):
-    page, choice = confirmation_page(live)
+    page, _ = confirmation_page(live)
     page.goto(live.base + EDITOR)
     page.fill('[name=question_0]', 'Protected text to keep')
     assert until(page, lambda: tone(page) == 'ok')
-    page.locator('form[action*="logout"] button').click()
-    assert until(page, lambda: bool(live.dialogs))
-    assert 'unsaved changes' in live.dialogs[-1]
+    assert 'unsaved changes' in answer_logout(page, accept=False)
     assert page.url == live.base + EDITOR
     assert live.server_copy()['question_0'] == 'Protected text to keep'
-    choice['accept'] = True
     with page.expect_navigation():
-        page.locator('form[action*="logout"] button').click()
+        answer_logout(page, accept=True)
     assert '/login' in page.url
     live.login(page)
     assert live.server_copy() == {}

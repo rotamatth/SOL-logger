@@ -36,6 +36,8 @@ def register_enrollment_routes(dash):
         if workflow_session and (view != "registry" or not workflow_session.get("school_year")):
             abort(404)
         form = request.form.to_dict() if request.method == "POST" else {}
+        if len(request.form.getlist("ids")) > 1:
+            form["ids"] = ", ".join(request.form.getlist("ids"))  # Ticked in the import pop-up.
         year = request.args.get("year", workflow_session["school_year"] if workflow_session else settings["current_school_year"])
         if year and not valid_school_year(year):
             abort(404)
@@ -117,6 +119,26 @@ def register_enrollment_routes(dash):
                   and (grade == "all" or enrollments.get(uid, {}).get("grade") == grade)
                   and (status == "all" or person["active"] == (status == "active"))]
         people.sort(key=lambda p: participant_sort_key(p["id"]))
+
+        def searched_id():
+            """Say where a searched ID is when the filters hide it, instead of "no matches"."""
+            person = settings["participant_registry"].get(query)
+            if person is None:
+                return {"code": "id_search_unknown"}
+            current = enrollments.get(query)
+            if grade != "all" and current and current["grade"] != grade:
+                # Its own class list offers "Edit enrollment"; the Prepara context is left on purpose.
+                return {"code": "id_search_other_class", "where": (current["grade"], year),
+                        "url": u("enrollment_page", year=year, grade=current["grade"], q=query, prepare_session=None)}
+            if grade != "all" and not current:
+                last = registry_person(query, person)["history"][-1:]
+                return {"code": "id_search_not_enrolled" if last else "id_search_never_enrolled",
+                        "where": (last[0]["grade"], last[0]["year"]) if last else None,
+                        "url": u("enrollment_page", year=year, grade="all", q=query, prepare_session=None)}
+            return {"code": "id_search_status", "active": person["active"],
+                    "url": u("enrollment_page", year=year, grade=grade, q=query)}
+
+        id_search = searched_id() if query and not people else None
         page_count = max(1, (len(people) + 49) // 50)
         try:
             number = int(request.args.get("page", "1"))
@@ -145,7 +167,7 @@ def register_enrollment_routes(dash):
                     research_area="prepare" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
                     school_years=school_year_choices(settings, year, *(form.get(key) for key in ("year", "source_year", "target_year"))),
                     people=people[(number-1)*50:number*50], total=len(people), page_number=number,
-                    page_count=page_count, editing=person, form=form,
+                    page_count=page_count, editing=person, form=form, id_search=id_search,
                     preview=preview, review_token=token, operation=operation, error=error, error_ids=error_ids,
                     participant_token=identity, registry_ids=sorted(settings["participant_registry"], key=participant_sort_key),
                     legacy_ids=sorted({run["participant_id"] for run in legacy}, key=participant_sort_key), audit=audit), 400 if error else 200

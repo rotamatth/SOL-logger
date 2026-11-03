@@ -128,7 +128,7 @@ def test_primary_download_is_scoped_while_complete_grade_history_is_explicit(app
     login(client)
     response = client.get(VIEW)
     assert response.status_code == 200
-    primary = named_link(response, "Download this view")
+    primary = named_link(response, "Download all logs in this view")
     query = parse_qs(urlsplit(primary).query)
     assert query["school_year"] == [YEAR] and query["session"] == [SESSION]
     downloaded = client.get(primary)

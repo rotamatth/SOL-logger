@@ -4,7 +4,7 @@ TEXT = {
     "history_filters": ("History scope", "Ambito dello storico"),
     "history_all_years": ("All years", "Tutti gli anni"),
     "history_all_sessions": ("All sessions", "Tutte le sessioni"),
-    "history_download_view": ("Download this view", "Scarica questa vista"),
+    "history_download_view": ("Download all logs in this view", "Scarica tutti i log di questa vista"),
     "history_download_full_grade": ("Download grade history — all years and sessions",
                                     "Scarica lo storico della classe — tutti gli anni e le sessioni"),
     "history_download_scope": ("Download scope", "Ambito del download"),

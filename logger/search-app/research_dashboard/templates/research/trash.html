@@ -1,5 +1,6 @@
 {% extends 'research/base.html' %}
 {% block content %}
+<p class="back-link"><a href="{{ u('overview') }}">&larr; {{ t('data_and_history') }}</a></p>
 <div class="page-heading"><h1>{{ t('trash') }}</h1></div>
 <p class="small muted">{{ t('trash_explanation') }}</p>
 {% if request.args.get('restored') == '1' %}<p class="notice success" role="status">{{ t('restored_from_trash') }}</p>{% endif %}
