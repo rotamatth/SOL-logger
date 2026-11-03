@@ -1,0 +1,8 @@
+<div class="assignment-table-wrap"><table>
+  <thead><tr><th scope="col">{{ t('participant') }}</th><th scope="col">{{ t('student_assignment') }}</th><th scope="col">{{ t('student_access') }}</th></tr></thead>
+  <tbody>{% for person in participant_rows %}<tr>
+    <th scope="row">{{ person.id }}</th>
+    <td>{% if person.questions %}<details class="participant-questions"><summary>{{ person.titles[0] or t('assignment_invalid') }}<span class="small muted">{{ t('three_questions') }}</span></summary><ol>{% for question in person.questions %}<li>{{ question or t('assignment_question_missing') }}</li>{% endfor %}</ol></details>{% else %}<span class="muted">{{ t('assignment_missing') }}</span>{% endif %}</td>
+    <td><span class="badge {% if person.ready %}completed{% else %}incomplete{% endif %}">{{ t('ready_to_start') if person.ready else t('not_ready_to_start') }}</span>{% if person.problem and person.problem != 'assignment_missing' %}<p class="small muted">{{ t(person.problem) }}</p>{% endif %}</td>
+  </tr>{% else %}<tr><td colspan="3" class="assignment-empty">{{ t('all_participants_ready') }}</td></tr>{% endfor %}</tbody>
+</table></div>

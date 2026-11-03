@@ -1,0 +1,12 @@
+# Test coverage of the student app's Python code (job "Code quality").
+# Run locally from the repository root:
+#   python -m pytest logger/search-app/tests --ignore-glob='*browser.py' --cov --cov-report=term
+[run]
+source = logger/search-app
+omit =
+    logger/search-app/tests/*
+# Relative paths let SonarQube Cloud match the report to the analysed files.
+relative_files = True
+
+[report]
+skip_empty = True

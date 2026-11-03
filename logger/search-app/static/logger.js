@@ -170,30 +170,51 @@
         },
 
         sendLogs() {
-            if (this.logs.length === 0) return Promise.resolve();
-
-            return fetch('/log_session', {
+            if (this.uploadInFlight) return this.uploadInFlight;
+            const pendingKey = `solPendingUpload:${this.sessionID}`;
+            let pending;
+            try { pending = JSON.parse(localStorage.getItem(pendingKey) || 'null'); }
+            catch (_) { return Promise.reject(new Error('Pending upload is unreadable; keep this browser open.')); }
+            if (!pending && this.logs.length === 0) return Promise.resolve();
+            if (!pending) {
+                pending = {session_id: this.sessionID, batch_id: createClientSessionID(), logs: this.logs.slice()};
+                // Persist the exact request before sending it. A lost response or
+                // page reload must retry the same batch, including its identifier.
+                try { localStorage.setItem(pendingKey, JSON.stringify(pending)); }
+                catch (error) { return Promise.reject(error); }
+            }
+            const body = JSON.stringify(pending);
+            this.uploadInFlight = fetch('/log_session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    session_id: this.sessionID,
-                    logs: this.logs
-                })
-            }).then(response => {
+                body,
+                // A small batch may finish after the page closes (browsers cap
+                // keepalive bodies at 64 KiB). Otherwise the next page retries it.
+                keepalive: new Blob([body]).size < 60000
+            }).then(async response => {
                 if (!response.ok) {
                     throw new Error('Failed to send logs.');
                 }
+                const data = await response.json();
+                if (data.status !== 'logged' || data.batch_id !== pending.batch_id) {
+                    throw new Error('Upload acknowledgement does not match the pending batch.');
+                }
                 console.log('Logs successfully sent to server.');
-                localStorage.removeItem('sessionLogs');
-                localStorage.removeItem('browserHistory');
-                this.logs = [];
-                this.historyTracker = [];
+                // Events added while the request was in flight must remain queued.
+                const prefix = this.logs.slice(0, pending.logs.length);
+                if (JSON.stringify(prefix) === JSON.stringify(pending.logs)) {
+                    this.logs.splice(0, pending.logs.length);
+                }
+                localStorage.setItem('sessionLogs', JSON.stringify(this.logs));
+                localStorage.removeItem(pendingKey);
+                // The navigation history stays: uploads now also happen during a
+                // task, and logSERP uses it to tell a revisited results page from
+                // a new one. Ending a task clears all client data, history included.
                 // The server may have recovered events left behind by a
                 // previous, unfinished participant and saved them as an
                 // incomplete experiment. Surface that to the operator.
-                return response.json().catch(() => ({})).then(data => {
                     const recovered = data && data.recovered_incomplete;
                     if (recovered && typeof recovered === 'object'
                         && Object.keys(recovered).length > 0
@@ -204,8 +225,13 @@
                         }));
                     }
                     return response;
-                });
+            }).finally(() => {
+                this.uploadInFlight = null;
+            }).then(async response => {
+                if (this.logs.length) await this.sendLogs();
+                return response;
             });
+            return this.uploadInFlight;
         }
     };
 
@@ -943,6 +969,7 @@ function logPageNavigation(){
 }
 
 let listenersAttached = false;
+let serpInitialized = false;
 
 function loggingSearchActions(isPageShow = false){
     if (window.__SOLBrowserBackRecoveryInProgress) return;
@@ -952,7 +979,13 @@ function loggingSearchActions(isPageShow = false){
         studyLogger.init();
     }
 
-    logSERP();
+    // A BFCache restore retains this DOM and its listeners. Re-syncing stored
+    // state must not emit its results again or attach did-you-mean handlers a
+    // second time. A fresh page gets a fresh flag and the usual SERP logging.
+    if (!serpInitialized) {
+        logSERP();
+        serpInitialized = true;
+    }
 
     // Only attach event listeners once to prevent duplicates
     if (!listenersAttached) {
@@ -1060,3 +1093,28 @@ if (taskHelpBtn && taskHelpModal) {
         });
     }
 }
+
+// Upload while the child works, not only when a task ends: an interrupted run
+// (lesson over, iPad switched off, the next child starting on this iPad) keeps
+// everything up to the last page. Each batch keeps its identifier until it is
+// acknowledged, so a retry never writes events twice. Failures stay queued for
+// the next trigger and for the end of the task, which reports them.
+function syncLogsInBackground() {
+    // Only events of the run the server issued to this page; never after the
+    // end of a task or the experiment has cleared the client data.
+    if (!window.SESSION_ID || studyLogger.sessionID !== window.SESSION_ID) return;
+    studyLogger.sendLogs().catch((error) => console.warn("Background upload will be retried:", error));
+}
+
+const BACKGROUND_UPLOAD_INTERVAL_MS = 60000;
+
+window.addEventListener("load", () => {
+    syncLogsInBackground();
+    setInterval(syncLogsInBackground, BACKGROUND_UPLOAD_INTERVAL_MS);
+    // Registered after the page's own pagehide handlers (for example the viewer's
+    // webpageClosed event), so leaving the page includes them.
+    window.addEventListener("pagehide", syncLogsInBackground);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") syncLogsInBackground();
+    });
+});
