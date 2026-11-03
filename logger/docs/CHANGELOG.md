@@ -65,6 +65,23 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-03 — Record branch protection and Samuele's onboarding status
+
+**Commit:** pending · **Type:** content · **Area:** docs, infra
+
+**Files**
+- `docs/follow_up_checks.md` — branch protection on `matthias-dev` and `main` and the
+  repository settings ticked as done; Samuele's onboarding stays open with its status
+  (PRs #21–#23 retargeted to `matthias-dev`, update steps posted on each).
+
+**What changed for the participant**
+No visible change.
+
+**Left alone**
+No code changed. PR #20 was merged with a merge commit, not squashed, because Samuele's
+branches already contain its earlier commits; a squash would have turned 0/2/0
+conflicting files into 64/34/32.
+
 ## 2026-11-03 — Dashboard changes from the researcher feedback
 
 **Commit:** pending · **Type:** feature, fix · **Area:** data, styling, docs, tests
