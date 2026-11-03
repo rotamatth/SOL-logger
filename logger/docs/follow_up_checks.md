@@ -42,14 +42,21 @@ history of what was checked stays visible.
   pull request, then variable `SONAR_REQUIRED=true`. Review the first quality gate and
   any security hotspots. _Done 2026-11-02: gate passes on PR #20 (commit `e080010`),
   hotspots 100% reviewed; S8706 and six S8707 marked false positive, S6845 to accept._
-- [ ] **Branch protection right after PR #20 is merged** into `matthias-dev`: protect
+- [x] **Branch protection right after PR #20 is merged** into `matthias-dev`: protect
   `matthias-dev` and `main` (checks `collection`, `Dashboard browser regressions`,
   `Code quality`; 1 approval; admins may bypass). Command in `CONTRIBUTING.md` →
   One-time setup → 2. Not earlier: branches without the workflow could never pass.
-- [ ] **Repository settings:** automatically delete head branches; Dependabot alerts on.
+  _Done 2026-11-03 on both branches, right after PR #20 was merged (merge commit
+  `68ec75c`), and read back from GitHub._
+- [x] **Repository settings:** automatically delete head branches; Dependabot alerts on.
+  _Checked 2026-11-03: both on._
 - [ ] **Samuele onboarding** after PR #20 is merged: bring his branches up to date with
   `matthias-dev` (otherwise his pull requests get no checks), push branches to
   `rotamatth/SOL-logger` rather than a fork, read `CONTRIBUTING.md`.
+  _2026-11-03: PRs #21–#23 now target `matthias-dev`; their branches are already in
+  `rotamatth/SOL-logger`. Each PR has a comment with the update steps (#22 with its two
+  template conflicts, #23 with the one test to adjust). Open until the three branches
+  are updated; `samuele-dev` is no longer used and can then be deleted._
 
 ## Decisions to revisit
 
