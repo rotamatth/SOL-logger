@@ -102,7 +102,9 @@ def test_webpage_closed_has_duration_exit_reason_guard_and_fallback():
     assert "window.logOpenWebpageClosed = (reason) =>" in source
     assert 'emitClosed(reason || "end-task-button", "end-task")' in source
     assert 'emitClosed("back-button", "custom-back")' in source
-    assert 'window.addEventListener("pagehide", () => emitClosed("pagehide", "page-unload"))' in source
+    # The handler also hides the iframe loader; verify the close behavior inside it.
+    pagehide_handler = source[source.index('window.addEventListener("pagehide"'):]
+    assert 'emitClosed("pagehide", "page-unload")' in pagehide_handler
 
 
 def test_answer_submission_closes_open_webpage_before_task_ended():
@@ -125,7 +127,7 @@ def test_modal_close_logging_contract():
     ]
     feedback_close = source[
         source.index("function closeFeedbackModal()"):
-        source.index("function toggleSavedTitles")
+        source.index("</script>", source.index("function closeFeedbackModal()"))
     ]
     confirm_branch = source[
         source.index("yesEndBtn.addEventListener"):
@@ -158,14 +160,15 @@ def test_log_session_warns_only_for_expected_logging_contract_issues():
     assert "def warn_logging_contract_issues(logs, default_task_number):" in source
     assert "warn_logging_contract_issues(logs, task_number)" in source
     assert "if session_id != server_session_id:" in source
-    assert 'return jsonify({"error": "Session mismatch"}), 409' in source
+    # A batch from an earlier session of the browser is recovered, not rejected:
+    # a permanent rejection left the browser retrying it and unable to send new events.
+    assert "return _accept_other_session_batch(data, session_id, logs, user_id)" in source
+    assert 'return jsonify({"error": "Session mismatch"}), 409' not in source
     # Events from a previous, unfinished participant are recovered into their
     # own incomplete-experiment log, never dropped and never rejected.
-    assert "def _write_incomplete_recovery(foreign_groups, recovered_from_user):" in source
+    assert "def _prepare_upload(" in source
     assert '"type": "incompleteExperiment"' in source
     assert "_INCOMPLETE.log" in source
-    assert "[log] RECOVER incomplete" in source
-    assert 'status="incomplete"' in source
     assert '"recovered_incomplete": recovered_incomplete' in source
     # Neither the old all-or-nothing reject nor the interim "drop foreign" path
     # may come back — both lost data.
@@ -191,8 +194,9 @@ def test_log_session_writes_full_and_per_task_logs_without_aggregate_outputs():
 
     assert 'combined_filename = f"{safe_user}_{log_id}_FULL.log"' in source
     assert 'task_filename     = f"{safe_user}_{log_id}_task{visible_task_number}_topic{actual_topic_number}.log"' in source
-    assert "full_f.write(line)" in source
-    assert "task_f.write(line)" in source
+    # Actual durability/retry behavior is exercised in test_collection_recovery.
+    assert "files[combined_filename]" in source
+    assert "files[task_filename]" in source
     assert "write_aggregate_json" not in source
     assert "log_aggregation" not in source
     assert "_aggregate.log" not in source
@@ -238,7 +242,7 @@ def test_reward_shown_server_logging_is_idempotent_per_task():
     key_index = reward_source.index('reward_log_key = f"{display_task_number}:{task_number}"')
     logged_index = reward_source.index("reward_shown_logged = session.get('reward_shown_logged', [])")
     guard_index = reward_source.index("if log_id and user_id and reward_log_key not in reward_shown_logged:")
-    write_index = reward_source.index("f.write(line)")
+    write_index = reward_source.index("LOG_STORE.accept(")
     append_index = reward_source.index("reward_shown_logged.append(reward_log_key)")
     assign_index = reward_source.index("session['reward_shown_logged'] = reward_shown_logged")
 

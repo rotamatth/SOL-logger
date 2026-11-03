@@ -4,6 +4,10 @@ This file documents the current SOL logging event types and gives a short
 manual walkthrough for checking that each event family is still emitted in the
 expected user flow.
 
+Events are kept in the browser and uploaded when a page loads, every minute, when
+the page is hidden or closed, and when a task is submitted. During a manual check,
+the saved log therefore grows while the task is still open.
+
 ## Event catalogue
 
 ### Session and task flow
@@ -20,6 +24,8 @@ expected user flow.
 - `TaskEnded`: emitted when the task is submitted with an answer.
 
 ### Search input and autocomplete
+
+- `autocompleteSuggestionsShown`: emitted when autocomplete suggestions are displayed.
 
 - `queryBoxFocused`: emitted when the search input receives focus.
 - `queryCleared`: emitted when the user empties the search input with the clear
@@ -52,7 +58,8 @@ expected user flow.
 - `resourceViewStarted`: emitted when the resource dwell session starts.
 - `webpageLoadSucceeded`: emitted when the iframe check says the resource should load.
 - `webpageLoadFailed`: emitted when the iframe check says the resource is blocked.
-- `webpageLoadCheckUnknown`: emitted when iframe load status cannot be determined.
+- `webpageLoadCheckUnknown`: emitted when iframe load status cannot be determined; `reason`
+  says why (for example `not-a-search-result` for an address that was not a result in this task).
 - `iframeNavigation`: emitted when a readable iframe navigates to a different URL.
 - `iframeBackNavigation`: emitted when the viewer back button navigates inside readable iframe history.
 - `iframeNavigationTrackingLimited`: emitted when iframe navigation cannot be inspected because of cross-origin restrictions.
@@ -78,6 +85,7 @@ expected user flow.
 ## Event inventory
 
 <!-- event-inventory:start -->
+- `autocompleteSuggestionsShown`
 - `AnswerBoxClosed`
 - `ClickedEndTaskConfirmation`
 - `ClickedOnSendAndTerminateTask`

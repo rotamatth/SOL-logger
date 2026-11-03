@@ -1,0 +1,11 @@
+API_keys.json
+service_account*.json
+*.env
+flask_session/
+logs/
+logs_v2/
+research_state/
+research-secrets/
+__pycache__/
+.pytest_cache/
+.venv/
