@@ -1,5 +1,5 @@
 {% macro audit_value(items) %}{% for kind, value in items %}{% if not loop.first %} · {% endif %}{% if kind == 'grade' %}{{ t('grade_' ~ value) }}{% elif kind == 'status' %}{{ t('active') if value else t('inactive') }}{% elif kind == 'new' %}{{ t('audit_new_id') }}{% elif kind == 'none' %}{{ t('not_enrolled') }}{% else %}{{ value }}{% endif %}{% endfor %}{% endmacro %}
-<details class="panel audit-changes"><summary>{{ t('recent_enrollment_changes') }}</summary>
+<details class="audit-changes"><summary>{{ t('recent_enrollment_changes') }}</summary>
   {% for entry in audit %}
   <details class="audit-entry">
     <summary>{{ entry.at }} · {{ t('op_' ~ entry.operation) }}{% if entry.school_year %} · {{ entry.school_year }}{% endif %} · {{ t('revision') }} {{ entry.revision }}{% if entry.changes %} · <span class="count">{{ entry.changes|length }} ID</span>{% endif %}</summary>

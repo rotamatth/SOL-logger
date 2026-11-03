@@ -9,6 +9,7 @@
   {% include 'research/settings_navigation.html' %}
   {% if request.args.get('saved_action') in ('remove_session', 'restore_session') %}<p class="notice success" role="status">{{ t('study_session_removed') if request.args.get('saved_action') == 'remove_session' else t('study_session_restored') }}</p>{% endif %}
   {% if request.args.get('saved') == '1' and request.args.get('saved_action') not in ('remove_session', 'restore_session') %}<p class="notice success settings-notice" role="status">{{ t('participants_saved') if request.args.get('saved_action') == 'save_ranges' else t('school_year_saved') if request.args.get('saved_action') == 'save_year' else t('session_saved') if request.args.get('saved_action') in ('save_session', 'save_dates') else t('saved') }}</p>{% endif %}
+  {% if request.args.get('saved_action') == 'year_unchanged' %}<p class="notice settings-notice" role="status">{{ t('school_year_unchanged') }}</p>{% endif %}
   {% if error and not ranges_error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}
   {% if error == 'settings_changed' %}<p>{% if saved_session_url %}<a class="button" href="{{ saved_session_url }}" target="_blank" rel="noopener">{{ t('review_saved_session') }}</a>{% else %}<a class="button" href="{{ u('settings_page', section=active_section, grade=history_grade, year=history_year, edit_participants='1' if active_section == 'participants' else None) }}">{{ t('reload_saved_settings') }}</a>{% endif %}</p>{% endif %}
   <section class="panel settings-card settings-year-card" id="school-year" {% if active_section != 'year' %}hidden{% endif %}>
@@ -16,6 +17,7 @@
     <form method="post" data-guard {% if error and request.form.get('action') == 'save_year' %}data-unsaved{% endif %} action="{{ u('settings_page', section='year', grade=history_grade, year=history_year) }}">
       <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('save_year') }}"><input type="hidden" name="action" value="save_year">
       {{ school_year_input('current-school-year', 'current_school_year', school_year_value, school_years, required=false) }}
+      <p class="small muted">{{ t('school_years_in_study') }}: {{ school_years|join(', ') if school_years else '—' }}</p>
       <button class="primary" type="submit">{{ t('save_school_year') }}</button>
     </form>
     <div class="settings-next"><span class="small muted">{{ t('continue_setup') }}</span><a href="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year) }}">{{ t('manage_sessions') }} &rarr;</a><a href="{{ u('enrollment_page', grade=history_grade, year=history_year or None) }}">{{ t('manage_participants') }} &rarr;</a></div>

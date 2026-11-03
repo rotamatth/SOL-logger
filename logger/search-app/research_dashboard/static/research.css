@@ -10,6 +10,9 @@
   --selection:#fff3dc;
   --accent-hover:#ffedcb;
   --sol-blue:#4285f4;
+  --warning-line:#c2410c;
+  --warning-soft:#fdeee6;
+  --warning-ink:#7c2d12;
   --canvas:#fffdf8;
   --white:#fff;
   /* One height for inputs, selects, menus and buttons that share a row. */
@@ -109,6 +112,17 @@ button,input,select {
   display:block;
   width:100%;
   height:100%
+}
+
+a.header-logo:hover,a.header-logo:focus-visible {
+  color:var(--accent)
+}
+
+.header-separator {
+  align-self:center;
+  width:1px;
+  height:20px;
+  background:var(--line)
 }
 
 .header-primary,.header-utilities {
@@ -332,10 +346,41 @@ p {
   color:#55565b;
   font-size:14px
 }
+/* A link inside a message is its next step; without hover (iPad) it must still look like one. */
+.notice a {
+  font-weight:600;
+  text-decoration:underline;
+  text-underline-offset:2px
+}
 
 .warning {
   background:#fff3d8;
   color:#694611
+}
+
+/* Warnings must not blend into the yellow interface: own colour and a triangle icon. */
+.notice.warning {
+  position:relative;
+  padding-left:48px;
+  border-left:4px solid var(--warning-line);
+  background:var(--warning-soft);
+  color:var(--warning-ink)
+}
+
+.notice.warning::before,.session-status-summary.warning::before {
+  content:"";
+  width:20px;
+  height:20px;
+  flex:0 0 20px;
+  background-color:var(--warning-line);
+  -webkit-mask:url("icon-warning.svg") center/contain no-repeat;
+  mask:url("icon-warning.svg") center/contain no-repeat
+}
+
+.notice.warning::before {
+  position:absolute;
+  top:14px;
+  left:16px
 }
 
 .success {
@@ -1171,6 +1216,41 @@ select {
   font-weight:600;
   min-width:70px
 }
+.run-row .run-select {
+  width:20px;
+  height:20px;
+  min-height:20px;
+  margin:0;
+  accent-color:var(--accent)
+}
+.run-selection-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px 16px;
+  padding:14px 26px;
+  border-bottom:1px solid var(--line);
+  background:var(--canvas)
+}
+.run-selection-bar p {
+  margin:0
+}
+.run-selection-bar button svg {
+  flex-shrink:0;
+  margin-right:8px
+}
+.run-selection-empty {
+  display:none
+}
+/* As for participants: the download is offered once a run is ticked; without :has
+   support it stays available and the server asks for a selection. */
+@supports selector(:has(*)) {
+  .run-selection-ready { display:none }
+  .run-selection-empty { display:inline-flex }
+  .participant-sessions:has(.run-select:checked) .run-selection-ready { display:inline-flex }
+  .participant-sessions:has(.run-select:checked) .run-selection-empty { display:none }
+}
 .run-row .record-actions {
   margin-left:auto
 }
@@ -1875,6 +1955,17 @@ select {
   gap:16px;
   margin:0 0 20px
 }
+.dashboard-trash-link {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:44px;
+  color:var(--muted);
+  font-size:14px
+}
+.dashboard-trash-link:hover {
+  color:var(--ink)
+}
 .dashboard-grades {
   display:flex;
   align-items:center;
@@ -2072,47 +2163,9 @@ select {
   font-weight:600;
   white-space:nowrap
 }
-.dashboard-row-more {
-  font-size:12px;
-  text-align:right
-}
-.dashboard-row-more>summary {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:32px;
-  min-height:32px;
-  border:1px solid transparent;
-  border-radius:6px;
-  list-style:none;
-  cursor:pointer;
+.dashboard-manage {
   color:var(--muted);
-  letter-spacing:2px
-}
-.dashboard-row-more>summary::-webkit-details-marker {
-  display:none
-}
-.dashboard-row-more>summary:hover,.dashboard-row-more[open]>summary {
-  background:var(--selection);
-  color:var(--accent)
-}
-.dashboard-row-more>div {
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:4px;
-  margin:4px 0 0
-}
-.dashboard-row-more a {
-  display:inline-flex;
-  align-items:center;
-  gap:7px;
-  padding:5px 0;
-  white-space:nowrap
-}
-.dashboard-row-more svg {
-  width:14px;
-  height:14px
+  font-weight:500
 }
 .dashboard-empty {
   padding:48px 22px !important;
@@ -2434,7 +2487,10 @@ select {
 .enrollment-filter-panel p { margin:12px 0 0 }
 
 /* In-page choices also work when a browser cannot open native select popups. */
+.preparation-year-field { flex:0 1 150px }
 .preparation-class-field { flex:1 1 160px }
+.preparation-current { margin:0 0 16px; color:var(--muted); font-size:14px }
+.preparation-current strong { color:var(--ink) }
 .preparation-session-field { flex:2 1 240px }
 .preparation-picker .picker-label { display:block; font-weight:650; font-size:13px; margin-bottom:6px }
 .preparation-menu { position:relative; min-width:0 }
@@ -2460,7 +2516,7 @@ select {
 .participant-question-table .badge { white-space:normal }
 .participant-question-table td:last-child a { display:inline-block; padding:4px 0 }
 @media(max-width:700px) {
-  .preparation-picker .preparation-class-field,.preparation-picker .preparation-session-field { flex-basis:100% }
+  .preparation-picker .preparation-year-field,.preparation-picker .preparation-class-field,.preparation-picker .preparation-session-field { flex-basis:100% }
   .preparation-menu-options { max-height:260px }
   /* Narrow menus wrap the whole session date instead of cutting it off. */
   .preparation-menu summary { padding-block:6px }

@@ -152,7 +152,7 @@ def test_failed_existing_id_enrollment_keeps_the_operation_and_help(app):
     assert response.status_code == 400
     assert state.settings() == before
     assert "unknown-id" in response.text
-    assert "Children already in the study" in response.text
+    assert "Import children already in the study" in response.text
     assert "Existing IDs cannot be reused" not in response.text
     forms = [form for form in Controls(response).forms
              if any(item.get("name") == "ids" for item in form["controls"])]

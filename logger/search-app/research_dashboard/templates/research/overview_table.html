@@ -11,9 +11,7 @@
       {% if person.visible_runs %}
       <div class="dashboard-row-actions">
         <a class="dashboard-view" href="{{ u('participant', collection=person.collection, token=person.token, view='logs', grade=grade if grade in grades else None, school_year=selected_year, session=selected_session.id if selected_session else None) }}">{{ t('visualize_logs') }}</a>
-        <details class="dashboard-row-more"><summary aria-label="{{ t('dashboard_actions_for') }} {{ person.id }}{% if person.collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}"><span aria-hidden="true">•••</span></summary><div>
-          <a href="{{ u('participant', collection=person.collection, token=person.token, view='logs', manage='1', grade=grade if grade in grades else None, school_year=selected_year, session=selected_session.id if selected_session else None) }}">{{ t('manage_logs') }}</a>
-        </div></details>
+        <a class="dashboard-view dashboard-manage" href="{{ u('participant', collection=person.collection, token=person.token, view='logs', manage='1', grade=grade if grade in grades else None, school_year=selected_year, session=selected_session.id if selected_session else None) }}" aria-label="{{ t('manage_logs') }} · {{ person.id }}">{{ t('manage_logs') }}</a>
       </div>
       {% else %}<span class="dashboard-no-actions muted">—</span>{% endif %}
     </td>

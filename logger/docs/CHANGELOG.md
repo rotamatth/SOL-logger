@@ -65,6 +65,85 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-03 — Dashboard changes from the researcher feedback
+
+**Commit:** pending · **Type:** feature, fix · **Area:** data, styling, docs, tests
+
+From a colleague's walkthrough (PDF and screen recording of 3 November). Decisions by
+Matthias: school year from the date, ID pop-ups, Cestino on Dati e storico, warnings
+keep the yellow interface but get their own colour and icon.
+
+**Files**
+- `research_dashboard/preparation_views.py`, `templates/research/prepare.html` — a
+  session's school year follows its date (September–August): no typed year, no date
+  limits; a date in another year files the session there and opens it. Year menu like
+  the class menu instead of a text field and **Apri anno**. A line says which session
+  is being edited. Step 2: **Importa partecipanti da altre classi** (pop-up, IDs
+  grouped by their class this year or last class) and **Crea nuovi partecipanti**
+  (pop-up, flags IDs already in the study); a later year without enrolled children
+  shows a warning linking **Prepara il prossimo anno scolastico**.
+- `research_dashboard/settings_views.py`, `settings_sessions.html`,
+  `settings_session_form.html`, `settings.html` — the same year rule for creating,
+  editing, re-dating and restoring sessions (year shown, not typed); the year filter
+  button reads **Mostra le sessioni**; the current-year card lists the years already
+  in the study and saving the current year again changes nothing.
+- `research_dashboard/enrollment_views.py` — accepts several ticked IDs.
+- `research_dashboard/export_views.py`, `templates/research/participant.html` —
+  checkbox per run and **Scarica le esecuzioni selezionate** (`POST /exports/runs`,
+  only that participant's visible runs).
+- `templates/research/base.html`, `overview.html`, `overview_table.html`, `trash.html`,
+  `history_views.py` — logo links to Prepara una sessione; header is EN/IT | Esci;
+  **Cestino** moved to Dati e storico; "•••" replaced by a **Gestisci log** link. The
+  Cestino, participant, run and single-log pages now mark **Dati e storico** as the
+  current tab (before, none was marked).
+- `static/editor.js`, `templates/research/base.html` — Esci always asks "Sei sicuro di
+  voler uscire?" in a Sì/No pop-up (Esc answers No; the other warnings about unsaved
+  work use the same pop-up); ID pop-ups.
+- `research_dashboard/enrollment_views.py`, `templates/research/enrollment.html` — a
+  searched ID hidden by the filters on **Modifica gli ID** says where it is (another
+  class, with a link; not enrolled this year, with its last class; hidden by the status
+  filter; not in the study) instead of "Nessun partecipante corrisponde ai filtri".
+- `templates/research/session_questions.html` — no leading "·" before the date when a
+  session has no name.
+- `static/research.css`, `workflow.css`, `editor.css`, `icon-warning.svg` — warning
+  colour and triangle; quiet "Modifiche recenti ai partecipanti"; pop-up and run
+  selection styles; links inside messages are underlined so they read as links
+  without hover (iPad).
+- `research_dashboard/*i18n.py` — clearer texts: past session ("I bambini non
+  possono più iniziare…"), "Domande per tutta la classe", recovery-copy messages
+  instead of "Modifiche protette in privato", "Scarica tutti i log di questa vista",
+  clearer ID options and errors.
+- `year_controls.py` — unused `school_year_bounds` removed.
+- Tests: new `test_dashboard_feedback.py`, `test_dashboard_feedback_browser.py`;
+  year, concurrency and form-error tests rewritten for the date rule.
+- `docs/research_dashboard.md`, `docs/follow_up_checks.md`.
+
+**What changed for the participant**
+No visible change for children.
+
+**How it works**
+`school_year_for(date)` decides the year wherever a session date is saved;
+`State.save_settings` still refuses a year change for a session with records.
+
+**If something looks wrong after this, check**
+- A session appears under an unexpected year → its date; the year is September–August.
+- "Nessun bambino è ancora iscritto…" → run the yearly step or import the children.
+- Pop-ups do not open → JavaScript or `<dialog>` support; the links then open the full
+  ID page instead. Without JavaScript, Esci logs out without asking (as before); without
+  `<dialog>`, the browser's own OK/Annulla box asks instead of Sì/No.
+
+**Left alone**
+Enrollment rules, the yearly promotion, the permanent register page (its combined form
+only got clearer labels), the children's app. Two points of the feedback wait for the
+colleague's answer: creating a session from name and date before choosing the class,
+and whether "più visibilità alla lista di domande condivise" means the class questions
+(done) or the question library ("Riutilizza un gruppo di domande", unchanged).
+
+**Verified**
+Full suite with browser tests required; screenshots of the changed pages at desktop
+and phone width. The feedback was re-checked against the PDF and a second, complete
+transcript of the recording. Not yet tested on an iPad (see `follow_up_checks.md`).
+
 ## 2026-11-02 — Probe only shown result links and clear the SonarQube findings
 
 **Commit:** pending · **Type:** fix · **Area:** result-viewer, serp, data, infra

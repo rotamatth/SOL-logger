@@ -8,7 +8,7 @@ from .test_dashboard_filters import rendered_context
 from .test_enrollment_controls import Controls
 from .test_permanent_participants import change
 from .test_research_dashboard import app, configure, csrf, login
-from research_dashboard.year_controls import school_year_bounds, school_year_choices
+from research_dashboard.year_controls import school_year_choices
 
 YEAR = "2026/2027"
 FUTURE = "2027/2028"
@@ -37,8 +37,6 @@ def test_year_choices_keep_removed_sessions_and_old_enrollment_after_promotion(a
     settings["sessions"][0]["removed"] = True
     state.save_settings(settings, settings["revision"])
     assert school_year_choices(state.settings()) == [FUTURE, YEAR]
-    assert school_year_bounds(YEAR) == {"min": "2026-09-01", "max": "2027-08-31"}
-    assert school_year_bounds("2026/2028") is None
 
 
 def test_administration_defaults_to_current_year_and_explicit_all_years_survives_navigation(app):
@@ -132,8 +130,9 @@ def test_saving_a_session_into_another_year_opens_its_new_scope(app):
     assert [item["id"] for item in context["history_sessions"]] == [SESSION]
 
 
-@pytest.mark.parametrize("day", ["2026-08-31", "2027-09-01"])
-def test_preparation_date_limits_match_server_validation(app, day):
+@pytest.mark.parametrize("day,expected", [("2026-08-31", "2025/2026"), ("2027-09-01", FUTURE)])
+def test_preparation_files_a_session_under_its_dates_school_year(app, day, expected):
+    """The year is never typed: a date outside the open year creates the session in its own year."""
     configure(app)
     state = app.extensions["research"]["state"]
     client = app.test_client()
@@ -142,12 +141,65 @@ def test_preparation_date_limits_match_server_validation(app, day):
     page = client.get(path)
     control = next(control for form in Controls(page).forms for control in form["controls"]
                    if control.get("id") == "prepare-date")
-    assert (control["min"], control["max"]) == ("2026-09-01", "2027-08-31")
+    assert "min" not in control and "max" not in control
+    created = client.post(path, data={"action": "save_details", "date": day, "name": "Other year",
+                                      "revision": state.settings()["revision"], "csrf": csrf(page)})
+    assert created.status_code == 302
+    query = parse_qs(urlsplit(created.location).query)
+    assert query["year"] == [expected]
+    saved = next(item for item in state.settings()["sessions"] if item["id"] == query["session"][0])
+    assert (saved["date"], saved["school_year"]) == (day, expected)
+    shown = client.get(created.location)
+    assert shown.status_code == 200
+    # Nobody is enrolled there yet. Only a later year points to the yearly promotion step.
+    assert "No IDs are enrolled in this class and school year yet" in shown.text
+    assert ("No children are enrolled in this class for this school year yet" in shown.text) == (expected == FUTURE)
+
+
+def test_moving_a_session_date_moves_its_year_unless_it_has_records(app):
+    configure(app)
+    state = app.extensions["research"]["state"]
+    client = app.test_client()
+    login(client)
+    path = f"/dashboard/prepare?grade=4&year={YEAR}&session={SESSION}"
+    page = client.get(path)
+    moved = client.post(path, data={"action": "save_details", "date": "2027-10-01", "name": "",
+                                    "revision": state.settings()["revision"], "csrf": csrf(page)})
+    assert moved.status_code == 302 and parse_qs(urlsplit(moved.location).query)["year"] == [FUTURE]
+    assert next(item for item in state.settings()["sessions"] if item["id"] == SESSION)["school_year"] == FUTURE
+    settings = state.settings()
+    next(item for item in settings["sessions"] if item["id"] == SESSION).update(date="2026-10-01", school_year=YEAR)
+    state.save_settings(settings, settings["revision"])
+    with state.connect() as db:
+        db.execute("INSERT INTO study_attempts VALUES ('attempt-1', ?, '1', '{}', 1)", (SESSION,))
+    page = client.get(path)
     before = state.settings()
-    rejected = client.post(path, data={"action": "save_details", "date": day, "name": "Wrong year",
+    refused = client.post(path, data={"action": "save_details", "date": "2027-10-01", "name": "",
                                       "revision": before["revision"], "csrf": csrf(page)})
-    assert rejected.status_code == 400 and "between September and August" in rejected.text
-    assert state.settings() == before
+    assert refused.status_code == 400 and state.settings() == before
+
+
+def test_year_menu_and_session_forms_need_no_typed_year(app):
+    configure(app)
+    state = app.extensions["research"]["state"]
+    add_future(state)
+    client = app.test_client()
+    login(client)
+    page = client.get(f"/dashboard/prepare?grade=4&year={YEAR}&session={SESSION}")
+    assert "Open year" not in page.text and 'list="prepare-year-choices"' not in page.text
+    years = [control.get("value") for form in Controls(page).forms for control in form["controls"]
+             if control.get("name") == "select_year"]
+    assert years == [FUTURE, YEAR]
+    switched = client.get(f"/dashboard/prepare?grade=4&year={YEAR}&select_year={FUTURE}&context_selection=1")
+    assert switched.status_code == 200 and "Future visit" in switched.text
+    administration = client.get(URL + f"&year={YEAR}&new=1")
+    assert 'name="school_year"' not in administration.text
+    created = client.post(URL + f"&year={YEAR}", data={
+        "action": "add_session", "grade": "4", "date": "2027-11-02", "name": "Derived", "school_year": YEAR,
+        "csrf": csrf(administration), "revision": state.settings()["revision"]})
+    assert created.status_code == 302
+    derived = next(item for item in state.settings()["sessions"] if item.get("name") == "Derived")
+    assert derived["school_year"] == FUTURE
 
 
 def test_new_future_year_can_be_entered_and_created_session_is_visible(app):
@@ -157,7 +209,6 @@ def test_new_future_year_can_be_entered_and_created_session_is_visible(app):
     login(client)
     path = f"/dashboard/prepare?grade=4&year={FUTURE}&new=1"
     page = client.get(path)
-    assert 'list="prepare-year-choices"' in page.text
     created = client.post(path, data={"action": "save_details", "date": "2027-10-01", "name": "Next year",
                                      "revision": state.settings()["revision"], "csrf": csrf(page)})
     assert created.status_code == 302
@@ -168,8 +219,8 @@ def test_new_future_year_can_be_entered_and_created_session_is_visible(app):
     page, context = context_for(app, client, administration["href"])
     assert context["history_year"] == FUTURE
     assert [item["id"] for item in context["history_sessions"]] == [session_id]
-    assert 'list="new-year-choices"' in page.text
-    assert 'list="year_' + session_id + '-choices"' in page.text
+    assert 'list="new-year-choices"' not in page.text and 'id="new-date-year"' in page.text
+    assert 'list="year_' + session_id + '-choices"' not in page.text and f'id="year_{session_id}"' in page.text
 
 
 @pytest.mark.parametrize("year", ["2026/2028", "invalid"])

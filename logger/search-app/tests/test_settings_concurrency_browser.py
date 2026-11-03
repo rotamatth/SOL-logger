@@ -3,7 +3,7 @@ import pytest
 
 from .test_editor_browser import app, live  # noqa: F401
 from .test_settings_concurrency import (
-    NAME, SESSION, URL, YEAR, concurrent_change, eleven_sessions,
+    FUTURE, NAME, SESSION, URL, YEAR, concurrent_change, eleven_sessions,
 )
 
 
@@ -31,7 +31,8 @@ def test_conflict_preserves_form_and_review_opens_without_losing_it(live, change
     assert navigation.value.status == 400
     assert page.input_value(f"#name_{SESSION}") == NAME
     assert page.input_value(f"#date_{SESSION}") == "2026-10-12"
-    assert page.input_value(f"#year_{SESSION}") == YEAR
+    # The year is shown, not typed: the saved session's year, which the other tab may have moved.
+    assert (FUTURE if change == "move_edited" else YEAR) in page.inner_text(f"#year_{SESSION}")
     assert page.locator(f"#{SESSION}").get_attribute("open") is not None
     assert page.locator(f"#{SESSION} form[data-unsaved]").count() == 1
     assert state.settings() == latest
