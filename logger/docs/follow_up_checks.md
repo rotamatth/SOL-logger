@@ -78,3 +78,10 @@ history of what was checked stays visible.
 - [ ] **GitHub Actions versions:** the workflow pins `actions/checkout@v4`,
   `setup-python@v5`, `setup-node@v4`; newer majors exist (checkout v7, setup-python v7).
   Update in a pull request of its own when runner deprecation warnings appear.
+  _2026-11-03: `.github/dependabot.yml` will propose these as a weekly grouped pull
+  request into `matthias-dev` once the file reaches `main` (GitHub reads it only from
+  the default branch)._
+- [ ] **Dependabot secret:** add `SONAR_TOKEN` under Settings → Secrets and variables →
+  **Dependabot** (same value as the Actions secret). Dependabot pull requests get no
+  Actions secrets, so with `SONAR_REQUIRED=true` their `Code quality` check fails
+  without it. Needed before the first release brings `dependabot.yml` to `main`.
