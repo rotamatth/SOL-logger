@@ -65,6 +65,41 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-03 — Weekly Dependabot updates into matthias-dev
+
+**Commit:** pending · **Type:** infra · **Area:** infra, docs
+
+**Files**
+- `.github/dependabot.yml` (new) — weekly grouped update pull requests into
+  `matthias-dev` for GitHub Actions, the test and quality tools
+  (`requirements-*.txt`) and the Docker base image (Python 3.14 patch releases only).
+- `docs/follow_up_checks.md` — the GitHub Actions item points to Dependabot; new item
+  for the Dependabot `SONAR_TOKEN` secret.
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+GitHub reads `dependabot.yml` only from the default branch (`main`), so the update
+pull requests start after the next release. They go through the same three checks
+and need an approval like any other pull request.
+
+**If something looks wrong after this, check**
+- A Dependabot pull request fails `Code quality` at "SonarQube Cloud token required"
+  → the Dependabot secret `SONAR_TOKEN` is missing.
+- No Dependabot pull requests at all → `dependabot.yml` is not on `main` yet.
+
+**Left alone**
+`requirements.lock`: Dependabot reads only `.txt` and `.in` files, so the production
+pins are still refreshed by hand; the pip-audit step keeps blocking known
+vulnerabilities in them. The workflow and the existing pins are unchanged.
+
+**Verified**
+The file parses and every entry targets `matthias-dev` weekly. Dependabot's file
+matching was checked in its source (`shared_file_fetcher.rb`). Whether GitHub accepts
+the configuration can only be seen once it is on `main` (Insights → Dependency graph
+→ Dependabot).
+
 ## 2026-11-03 — Record branch protection and Samuele's onboarding status
 
 **Commit:** pending · **Type:** content · **Area:** docs, infra
