@@ -11,7 +11,7 @@ WORKFLOW_TEXT = {
     'session_state_partly_available_today': ('Partly available today', 'Accesso parziale oggi'),
     'session_state_partly_available_today_hint': ('Configured IDs can start today. Check the participant list for the IDs that still need setup.', 'Gli ID configurati possono iniziare oggi. Controlla nell’elenco partecipanti quali ID richiedono ancora la configurazione.'),
     'session_state_date_passed': ('Session date has passed', 'Data della sessione trascorsa'),
-    'session_state_date_passed_hint': ('This session is closed to new starts because its scheduled date has passed. Existing records remain available.', 'Questa sessione non accetta nuovi accessi perché la data prevista è trascorsa. I dati già raccolti restano disponibili.'),
+    'session_state_date_passed_hint': ('Children can no longer start this session because its date has passed. You can still edit it; data already collected stays available.', 'I bambini non possono più iniziare questa sessione perché la data è passata. Puoi ancora modificarla; i dati già raccolti restano disponibili.'),
     'published_questions_label': ('Approved questions', 'Domande approvate'),
     'working_questions_label': ('Working questions', 'Domande in preparazione'),
     'working_draft_label': ('Unpublished draft', 'Bozza non pubblicata'),

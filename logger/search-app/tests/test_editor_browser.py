@@ -345,5 +345,5 @@ def test_failed_discard_keeps_the_page_and_reports_why(live, monkeypatch, failur
     elif failure == "expired":
         assert "Sign in in another tab" in message
     else:
-        assert "Unable to protect" in message
+        assert "Unable to save a recovery copy" in message
         assert live.server_copy()["question_0"] == "Newer text to discard"

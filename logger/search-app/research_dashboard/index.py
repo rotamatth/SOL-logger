@@ -19,16 +19,23 @@ from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grad
 
 MAX_LINE = 1024 * 1024
 MODULUS = 2 ** 256
-SUFFIX = re.compile(r"^(.*)_(FULL|task([0-9]+)_topic([^/]+)|INCOMPLETE)\.log$")
+SUFFIX = re.compile(r"FULL|task([0-9]+)_topic([^/]+)|INCOMPLETE")
+SUFFIX_KINDS = {"FULL": "full", "INCOMPLETE": "recovery"}
 LOG_ID_SUFFIX = re.compile(r"_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_[0-9a-f]{8})$")
 
 
 def file_identity(name):
     if name.endswith(".run.json"):
         return name[:-9], "metadata", None
-    match = SUFFIX.fullmatch(name)
-    if match:
-        return match[1], "full" if match[2] == "FULL" else "task" if match[3] else "recovery", match[3]
+    # "<stem>_<suffix>.log" with the longest stem: topics may contain "_", stems never
+    # contain a line break. Tried right to left, without regex backtracking.
+    body = name[:-4] if name.endswith(".log") else ""
+    cut = body.rfind("_")
+    while cut >= 0:
+        match = SUFFIX.fullmatch(body, cut + 1)
+        if match and "\n" not in body[:cut]:
+            return body[:cut], SUFFIX_KINDS.get(match[0], "task"), match[1]
+        cut = body.rfind("_", 0, cut)
     return name, "other", None
 
 

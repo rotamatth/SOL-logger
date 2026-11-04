@@ -1,12 +1,16 @@
 {% extends 'research/base.html' %}
-{% from 'research/year_input.html' import school_year_input with context %}
 {% block content %}
 <div class="preparation-workspace">
   <div class="preparation-heading"><div><h1>{{ t('prepare_session') }}</h1><p class="muted">{{ t('prepare_hint') }}</p></div></div>
   <form class="preparation-picker" method="get" action="{{ u('prepare_page') }}">
-    <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="context_selection" value="1"><input type="hidden" name="grade" value="{{ study_context.grade }}">{% if creating %}<input type="hidden" name="new" value="1">{% endif %}
-    <div class="preparation-field">{{ school_year_input('prepare-year', 'year', study_context.school_year, school_years) }}</div>
-    <button type="submit" name="session" value="{{ selected.id if selected else '' }}">{{ t('open_school_year') }}</button>
+    <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="context_selection" value="1"><input type="hidden" name="grade" value="{{ study_context.grade }}"><input type="hidden" name="year" value="{{ study_context.school_year }}">{% if creating %}<input type="hidden" name="new" value="1">{% endif %}
+    <div class="preparation-field preparation-year-field">
+      <span class="picker-label" id="prepare-year-label">{{ t('school_year') }}</span>
+      <details class="preparation-menu" id="prepare-year">
+        <summary aria-labelledby="prepare-year-label prepare-year-value"><span id="prepare-year-value">{{ study_context.school_year }}</span></summary>
+        <div class="preparation-menu-options">{% for value in school_years %}<button type="submit" name="select_year" value="{{ value }}" {% if study_context.school_year == value %}aria-current="true" disabled{% endif %}>{{ value }}</button>{% endfor %}</div>
+      </details>
+    </div>
     <div class="preparation-field preparation-class-field">
       <span class="picker-label" id="prepare-grade-label">{{ t('grade') }}</span>
       <details class="preparation-menu" id="prepare-grade">
@@ -25,6 +29,8 @@
     {% endif %}
     {% if sessions %}<a class="button" href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,new='1') }}#prepare-details">+ {{ t('new_session') }}</a>{% endif %}
   </form>
+  {% if selected and not creating %}<p class="preparation-current">{{ t('prepare_editing') }} <strong>{{ selected.name or (t('session') ~ ' ' ~ selected.number) }}</strong> · {{ t('grade_' ~ study_context.grade) }} · {{ study_context.school_year }}. {{ t('prepare_editing_scope') }}</p>
+  {% else %}<p class="preparation-current">{{ t('prepare_creating') }} <strong>{{ t('grade_' ~ study_context.grade) }}</strong>. {{ t('prepare_creating_hint') }}</p>{% endif %}
   {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<a href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=selected.id if selected else None) }}">{{ t('reload_saved_settings') }}</a>{% elif rejected_review_url %}<p><a class="button" href="{{ rejected_review_url }}" target="_blank" rel="noopener">{{ t('review_saved_session') }}</a></p>{% endif %}{% endif %}
   {% if request.args.get('saved') %}<p class="notice success" role="status">{{ t('session_saved') }}</p>{% endif %}
   {% if request.args.get('participants_saved') %}<p class="notice success" role="status">{{ t('participants_saved') }}</p>{% endif %}
@@ -43,10 +49,10 @@
     <form class="preparation-details" data-guard{% if error and request.form.get('action') == 'save_details' %} data-unsaved{% endif %} method="post" action="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=rejected.id if rejected else selected.id if selected and not creating else None,new='1' if creating else None) }}">
       <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ request.form.get('revision') if error in ('settings_changed', 'prepare_session_changed') else settings.revision }}"><input type="hidden" name="action" value="save_details">
       <label for="prepare-name">{{ t('session_name_optional') }}<input id="prepare-name" name="name" maxlength="80" value="{{ request.form.get('name','') if error else selected.name or '' if selected and not creating else '' }}" placeholder="{{ t('session_name_example') }}"></label>
-      <label for="prepare-date">{{ t('date') }}<input id="prepare-date" name="date" type="date" min="{{ date_bounds.min }}" max="{{ date_bounds.max }}" value="{{ request.form.get('date','') if error else selected.date if selected and not creating else '' }}" required></label>
+      <label for="prepare-date">{{ t('date') }}<input id="prepare-date" name="date" type="date" value="{{ request.form.get('date','') if error else selected.date if selected and not creating else '' }}" required></label>
       <button class="primary" type="submit">{{ t('create_session') if creating or not (selected or rejected) else t('save_session') }}</button>
     </form>
-    <p class="small muted">{{ study_context.school_year }} · {{ t('grade_' ~ study_context.grade) }} · Europe/Zurich</p>
+    <p class="small muted">{% if selected and not creating %}{{ study_context.school_year }} · {% endif %}{{ t('school_year_from_date') }} · Europe/Zurich</p>
   </section>
   {% if selected and not creating %}
   <section class="panel preparation-panel" id="prepare-participants">
@@ -55,14 +61,36 @@
     {% else %}
     <p class="small muted">{{ t('session_ids_hint') }}</p>
     <div class="preparation-id-list">{% for person in readiness.participants %}<span class="preparation-id">{{ person.id }}</span>{% else %}<p>{{ t('no_enrolled_ids') }}</p>{% endfor %}</div>
-    <details class="preparation-add"><summary>{{ t('add_or_enroll_ids') }}</summary>
-      <form method="post" data-guard action="{{ u('enrollment_page',year=study_context.school_year,grade=study_context.grade,prepare_session=selected.id) }}">
-        <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ settings.revision }}"><input type="hidden" name="year" value="{{ study_context.school_year }}"><input type="hidden" name="grade" value="{{ study_context.grade }}">
-        <label for="prepare-ids">{{ t('participant_ids') }}</label><textarea id="prepare-ids" name="ids" rows="2" maxlength="32000" placeholder="41, 42, 43" required></textarea><p class="small muted">{{ t('prepare_ids_hint') }}</p>
-        <label for="id-operation">{{ t('id_setup_action') }}</label><select name="operation" id="id-operation"><option value="add">{{ t('new_children_new_ids') }}</option><option value="enroll">{{ t('existing_children_same_ids') }}</option></select>
-        <button type="submit">{{ t('review_enrollment') }}</button>
+    {% if not readiness.count and study_context.school_year > settings.current_school_year %}<p class="notice warning">{{ t('year_not_prepared') }} <a href="{{ u('enrollment_page',view='promotion') }}">{{ t('promote_year') }}</a></p>{% endif %}
+    {% set id_page = u('enrollment_page',year=study_context.school_year,grade=study_context.grade,prepare_session=selected.id) %}
+    <div class="preparation-id-actions">
+      <a class="button" href="{{ id_page }}" data-open-dialog="import-ids-dialog">{{ t('import_participants') }}</a>
+      <a class="button" href="{{ id_page }}" data-open-dialog="create-ids-dialog">{{ t('create_participants') }}</a>
+    </div>
+    <dialog class="id-dialog" id="import-ids-dialog" aria-labelledby="import-ids-title">
+      <form method="post" data-guard data-requires-choice action="{{ id_page }}">
+        <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ settings.revision }}"><input type="hidden" name="year" value="{{ study_context.school_year }}"><input type="hidden" name="grade" value="{{ study_context.grade }}"><input type="hidden" name="operation" value="enroll">
+        <h2 id="import-ids-title">{{ t('import_participants') }}</h2>
+        <p class="small muted">{{ t('grade_' ~ study_context.grade) }} · {{ study_context.school_year }}. {{ t('import_participants_hint') }}</p>
+        {% for group in import_groups %}
+        <fieldset class="id-choice-group"><legend>{{ (t('grade_' ~ group.grade) ~ ' · ' ~ study_context.school_year) if group.grade else t('import_not_enrolled') }}</legend>
+          <div class="id-choices">{% for person in group.people %}<label class="id-choice"><input type="checkbox" name="ids" value="{{ person.id }}"><span>{{ person.id }}</span>{% if person.last %}<small class="muted">{{ t('grade_short_' ~ person.last[1]) }} {{ person.last[0] }}</small>{% endif %}</label>{% endfor %}</div>
+        </fieldset>
+        {% else %}<p class="muted">{{ t('import_none') }}</p>{% endfor %}
+        <div class="id-dialog-actions"><button type="button" data-close-dialog>{{ t('cancel') }}</button>{% if import_groups %}<button class="primary" type="submit">{{ t('review_enrollment') }}</button>{% endif %}</div>
       </form>
-    </details>
+    </dialog>
+    <dialog class="id-dialog" id="create-ids-dialog" aria-labelledby="create-ids-title">
+      <form method="post" data-guard action="{{ id_page }}">
+        <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ settings.revision }}"><input type="hidden" name="year" value="{{ study_context.school_year }}"><input type="hidden" name="grade" value="{{ study_context.grade }}"><input type="hidden" name="operation" value="add">
+        <h2 id="create-ids-title">{{ t('create_participants') }}</h2>
+        <p class="small muted">{{ t('grade_' ~ study_context.grade) }} · {{ study_context.school_year }}</p>
+        <label for="create-ids">{{ t('participant_ids') }}</label><textarea id="create-ids" name="ids" rows="3" maxlength="32000" placeholder="41, 42, 43" aria-describedby="create-ids-hint create-ids-check" required data-known-ids="{{ known_ids|join(' ') }}"></textarea>
+        <p class="small muted" id="create-ids-hint">{{ t('create_participants_hint') }}</p>
+        <p class="notice warning" id="create-ids-check" role="status" data-known-ids-message="{{ t('ids_already_exist') }}" hidden></p>
+        <div class="id-dialog-actions"><button type="button" data-close-dialog>{{ t('cancel') }}</button><button class="primary" type="submit">{{ t('review_enrollment') }}</button></div>
+      </form>
+    </dialog>
     {% endif %}
   </section>
   <section class="panel preparation-panel" id="prepare-questions">

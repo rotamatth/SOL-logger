@@ -21,6 +21,7 @@
       {% for value in grades %}<a href="{{ u('overview', collection=collection, grade=value,school_year=selected_year) }}" {% if grade == value %}aria-current="page"{% endif %}>{{ t('grade_short_' ~ value) }}</a>{% endfor %}
       {% if not is_roster_view %}<span aria-current="page">{{ t('historical_records') if grade == 'legacy' else t('unassigned') }}</span>{% endif %}
     </nav>
+    <a class="dashboard-trash-link" href="{{ u('trash_page') }}">{{ icons.trash() }} {{ t('trash') }}</a>
   </div>
   {% include 'research/history_scope.html' %}
   {% if is_roster_view and collection in ('v2','study') %}{% include 'research/overview_downloads.html' %}{% endif %}

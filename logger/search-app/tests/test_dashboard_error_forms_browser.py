@@ -26,9 +26,9 @@ def values(form):
 
 @pytest.mark.parametrize("action, fields", [
     ("save_year", {"current_school_year": "2026/2026"}),
-    ("add_session", {"grade": "4", "school_year": YEAR, "date": "2027-10-20", "name": "New input"}),
-    ("save_session", {"session_id": SESSION, "school_year": YEAR, "date": "2027-10-20", "name": "Edited input"}),
-    ("restore_session", {"session_id": "grade-4-session-2", "date": "2027-10-20"}),
+    ("add_session", {"grade": "4", "date": "2026-10-01", "name": "New input"}),
+    ("save_session", {"session_id": SESSION, "date": "2026-10-02", "name": "Edited input"}),
+    ("restore_session", {"session_id": "grade-4-session-2", "date": "2026-10-01"}),
     ("preview_ranges", {"range_grade": "4", "ranges_editor": "1", "4_start": "1", "4_end": "25", "4_width": "0"}),
 ])
 def test_settings_error_marks_only_the_submitted_form(app, action, fields):
@@ -151,9 +151,12 @@ def assert_cancelled_leave(live, page, selector='a[lang="it"]'):
 @pytest.mark.parametrize("operation", ["year", "range", "add_session", "edit_session", "restore_session"])
 def test_settings_validation_retry_preserves_values_and_leave_protection(live, operation):
     state = live.app.extensions["research"]["state"]
-    if operation == "restore_session":
+    if operation in ("restore_session", "edit_session"):
         settings = state.settings()
-        settings["sessions"][1]["removed"] = True
+        if operation == "restore_session":
+            settings["sessions"][1]["removed"] = True  # Restored below onto session 1's date: a clash.
+        else:
+            settings["sessions"][1]["date"] = "2026-11-05"  # Session 1 is moved below onto this date.
         state.save_settings(settings, settings["revision"])
     page = live.login()
     if operation == "year":
@@ -161,11 +164,11 @@ def test_settings_validation_retry_preserves_values_and_leave_protection(live, o
     elif operation == "range":
         path, selector, invalid, corrected = "?section=participants&grade=4&edit_participants=1", '[name="4_end"]', "25", "19"
     elif operation == "add_session":
-        path, selector, invalid, corrected = "?section=sessions&grade=4&new=1", "#new-date", "2027-10-20", "2026-10-20"
+        path, selector, invalid, corrected = "?section=sessions&grade=4&new=1", "#new-date", "2026-10-15", "2026-10-20"
     elif operation == "edit_session":
-        path, selector, invalid, corrected = f"?section=sessions&grade=4&edit={SESSION}", f"#date_{SESSION}", "2027-10-20", "2026-10-20"
+        path, selector, invalid, corrected = f"?section=sessions&grade=4&edit={SESSION}", f"#date_{SESSION}", "2026-11-05", "2026-10-20"
     else:
-        path, selector, invalid, corrected = "?section=sessions&grade=4&removed=1", "#restore-date-grade-4-session-2", "2027-10-20", "2026-10-20"
+        path, selector, invalid, corrected = "?section=sessions&grade=4&removed=1", "#restore-date-grade-4-session-2", "2026-10-15", "2026-10-20"
     page.goto(live.base + "/dashboard/settings" + path + "&lang=en")
     field = page.locator(selector)
     form = field.locator("xpath=ancestor::form")
@@ -174,8 +177,8 @@ def test_settings_validation_retry_preserves_values_and_leave_protection(live, o
     elif operation == "edit_session":
         page.fill(f"#name_{SESSION}", "Edited after correcting validation")
     field.fill(invalid)
-    # The browser's min/max constraints complement the server checks. Disable
-    # those locally to exercise the actual server-error re-render as well.
+    # Invalid: a year like 2026/2026, or a date another session of this class already uses.
+    # Browser constraints are disabled so the server-error re-render is exercised too.
     form.evaluate("form => form.noValidate = true")
     with page.expect_navigation() as navigation:
         form.locator("button[type=submit]").click()

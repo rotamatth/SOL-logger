@@ -57,7 +57,7 @@ def test_stale_edit_keeps_fields_and_can_be_reapplied_after_review(app, change):
     page = client.get(URL)
     assert page.status_code == 200
     _, fields = session_form(page)
-    fields.update(name=NAME, date="2026-10-12", school_year=YEAR)
+    fields.update(name=NAME, date="2026-10-12")
     concurrent_change(state, change)
     latest = state.settings()
 
@@ -65,8 +65,9 @@ def test_stale_edit_keeps_fields_and_can_be_reapplied_after_review(app, change):
     assert rejected.status_code == 400
     attrs, retained = session_form(rejected)
     assert "data-unsaved" in attrs
-    assert {key: retained[key] for key in ("name", "date", "school_year", "revision")} == {
-        key: fields[key] for key in ("name", "date", "school_year", "revision")}
+    assert {key: retained[key] for key in ("name", "date", "revision")} == {
+        key: fields[key] for key in ("name", "date", "revision")}
+    assert "school_year" not in retained  # The year follows from the date.
     assert "changed in another tab or by another researcher" in rejected.text
     assert state.settings() == latest
     assert client.get(URL).status_code == 404  # Invalid GET pages still fail.
@@ -106,7 +107,7 @@ def test_stale_add_on_disappearing_page_keeps_new_session_fields(app):
     latest = state.settings()
     response = client.post(URL, data={
         "action": "add_session", "grade": "4", "revision": revision, "csrf": csrf(page),
-        "school_year": YEAR, "date": "2026-12-01", "name": NAME,
+        "date": "2026-12-01", "name": NAME,
     })
     assert response.status_code == 400
     fields = next(form for form in Controls(response).forms
@@ -114,5 +115,5 @@ def test_stale_add_on_disappearing_page_keeps_new_session_fields(app):
     assert "data-unsaved" in fields["attrs"]
     values = {item.get("name"): item.get("value") for item in fields["controls"]}
     assert values["name"] == NAME and values["date"] == "2026-12-01"
-    assert values["school_year"] == YEAR and values["revision"] == str(revision)
+    assert "school_year" not in values and values["revision"] == str(revision)
     assert state.settings() == latest

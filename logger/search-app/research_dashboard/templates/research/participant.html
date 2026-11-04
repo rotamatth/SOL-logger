@@ -20,6 +20,14 @@
   <button type="submit">{{ t('view') }}</button>
 </form>
 <section class="panel participant-sessions">
+  {% if open_logs and display_groups|selectattr('runs')|list %}
+  <form id="selected-runs" class="run-selection-bar" method="post" action="{{ u('export_runs') }}">
+    <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="collection" value="{{ collection }}"><input type="hidden" name="participant" value="{{ person.token }}">
+    <p class="small muted" id="run-selection-hint">{{ t('select_runs_hint') }}</p>
+    <button class="run-selection-ready" type="submit" aria-describedby="run-selection-hint">{{ icons.download() }} {{ t('download_selected_runs') }}</button>
+    <button class="run-selection-empty" type="button" disabled aria-describedby="run-selection-hint">{{ icons.download() }} {{ t('download_selected_runs') }}</button>
+  </form>
+  {% endif %}
   {% for group in display_groups %}
   {% if group.session or group.runs %}
   <div class="session-entry" id="{{ group.session.id if group.session else 'other-runs' }}">
@@ -42,6 +50,7 @@
       <div class="session-content">
         {% for run in group.runs %}
         <article class="run-row">
+          <input class="run-select" type="checkbox" form="selected-runs" name="run" value="{{ run.id }}" aria-label="{{ t('select_run') }}: {{ t('run') }} {{ loop.index }} · {{ run.started_at or run.date or '—' }}">
           <strong>{{ t('run') }} {{ loop.index }}</strong>
           {% if run.identity_source == 'confirmed_link' %}<span class="small muted">{{ t('legacy') }} · ID {{ run.participant_id }}</span>{% endif %}
           {% if manage %}<span class="mono small muted">{{ run.id[:12] }}</span>{% endif %}

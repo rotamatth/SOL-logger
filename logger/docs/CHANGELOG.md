@@ -65,6 +65,242 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-04 — Update study progress to the shared integration branch
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `search-app/tests/test_student_security.py` — confirm the final answer before ending
+  the first task and confirm the first answer before opening the next search.
+
+**Verified**
+The iframe test reproduces the missing-answer conflict before the adjustment.
+All 19 student security tests pass with the corrected setup.
+
+## 2026-11-03 — Weekly Dependabot updates into matthias-dev
+
+**Commit:** pending · **Type:** infra · **Area:** infra, docs
+
+**Files**
+- `.github/dependabot.yml` (new) — weekly grouped update pull requests into
+  `matthias-dev` for GitHub Actions, the test and quality tools
+  (`requirements-*.txt`) and the Docker base image (Python 3.14 patch releases only).
+- `docs/follow_up_checks.md` — the GitHub Actions item points to Dependabot; new item
+  for the Dependabot `SONAR_TOKEN` secret.
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+GitHub reads `dependabot.yml` only from the default branch (`main`), so the update
+pull requests start after the next release. They go through the same three checks
+and need an approval like any other pull request.
+
+**If something looks wrong after this, check**
+- A Dependabot pull request fails `Code quality` at "SonarQube Cloud token required"
+  → the Dependabot secret `SONAR_TOKEN` is missing.
+- No Dependabot pull requests at all → `dependabot.yml` is not on `main` yet.
+
+**Left alone**
+`requirements.lock`: Dependabot reads only `.txt` and `.in` files, so the production
+pins are still refreshed by hand; the pip-audit step keeps blocking known
+vulnerabilities in them. The workflow and the existing pins are unchanged.
+
+**Verified**
+The file parses and every entry targets `matthias-dev` weekly. Dependabot's file
+matching was checked in its source (`shared_file_fetcher.rb`). Whether GitHub accepts
+the configuration can only be seen once it is on `main` (Insights → Dependency graph
+→ Dependabot).
+
+## 2026-11-03 — Record branch protection and Samuele's onboarding status
+
+**Commit:** pending · **Type:** content · **Area:** docs, infra
+
+**Files**
+- `docs/follow_up_checks.md` — branch protection on `matthias-dev` and `main` and the
+  repository settings ticked as done; Samuele's onboarding stays open with its status
+  (PRs #21–#23 retargeted to `matthias-dev`, update steps posted on each).
+
+**What changed for the participant**
+No visible change.
+
+**Left alone**
+No code changed. PR #20 was merged with a merge commit, not squashed, because Samuele's
+branches already contain its earlier commits; a squash would have turned 0/2/0
+conflicting files into 64/34/32.
+
+## 2026-11-03 — Dashboard changes from the researcher feedback
+
+**Commit:** pending · **Type:** feature, fix · **Area:** data, styling, docs, tests
+
+From a colleague's walkthrough (PDF and screen recording of 3 November). Decisions by
+Matthias: school year from the date, ID pop-ups, Cestino on Dati e storico, warnings
+keep the yellow interface but get their own colour and icon.
+
+**Files**
+- `research_dashboard/preparation_views.py`, `templates/research/prepare.html` — a
+  session's school year follows its date (September–August): no typed year, no date
+  limits; a date in another year files the session there and opens it. Year menu like
+  the class menu instead of a text field and **Apri anno**. A line says which session
+  is being edited. Step 2: **Importa partecipanti da altre classi** (pop-up, IDs
+  grouped by their class this year or last class) and **Crea nuovi partecipanti**
+  (pop-up, flags IDs already in the study); a later year without enrolled children
+  shows a warning linking **Prepara il prossimo anno scolastico**.
+- `research_dashboard/settings_views.py`, `settings_sessions.html`,
+  `settings_session_form.html`, `settings.html` — the same year rule for creating,
+  editing, re-dating and restoring sessions (year shown, not typed); the year filter
+  button reads **Mostra le sessioni**; the current-year card lists the years already
+  in the study and saving the current year again changes nothing.
+- `research_dashboard/enrollment_views.py` — accepts several ticked IDs.
+- `research_dashboard/export_views.py`, `templates/research/participant.html` —
+  checkbox per run and **Scarica le esecuzioni selezionate** (`POST /exports/runs`,
+  only that participant's visible runs).
+- `templates/research/base.html`, `overview.html`, `overview_table.html`, `trash.html`,
+  `history_views.py` — logo links to Prepara una sessione; header is EN/IT | Esci;
+  **Cestino** moved to Dati e storico; "•••" replaced by a **Gestisci log** link. The
+  Cestino, participant, run and single-log pages now mark **Dati e storico** as the
+  current tab (before, none was marked).
+- `static/editor.js`, `templates/research/base.html` — Esci always asks "Sei sicuro di
+  voler uscire?" in a Sì/No pop-up (Esc answers No; the other warnings about unsaved
+  work use the same pop-up); ID pop-ups.
+- `research_dashboard/enrollment_views.py`, `templates/research/enrollment.html` — a
+  searched ID hidden by the filters on **Modifica gli ID** says where it is (another
+  class, with a link; not enrolled this year, with its last class; hidden by the status
+  filter; not in the study) instead of "Nessun partecipante corrisponde ai filtri".
+- `templates/research/session_questions.html` — no leading "·" before the date when a
+  session has no name.
+- `static/research.css`, `workflow.css`, `editor.css`, `icon-warning.svg` — warning
+  colour and triangle; quiet "Modifiche recenti ai partecipanti"; pop-up and run
+  selection styles; links inside messages are underlined so they read as links
+  without hover (iPad).
+- `research_dashboard/*i18n.py` — clearer texts: past session ("I bambini non
+  possono più iniziare…"), "Domande per tutta la classe", recovery-copy messages
+  instead of "Modifiche protette in privato", "Scarica tutti i log di questa vista",
+  clearer ID options and errors.
+- `year_controls.py` — unused `school_year_bounds` removed.
+- Tests: new `test_dashboard_feedback.py`, `test_dashboard_feedback_browser.py`;
+  year, concurrency and form-error tests rewritten for the date rule.
+- `docs/research_dashboard.md`, `docs/follow_up_checks.md`.
+
+**What changed for the participant**
+No visible change for children.
+
+**How it works**
+`school_year_for(date)` decides the year wherever a session date is saved;
+`State.save_settings` still refuses a year change for a session with records.
+
+**If something looks wrong after this, check**
+- A session appears under an unexpected year → its date; the year is September–August.
+- "Nessun bambino è ancora iscritto…" → run the yearly step or import the children.
+- Pop-ups do not open → JavaScript or `<dialog>` support; the links then open the full
+  ID page instead. Without JavaScript, Esci logs out without asking (as before); without
+  `<dialog>`, the browser's own OK/Annulla box asks instead of Sì/No.
+
+**Left alone**
+Enrollment rules, the yearly promotion, the permanent register page (its combined form
+only got clearer labels), the children's app. Two points of the feedback wait for the
+colleague's answer: creating a session from name and date before choosing the class,
+and whether "più visibilità alla lista di domande condivise" means the class questions
+(done) or the question library ("Riutilizza un gruppo di domande", unchanged).
+
+**Verified**
+Full suite with browser tests required; screenshots of the changed pages at desktop
+and phone width. The feedback was re-checked against the PDF and a second, complete
+transcript of the recording. Not yet tested on an iPad (see `follow_up_checks.md`).
+
+## 2026-11-02 — Probe only shown result links and clear the SonarQube findings
+
+**Commit:** pending · **Type:** fix · **Area:** result-viewer, serp, data, infra
+
+**Files**
+- `search-app/search_app.py` — `/iframe_check` looks the address up among the result
+  links shown in the current task (`results_by_query`) and probes our stored copy;
+  any other address answers `not-a-search-result` without a request. Clears the
+  SonarQube SSRF findings (S5144).
+- `search-app/research_dashboard/index.py` — `file_identity()` parses
+  `<stem>_<suffix>.log` right to left instead of with a backtracking regex (S8786).
+  Same results as the old pattern on 300,000 generated names, including topics with
+  `_`, nested `_task…_topic…` parts and line breaks.
+- `search-app/research_dashboard/security.py` — the throttled login builds its response
+  with `make_response` to set `Retry-After: 900` (S8495); status and header unchanged.
+- `search-app/research_dashboard/templates/research/login.html` — no `autofocus` on the
+  password field (S9379).
+- `search-app/templates/search.html` — the empty, hidden "read more" links get
+  `tabindex="-1"`: the keyboard no longer stops on an invisible link (S6825).
+- `search-app/tests/test_student_security.py` — probe tests search first; new tests for
+  refused addresses, results cleared on the next task, and links with quotes, `&`, `#`,
+  `+`, `%2F`, spaces and accents reaching the probe unchanged.
+- `docs/research_dashboard.md`, `docs/manual_logging_walkthrough.md` — the new reason.
+
+**What changed for the participant**
+No visible change. Keyboard Tab on the result page skips the invisible link after each
+snippet. Researchers click into the password field before typing.
+
+**How it works**
+`/webpage` is only reached from a result link, and the viewer probes on page load, while
+the task's results are still in the session.
+
+**If something looks wrong after this, check**
+- More `webpageLoadCheckUnknown` with reason `not-a-search-result` → the link changed
+  between the result page and the viewer; compare `url` with the result's
+  `data-original-url` in the log.
+- Dashboard missing a task, full or recovery file → `file_identity()` in `index.py`.
+
+**Left alone**
+Redirect re-checks, private-address rules and the 3-second timeout; the participants
+table keeps `tabindex="0"` so the keyboard can scroll it (S6845 accepted in SonarQube);
+`State.connect()` (S8706 is a false positive: the path is the operator's own
+`--state-dir`, opened as a file, not a URI).
+
+**Verified**
+Full suite with browser tests required; Ruff clean; differential check of
+`file_identity()` against the old regex.
+
+## 2026-11-02 — Patch pyasn1 and keep SonarQube running when the audit fails
+
+**Commit:** pending · **Type:** fix, infra · **Area:** infra
+
+**Files**
+- `search-app/requirements.lock` — pyasn1 0.6.4 → 0.6.5 (four advisories published
+  after the 26 October update; found by the `Code quality` audit on PR #20).
+- `.github/workflows/collection.yml` — the audit step no longer stops the job: tests,
+  coverage and SonarQube Cloud still run, and a final step fails the job if the audit
+  found anything.
+
+**What changed for the participant**
+No visible change.
+
+**If something looks wrong after this, check**
+- `Code quality` fails on "Known vulnerabilities block the merge" → open the audit
+  step's log for the package and fixed version; update that pin.
+
+**Left alone**
+No other package changed; `pyasn1_modules` 0.4.2 supports pyasn1 0.6.5.
+
+**Verified**
+Fresh environment: `pip check` and `pip-audit` clean; 594 tests pass (browser tests
+required); `actionlint` accepts the workflow.
+
+## 2026-11-02 — Record the researcher password policy
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `docs/research_dashboard.md` — the shared password never expires and is changed or
+  reset only with `tools/set_research_password.py`; sessions still end after 30 minutes
+  idle or 8 hours.
+- `docs/follow_up_checks.md` — single sign-on (SWITCH edu-ID) or recovery as a later
+  option; reminder to set `SONAR_REQUIRED=true` after the first passing analysis.
+
+**What changed for the participant**
+No visible change.
+
+**Left alone**
+No code changed: login, session limits and the reset command behave as before.
+
+**Verified**
+Documentation only.
+
 ## 2026-10-26 — Code quality checks, patched dependencies and contribution workflow
 
 **Commit:** pending · **Type:** infra · **Area:** infra, tests, docs

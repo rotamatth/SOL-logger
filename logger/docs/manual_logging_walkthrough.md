@@ -60,7 +60,8 @@ the saved log therefore grows while the task is still open.
 - `resourceViewStarted`: emitted when the resource dwell session starts.
 - `webpageLoadSucceeded`: emitted when the iframe check says the resource should load.
 - `webpageLoadFailed`: emitted when the iframe check says the resource is blocked.
-- `webpageLoadCheckUnknown`: emitted when iframe load status cannot be determined.
+- `webpageLoadCheckUnknown`: emitted when iframe load status cannot be determined; `reason`
+  says why (for example `not-a-search-result` for an address that was not a result in this task).
 - `iframeNavigation`: emitted when a readable iframe navigates to a different URL.
 - `iframeBackNavigation`: emitted when the viewer back button navigates inside readable iframe history.
 - `iframeNavigationTrackingLimited`: emitted when iframe navigation cannot be inspected because of cross-origin restrictions.

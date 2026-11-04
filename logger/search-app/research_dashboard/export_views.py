@@ -74,6 +74,26 @@ def register_export_routes(dash):
         label = f"grade-{grade}" + (f"-session-{selected_session['number']}" if selected_session else "")
         return _zip_response(output, f"sol-{collection}-{label}-{mode}-{_timestamp()}.zip")
 
+    @bp.post("/exports/runs")
+    def export_runs():
+        """The runs ticked on one participant's page, in one ZIP; each must belong to that participant."""
+        index.refresh(force=True)
+        settings = state.settings()
+        collection = request.form.get("collection", "study")
+        if collection not in (*index.roots, "study"):
+            abort(404)
+        token = request.form.get("participant", "")
+        own = {run["id"]: run for run in collection_runs(state, index.summaries(settings), collection)
+               if token and _participant_token(run, collection) == token}
+        requested = request.form.getlist("run")
+        if not requested or len(set(requested)) != len(requested) or any(key not in own for key in requested):
+            return dash.problem("no_runs_selected", 400)
+        selected = [own[key] for key in requested]
+        selection = {"collection": collection, "participant_token": token, "run_ids": requested}
+        output = build_export(index, selected, settings, "runs", selection=selection)
+        label = f"participant-{secure_filename(selected[0]['participant_id']) or 'unknown'}-{len(selected)}-runs"
+        return _zip_response(output, f"sol-{collection}-{label}-{_timestamp()}.zip")
+
     @bp.get("/exports/<scope>")
     def export(scope):
         if scope not in EXPORT_SCOPES:
