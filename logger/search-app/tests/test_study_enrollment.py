@@ -173,8 +173,7 @@ def test_three_questions_keep_original_answers_and_skip_reward_screens(student_m
         assert client.post("/end").status_code == 302
         reward = client.get("/reward")
         assert reward.status_code == 302
-        if position < 3:
-            assert client.get("/next_task").status_code == 302
+        assert client.get("/next_task").status_code == 302
     completion = client.get("/thank_you")
     assert completion.status_code == 200
     assert 'class="final-reward-media"' not in completion.text

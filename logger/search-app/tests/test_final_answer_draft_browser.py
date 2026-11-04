@@ -163,6 +163,14 @@ def test_pending_final_intent_wins_over_older_sqlite_draft_and_retries_once(stud
     assert len(draft_requests) == count and persisted(root) == ("Bozza precedente", 1)
     page.unroute("**/log_session")
     page.click("#yes-end-btn")
+    review = page.get_by_text("Finale confermata da conservare", exact=True)
+    retry = page.locator("#task-save-error:not([hidden])")
+    review.or_(retry).first.wait_for()
+    if retry.is_visible():
+        # A concurrent background upload can briefly hold the collection lock.
+        page.click("#yes-end-btn")
+    review.wait_for()
+    page.get_by_role("link", name="Prossima domanda").click()
     page.wait_for_function("document.querySelector('.first-answer-number')?.textContent === '#2'")
     assert [event["answer"] for event in types_of(saved(root, "1"), "TaskEnded")] == ["Finale confermata da conservare"]
     assert persisted(root) == ("Bozza precedente", 1) and persisted(root, 2) is None

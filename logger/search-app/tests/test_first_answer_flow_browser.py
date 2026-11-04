@@ -58,6 +58,7 @@ def test_failed_draft_save_survives_reload_and_can_retry(student_site):
 
 def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(student_site):
     page, base, root = student_site
+    page.set_viewport_size({"width": 768, "height": 1024})
     open_first(page, base)
     lost = []
 
@@ -86,10 +87,24 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
         if number == 1:
             page.locator("#task-save-error:not([hidden])").wait_for()
             page.click("#yes-end-btn")
+        page.get_by_text(f"Prima risposta {number}", exact=True).wait_for()
+        page.get_by_text(f"Risposta finale {number}", exact=True).wait_for()
+        assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         if number < 3:
+            page.get_by_role("link", name="Prossima domanda").click()
             page.wait_for_function(f"document.querySelector('.first-answer-number')?.textContent === '#{number + 1}'")
         else:
+            page.get_by_role("link", name="Continua", exact=True).click()
             page.get_by_role("heading", name="Hai risposto alle tre domande").wait_for()
+            for index in range(1, 4):
+                assert page.get_by_text(f"Prima risposta {index}", exact=True).is_visible()
+                assert page.get_by_text(f"Risposta finale {index}", exact=True).is_visible()
+            page.evaluate("window.print = () => { window.printRequested = true }")
+            page.get_by_role("button", name="Stampa o salva come PDF").click()
+            assert page.evaluate("window.printRequested")
+            page.emulate_media(media="print")
+            assert page.get_by_role("button", name="Stampa o salva come PDF").is_hidden()
+            assert page.pdf().startswith(b"%PDF-")
         assert page.evaluate("sessionStorage.getItem('solFirstDraft:another-attempt:1')") == "An unrelated draft"
         assert not page.evaluate("JSON.parse(localStorage.getItem('browserHistory') || '[]').some(url => url.includes('/result'))")
     events = saved(root, "1")

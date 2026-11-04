@@ -140,7 +140,7 @@ def test_the_answer_is_saved_once_with_background_uploads(student_site):
     page.fill("#textarea_feedback", "Le api producono il miele dal nettare.")
     page.click("#feedback-btn")
     page.click("#yes-end-btn")
-    page.wait_for_url("**/task")
+    page.wait_for_url("**/task-review/1")
     events = saved(root, "1")
     answers = types_of(events, "TaskEnded")
     assert [event["answer"] for event in answers] == ["Le api producono il miele dal nettare."]

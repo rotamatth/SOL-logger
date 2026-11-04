@@ -173,6 +173,9 @@ def test_date_boundary_rejects_new_finals_but_allows_durable_retries(module, mon
     response = client.post("/log_session", json={**upload, "batch_id": "after-midnight"})
     assert response.status_code == (200 if saved else 403)
     assert len([event for event in events(module) if event["type"] == "TaskEnded"]) == int(saved)
+    if saved:
+        welcome = client.get("/welcome", follow_redirects=True)
+        assert welcome.request.path == "/welcome" and "Final original" not in welcome.text
 
 
 def retire(module, client):
@@ -203,6 +206,7 @@ def test_final_requires_explicit_question_and_matching_technical_context(module,
     event = {**ctx, "type": "TaskEnded", "answer": "After one"}
     assert client.post("/log_session", json={"session_id": ctx["sessionID"], "logs": [event]}).status_code == 200
     assert client.post("/end").status_code == 302
+    assert client.get("/next_task").status_code == 302
     first(client)
     ctx = context(client)
     event = {**ctx, "type": "TaskEnded", "answer": "Wrong context", **invalid}
@@ -260,28 +264,78 @@ def test_failed_progress_initialization_recovers_the_admitted_snapshot(module, m
 
 def test_three_question_flow_saves_originals_once_and_skips_rewards(module):
     client = begin(module)
+    assert client.get("/task-review/1").status_code == 404
+    assert module.app.test_client().get("/task-review/1").status_code == 404
     for number in range(1, 4):
         assert f"#{number}" in client.get("/task").text
         assert first(client, f"Before {number}").status_code == 303
         assert client.get("/search").status_code == 200
         ctx = context(client)
+        with client.session_transaction() as state:
+            if number == 1:
+                state.pop("review_scope")  # The search page was opened before this release.
+            before_final = dict(state)
         upload = {"session_id": ctx["sessionID"], "batch_id": f"final-{number}",
                   "logs": [{**ctx, "type": "TaskEnded", "answer": f"After {number}"}]}
         assert client.post("/log_session", json=upload).status_code == 200
         assert client.post("/log_session", json=upload).status_code == 200
         # A new batch retry must not append a second TaskEnded either.
         assert client.post("/log_session", json={**upload, "batch_id": f"retry-{number}"}).status_code == 200
-        assert client.post("/end").status_code == 302
+        # A parallel navigation can finish with a session snapshot from before the upload.
+        with client.session_transaction() as state:
+            state.clear()
+            state.update(before_final)
+        assert client.get("/task").location.endswith(f"/task-review/{number}")
+        review = client.post("/end", follow_redirects=True)
+        assert review.request.path == f"/task-review/{number}"
+        assert f"Before {number}" in review.text and f"After {number}" in review.text
+        assert f"After {number}" in client.get(review.request.path).text
+        assert module.app.test_client().get(review.request.path).status_code == 404
+        assert begin(module).get(review.request.path).status_code == 404
+        assert client.get("/welcome", follow_redirects=True).request.path == review.request.path
+        resumed_here = client.post("/start", data={"user_id": "1"}, follow_redirects=True)
+        assert resumed_here.request.path == review.request.path
+        with client.session_transaction() as state:
+            state["last_active"] = (datetime.now() - timedelta(minutes=50)).isoformat()
+        assert client.get(review.request.path).status_code == 200
+        with client.session_transaction() as state:
+            assert datetime.now() - datetime.fromisoformat(state["last_active"]) < timedelta(minutes=1)
+        assert client.get("/next_task").status_code == 302
         assert client.get("/reward").status_code == 302
     complete = client.get("/task", follow_redirects=True)
     assert "Hai risposto alle tre domande" in complete.text
+    assert all(f"Before {number}" in complete.text and f"After {number}" in complete.text for number in range(1, 4))
     own = events(module)
     assert [event["task_number"] for event in own if event["type"] == "TaskEnded"] == [1, 2, 3]
     assert all(event["answerPhase"] == "post-search" for event in own if event["type"] == "TaskEnded")
     assert not any(event["type"] == "rewardShown" for event in own)
     # Starting the same completed date cannot create another attempt.
     resumed = begin(module)
-    assert "Hai risposto alle tre domande" in resumed.get("/task", follow_redirects=True).text
+    resumed_page = resumed.get("/task", follow_redirects=True).text
+    assert "Hai risposto alle tre domande" in resumed_page
+    assert "Before 1" not in resumed_page and "After 3" not in resumed_page
+    client.get("/welcome?reset=1")
+    assert client.get("/task-review/3").status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/task-review/1", "/next_task", "/reward", "/start"])
+def test_review_page_expires_an_idle_participant_session(module, path):
+    client = begin(module)
+    first(client, "Private initial answer")
+    ctx = context(client)
+    event = {**ctx, "type": "TaskEnded", "answer": "Private final answer"}
+    assert client.post("/log_session", json={"session_id": ctx["sessionID"], "logs": [event]}).status_code == 200
+    assert client.post("/end").status_code == 302
+    with client.session_transaction() as state:
+        state["last_active"] = (datetime.now() - timedelta(minutes=70)).isoformat()
+    if path == "/start":
+        client.post(path, data={"user_id": "1"})
+        page = client.get("/task-review/1")
+        assert page.status_code == 404
+    else:
+        page = client.get(path, follow_redirects=True)
+        assert page.request.path == "/welcome"
+    assert "Private final answer" not in page.text
 
 
 def test_invalid_batch_cannot_partially_confirm_a_final_answer(module):
