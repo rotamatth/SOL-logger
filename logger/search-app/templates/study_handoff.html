@@ -3,14 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Risposte salvate</title>
+  <title>{{ 'Rivedi la tua risposta' if review_only else 'Le tue risposte' }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css') }}">
+  {% if review_tasks %}
+  <script src="{{ url_for('static', filename='study-review.js') }}" defer></script>
+  {% endif %}
 </head>
-<body class="first-answer-page">
-  <main class="first-answer-panel">
-    <h1>Hai risposto alle tre domande</h1>
+<body class="study-review-page">
+  <main class="study-review" aria-labelledby="review-heading">
+    <h1 id="review-heading">{{ 'Rivedi la tua risposta' if review_only else 'Hai risposto alle tre domande' }}</h1>
+    {% if review_tasks %}
+    {% if partial_review %}
+    <p>Qui vedi le risposte che hai confermato su questo browser.</p>
+    {% endif %}
+    <div class="review-diagram">
+      {% for task in review_tasks %}
+      <section class="review-task" aria-labelledby="review-question-{{ task.number }}">
+        <span class="review-number">Domanda {{ task.number }}</span>
+        <h2 id="review-question-{{ task.number }}">{{ task.snapshot.question }}</h2>
+        <div class="review-comparison">
+          <div class="review-card review-before">
+            <h3>Cosa sapevi prima</h3>
+            <p>{{ 'Non lo so' if task.first_answer.outcome == 'unknown' else task.first_answer.text }}</p>
+          </div>
+          <span class="review-arrow" aria-hidden="true">→</span>
+          <div class="review-card review-after">
+            <h3>Cosa sai adesso</h3>
+            <p>{{ task.final_answer.text }}</p>
+          </div>
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+    {% else %}
     <p>Le tue risposte sono salvate. Attendi le indicazioni del ricercatore per continuare.</p>
+    {% endif %}
+    <div class="review-actions">
+      {% if review_only %}
+      <a class="review-button" href="{{ url_for('next_task', review=review_tasks[0].number) }}">{{ 'Continua' if is_last else 'Prossima domanda' }}</a>
+      {% else %}
+      {% if review_tasks %}
+      <button class="review-button" type="button" id="print-review">Stampa o salva come PDF</button>
+      {% endif %}
+      <a class="review-button review-close" href="{{ url_for('welcome', reset=1) }}">Chiudi l’attività</a>
+      {% endif %}
+    </div>
   </main>
 </body>
 </html>

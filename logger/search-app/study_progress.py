@@ -92,6 +92,12 @@ SCHEMA = (
         PRIMARY KEY(attempt_id, question_number),
         FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number)
     )""",
+    """CREATE TABLE IF NOT EXISTS progress_reviews (
+        attempt_id TEXT NOT NULL, question_number INTEGER NOT NULL, browser_scope TEXT NOT NULL,
+        continued INTEGER NOT NULL DEFAULT 0 CHECK(continued IN (0, 1)),
+        PRIMARY KEY(attempt_id, question_number),
+        FOREIGN KEY(attempt_id, question_number) REFERENCES progress_final_answers(attempt_id, question_number)
+    )""",
     """CREATE TABLE IF NOT EXISTS progress_events (
         event_id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE,
         attempt_id TEXT NOT NULL, question_number INTEGER NOT NULL,
@@ -410,7 +416,18 @@ class ProgressStore:
             db.execute("UPDATE progress_attempts SET phase = 'search' WHERE attempt_id = ?", (attempt_id,))
         return answer
 
-    def submit_final_answer(self, key, attempt_id, question_number, text):
+    def review_state(self, attempt_id, browser_scope):
+        with self._transaction() as db:
+            return dict(db.execute("""SELECT question_number, continued FROM progress_reviews
+                WHERE attempt_id = ? AND browser_scope = ? ORDER BY question_number""", (attempt_id, browser_scope)))
+
+    def finish_review(self, attempt_id, browser_scope, question_number):
+        with self._transaction(write=True) as db:
+            db.execute("""UPDATE progress_reviews SET continued = 1
+                WHERE attempt_id = ? AND browser_scope = ? AND question_number = ?""",
+                       (attempt_id, browser_scope, question_number))
+
+    def submit_final_answer(self, key, attempt_id, question_number, text, *, browser_scope=None):
         """Preserve a confirmed post-search answer and atomically advance once.
 
         Identical retries return the original, including after Q3 completes the
@@ -439,6 +456,9 @@ class ProgressStore:
             db.execute("""INSERT INTO progress_final_answers
                 (attempt_id, question_number, text, submitted_at) VALUES (?, ?, ?, ?)""",
                        (attempt_id, question_number, text, answer["submitted_at"]))
+            if browser_scope:
+                db.execute("""INSERT INTO progress_reviews (attempt_id, question_number, browser_scope)
+                    VALUES (?, ?, ?)""", (attempt_id, question_number, browser_scope))
             self._queue_answer_event(db, attempt, question_number, answer, "TaskEnded")
             if question_number < 3:
                 db.execute("""UPDATE progress_attempts SET question_number = ?, phase = 'first-answer'

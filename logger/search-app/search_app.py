@@ -15,7 +15,7 @@ from copy import deepcopy
 import sqlite3
 import tempfile
 
-from flask import Flask, render_template, url_for, request, session, redirect, jsonify
+from flask import Flask, abort, render_template, url_for, request, session, redirect, jsonify
 from markupsafe import Markup, escape
 from flask_session import Session
 from forms import SearchForm
@@ -114,7 +114,7 @@ USER_TOPICS = load_user_topics()
 app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
-                           lambda *args: _prepare_upload(*args))
+                           lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw))
 PUZZLE_ASSET_DIR = 'puzzle_pieces'
 
 
@@ -315,7 +315,7 @@ def untouched_run_for(user_id):
 STUDENT_IDLE_SECONDS = 60 * 60
 
 
-def idle_session_expired():
+def idle_session_expired(*, touch=True):
     """Apply the 60-minute idle limit on a page navigation; True once the run has ended.
 
     Every page the participant opens counts as activity, and every page enforces
@@ -332,7 +332,8 @@ def idle_session_expired():
     if idle > STUDENT_IDLE_SECONDS:
         session.clear()
         return True
-    session['last_active'] = datetime.now().isoformat()
+    if touch:
+        session['last_active'] = datetime.now().isoformat()
     return False
 
 
@@ -1074,10 +1075,23 @@ def end_task():
 
     return redirect(url_for('reward'))
 
+
+@app.get('/task-review/<int:number>')
+def task_review(number):
+    progress = PROGRESS.current()
+    if (not progress or progress['status'] == 'retired' or number not in PROGRESS.reviews(progress)
+            or progress['metadata']['study_session_snapshot']['date'] != datetime.now(LOG_TIME_ZONE).date().isoformat()):
+        abort(404)
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
+    return render_template('study_handoff.html', review_tasks=[progress['tasks'][number - 1]], review_only=True,
+                           is_last=number == len(progress['tasks']))
+
+
 @app.route('/next_task')
 def next_task():
     if PROGRESS.current():
-        return PROGRESS.next_page()
+        return PROGRESS.next_page(finish_review=True)
     phase = current_phase()
     if phase != 'reward':
         return redirect(phase_redirect_url(phase))
@@ -1167,9 +1181,18 @@ def reward():
 def thank_you():
     progress = PROGRESS.current()
     if progress:
+        if idle_session_expired():
+            return redirect(url_for('welcome'))
         if progress['status'] != 'completed':
             return PROGRESS.next_page()
-        return render_template('study_handoff.html')
+        if progress['metadata']['study_session_snapshot']['date'] != datetime.now(LOG_TIME_ZONE).date().isoformat():
+            return redirect(url_for('welcome', reset=1))
+        reviews = PROGRESS.reviews(progress)
+        if not all(reviews.values()):
+            return redirect(url_for('task'))
+        tasks = [task for task in progress['tasks'] if task['number'] in reviews]
+        return render_template('study_handoff.html', review_tasks=tasks, review_only=False,
+                               partial_review=len(tasks) < len(progress['tasks']))
     phase = current_phase()
     if phase != 'completed':
         return redirect(phase_redirect_url(phase))

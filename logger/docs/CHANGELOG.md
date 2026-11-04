@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-04 — Show the participant’s before-and-after answers
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/search_app.py`, `search-app/student_progress.py`, `search-app/study_progress.py` — route confirmed tasks
+  to a comparison page scoped to the active participant’s saved attempt.
+- `search-app/templates/study_handoff.html`,
+  `search-app/static/study-review.css`, `search-app/static/study-review.js` — show
+  the two answers after each task and a printable recap after the third task.
+- `search-app/tests/` — exercise the comparison, recap, and continuation after a lost
+  save acknowledgement in the real student app.
+
+**What changed for the participant**
+The first and final answers are shown together after each confirmation. The third
+comparison opens a recap with all three pairs and the browser’s print-to-PDF dialog.
+The comparison cards use temporary graphics while the original illustrations are exported.
+
+**How it works**
+The page reads the stored question snapshot and the answers confirmed in this browser session.
+The review grant is recorded in the same transaction as the final answer.
+Reopening a completed attempt by ID shows a confirmation without displaying the previous answers.
+Original answers and the existing completion events are kept in their existing stores.
+
 ## 2026-11-04 — Update study progress to the shared integration branch
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, tests

@@ -20,9 +20,10 @@ class SessionUnavailable(ValueError):
 
 
 class StudentProgress:
-    def __init__(self, app, state, store, logs, prepare_upload):
+    def __init__(self, app, state, store, logs, prepare_upload, expire_idle):
         self.app, self.state, self.store, self.logs = app, state, store, logs
         self.prepare_upload = prepare_upload
+        self.expire_idle = expire_idle
         app.add_url_rule("/first-answer", "first_answer", self.submit_first, methods=["POST"])
         app.add_url_rule("/first-answer/draft", "first_answer_draft", self.save_first_draft, methods=["POST"])
         app.add_url_rule("/final-answer/draft", "final_answer_draft", self.save_final_draft, methods=["POST"])
@@ -40,6 +41,17 @@ class StudentProgress:
         key = AttemptKey(session["progress_study_id"], session["user_id"],
                          session["progress_session_id"], session.get("progress_is_test", False))
         return self.store.get_attempt(key, session["progress_id"])
+
+    @staticmethod
+    def review_scope():
+        # Existing connected browser sessions already have a stable server-side ID.
+        return session.get("review_scope") or f"legacy:{session.sid}"
+
+    def reviews(self, attempt):
+        return self.store.review_state(attempt["attempt_id"], self.review_scope())
+
+    def pending_review(self, attempt):
+        return next((number for number, continued in self.reviews(attempt).items() if not continued), None)
 
     def context(self):
         if not session.get("progress_id"):
@@ -81,6 +93,10 @@ class StudentProgress:
 
     def restore(self, attempt):
         metadata = attempt["metadata"]
+        same_attempt = session.get("progress_id") == attempt["attempt_id"]
+        scope = self.review_scope() if same_attempt else None
+        pending_review = self.pending_review(attempt) if scope else None
+        number = pending_review or attempt["question_number"]
         session.clear()
         session.update(user_id=metadata["participant_id"], session_id=metadata["technical_session_id"],
                        log_id=metadata["log_id"], task_config=metadata["topics_snapshot"],
@@ -90,11 +106,12 @@ class StudentProgress:
                        progress_id=attempt["attempt_id"], progress_study_id=attempt["study_id"],
                        progress_session_id=attempt["study_session_id"], progress_is_test=attempt["is_test"],
                        progress_csrf=secrets.token_urlsafe(32),
+                       review_scope=scope or secrets.token_urlsafe(32),
                        task_order=[task["snapshot"]["topic_id"] for task in attempt["tasks"]],
-                       task_position=attempt["question_number"] - 1,
-                       task_number=attempt["tasks"][attempt["question_number"] - 1]["snapshot"]["topic_id"],
+                       task_position=number - 1,
+                       task_number=attempt["tasks"][number - 1]["snapshot"]["topic_id"],
                        pieces_earned=[], tasks_started=[], last_active=datetime.now().isoformat())
-        if attempt["phase"] == "search":
+        if attempt["phase"] == "search" and not pending_review:
             session["tasks_started"] = [session["task_number"]]
 
     def start_route(self, function):
@@ -102,6 +119,8 @@ class StudentProgress:
         def wrapped():
             if request.method != "POST":
                 return function()
+            if session.get("progress_id"):
+                self.expire_idle(touch=False)
             previous = dict(session)
             try:
                 with self.admission_lock():
@@ -168,6 +187,8 @@ class StudentProgress:
             return render_template("error.html", error_title="La sessione è cambiata",
                                    error_message="Riapri la sessione con il ricercatore."), 409
         self.publish(attempt)
+        if pending_review := self.pending_review(attempt):
+            return redirect(url_for("task_review", number=pending_review))
         if attempt["status"] == "completed":
             return redirect(url_for("thank_you"))
         number = session["task_position"] + 1
@@ -288,8 +309,17 @@ class StudentProgress:
         self.publish(attempt)
         return None
 
-    def next_page(self):
+    def next_page(self, *, finish_review=False):
+        if self.expire_idle():
+            return redirect(url_for("welcome"))
         attempt = self.current()
+        if pending := self.pending_review(attempt):
+            if not finish_review or request.args.get("review", pending, type=int) != pending:
+                return redirect(url_for("task"))
+            try:
+                self.store.finish_review(attempt["attempt_id"], self.review_scope(), pending)
+            except (OSError, sqlite3.Error):
+                return self.unavailable()
         self.publish(attempt)
         self.restore(attempt)
         return redirect(url_for("thank_you" if attempt["status"] == "completed" else "task"))
@@ -324,10 +354,13 @@ class StudentProgress:
                 groups.setdefault(number, []).append(event)
         metadata = attempt["metadata"]
         if final is not None:
-            if (metadata["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat()
-                    and attempt["tasks"][final[0] - 1]["final_answer"] is None):
+            number, text = final
+            new_answer = attempt["tasks"][number - 1]["final_answer"] is None
+            if new_answer and metadata["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat():
                 raise SessionUnavailable("The session is not available today")
-            self.store.submit_final_answer(key, attempt["attempt_id"], final[0], final[1])
+            scope = self.review_scope() if number == session["task_position"] + 1 else None
+            # Save the review grant with the answer so a concurrent request cannot lose it.
+            self.store.submit_final_answer(key, attempt["attempt_id"], number, text, browser_scope=scope)
         for number, entries in groups.items():
             topic = attempt["tasks"][number - 1]["snapshot"]["topic_id"]
             planned, receipt = self.prepare_upload(entries, session["user_id"], session["session_id"],

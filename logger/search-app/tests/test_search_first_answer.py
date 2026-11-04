@@ -56,6 +56,7 @@ def test_next_question_shows_its_own_original_and_resume_keeps_it(module):
     assert client.post("/log_session", json=upload).status_code == 200
     assert client.post("/end").status_code == 302
     assert client.get("/search").status_code == 302
+    assert client.get("/next_task").status_code == 302
     assert first(client, "Before question two").status_code == 303
     resumed = begin(module)
     html = resumed.get("/search").text
