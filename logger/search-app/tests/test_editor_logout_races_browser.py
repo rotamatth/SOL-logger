@@ -1,6 +1,6 @@
 """Logout revocation and editor retries cannot leave a false protection claim."""
 from .test_editor_browser import EDITOR, Gate, app, live, tone, until  # noqa: F401
-from .test_dashboard_ux_browser import confirmation_page
+from .test_dashboard_ux_browser import answer_logout, confirmation_page
 
 
 def test_delayed_logout_invalidates_after_actual_revocation(live):
@@ -8,11 +8,10 @@ def test_delayed_logout_invalidates_after_actual_revocation(live):
     editor.goto(live.base + EDITOR)
     editor.fill('[name=question_0]', 'Keep this text')
     assert until(editor, lambda: tone(editor) == 'ok')
-    page, choice = confirmation_page(live, login=False)
+    page, _ = confirmation_page(live, login=False)
     page.goto(live.base + '/dashboard?grade=4&lang=en')
     gate = Gate(page, 'POST', '**/logout**')
-    choice['accept'] = True
-    page.locator('form[action*="logout"] button').click()
+    answer_logout(page, accept=True)
     assert until(page, lambda: bool(gate.held))
     # Retry/focus while the server has not yet revoked does not invalidate a live copy.
     editor.evaluate("dispatchEvent(new Event('focus'))")

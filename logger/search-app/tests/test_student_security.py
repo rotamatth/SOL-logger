@@ -1,10 +1,13 @@
 """Student app hardening: escaping, embedded pages, server-side probes and logging privacy."""
+import html
+import json
 import logging
+import re
 
 import pytest
 
 from .test_study_enrollment import schedule, student_modules  # noqa: F401 - pytest fixture
-from .progress_helpers import confirm_first
+from .progress_helpers import confirm_first, final_event
 
 HOSTILE_QUERY = '"><script>alert(1)</script> "luna"'
 
@@ -20,6 +23,15 @@ def searching_client(module, results=()):
     assert client.get("/task").status_code == 200
     confirm_first(client)
     assert client.get("/search").status_code == 200
+    return client
+
+
+def probing_client(module, links=("https://example.org/",)):
+    """A searching participant who was shown these result links, so /iframe_check may probe them."""
+    client = searching_client(module, results=[
+        {"docid": f"doc{rank}", "title": f"Result {rank}", "snippet": "", "link": link}
+        for rank, link in enumerate(links, 1)])
+    assert client.post("/result", data={"query": "luna"}).status_code == 200
     return client
 
 
@@ -65,7 +77,7 @@ def test_iframe_probe_needs_an_active_search_and_rechecks_every_redirect(student
     assert anonymous.get("/iframe_check?url=https://example.org/").get_json()["reason"] == "no-active-search"
     assert probed == []
 
-    client = searching_client(module)
+    client = probing_client(module)
     public = [(2, 1, 6, "", ("93.184.216.34", 0))]
     private = [(2, 1, 6, "", ("127.0.0.1", 0))]
     monkeypatch.setattr(module.socket, "getaddrinfo",
@@ -88,7 +100,7 @@ def test_iframe_probe_needs_an_active_search_and_rechecks_every_redirect(student
 
 def test_iframe_probe_refuses_a_malformed_redirect_location(student_modules, monkeypatch):
     module = student_modules()
-    client = searching_client(module)
+    client = probing_client(module)
     monkeypatch.setattr(module.socket, "getaddrinfo",
                         lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))])
     probed = []
@@ -104,7 +116,7 @@ def test_iframe_probe_refuses_a_malformed_redirect_location(student_modules, mon
 
 def test_iframe_probe_handles_requests_redirect_preparation_errors(student_modules, monkeypatch):
     module = student_modules()
-    client = searching_client(module)
+    client = probing_client(module)
     monkeypatch.setattr(module.socket, "getaddrinfo",
                         lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))])
     probed = []
@@ -133,6 +145,58 @@ def test_iframe_probe_handles_requests_redirect_preparation_errors(student_modul
     assert response.status_code == 200
     assert response.get_json() == {"blocked": None, "reason": "request-error:ValueError"}
     assert probed == ["https://example.org/"]
+
+
+def test_iframe_probe_fetches_only_links_shown_in_this_task(student_modules, monkeypatch):
+    module = student_modules()
+    monkeypatch.setattr(module.socket, "getaddrinfo",
+                        lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))])
+    probed = []
+    monkeypatch.setattr(module.requests, "head", lambda url, **kw: probed.append(url) or FakeResponse(200, {}))
+
+    client = searching_client(module)
+    assert client.get("/iframe_check?url=https://example.org/").get_json() == {
+        "blocked": None, "reason": "not-a-search-result"}
+
+    client = probing_client(module)
+    for address in ("https://attacker.example/", "https://example.org", "https://example.org/?x=1"):
+        assert client.get("/iframe_check", query_string={"url": address}).get_json()["reason"] == "not-a-search-result"
+    assert probed == []
+    assert client.get("/iframe_check?url=https://example.org/").get_json() == {"blocked": False, "reason": None}
+    assert probed == ["https://example.org/"]
+
+    answer = final_event(client, "Risposta di prova")
+    assert client.post("/log_session", json={"session_id": answer["sessionID"], "logs": [answer]}).status_code == 200
+    assert client.post("/end").status_code == 302
+    assert client.get("/iframe_check?url=https://example.org/").get_json()["reason"] == "no-active-search"
+    assert client.get("/next_task").status_code == 302
+    assert client.get("/task").status_code == 200
+    confirm_first(client)
+    assert client.get("/search").status_code == 200
+    assert client.get("/iframe_check?url=https://example.org/").get_json()["reason"] == "not-a-search-result"
+    assert probed == ["https://example.org/"]
+
+
+def test_every_result_link_survives_the_trip_to_the_probe(student_modules, monkeypatch):
+    """A shown link must reach /iframe_check unchanged, or its load check is lost from the logs."""
+    links = ['https://example.org/a?x="1"&y=2#frag', "https://example.org/ü/ä?q=a+b%20c&r=%2F",
+             "https://example.org/a b;p?q=<tag>&amp;'", "http://example.org:8080/path/../x?u=https://example.org/"]
+    module = student_modules()
+    monkeypatch.setattr(module.socket, "getaddrinfo",
+                        lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))])
+    probed = []
+    monkeypatch.setattr(module.requests, "head", lambda url, **kw: probed.append(url) or FakeResponse(200, {}))
+    client = probing_client(module, links=links)
+    page = client.get("/result", query_string={"query": "luna"}).get_data(as_text=True)
+
+    for rank, link in enumerate(links, 1):
+        href = html.unescape(re.search(rf'href="([^"]*)" id="abstract-link-{rank}"', page)[1])
+        viewer = client.get(href).get_data(as_text=True)
+        viewed = json.loads(re.search(r"const viewedUrl = (.*);", viewer)[1])
+        assert viewed == link
+        result = client.get("/iframe_check", query_string={"url": viewed}).get_json()
+        assert result == {"blocked": False, "reason": None}, link
+    assert probed == links
 
 
 def test_autocomplete_is_only_for_participants_in_a_session(student_modules):
@@ -220,7 +284,7 @@ def test_rich_text_filter(student_modules, value, expected):
 
 def test_malformed_addresses_are_refused_without_a_server_error(student_modules):
     module = student_modules()
-    client = searching_client(module)
+    client = probing_client(module, links=["http://[invalid"])
     for url in ("http://[invalid", "https://[::1/x", "http://", "https:///path-only"):
         response = client.get("/webpage", query_string={"url": url})
         assert response.status_code == 302 and response.location.endswith("/search"), url

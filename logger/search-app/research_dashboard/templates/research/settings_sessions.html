@@ -1,4 +1,3 @@
-{% from 'research/year_input.html' import school_year_input with context %}
 <div class="settings-section-heading settings-heading-row"><div><h2>{{ t('grade_' ~ history_grade) }}</h2><p class="muted">{{ t('sessions_workspace_hint') }}</p></div><span class="settings-count">{{ history_total }} {{ t('sessions') | lower }}</span></div>
 <form class="settings-year-scope" method="get" action="{{ u('settings_page') }}">
   <input type="hidden" name="lang" value="{{ language }}"><input type="hidden" name="section" value="sessions"><input type="hidden" name="grade" value="{{ history_grade }}">{% if study_context.get('id') %}<input type="hidden" name="session" value="{{ study_context.id }}">{% endif %}
@@ -13,8 +12,7 @@
     <p class="small muted">{{ t('session') }} {{ next_numbers[history_grade] }} · {{ t('new_session_hint') }}</p>
     <form class="new-session-form" method="post" data-guard{% if error and request.form.get('action') == 'add_session' %} data-unsaved{% endif %} action="{{ u('settings_page', section='sessions', grade=history_grade, year=history_year) }}">
       <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('add_session') }}"><input type="hidden" name="action" value="add_session"><input type="hidden" name="grade" value="{{ history_grade }}">
-      <div>{{ school_year_input('new-year', 'school_year', request.form.get('school_year', history_year or settings.current_school_year) if open_new else history_year or settings.current_school_year, school_years) }}</div>
-      <div><label for="new-date">{{ t('date') }}</label><input id="new-date" name="date" type="date" value="{{ add_date }}" required></div>
+      <div><label for="new-date">{{ t('date') }}</label><input id="new-date" name="date" type="date" value="{{ add_date }}" aria-describedby="new-date-year" required><p class="small muted" id="new-date-year">{{ t('school_year_from_date') }}</p></div>
       <div><label for="new-name">{{ t('session_name_optional') }}</label><input id="new-name" name="name" type="text" maxlength="80" value="{{ add_name }}" placeholder="{{ t('session_name_example') }}"></div>
       <button class="primary" type="submit">{{ t('create_session') }}</button>
     </form>

@@ -56,6 +56,50 @@
     selectionControls.hidden = false;
   }
 
+  // Pop-ups for participant IDs. Without JavaScript (or <dialog>) their links lead to the
+  // full ID page instead. Cancelling resets the pop-up so it leaves nothing unsaved behind.
+  Array.prototype.forEach.call(document.querySelectorAll('[data-open-dialog]'), function (link) {
+    var dialog = document.getElementById(link.getAttribute('data-open-dialog'));
+    if (!dialog || typeof dialog.showModal !== 'function') { return; }
+    link.addEventListener('click', function (event) {
+      event.preventDefault();
+      dialog.showModal();
+      var first = dialog.querySelector('input:not([type="hidden"]), textarea');
+      if (first) { first.focus(); }
+    });
+    dialog.addEventListener('cancel', function () { discardDialog(dialog); });  // Esc
+  });
+  function discardDialog(dialog) {
+    var form = dialog.querySelector('form');
+    form.reset();
+    form.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  document.addEventListener('click', function (event) {
+    var close = event.target.closest && event.target.closest('[data-close-dialog]');
+    if (close) {
+      discardDialog(close.closest('dialog'));
+      close.closest('dialog').close();
+    }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('form[data-requires-choice]'), function (form) {
+    var submit = form.querySelector('button[type="submit"]');
+    if (!submit) { return; }
+    function update() { submit.disabled = !form.querySelector('input[type="checkbox"]:checked'); }
+    form.addEventListener('change', update);
+    update();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('textarea[data-known-ids]'), function (field) {
+    var known = field.getAttribute('data-known-ids').split(' ').filter(Boolean);
+    var message = document.getElementById('create-ids-check');
+    function check() {
+      var taken = field.value.split(/[\s,;]+/).filter(function (uid) { return uid && known.indexOf(uid) !== -1; });
+      message.hidden = !taken.length;
+      message.textContent = taken.length ? message.getAttribute('data-known-ids-message') + ' ' + taken.join(', ') : '';
+    }
+    field.addEventListener('input', check);
+    field.form.addEventListener('reset', function () { setTimeout(check, 0); });
+  });
+
   var jump = document.querySelector('[data-participant-jump]');
   if (jump) {
     var jumpInput = jump.querySelector('input');
@@ -762,29 +806,11 @@
       Promise.all([checkOtherTabs(), logoutCheck()]).then(function (results) {
         form.removeAttribute('data-logout-pending');
         var copies = results[1];
+        // Logging out always asks first; the question names any work it would discard.
         var warning = !copies.checked ? 'editor_logout_check_failed' :
-          dirtyTab() || results[0] || copies.hasRecovery ? 'editor_logout_confirm' : null;
-        if (warning && !window.confirm(text(warning))) { return; }
-        if (!canFetch) { submitNatively(form, submitter); return; }
-        var data = new URLSearchParams(new FormData(form));
-        form.setAttribute('data-logout-pending', '');
-        fetch(form.action, { method: 'POST', credentials: 'same-origin', body: data,
-          headers: { 'Accept': 'application/json' } }).then(function (response) {
-          return response.json().catch(function () { return {}; }).then(function (payload) {
-            form.removeAttribute('data-logout-pending');
-            if ((response.status === 200 && payload.logged_out) || response.status === 401) {
-              // Notify only after revocation; an earlier notification can race a retry.
-              announce({ type: 'logout' });
-              submitting = true;
-              window.location.href = payload.login_url || loginUrl;
-            } else { formNotice(form, submitter, 'editor_submit_failed', false); }
-          });
-        }).catch(function () {
-          form.removeAttribute('data-logout-pending');
-          // Delivery is uncertain. Other tabs must not claim their copies survived.
-          announce({ type: 'logout' });
-          receive({ type: 'logout', sender: 'logout-local' });
-          formNotice(form, submitter, 'editor_submit_failed', false);
+          dirtyTab() || results[0] || copies.hasRecovery ? 'editor_logout_confirm' : 'editor_logout_question';
+        askLogout(text(warning)).then(function (confirmed) {
+          if (confirmed) { logOut(form, submitter); }
         });
       });
       return;
@@ -801,6 +827,53 @@
       submitting = true;
     }
   }, true);
+
+  // "Sì / No" pop-up before logging out; Esc answers No. Browsers without <dialog>
+  // fall back to their own confirmation.
+  var logoutDialog = document.getElementById('logout-dialog');
+  function askLogout(message) {
+    if (!logoutDialog || typeof logoutDialog.showModal !== 'function') {
+      return Promise.resolve(window.confirm(message));
+    }
+    document.getElementById('logout-dialog-text').textContent = message;
+    logoutDialog.returnValue = '';
+    logoutDialog.showModal();
+    return new Promise(function (resolve) {
+      logoutDialog.addEventListener('close', function () {
+        resolve(logoutDialog.returnValue === 'yes');
+      }, { once: true });
+    });
+  }
+  if (logoutDialog) {
+    logoutDialog.addEventListener('click', function (event) {
+      var answer = event.target.closest && event.target.closest('[data-logout-answer]');
+      if (answer) { logoutDialog.close(answer.value); }
+    });
+  }
+
+  function logOut(form, submitter) {
+    if (!canFetch) { submitNatively(form, submitter); return; }
+    var data = new URLSearchParams(new FormData(form));
+    form.setAttribute('data-logout-pending', '');
+    fetch(form.action, { method: 'POST', credentials: 'same-origin', body: data,
+      headers: { 'Accept': 'application/json' } }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (payload) {
+        form.removeAttribute('data-logout-pending');
+        if ((response.status === 200 && payload.logged_out) || response.status === 401) {
+          // Notify only after revocation; an earlier notification can race a retry.
+          announce({ type: 'logout' });
+          submitting = true;
+          window.location.href = payload.login_url || loginUrl;
+        } else { formNotice(form, submitter, 'editor_submit_failed', false); }
+      });
+    }).catch(function () {
+      form.removeAttribute('data-logout-pending');
+      // Delivery is uncertain. Other tabs must not claim their copies survived.
+      announce({ type: 'logout' });
+      receive({ type: 'logout', sender: 'logout-local' });
+      formNotice(form, submitter, 'editor_submit_failed', false);
+    });
+  }
 
   window.addEventListener('beforeunload', function (event) {
     if (submitting || !unsafeGuards().length) { return; }

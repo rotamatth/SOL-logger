@@ -9,7 +9,7 @@ from copy import deepcopy
 from flask import abort, g, redirect, request
 
 from .i18n import translate
-from .participants import GRADES, valid_school_year
+from .participants import GRADES, school_year_for, valid_school_year
 from .session_lifecycle import session_removal_problem
 from .state import MAX_STUDY_SESSIONS, SETTING_FIELDS, normalize_session_name, roster, validate_settings
 from .student_config import range_summary, task_catalog, topics_ready
@@ -159,15 +159,21 @@ def _apply_save_session(form, updated):
     if study_session is None:
         raise ValueError("invalid_sessions")
     study_session["name"] = normalize_session_name(form.edit_name)
-    study_session["date"] = form.edit_date
-    study_session["school_year"] = request.form.get("school_year", study_session.get("school_year", ""))
+    _set_date(study_session, form.edit_date)
+
+
+def _set_date(study_session, study_date):
+    """A dated session belongs to its date's school year (September–August); it is never typed."""
+    study_session["date"] = study_date
+    if study_date:
+        study_session["school_year"] = school_year_for(study_date) or study_session.get("school_year", "")
 
 
 def _apply_dates(form, updated):
     """Session dates (and, for save_dates, names) posted as fields keyed by session ID."""
     for study_session in updated["sessions"]:
         if study_session["id"] in request.form:
-            study_session["date"] = request.form[study_session["id"]]
+            _set_date(study_session, request.form[study_session["id"]])
         if form.action == "save_dates" and f"name_{study_session['id']}" in request.form:
             study_session["name"] = normalize_session_name(request.form[f"name_{study_session['id']}"])
 
@@ -256,7 +262,7 @@ def register_settings_routes(dash):
         if restoring:
             target["removed"] = False
             if "date" in request.form:
-                target["date"] = request.form["date"]
+                _set_date(target, request.form["date"])
         else:
             if request.form.get("confirm_remove") != "1":
                 raise ValueError("session_removal_confirmation")
@@ -281,7 +287,7 @@ def register_settings_routes(dash):
         form.add_date = request.form.get("date", "")
         form.add_name = request.form.get("name", "")
         study_session = state.add_study_session(add_grade, form.add_date, revision, form.add_name,
-                                                request.form.get("school_year"))
+                                                school_year_for(form.add_date))
         return redirect(dash.u("overview", grade=add_grade, session=study_session["id"]))
 
     def handle_post(form, catalog):
@@ -299,6 +305,10 @@ def register_settings_routes(dash):
             raise ValueError("invalid_settings")
         if action == "save_year" and "current_school_year" not in request.form:
             raise ValueError("invalid_school_year")
+        if action == "save_year" and request.form["current_school_year"].strip() == current["current_school_year"]:
+            # Saving the current year again changes nothing: say so instead of "saved".
+            return redirect(dash.u("settings_page", section=form.section, grade=form.grade, year=form.year,
+                                   saved_action="year_unchanged", _anchor="school-year"))
         if action in ("save", "save_year") and "current_school_year" in request.form:
             updated["current_school_year"] = request.form["current_school_year"].strip()
         if action in ("save", *RANGE_ACTIONS):

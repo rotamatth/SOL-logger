@@ -142,7 +142,8 @@ def register_history_routes(dash):
         return dash.page("participant", person=person, groups=groups, display_groups=display_groups,
                          collection=collection, grade=grade,
                          selected_session=selected_session, selected_year=year_filter, grade_filter=grade_filter,
-                         open_logs=request.args.get("view") == "logs", manage=request.args.get("manage") == "1")
+                         open_logs=request.args.get("view") == "logs", manage=request.args.get("manage") == "1",
+                         research_area="history")
 
     def visible_run(key, force=False):
         """A run of this study that is not in the trash, or 404."""
@@ -179,14 +180,16 @@ def register_history_routes(dash):
             task is None or (f["kind"] == "task" and f["position"] == task))]
         sources.sort(key=lambda f: (f["kind"] != "full", f["position"] or "", f["name"]))
         return dash.page("run", run=run, task=task, page_number=number, events=events, total=total,
-                         sources=sources, tasks=[v for k, v in run["tasks"].items() if task is None or k == task])
+                         sources=sources, tasks=[v for k, v in run["tasks"].items() if task is None or k == task],
+                         research_area="history")
 
     @bp.get("/runs/<key>/logs/<source_id>/view")
     def visualize_log(key, source_id):
         run = visible_run(key)
         source = log_source(run, source_id)
         task, number, events, total = event_selection(run, source_id=source_id)
-        return dash.page("log", run=run, source=source, task=task, page_number=number, events=events, total=total)
+        return dash.page("log", run=run, source=source, task=task, page_number=number, events=events, total=total,
+                         research_area="history")
 
     @bp.get("/runs/<key>/logs/<source_id>")
     def download_log(key, source_id):
@@ -222,7 +225,7 @@ def register_history_routes(dash):
         settings = state.settings()
         summaries = {run["id"]: run for run in index.summaries(settings)}
         entries = [{**item, "run": summaries.get(item["run_id"])} for item in state.trashed_runs()]
-        return dash.page("trash", entries=entries)
+        return dash.page("trash", entries=entries, research_area="history")
 
     @bp.post("/runs/<key>/trash")
     def trash_run(key):

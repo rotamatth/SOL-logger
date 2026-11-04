@@ -21,7 +21,14 @@ history of what was checked stays visible.
   frequency in the server log during the first real lesson.
 - [ ] **iPad/Safari acceptance** still outstanding from the 23 October review: start
   button double tap, multi-line questions on the task page, editor sticky action bar
-  with the on-screen keyboard, dashboard tap targets.
+  with the on-screen keyboard, dashboard tap targets. Since 3 November also: the two
+  participant-ID pop-ups (open, tick, Annulla, review), the "Sei sicuro di voler
+  uscire?" Sì/No pop-up (No, Sì, and the keyboard's Esc if one is attached), and
+  ticking runs to download on a participant page.
+- [ ] **Colleague re-test of the dashboard feedback (3 November).** Ask the researcher
+  who recorded the feedback to repeat her walkthrough: new session from name and date,
+  importing an ID from another class, the warning colour, Cestino on Dati e storico.
+  Done when she confirms or files new points.
 - [ ] **First V2 deploy rollback path.** If `scripts/deploy.sh` rolls back on the first
   V2 deployment, the old image starts with `logs-v2` mounted at `/app/logs` and would
   write old-format logs there. Watch the first deploy; if a rollback happens, stop and
@@ -29,19 +36,27 @@ history of what was checked stays visible.
 
 ## Setup that needs Matthias
 
-- [ ] **SonarQube Cloud** (`CONTRIBUTING.md` → One-time setup → 1): account and import
+- [x] **SonarQube Cloud** (`CONTRIBUTING.md` → One-time setup → 1): account and import
   (the repository is a fork; create the project manually if it is not listed), secret
   `SONAR_TOKEN`, keys match `sonar-project.properties`, first analysis visible on a
   pull request, then variable `SONAR_REQUIRED=true`. Review the first quality gate and
-  any security hotspots.
-- [ ] **Branch protection right after PR #20 is merged** into `matthias-dev`: protect
+  any security hotspots. _Done 2026-11-02: gate passes on PR #20 (commit `e080010`),
+  hotspots 100% reviewed; S8706 and six S8707 marked false positive, S6845 to accept._
+- [x] **Branch protection right after PR #20 is merged** into `matthias-dev`: protect
   `matthias-dev` and `main` (checks `collection`, `Dashboard browser regressions`,
   `Code quality`; 1 approval; admins may bypass). Command in `CONTRIBUTING.md` →
   One-time setup → 2. Not earlier: branches without the workflow could never pass.
-- [ ] **Repository settings:** automatically delete head branches; Dependabot alerts on.
+  _Done 2026-11-03 on both branches, right after PR #20 was merged (merge commit
+  `68ec75c`), and read back from GitHub._
+- [x] **Repository settings:** automatically delete head branches; Dependabot alerts on.
+  _Checked 2026-11-03: both on._
 - [ ] **Samuele onboarding** after PR #20 is merged: bring his branches up to date with
   `matthias-dev` (otherwise his pull requests get no checks), push branches to
   `rotamatth/SOL-logger` rather than a fork, read `CONTRIBUTING.md`.
+  _2026-11-03: PRs #21–#23 now target `matthias-dev`; their branches are already in
+  `rotamatth/SOL-logger`. Each PR has a comment with the update steps (#22 with its two
+  template conflicts, #23 with the one test to adjust). Open until the three branches
+  are updated; `samuele-dev` is no longer used and can then be deleted._
 
 ## Decisions to revisit
 
@@ -51,8 +66,22 @@ history of what was checked stays visible.
 - [ ] **Declined for now (2026-10-26):** Italian text for the search-provider error page
   children see (`templates/error.html` is English), listing only IDs that can start
   today on the start page, protecting against iPad swaps mid-run.
+- [ ] **Researcher login (decided 2026-11-02):** keep one shared, non-expiring password,
+  changed or reset only with `tools/set_research_password.py` (command in
+  `research_dashboard.md`). Later options: SWITCH edu-ID single sign-on, or password
+  recovery. Revisit when more researchers need their own accounts.
+- [x] **SonarQube Cloud flag:** once the `Code quality` check shows the SonarQube step
+  passing on a pull request, set the repository variable `SONAR_REQUIRED=true`.
+  _Set 2026-11-02._
 - [ ] **Not yet linted or analysed:** `logger/search-engine` (12 Ruff findings); add it
   to `ruff.toml` and `sonar-project.properties` if the PyTerrier service is used again.
 - [ ] **GitHub Actions versions:** the workflow pins `actions/checkout@v4`,
   `setup-python@v5`, `setup-node@v4`; newer majors exist (checkout v7, setup-python v7).
   Update in a pull request of its own when runner deprecation warnings appear.
+  _2026-11-03: `.github/dependabot.yml` will propose these as a weekly grouped pull
+  request into `matthias-dev` once the file reaches `main` (GitHub reads it only from
+  the default branch)._
+- [ ] **Dependabot secret:** add `SONAR_TOKEN` under Settings → Secrets and variables →
+  **Dependabot** (same value as the Actions secret). Dependabot pull requests get no
+  Actions secrets, so with `SONAR_REQUIRED=true` their `Code quality` check fails
+  without it. Needed before the first release brings `dependabot.yml` to `main`.

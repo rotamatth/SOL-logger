@@ -6,10 +6,14 @@ UI. It uses Flask/Jinja, with its own templates, styles, server-side authenticat
 CSRF tokens and storage. Student session resets and browser storage do not grant
 or reuse research access. The research pages never load the student logger.
 
-The header keeps the gold search mark and utility controls on the top row. The
-second row centers **Prepare a session**, **Data and history** and **Study settings**.
-The mark is decorative; there is no separate dashboard-home link. Pale-gold
-highlights follow the selected section and grade, with text labels for status.
+The header keeps the gold search mark and utility controls on the top row: the
+language switch, a separator, then **Log out**, which always asks "Do you really want
+to log out?" in a Yes/No pop-up first (and names any unsaved work it would discard;
+Esc answers No). The mark links back
+to **Prepare a session**. The second row centers **Prepare a session**, **Data and
+history** and **Study settings**. Pale-gold highlights follow the selected section and
+grade, with text labels for status. Warnings use their own orange-red colour and a
+triangle icon so they stand out from the yellow interface.
 
 For remaining merge checks and the next V2 integration work, see
 [Merge and V2 readiness](merge_v2_readiness.md).
@@ -42,21 +46,38 @@ For remaining merge checks and the next V2 integration work, see
    configuration disables research access (503), including exports and APIs.
    No credential is committed. Rotating the hash invalidates existing research
    sessions on their next request; no app restart is needed.
+
+   The shared password does not expire. The same command is the only way to change
+   it and to reset a forgotten one (decided 2026-11-02). Only sign-in sessions end:
+   after 30 minutes without activity or 8 hours, researchers sign in again with the
+   same password. Single sign-on (SWITCH edu-ID) or self-service recovery may come
+   later; see `follow_up_checks.md`.
 4. Open `/dashboard`, log in, choose a UI language, and use **Prepare a session**.
    Choose the school year and class, then open a session or choose **New session**.
-   The class/session menus show choices directly on the page. Choosing one opens
-   it immediately; **Open year** applies the year field. The session list includes
-   each saved name and date and scrolls for longer lists.
-   Save its name and date in step 1. On initial setup, this also confirms the first
-   school year (September–August) and enrolls the default IDs in one transaction.
+   The year/class/session menus show choices directly on the page; choosing one opens
+   it immediately. A line under the menus says which session you are editing. The
+   session list includes each saved name and date and scrolls for longer lists.
+   Save its name and date in step 1. **The school year follows from the date**
+   (September–August) and is never typed: a date in another school year files the
+   session under that year and opens it there. A session with collected data cannot
+   change year. If nobody is enrolled in that class for a later year yet, step 2 says
+   so and links **Prepare the next school year**. On initial setup, saving also
+   confirms the first school year and enrolls the default IDs in one transaction.
    Defaults are exact IDs `1`–`20` for 4th Grade and `21`–`40` for 5th Grade.
-   Check and correct the class IDs in step 2. **Add or enroll IDs** distinguishes
-   new children needing new IDs from existing children keeping their permanent IDs.
-   Review the proposed changes before confirming. All active IDs enrolled in that
+   Check and correct the class IDs in step 2. **Import participants from other
+   classes** opens a pop-up listing the other children in the study, grouped by
+   their class this year (or their last class); ticked children keep their ID and
+   move to this class. **Create new participants** opens a pop-up for new IDs and
+   flags IDs already in the study while you type. Without JavaScript both lead to
+   **Edit participant IDs**. Review the proposed changes before confirming. All active IDs enrolled in that
    class/year are included automatically in every session; no attendance selection
    is required. Inactive children cannot be enrolled through this shortcut.
    **Edit participant IDs** searches for one complete, case-sensitive ID: `1`, `001`
-   and `Child-A` remain distinct. **Clear filters** restores the class list without
+   and `Child-A` remain distinct. When the filters hide a searched ID, the page says
+   where it is instead of "no matches": enrolled in another class (with a link to it
+   there, where **Edit enrollment** moves it), not enrolled this school year (last
+   class shown), hidden by the status filter, or not in the study at all.
+   **Clear filters** restores the class list without
    changing the session/year. Filtering never changes student availability. Session
    enrollment forms keep the year fixed; choose another session/year in preparation
    or use the permanent register for other annual changes.
@@ -163,8 +184,9 @@ access either: every student page and script is same-origin.
   (`<b>`, `<strong>`, `<i>`, `<em>`, `<br>`) are kept. Queries are always escaped.
 - The page viewer opens only `http`/`https` addresses.
 - `/iframe_check` (frame-embedding probe) and `/autocomplete` (paid API) work only
-  for a participant in an active session; the probe re-checks every redirect
-  target against private, loopback and reserved addresses.
+  for a participant in an active session. The probe fetches only a result link shown
+  in the current task (any other address gets `not-a-search-result`) and re-checks
+  every redirect target against private, loopback and reserved addresses.
 - Uploads are limited to 16 MiB. Student responses send `nosniff`,
   `X-Frame-Options: SAMEORIGIN` and `Referrer-Policy: same-origin`, so children's
   queries in our URLs are never sent to the pages they open.
@@ -320,12 +342,17 @@ when it differs from the full log used for the combined run view. Event details 
 expandable; malformed records and changed/unreadable sources show a message.
 All viewers and downloads require researcher authentication.
 
-**Manage logs** opens a participant's run list. Each run has a collapsed **Move run
-to Trash** control with a separate confirmation button; this targets one run and
-all of its log files, rather than an ambiguous participant row. Trashed runs are
-removed from dashboard views and all downloads. The original files remain on disk
-and continue to be indexed; **Trash** in the header lists them and offers
-**Restore**. This is a reversible dashboard exclusion, not physical file erasure.
+**Manage logs** (next to **Visualize logs** in each row) opens a participant's run
+list. Each run has a collapsed **Move run to Trash** control with a separate
+confirmation button; this targets one run and all of its log files, rather than an
+ambiguous participant row. Trashed runs are removed from dashboard views and all
+downloads. The original files remain on disk and continue to be indexed; **Trash**
+on the **Data and history** page lists them and offers **Restore**. This is a
+reversible dashboard exclusion, not physical file erasure.
+
+When a participant's runs are shown, each run has a checkbox: tick the ones you need
+(for example the last two) and choose **Download selected runs** for one ZIP. The
+server accepts only runs of that participant that are not in the Trash.
 
 **New session** opens a form for the selected grade and date, with an optional custom name.
 Creation automatically assigns the next number for that grade and opens the new session in the dashboard.
@@ -453,7 +480,9 @@ Existing assignments retain their prior settings revision; no Study settings act
 deletes or changes an assignment.
 
 **Current school year** is captured only for newly started V2 runs. Changing it
-does not relabel earlier runs. Historical records from different source collections
+does not relabel earlier runs. The page lists the school years already in the study;
+saving the current year again changes nothing and says so. A session's own year
+always follows its date, in settings as in preparation. Historical records from different source collections
 remain separate participant entries, labelled **Historical records**, even if their
 numeric IDs match. Linking those entries requires confirmation that the IDs identify
 the same children across years; this feature does not make that assumption.
@@ -461,7 +490,9 @@ the same children across years; this feature does not make that assumption.
 | Button | Location | Exact scope |
 | --- | --- | --- |
 | **Download log** | Original log files in a run/task view | One original `.log` file, downloaded directly with its original filename |
+| **Download all logs in this view** | Above the participant list | Every participant with logs in the displayed grade/year/session |
 | **Download selected** | Above the participant list | Only checked participant rows, including their saved runs within the displayed grade/year/session |
+| **Download selected runs** | Participant page with runs shown | Only the ticked runs of that participant |
 | **Download** (participant session) | Populated participant session | One participant, one numbered study session, all saved runs within the displayed school year |
 | **Download session** | Context strip in a populated session view | All participants in that grade and selected study session, within the selected school year |
 | **Download all [grade]** | Beside grade navigation | Grade at collection across its entire history, including classified archive records and runs with unmapped dates; independent of year/session context |
