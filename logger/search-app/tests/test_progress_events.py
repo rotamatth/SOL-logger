@@ -11,7 +11,7 @@ from study_progress import AttemptKey, AttemptNotFound
 def test_answer_events_survive_restart_with_original_context_and_no_duplicates(tmp_path):
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
-    first = store.submit_first_answer(key, attempt_id, 1, "  Before\n")
+    first = store.submit_first_answer(key, attempt_id, 1, "  Before\n", confidence=2)
     final = store.submit_final_answer(key, attempt_id, 1, "  After\n")
     events = store.pending_events(key, attempt_id)
     assert [event["type"] for event in events] == ["OwnKnowledgeAnswerSubmitted", "TaskEnded"]
@@ -28,7 +28,7 @@ def test_answer_events_survive_restart_with_original_context_and_no_duplicates(t
     assert events[0]["payload"]["outcome"] == "answered"
     reopened, _ = make_store(tmp_path)
     assert reopened.pending_events(key, attempt_id) == events
-    assert reopened.submit_first_answer(key, attempt_id, 1, "  Before\n") == first
+    assert reopened.submit_first_answer(key, attempt_id, 1, "  Before\n", confidence=2) == first
     assert reopened.submit_final_answer(key, attempt_id, 1, "  After\n") == final
     assert reopened.pending_events(key, attempt_id) == events
 
@@ -46,20 +46,20 @@ def test_drafts_and_invalid_submissions_do_not_enqueue_events(tmp_path):
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
     store.save_draft(key, attempt_id, 1, "first-answer", "Draft only", 0)
     with pytest.raises(ValueError):
-        store.submit_first_answer(key, attempt_id, 1, " ")
+        store.submit_first_answer(key, attempt_id, 1, " ", confidence=2)
     assert store.pending_events(key, attempt_id) == []
 
 
 def test_acknowledgement_survives_restart_and_retries_without_resurrecting_events(tmp_path):
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
-    store.submit_first_answer(key, attempt_id, 1, "Original")
+    store.submit_first_answer(key, attempt_id, 1, "Original", confidence=2)
     event, = store.pending_events(key, attempt_id)
     published_at = store.acknowledge_event(key, attempt_id, event["event_id"])
     assert published_at and store.pending_events(key, attempt_id) == []
     reopened, _ = make_store(tmp_path)
     assert reopened.acknowledge_event(key, attempt_id, event["event_id"]) == published_at
-    reopened.submit_first_answer(key, attempt_id, 1, "Original")
+    reopened.submit_first_answer(key, attempt_id, 1, "Original", confidence=2)
     assert reopened.pending_events(key, attempt_id) == []
 
 
@@ -72,7 +72,7 @@ def test_acknowledgement_survives_restart_and_retries_without_resurrecting_event
 def test_pending_events_and_acknowledgements_require_the_same_scope(tmp_path, other):
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
-    store.submit_first_answer(key, attempt_id, 1, "Original")
+    store.submit_first_answer(key, attempt_id, 1, "Original", confidence=2)
     events = store.pending_events(key, attempt_id)
     with pytest.raises(AttemptNotFound):
         store.pending_events(other, attempt_id)
@@ -88,7 +88,7 @@ def test_test_events_are_labelled_and_retired_attempt_events_remain_publishable(
     store, _ = make_store(tmp_path)
     key = AttemptKey("study-2026", "TEST", "grade-4-session-1", is_test=True)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
-    store.submit_first_answer(key, attempt_id, 1, "Synthetic")
+    store.submit_first_answer(key, attempt_id, 1, "Synthetic", confidence=2)
     with sqlite3.connect(store.path) as db:
         db.execute("UPDATE progress_attempts SET status = 'retired'")
     event, = store.pending_events(key, attempt_id)
@@ -103,7 +103,7 @@ def test_simultaneous_submission_retries_enqueue_one_event(tmp_path):
     workers = [make_store(tmp_path)[0] for _ in range(4)]
     with ThreadPoolExecutor(max_workers=4) as pool:
         answers = list(pool.map(lambda worker: worker.submit_first_answer(
-            key, attempt_id, 1, "Same answer"), workers))
+            key, attempt_id, 1, "Same answer", confidence=2), workers))
     assert all(answer == answers[0] for answer in answers)
     assert len(store.pending_events(key, attempt_id)) == 1
 
@@ -113,7 +113,7 @@ def test_failed_event_insert_rolls_back_answer_and_progress_together(tmp_path, p
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
     if phase == "final-answer":
-        store.submit_first_answer(key, attempt_id, 1, "Before")
+        store.submit_first_answer(key, attempt_id, 1, "Before", confidence=2)
     store.save_draft(key, attempt_id, 1, phase, "Recoverable draft", 0)
     before = store.get_attempt(key, attempt_id)
     pending = store.pending_events(key, attempt_id)
@@ -122,12 +122,12 @@ def test_failed_event_insert_rolls_back_answer_and_progress_together(tmp_path, p
             BEGIN SELECT RAISE(ABORT, 'synthetic event failure'); END""")
     submit = store.submit_first_answer if phase == "first-answer" else store.submit_final_answer
     with pytest.raises(sqlite3.IntegrityError, match="synthetic event failure"):
-        submit(key, attempt_id, 1, "Not committed")
+        submit(key, attempt_id, 1, "Not committed", **({"confidence": 2} if phase == "first-answer" else {}))
     assert store.get_attempt(key, attempt_id) == before
     assert store.pending_events(key, attempt_id) == pending
     with sqlite3.connect(store.path) as db:
         db.execute("DROP TRIGGER fail_event")
-    submit(key, attempt_id, 1, "Retry")
+    submit(key, attempt_id, 1, "Retry", **({"confidence": 2} if phase == "first-answer" else {}))
     assert len(store.pending_events(key, attempt_id)) == len(pending) + 1
 
 
@@ -135,14 +135,14 @@ def test_version_three_backfills_all_original_events_in_question_order_once(tmp_
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
     for number in (1, 2, 3):
-        store.submit_first_answer(key, attempt_id, number, f"Before {number}")
+        store.submit_first_answer(key, attempt_id, number, f"Before {number}", confidence=2)
         store.submit_final_answer(key, attempt_id, number, f"After {number}")
     originals = store.get_attempt(key, attempt_id)
     with sqlite3.connect(store.path) as db:
         db.execute("DROP TABLE IF EXISTS progress_events")
         db.execute("PRAGMA user_version=3")
     upgraded, _ = make_store(tmp_path)
-    assert upgraded.runtime_settings()["schema_version"] == 4
+    assert upgraded.runtime_settings()["schema_version"] == 5
     events = upgraded.pending_events(key, attempt_id)
     assert [event["payload"]["answer"] for event in events] == [
         "Before 1", "After 1", "Before 2", "After 2", "Before 3", "After 3"]
@@ -162,7 +162,7 @@ def test_commit_failure_keeps_answers_and_pending_events_recoverable(tmp_path, o
     store, key = make_store(tmp_path, timeout=0.01)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
     if operation != "first-answer":
-        store.submit_first_answer(key, attempt_id, 1, "Before")
+        store.submit_first_answer(key, attempt_id, 1, "Before", confidence=2)
     before = store.get_attempt(key, attempt_id)
     events = store.pending_events(key, attempt_id)
     if operation == "acknowledge":
@@ -171,7 +171,7 @@ def test_commit_failure_keeps_answers_and_pending_events_recoverable(tmp_path, o
     else:
         submit = store.submit_first_answer if operation == "first-answer" else store.submit_final_answer
         def action():
-            return submit(key, attempt_id, 1, "Retryable")
+            return submit(key, attempt_id, 1, "Retryable", **({"confidence": 2} if operation == "first-answer" else {}))
     reader = sqlite3.connect(store.path)
     try:
         reader.execute("BEGIN")

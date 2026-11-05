@@ -11,7 +11,7 @@ def test_confirmed_first_answer_survives_restart_without_replacing_the_draft(tmp
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
     draft = store.save_draft(key, attempt_id, 1, "first-answer", "An earlier idea", 0)
-    answer = store.submit_first_answer(key, attempt_id, 1, "  La mia risposta è questa.\n")
+    answer = store.submit_first_answer(key, attempt_id, 1, "  La mia risposta è questa.\n", confidence=2)
     reopened, _ = make_store(tmp_path)
     saved = reopened.get_attempt(key, attempt_id)
     assert answer["text"] == "  La mia risposta è questa.\n"
@@ -50,10 +50,10 @@ def test_same_submission_retry_returns_original_and_conflicting_retry_is_rejecte
     from study_progress import SubmissionConflict
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
-    original = store.submit_first_answer(key, attempt_id, 1, "Original answer")
-    assert store.submit_first_answer(key, attempt_id, 1, "Original answer") == original
+    original = store.submit_first_answer(key, attempt_id, 1, "Original answer", confidence=2)
+    assert store.submit_first_answer(key, attempt_id, 1, "Original answer", confidence=2) == original
     with pytest.raises(SubmissionConflict):
-        store.submit_first_answer(key, attempt_id, 1, "A different answer")
+        store.submit_first_answer(key, attempt_id, 1, "A different answer", confidence=2)
     with pytest.raises(SubmissionConflict):
         store.submit_first_answer(key, attempt_id, 1, unknown_confirmed=True)
     assert store.get_attempt(key, attempt_id)["tasks"][0]["first_answer"] == original
@@ -64,7 +64,7 @@ def test_late_first_draft_is_rejected_and_final_draft_remains_separate(tmp_path)
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
     store.save_draft(key, attempt_id, 1, "first-answer", "Draft", 0)
-    original = store.submit_first_answer(key, attempt_id, 1, "Confirmed")
+    original = store.submit_first_answer(key, attempt_id, 1, "Confirmed", confidence=2)
     with pytest.raises(SubmissionConflict):
         store.save_draft(key, attempt_id, 1, "first-answer", "Late autosave", 1)
     final = store.save_draft(key, attempt_id, 1, "final-answer", "After searching", 0)
@@ -78,7 +78,7 @@ def test_submission_cannot_skip_the_current_question(tmp_path, number):
     store, key = make_store(tmp_path)
     attempt = store.start_or_resume(key, QUESTIONS)
     with pytest.raises(ValueError):
-        store.submit_first_answer(key, attempt["attempt_id"], number, "Answer")
+        store.submit_first_answer(key, attempt["attempt_id"], number, "Answer", confidence=2)
     assert store.get_attempt(key, attempt["attempt_id"]) == attempt
 
 
@@ -88,7 +88,7 @@ def test_another_participant_cannot_submit_to_the_attempt(tmp_path):
     attempt = store.start_or_resume(key, QUESTIONS)
     other = AttemptKey("study-2026", "synthetic-2", "grade-4-session-1")
     with pytest.raises(AttemptNotFound):
-        store.submit_first_answer(other, attempt["attempt_id"], 1, "Wrong participant")
+        store.submit_first_answer(other, attempt["attempt_id"], 1, "Wrong participant", confidence=2)
     assert store.get_attempt(key, attempt["attempt_id"]) == attempt
 
 
@@ -98,7 +98,7 @@ def test_simultaneous_confirmation_retries_create_one_original_answer(tmp_path):
     workers = [make_store(tmp_path)[0] for _ in range(4)]
     with ThreadPoolExecutor(max_workers=4) as pool:
         answers = list(pool.map(
-            lambda worker: worker.submit_first_answer(key, attempt_id, 1, "Same answer"), workers))
+            lambda worker: worker.submit_first_answer(key, attempt_id, 1, "Same answer", confidence=2), workers))
     assert all(answer == answers[0] for answer in answers)
     with sqlite3.connect(store.path) as db:
         assert db.execute("SELECT COUNT(*) FROM progress_first_answers").fetchone()[0] == 1
@@ -113,7 +113,7 @@ def test_competing_submissions_preserve_one_original_answer(tmp_path):
     def submit(item):
         worker, text = item
         try:
-            return worker.submit_first_answer(key, attempt_id, 1, text)
+            return worker.submit_first_answer(key, attempt_id, 1, text, confidence=2)
         except SubmissionConflict:
             return None
 
@@ -131,13 +131,13 @@ def test_inactive_attempt_rejects_new_submissions_and_identical_retries(tmp_path
     from study_progress import SubmissionConflict
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
-    original = store.submit_first_answer(key, attempt_id, 1, "Original")
+    original = store.submit_first_answer(key, attempt_id, 1, "Original", confidence=2)
     with sqlite3.connect(store.path) as db:
         db.execute("UPDATE progress_attempts SET status = ? WHERE attempt_id = ?", (status, attempt_id))
     before = store.get_attempt(key, attempt_id)
     for number, text in [(1, "Original"), (2, "New answer")]:
         with pytest.raises(SubmissionConflict):
-            store.submit_first_answer(key, attempt_id, number, text)
+            store.submit_first_answer(key, attempt_id, number, text, confidence=2)
     assert store.get_attempt(key, attempt_id) == before
     assert before["tasks"][0]["first_answer"] == original
 
@@ -145,11 +145,11 @@ def test_inactive_attempt_rejects_new_submissions_and_identical_retries(tmp_path
 def test_delayed_identical_retry_does_not_rewind_the_next_question(tmp_path):
     store, key = make_store(tmp_path)
     attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
-    original = store.submit_first_answer(key, attempt_id, 1, "Original")
+    original = store.submit_first_answer(key, attempt_id, 1, "Original", confidence=2)
     with sqlite3.connect(store.path) as db:
         db.execute("UPDATE progress_attempts SET question_number = 2, phase = 'first-answer'")
     before = store.get_attempt(key, attempt_id)
-    assert store.submit_first_answer(key, attempt_id, 1, "Original") == original
+    assert store.submit_first_answer(key, attempt_id, 1, "Original", confidence=2) == original
     assert store.get_attempt(key, attempt_id) == before
 
 
@@ -163,12 +163,12 @@ def test_phase_update_failure_rolls_back_the_inserted_answer(tmp_path):
             ON progress_attempts WHEN NEW.phase = 'search'
             BEGIN SELECT RAISE(ABORT, 'synthetic phase failure'); END""")
     with pytest.raises(sqlite3.IntegrityError, match="synthetic phase failure"):
-        store.submit_first_answer(key, attempt_id, 1, "Not committed")
+        store.submit_first_answer(key, attempt_id, 1, "Not committed", confidence=2)
     assert store.get_attempt(key, attempt_id) == before
     with sqlite3.connect(store.path) as db:
         assert db.execute("SELECT COUNT(*) FROM progress_first_answers").fetchone()[0] == 0
         db.execute("DROP TRIGGER reject_search_phase")
-    assert store.submit_first_answer(key, attempt_id, 1, "Retry")["text"] == "Retry"
+    assert store.submit_first_answer(key, attempt_id, 1, "Retry", confidence=2)["text"] == "Retry"
 
 
 def test_failed_commit_keeps_draft_and_does_not_unlock_search(tmp_path):
@@ -181,12 +181,12 @@ def test_failed_commit_keeps_draft_and_does_not_unlock_search(tmp_path):
         reader.execute("BEGIN")
         reader.execute("SELECT * FROM progress_attempts").fetchall()
         with pytest.raises(sqlite3.OperationalError, match="locked"):
-            store.submit_first_answer(key, attempt_id, 1, "Save failed")
+            store.submit_first_answer(key, attempt_id, 1, "Save failed", confidence=2)
     finally:
         reader.rollback()
         reader.close()
     assert store.get_attempt(key, attempt_id) == before
-    assert store.submit_first_answer(key, attempt_id, 1, "Retry")["text"] == "Retry"
+    assert store.submit_first_answer(key, attempt_id, 1, "Retry", confidence=2)["text"] == "Retry"
 
 
 def test_version_one_database_upgrades_without_changing_existing_progress(tmp_path):
@@ -198,8 +198,8 @@ def test_version_one_database_upgrades_without_changing_existing_progress(tmp_pa
         db.execute("PRAGMA user_version=1")
     upgraded, _ = make_store(tmp_path)
     saved = upgraded.get_attempt(key, attempt_id)
-    assert upgraded.runtime_settings()["schema_version"] == 4
+    assert upgraded.runtime_settings()["schema_version"] == 5
     assert [task["snapshot"] for task in saved["tasks"]] == QUESTIONS
     assert saved["tasks"][0]["drafts"]["first-answer"]["text"] == "Version one draft"
     assert saved["phase"] == "first-answer"
-    assert upgraded.submit_first_answer(key, attempt_id, 1, "Still works")["text"] == "Still works"
+    assert upgraded.submit_first_answer(key, attempt_id, 1, "Still works", confidence=2)["text"] == "Still works"

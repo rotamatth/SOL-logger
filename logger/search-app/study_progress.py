@@ -135,13 +135,19 @@ class ProgressStore:
             db.close()
         with self._transaction(write=True) as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1, 2, 3, 4):
+            if version not in (0, 1, 2, 3, 4, 5):
                 raise ValueError("Unsupported progress database schema version")
             for statement in SCHEMA:
                 db.execute(statement)
+            # Nullable for historical measurements that were never collected.
+            for table in ("progress_first_answers", "progress_drafts"):
+                columns = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
+                if "confidence" not in columns:
+                    db.execute(f"ALTER TABLE {table} ADD COLUMN confidence INTEGER "
+                               "CHECK(confidence IS NULL OR confidence BETWEEN 1 AND 3)")
             if version < 4:
                 self._backfill_events(db)
-            db.execute("PRAGMA user_version=4")
+            db.execute("PRAGMA user_version=5")
 
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=self.timeout, isolation_level=None)
@@ -188,10 +194,12 @@ class ProgressStore:
         for draft in db.execute("SELECT * FROM progress_drafts WHERE attempt_id = ?", (row["attempt_id"],)):
             tasks[draft["question_number"] - 1]["drafts"][draft["phase"]] = {
                 "text": draft["text"], "revision": draft["revision"], "saved_at": draft["saved_at"]}
+            if draft["phase"] == "first-answer":
+                tasks[draft["question_number"] - 1]["drafts"][draft["phase"]]["confidence"] = draft["confidence"]
         for answer in db.execute("SELECT * FROM progress_first_answers WHERE attempt_id = ?",
                                  (row["attempt_id"],)):
             tasks[answer["question_number"] - 1]["first_answer"] = {
-                "text": answer["text"], "outcome": answer["outcome"],
+                "text": answer["text"], "outcome": answer["outcome"], "confidence": answer["confidence"],
                 "submitted_at": answer["submitted_at"]}
         for answer in db.execute("SELECT * FROM progress_final_answers WHERE attempt_id = ?",
                                  (row["attempt_id"],)):
@@ -262,6 +270,7 @@ class ProgressStore:
                    "answerPhase": "post-search" if event_type == "TaskEnded" else "pre-search"}
         if event_type == "OwnKnowledgeAnswerSubmitted":
             payload["outcome"] = answer["outcome"]
+            payload["confidence"] = answer["confidence"]
         db.execute("""INSERT INTO progress_events
             (event_id, event_key, attempt_id, question_number, type, payload, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(event_key) DO NOTHING""",
@@ -269,9 +278,9 @@ class ProgressStore:
                     number, event_type, _json(payload), answer["submitted_at"]))
 
     def _backfill_events(self, db):
-        answers = db.execute("""SELECT attempt_id, question_number, text, outcome, submitted_at,
+        answers = db.execute("""SELECT attempt_id, question_number, text, outcome, submitted_at, confidence,
                 'OwnKnowledgeAnswerSubmitted' AS type, 0 AS position FROM progress_first_answers
-            UNION ALL SELECT attempt_id, question_number, text, NULL, submitted_at,
+            UNION ALL SELECT attempt_id, question_number, text, NULL, submitted_at, NULL,
                 'TaskEnded', 1 FROM progress_final_answers
             ORDER BY attempt_id, question_number, position""").fetchall()
         for answer in answers:
@@ -344,7 +353,7 @@ class ProgressStore:
             settings["schema_version"] = db.execute("PRAGMA user_version").fetchone()[0]
         return {**settings, "sqlite_version": sqlite3.sqlite_version}
 
-    def save_draft(self, key, attempt_id, question_number, phase, text, expected_revision):
+    def save_draft(self, key, attempt_id, question_number, phase, text, expected_revision, *, confidence=None):
         """Save exact draft text; revision 0 means no draft has been saved yet.
 
         This does not submit an answer or change progress/search eligibility.
@@ -354,6 +363,11 @@ class ProgressStore:
                 or phase not in DRAFT_PHASES or not isinstance(text, str)
                 or type(expected_revision) is not int or expected_revision < 0):
             raise ValueError("Invalid draft question, phase, text or revision")
+        if confidence is not None and (type(confidence) is not int or confidence not in (1, 2, 3)
+                                       or phase != "first-answer"):
+            raise ValueError("Invalid draft confidence")
+        if not text.strip():
+            confidence = None
         with self._transaction(write=True) as db:
             attempt = self._find_attempt(db, key, attempt_id)
             if attempt["status"] != "active":
@@ -371,47 +385,54 @@ class ProgressStore:
             if revision != expected_revision:
                 raise DraftConflict("Draft changed; reload the saved revision before retrying")
             saved = {"text": text, "revision": revision + 1, "saved_at": _now()}
+            if phase == "first-answer":
+                saved["confidence"] = confidence
             db.execute("""INSERT INTO progress_drafts
-                (attempt_id, question_number, phase, text, revision, saved_at) VALUES (?, ?, ?, ?, ?, ?)
+                (attempt_id, question_number, phase, text, revision, saved_at, confidence) VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(attempt_id, question_number, phase) DO UPDATE SET
-                    text = excluded.text, revision = excluded.revision, saved_at = excluded.saved_at""",
-                       (*draft_key, saved["text"], saved["revision"], saved["saved_at"]))
+                    text = excluded.text, revision = excluded.revision, saved_at = excluded.saved_at,
+                    confidence = excluded.confidence""",
+                       (*draft_key, saved["text"], saved["revision"], saved["saved_at"], confidence))
         return saved
 
-    def submit_first_answer(self, key, attempt_id, question_number, text=None, *, unknown_confirmed=False):
+    def submit_first_answer(self, key, attempt_id, question_number, text=None, *, unknown_confirmed=False,
+                            confidence=None):
         """Atomically preserve an original first answer and enter the search phase.
 
         Unknown answers require an explicit boolean confirmation and no text.
         Identical retries return the original answer; different payloads conflict.
-        This storage method does not register routes or emit logging events.
+        Confidence is collected for typed answers and queued in the same transaction.
         """
         if (type(question_number) is not int or not 1 <= question_number <= 3
                 or type(unknown_confirmed) is not bool):
             raise ValueError("Invalid question number or unknown-answer confirmation")
         if unknown_confirmed:
-            if text is not None:
-                raise ValueError("A confirmed unknown answer must not include answer text")
+            if text is not None or confidence is not None:
+                raise ValueError("A confirmed unknown answer must not include text or confidence")
             outcome = "unknown"
         else:
             if not isinstance(text, str) or not text.strip():
                 raise ValueError("A non-blank first answer or confirmed unknown choice is required")
             outcome = "answered"
+            if type(confidence) is not int or confidence not in (1, 2, 3):
+                raise ValueError("Choose confidence for the first answer")
         with self._transaction(write=True) as db:
             attempt = self._find_attempt(db, key, attempt_id)
             if attempt["status"] != "active":
                 raise SubmissionConflict("Cannot submit to a completed or retired attempt")
-            existing = db.execute("""SELECT text, outcome, submitted_at FROM progress_first_answers
+            existing = db.execute("""SELECT text, outcome, confidence, submitted_at FROM progress_first_answers
                 WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone()
             if existing is not None:
-                if existing["text"] != text or existing["outcome"] != outcome:
+                if (existing["text"] != text or existing["outcome"] != outcome
+                        or existing["confidence"] != confidence):
                     raise SubmissionConflict("The original first answer cannot be replaced")
                 return dict(existing)
             if attempt["question_number"] != question_number or attempt["phase"] != "first-answer":
                 raise SubmissionConflict("The submission does not match the current question and phase")
-            answer = {"text": text, "outcome": outcome, "submitted_at": _now()}
+            answer = {"text": text, "outcome": outcome, "confidence": confidence, "submitted_at": _now()}
             db.execute("""INSERT INTO progress_first_answers
-                (attempt_id, question_number, text, outcome, submitted_at) VALUES (?, ?, ?, ?, ?)""",
-                       (attempt_id, question_number, text, outcome, answer["submitted_at"]))
+                (attempt_id, question_number, text, outcome, confidence, submitted_at) VALUES (?, ?, ?, ?, ?, ?)""",
+                       (attempt_id, question_number, text, outcome, confidence, answer["submitted_at"]))
             self._queue_answer_event(db, attempt, question_number, answer, "OwnKnowledgeAnswerSubmitted")
             db.execute("UPDATE progress_attempts SET phase = 'search' WHERE attempt_id = ?", (attempt_id,))
         return answer

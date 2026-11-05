@@ -178,7 +178,7 @@ class StudentProgress:
             if not self.publish(attempt):
                 raise OSError("Progress publication temporarily unavailable")
 
-    def page(self, error=None, text=None, status=200, *, start_task=True):
+    def page(self, error=None, text=None, status=200, *, start_task=True, confidence=None):
         attempt = self.current()
         if attempt["metadata"]["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat():
             session.clear()
@@ -206,6 +206,7 @@ class StudentProgress:
         return render_template("first_answer.html", task_number=number, topic=task["snapshot"]["question"],
                                attempt_id=attempt["attempt_id"], draft_revision=draft.get("revision", 0),
                                draft_text=text if text is not None else draft.get("text", ""),
+                               draft_confidence=confidence if text is not None else draft.get("confidence"),
                                first_answer=task["first_answer"], error=error,
                                csrf_token=session["progress_csrf"], submit_url=url_for("first_answer"),
                                draft_url=url_for("first_answer_draft"), search_url=url_for("search_page")), status
@@ -230,20 +231,23 @@ class StudentProgress:
         attempt, error = self.checked_context(request.form)
         if error:
             return error
+        confidence = request.form.get("confidence")
+        confidence = int(confidence) if confidence in ("1", "2", "3") else None
         try:
             outcome = request.form.get("outcome")
             if outcome not in ("answered", "unknown"):
                 raise ValueError("Choose an explicit outcome")
             self.store.submit_first_answer(self.key(attempt["metadata"]), attempt["attempt_id"],
                                            int(request.form["question_number"]), request.form.get("text"),
-                                           unknown_confirmed=outcome == "unknown")
+                                           unknown_confirmed=outcome == "unknown", confidence=confidence)
         except SubmissionConflict:
             return self.page("La risposta è già stata confermata. Ricarica la pagina.", status=409)
         except ValueError:
-            return self.page("Scrivi una risposta oppure conferma “Non lo so”.", request.form.get("text", ""), 400)
+            return self.page("Scrivi una risposta e scegli quanto è giusta, oppure conferma “Non lo so”.",
+                             request.form.get("text", ""), 400, confidence=confidence)
         except (OSError, sqlite3.Error):
             return self.page("Salvataggio non riuscito. La risposta è ancora qui: riprova.",
-                             request.form.get("text", ""), 503, start_task=False)
+                             request.form.get("text", ""), 503, start_task=False, confidence=confidence)
         self.publish(attempt)
         return redirect(url_for("task"), code=303)
 
@@ -257,7 +261,7 @@ class StudentProgress:
         try:
             saved = self.store.save_draft(self.key(attempt["metadata"]), attempt["attempt_id"],
                                           int(data["question_number"]), "first-answer", data.get("text"),
-                                          data.get("revision"))
+                                          data.get("revision"), confidence=data.get("confidence"))
         except (DraftConflict, SubmissionConflict):
             return jsonify(error="La bozza è cambiata. Conserva il testo e ricarica la pagina."), 409
         except ValueError:

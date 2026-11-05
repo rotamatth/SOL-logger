@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Persist initial confidence with the first answer
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, data, logging, tests
+
+**Files**
+- `search-app/study_progress.py`, `search-app/student_progress.py` — schema 5 migration, validated confidence, revisioned drafts and canonical events.
+- `search-app/tests/test_initial_confidence.py` and first-answer/progress setup helpers — atomicity, retries, concurrency, upgrade and route contracts.
+
+**What changed for the participant**
+Typed first answers require a confidence assessment. Confirmed “Non lo so” records no confidence.
+
+**How it works**
+The integer confidence (1/2/3) is stored with the original answer, search phase and outbox event in one transaction. Drafts store text and confidence under the same revision. Old measurements remain null and existing outbox events are preserved.
+
+**If something looks wrong after this, check**
+The configured progress database's schema version and the `confidence` field in `OwnKnowledgeAnswerSubmitted`. Conflicting confidence on a retry must return 409.
+
+**Left alone**
+Final answers, recap/restart interfaces, autocomplete and deployment dependencies.
+
+**Verified**
+104 focused persistence/route/event tests passed before the UI increment; additional migration and browser checks passed with that increment.
+
 ## 2026-11-05 — Add the illustrated participant review on tablets
 
 **Commit:** pending · **Type:** feature · **Area:** styling, task-flow, tests
