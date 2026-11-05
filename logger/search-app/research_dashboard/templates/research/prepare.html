@@ -12,7 +12,7 @@
   {% if request.args.get('approved') %}<p class="notice success" role="status">{{ t('questions_published_notice') }}</p>{% endif %}
   {% if selected %}
   <section class="session-status-summary {{ session_status.tone }}" aria-label="{{ t('session_access_status') }}">
-    <div><strong>{{ t(session_status.title) }}{% if session_status.code == 'scheduled' %} {{ selected.date }}{% endif %}</strong><p>{{ t(session_status.hint) }}</p>{% if session_status.code in ('setup_incomplete', 'partly_available_today') %}{{ needs_links(selected, session_needs) }}{% endif %}</div>
+    <div><strong>{{ t(session_status.title) }}{% if session_status.code == 'scheduled' %} {{ selected.date }}{% endif %}</strong><p>{{ t(session_status.hint) }}</p>{% if session_status.code in ('setup_incomplete', 'partly_available_today') %}{{ needs_links(selected, session_needs) }}{% endif %}{% if session_status.code in ('available_today', 'partly_available_today') %}<p><a class="button compact primary" href="{{ u('session_live', session_id=selected.id) }}">{{ t('open_live_view') }}</a></p>{% endif %}</div>
     <span class="session-status-date">{{ selected.date or t('date_not_set') }} · Europe/Zurich</span>
   </section>
   {% endif %}

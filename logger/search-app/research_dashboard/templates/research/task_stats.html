@@ -11,7 +11,7 @@
       <td data-label="{{ t('stats_time') }}">{{ duration(task.seconds) }}</td>
       <td data-label="{{ t('stats_events') }}">{{ dash(task.events) }}</td>
       <td data-label="{{ t('stats_searches') }}">{{ dash(task.searches) }}{{ count_notes([(task.no_results, 'stats_no_results'), (task.suggestions, 'stats_suggestions')]) }}</td>
-      <td data-label="{{ t('stats_results') }}">{{ dash(task.results_opened) }}{{ count_notes([(task.mean_rank, 'stats_mean_rank')]) }}</td>
+      <td data-label="{{ t('stats_results') }}">{{ dash(task.results_opened) }}{% if task.mean_rank is not none %}<small class="muted">{{ t('stats_mean_rank') }} {{ task.mean_rank }}</small>{% endif %}</td>
       <td data-label="{{ t('stats_pages') }}">{{ duration(task.page_seconds) }}</td>
       <td data-label="{{ t('stats_difficulty') }}">{% if task.events is none %}—{% elif task.help_opened or task.search_errors or task.pages_failed %}{{ count_notes([(task.help_opened, 'stats_help'), (task.search_errors, 'stats_errors'), (task.pages_failed, 'stats_failed_pages')]) }}{% else %}{{ t('stats_none') }}{% endif %}</td>
     </tr>
