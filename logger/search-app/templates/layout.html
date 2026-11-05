@@ -69,12 +69,12 @@
                         data-url="{{ final_answer_draft.url }}" data-revision="{{ final_answer_draft.revision }}"
                         data-csrf-token="{{ final_answer_draft.csrf_token }}"
                         data-attempt-id="{{ final_answer_draft.attempt_id }}"
-                        data-question-number="{{ final_answer_draft.question_number }}">{% if final_answer_draft.revision %}Bozza salvata.{% endif %}</output>
+                        data-question-number="{{ final_answer_draft.question_number }}"></output>
                 <button id="final-answer-draft-retry" class="app-btn app-btn-secondary" type="button" hidden>Riprova salvataggio</button>
                 {% endif %}
             </div>
 
-            <div class="modal-buttons">
+            <div class="modal-buttons feedback-actions">
                 <button id="feedback-btn" class="app-btn app-btn-primary">Invia risposta e termina</button>
                 <button id="continue-search-btn" class="app-btn app-btn-secondary">Continua a cercare</button>
             </div>

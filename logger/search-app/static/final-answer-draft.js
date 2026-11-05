@@ -30,7 +30,6 @@
     const value = text.value;
     dirty = false;
     saving = true;
-    status.textContent = 'Salvataggio della bozza…';
     try {
       const response = await fetch(status.dataset.url, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -46,7 +45,7 @@
       dirty = text.value !== value;
       if (dirty) remember(); else forget();
       retry.hidden = true;
-      status.textContent = dirty ? 'Modifiche da salvare…' : 'Bozza salvata.';
+      status.textContent = '';
     } catch (error) {
       if (paused) return;
       dirty = true;
@@ -64,7 +63,6 @@
     text.value = value;
     dirty = true;
     remember();
-    if (!blocked) status.textContent = 'Modifiche da salvare…';
     window.clearTimeout(timer);
     timer = window.setTimeout(save, 600);
   }

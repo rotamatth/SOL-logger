@@ -2,7 +2,7 @@
 import pytest
 
 from .test_background_upload_browser import student_site, saved, types_of  # noqa: F401
-from .test_first_answer_flow_browser import open_first
+from .test_first_answer_flow_browser import open_first, wait_for_draft_ack
 from .test_editor_browser import until
 
 
@@ -34,7 +34,7 @@ def test_confidence_draft_resumes_in_fresh_browser_and_unknown_needs_no_assessme
     open_first(page, base)
     page.fill("#first-answer-text", "Laika")
     page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
-    page.get_by_text("Bozza salvata.", exact=True).wait_for()
+    wait_for_draft_ack(page, "first")
     other = page.context.browser.new_context()
     try:
         resumed = other.new_page()
@@ -68,7 +68,7 @@ def test_failed_autosave_recovers_confidence_with_text_after_reload(student_site
     page.locator("#first-answer-retry-draft:not([hidden])").wait_for()
     page.unroute("**/first-answer/draft")
     page.get_by_role("button", name="Riprova salvataggio").click()
-    page.get_by_text("Bozza salvata.", exact=True).wait_for()
+    wait_for_draft_ack(page, "first")
     page.reload()
     assert page.get_by_role("radio", name="Giustissima", exact=True).is_checked()
 
@@ -96,7 +96,7 @@ def test_change_during_inflight_save_keeps_the_latest_assessment(student_site, c
         page.get_by_role("radio", name="Giustissima", exact=True).check()
     route, response = held[0]
     route.fulfill(response=response)
-    page.get_by_text("Bozza salvata.", exact=True).wait_for()
+    wait_for_draft_ack(page, "first")
     page.reload()
     if clear_text:
         assert page.locator("#first-answer-text").input_value() == " "

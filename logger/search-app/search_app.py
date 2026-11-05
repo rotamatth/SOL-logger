@@ -1042,16 +1042,19 @@ REVIEW_ARTWORK_THEMES = {
 }
 
 
-def review_illustration(progress, topic='recap'):
-    if str(topic) not in ('1', '2', '3', 'recap'):
-        return None
+def review_artwork_theme(progress):
     metadata = progress['metadata']
     for label in (metadata.get('question_set_theme'), metadata['study_session_snapshot'].get('theme')):
         if isinstance(label, str):
             theme = REVIEW_ARTWORK_THEMES.get(' '.join(label.casefold().split()))
             if theme:
-                return f'images/review/{theme}-{topic}.webp'
+                return theme
     return None
+
+
+def review_illustration(progress):
+    theme = review_artwork_theme(progress)
+    return f'images/review/{theme}-recap.webp' if theme else None
 
 
 @app.get('/task-review/<int:number>')
@@ -1063,8 +1066,15 @@ def task_review(number):
     if idle_session_expired():
         return redirect(url_for('welcome'))
     task = progress['tasks'][number - 1]
+    theme = review_artwork_theme(progress)
+    topic = str(task['snapshot']['topic_id'])
+    animation = poster = None
+    if theme and topic in ('1', '2', '3'):
+        prefix = 'Spazio' if theme == 'space' else 'Orecchio'
+        animation = f'videos/review/{prefix}_0{topic}.mp4'
+        poster = f'images/review/{theme}-{topic}.webp'
     return render_template('study_handoff.html', review_tasks=[task], review_only=True,
-                           illustration=review_illustration(progress, task['snapshot']['topic_id']),
+                           animation=animation, poster=poster,
                            is_last=number == len(progress['tasks']))
 
 

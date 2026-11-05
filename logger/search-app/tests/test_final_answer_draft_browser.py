@@ -4,6 +4,7 @@ import sqlite3
 import pytest
 
 from .test_background_upload_browser import student_site, start, search, saved, types_of, until  # noqa: F401
+from .test_first_answer_flow_browser import wait_for_draft_ack
 
 
 def open_box(page):
@@ -19,7 +20,7 @@ def enter(page, base):
 
 
 def wait_saved(page):
-    page.get_by_text("Bozza salvata.", exact=True).wait_for()
+    wait_for_draft_ack(page, "final")
 
 
 def persisted(root, number=1):
@@ -67,6 +68,7 @@ def test_failed_save_keeps_text_after_reload_and_retries_durably(student_site):
     page.route("**/final-answer/draft", lambda route: route.abort())
     page.fill("#textarea_feedback", "Questa bozza deve restare")
     page.locator("#final-answer-draft-retry:not([hidden])").wait_for()
+    assert page.locator("#final-answer-draft-status").inner_text().strip()
     assert persisted(root) is None
     page.reload()
     open_box(page)
@@ -77,6 +79,26 @@ def test_failed_save_keeps_text_after_reload_and_retries_durably(student_site):
     wait_saved(page)
     assert persisted(root) == ("Questa bozza deve restare", 1)
     assert page.locator("#final-answer-draft-retry").is_hidden()
+
+
+def test_feedback_actions_share_a_row_and_return_focus_to_search(student_site):
+    page, base, _ = student_site
+    page.set_viewport_size({"width": 320, "height": 700})
+    enter(page, base)
+    answer = page.locator("#textarea_feedback")
+    assert answer.evaluate("element => element === document.activeElement")
+    confirm = page.get_by_role("button", name="Invia risposta e termina")
+    resume_search = page.get_by_role("button", name="Continua a cercare", exact=True)
+    primary, secondary = confirm.bounding_box(), resume_search.bounding_box()
+    assert primary["y"] == secondary["y"] and primary["x"] < secondary["x"]
+    assert min(primary["height"], secondary["height"]) >= 44
+    assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+    answer.fill("Risposta che voglio continuare a cercare")
+    resume_search.click()
+    opener = page.locator("#end-task-btn")
+    assert opener.evaluate("element => element === document.activeElement")
+    open_box(page)
+    assert answer.input_value() == "Risposta che voglio continuare a cercare"
 
 
 def test_stale_browser_keeps_local_text_and_requires_explicit_recovery(student_site):

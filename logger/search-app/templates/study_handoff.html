@@ -28,8 +28,10 @@
       <section class="review-task" aria-labelledby="review-question-{{ task.number }}">
         <span class="review-number">Domanda {{ task.number }}</span>
         <h2 id="review-question-{{ task.number }}">{{ task.snapshot.question }}</h2>
-        {% if illustration and review_only %}
-        <img class="review-illustration" src="{{ url_for('static', filename=illustration) }}" alt="">
+        {% if animation and review_only %}
+        <video class="review-animation" src="{{ url_for('static', filename=animation) }}"
+               poster="{{ url_for('static', filename=poster) }}" aria-label="Animazione della domanda {{ task.number }}"
+               controls muted playsinline preload="metadata"></video>
         {% endif %}
         <div class="review-comparison">
           <div class="review-card review-before">

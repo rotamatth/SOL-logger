@@ -62,7 +62,8 @@
   white-space: pre-line;
 }
 
-.review-illustration {
+.review-illustration,
+.review-animation {
   display: block;
   max-width: 100%;
   max-height: min(33vh, 240px);

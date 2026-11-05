@@ -99,7 +99,7 @@ async page => {
         check(ended.length === 1 && ended[0].answer === 'Una stella molto grande può formare un buco nero.', 'final answer logging changed');
         check(logs.some(event => event.type === 'AnswerBoxClosed' && event.reason === 'x-button'), 'Escape lost the existing close event');
         check(logs.filter(event => event.type === 'TaskContinued').length === 1, 'continue event was lost or duplicated');
-        await page.waitForURL('**/reward');
+        await page.waitForURL('**/next_task');
     });
     await scenario('question help can be opened and closed from the keyboard', async () => {
         await page.goto(`${origin}/search`);

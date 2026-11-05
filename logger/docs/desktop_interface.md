@@ -8,11 +8,43 @@ Buttons wrap long labels, pagination wraps on narrow screens, and the viewer
 uses its available height. Keyboard focus has a visible ring. Answer,
 confirmation and question-help dialogs use named dialog semantics and real
 close buttons; Tab stays inside, Escape calls the existing close action, and
-closing restores focus to the opener. Confirmation initially focuses the
-continue action. Existing confirmation, drafts and logging handlers remain in
-use. Pre-knowledge and recap features are outside this change.
+closing restores focus to the opener. The final confirmation initially focuses
+the continue action.
 
-## Environment and results
+## Connected student flow
+
+The first and final answers autosave quietly. Failed saves and conflicts still
+appear next to the answer with the retry control. In the answer dialog,
+“Invia risposta e termina” and “Continua a cercare” share a row, with wrapped
+labels on narrow screens. The primary action opens the existing irreversible
+confirmation. The secondary action resumes search and keeps the draft.
+[Figma answer dialog](https://www.figma.com/design/RHTHZ6gW4n1FK8VBw5T7St/Attivit%C3%A0-Lambertenghi-2026-2027?node-id=11-3603)
+
+Each post-search review shows the supplied Spazio or Orecchio MP4 for the
+question's position in the assigned set, even when the student sees the
+questions in a different order. The clip plays once, muted and inline. It has
+pause and replay controls. With reduced motion, the poster stays visible until
+the student starts the clip. Both answer cards are readable during playback.
+The final recap uses the theme's static artwork.
+
+The Playwright student fixture drives the app against temporary SQLite and log
+storage with synthetic search results. Browser assertions cover both themes
+across all three questions, all six playable clips, the recap, a lost final
+submission acknowledgement and the absence of duplicate answer events. Separate
+tests cover draft recovery and keyboard focus. The iPad-sized runs emulate
+touch and viewport dimensions in Chromium. A physical iPad and its on-screen
+keyboard still need a device check.
+
+| Screen and viewport | Before | After |
+| --- | --- | --- |
+| Answer dialog, 1366×768 desktop | [Before](../../output/playwright/issue11-confirm-before-desktop.png) | [After](../../output/playwright/issue11-confirm-after-desktop.png) |
+| Answer dialog, 768×1024 iPad portrait | [Before](../../output/playwright/issue11-confirm-before-ipad-portrait.png) | [After](../../output/playwright/issue11-confirm-after-ipad-portrait.png) |
+| Answer dialog, 1024×768 iPad landscape | [Before](../../output/playwright/issue11-confirm-before-ipad-landscape.png) | [After](../../output/playwright/issue11-confirm-after-ipad-landscape.png) |
+| Answer dialog, 320×700 narrow | [Before](../../output/playwright/issue11-confirm-before-narrow.png) | [After](../../output/playwright/issue11-confirm-after-narrow.png) |
+| Post-search review, 1366×768 desktop | [Before](../../output/playwright/issue11-review-before-desktop.png) | [After](../../output/playwright/issue11-review-after-desktop.png) |
+| Post-search review, 768×1024 iPad portrait | [Before](../../output/playwright/issue11-review-before-ipad-portrait.png) | [After](../../output/playwright/issue11-review-after-ipad-portrait.png) |
+
+## Original desktop baseline
 
 Tested on a Windows desktop runner, registry build `26300`, display version
 `26H2`, with the installed Brave executable (product version `156.1.98.60`),
@@ -25,7 +57,7 @@ screen size were not supplied. Reported dimensions below are browser viewports.
 | Keyboard | 7 scenarios pass: welcome/ID/task entry; Escape and typed search; ArrowUp/Enter; answer validation, draft, focus and confirmation; help; viewer back; visible confirmation focus at 640×400 |
 | Touch emulation | 768×1024 and 1024×768 pass: question help, suggestion tap and immediate search, single query event, answer entry and close |
 | Existing logging checks | Full `test_logging_contract.py` module: 19 passed on Windows with Node available |
-| Existing full suite | WSL: 120 passed, 24 failed, 7 errors. See [failure inventory](desktop_interface_test_results.md) |
+| Full suite at the original desktop baseline | 120 passed, 24 failed and 7 errors in WSL. [Failure inventory](desktop_interface_test_results.md) |
 
 The preview renders the real templates, CSS and logging script with synthetic
 search/autocomplete and log-save responses. It never reads or writes study
@@ -34,13 +66,21 @@ answer in `TaskEnded`, and do not validate external search or production log
 persistence. Touch emulation does not validate Brave on a physical iPad or its
 on-screen keyboard.
 
-The full-suite failures were already seen before the new keyboard/dialog work:
-21 dashboard/demo assertions, 3 checks requiring Node missing in WSL, and 7
-Selenium setup errors from the Linux driver exiting with code 127. Dashboard
-and backend implementation files are unchanged by this PR. The same logging
-module passes on Windows. Do not report the full suite as passing.
+The historical run reported 21 dashboard and demo assertion failures, three
+checks that needed Node in WSL, and seven Selenium setup errors from the Linux
+driver exiting with code 127. The Windows logging module passed.
 
 ## Repeat the focused checks
+
+From the repository root with Chromium and the browser test dependencies installed:
+
+```sh
+SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest -q \
+  logger/search-app/tests/test_first_answer_flow_browser.py \
+  logger/search-app/tests/test_initial_confidence_browser.py \
+  logger/search-app/tests/test_final_answer_draft_browser.py \
+  logger/search-app/tests/test_logging_contract.py
+```
 
 Use a Python environment with the app's dependencies installed, plus pytest for
 the existing Python checks. From `logger/search-app`, start the isolated fixture:
@@ -97,7 +137,5 @@ First suggestion selected with ArrowDown:
   orientation. Check touch, on-screen keyboard and external keyboard.
 - Repeat the affected flows against the configured external search service and
   verify saved logs with the existing logging walkthrough/checker.
-- Check first-answer and editable recap screens from #7/#9 when available;
-  those features are not implemented here.
 
 Keep the PR as a draft. No review request or merge has been made.
