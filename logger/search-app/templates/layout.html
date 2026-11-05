@@ -87,7 +87,9 @@
             let debounceTimer;
             let activeIndex = -1;
             let autocompleteRequestSequence = 0;
+            let autocompleteRequest = null;
             let searchSubmitted = false;
+            const autocompleteDebounceMs = 200;
 
             function setAutocompleteContext(details = {}) {
                 const suggestions = Array.isArray(details.suggestions)
@@ -122,6 +124,21 @@
                 clearBtn.disabled = !hasValue;
             }
 
+            function cancelSuggestions() {
+                clearTimeout(debounceTimer);
+                autocompleteRequestSequence += 1;
+                autocompleteRequest?.abort();
+                autocompleteRequest = null;
+            }
+
+            function resetSuggestions(prefix) {
+                cancelSuggestions();
+                list.innerHTML = "";
+                activeIndex = -1;
+                setAutocompleteContext({ prefix });
+                hideList();
+            }
+
             syncClearButton();
 
             if (clearBtn) {
@@ -130,12 +147,7 @@
                     if (!clearedQuery) return;
 
                     input.value = "";
-                    list.innerHTML = "";
-                    activeIndex = -1;
-                    autocompleteRequestSequence += 1;
-                    clearTimeout(debounceTimer);
-                    setAutocompleteContext({ prefix: "" });
-                    hideList();
+                    resetSuggestions("");
                     syncClearButton();
                     input.focus();
 
@@ -150,24 +162,15 @@
 
             input.addEventListener("input", () => {
                 const query = input.value.trim();
-                list.innerHTML = "";
-                activeIndex = -1;
+                resetSuggestions(query);
                 syncClearButton();
 
-                if (query.length < 3) {
-                    autocompleteRequestSequence += 1;
-                    setAutocompleteContext({ prefix: query });
-                    hideList();
-                    return;
-                }
+                if (query.length < 3) return;
 
-                clearTimeout(debounceTimer);
-
-                const requestId = autocompleteRequestSequence + 1;
-                autocompleteRequestSequence = requestId;
+                const requestId = autocompleteRequestSequence;
                 debounceTimer = setTimeout(() => {
                     fetchSuggestions(query, requestId);
-                }, 300);
+                }, autocompleteDebounceMs);
             });
 
             input.addEventListener("keydown", (e) => {
@@ -200,20 +203,19 @@
             });
 
             async function fetchSuggestions(query, requestId) {
+                const request = new AbortController();
+                autocompleteRequest = request;
                 try {
                     const response = await fetch(
-                        `/autocomplete?query=${encodeURIComponent(query)}`
+                        `/autocomplete?query=${encodeURIComponent(query)}`,
+                        { signal: request.signal }
                     );
 
-                    if (requestId !== autocompleteRequestSequence) return;
-
-                    if (!response.ok) {
-                        setAutocompleteContext({ prefix: query });
-                        hideList();
-                        return;
-                    }
+                    if (!response.ok || requestId !== autocompleteRequestSequence) return;
 
                     const data = await response.json();
+                    if (requestId !== autocompleteRequestSequence) return;
+
                     const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
                     const source = data?.source || "none";
                     const queryModel = data?.query_model || data?.queryModel || null;
@@ -257,10 +259,10 @@
 
                 } catch (err) {
                     if (requestId === autocompleteRequestSequence) {
-                        setAutocompleteContext({ prefix: query });
-                        hideList();
+                        console.error("Autocomplete error:", err);
                     }
-                    console.error("Autocomplete error:", err);
+                } finally {
+                    if (autocompleteRequest === request) autocompleteRequest = null;
                 }
             }
 
@@ -279,8 +281,7 @@
 
                 // Drop any in-flight or pending suggestion request: the
                 // chosen value is final.
-                clearTimeout(debounceTimer);
-                autocompleteRequestSequence += 1;
+                cancelSuggestions();
 
                 submitSearch();
             }
@@ -312,7 +313,10 @@
 
             // Fires when the field is emptied without an "input" event,
             // e.g. Escape in a search field or a browser-restored value.
-            input.addEventListener("search", syncClearButton);
+            input.addEventListener("search", () => {
+                syncClearButton();
+                if (!input.value) resetSuggestions("");
+            });
 
             // Back-navigation can restore this page from the bfcache with its
             // JavaScript state intact, so release the submit guard.
