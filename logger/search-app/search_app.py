@@ -1076,6 +1076,25 @@ def end_task():
     return redirect(url_for('reward'))
 
 
+REVIEW_ARTWORK_THEMES = {
+    'spazio': 'space', 'tema spazio': 'space', 'sistema solare': 'space', 'space': 'space',
+    'corpo umano': 'ear', 'corpo umano (orecchio)': 'ear', 'tema corpo umano (orecchio)': 'ear',
+    'orecchio': 'ear', 'udito': 'ear',
+}
+
+
+def review_illustration(progress, topic='recap'):
+    if str(topic) not in ('1', '2', '3', 'recap'):
+        return None
+    metadata = progress['metadata']
+    for label in (metadata.get('question_set_theme'), metadata['study_session_snapshot'].get('theme')):
+        if isinstance(label, str):
+            theme = REVIEW_ARTWORK_THEMES.get(' '.join(label.casefold().split()))
+            if theme:
+                return f'images/review/{theme}-{topic}.webp'
+    return None
+
+
 @app.get('/task-review/<int:number>')
 def task_review(number):
     progress = PROGRESS.current()
@@ -1084,7 +1103,9 @@ def task_review(number):
         abort(404)
     if idle_session_expired():
         return redirect(url_for('welcome'))
-    return render_template('study_handoff.html', review_tasks=[progress['tasks'][number - 1]], review_only=True,
+    task = progress['tasks'][number - 1]
+    return render_template('study_handoff.html', review_tasks=[task], review_only=True,
+                           illustration=review_illustration(progress, task['snapshot']['topic_id']),
                            is_last=number == len(progress['tasks']))
 
 
@@ -1192,6 +1213,7 @@ def thank_you():
             return redirect(url_for('task'))
         tasks = [task for task in progress['tasks'] if task['number'] in reviews]
         return render_template('study_handoff.html', review_tasks=tasks, review_only=False,
+                               illustration=review_illustration(progress) if tasks else None,
                                partial_review=len(tasks) < len(progress['tasks']))
     phase = current_phase()
     if phase != 'completed':

@@ -262,7 +262,9 @@ def test_failed_progress_initialization_recovers_the_admitted_snapshot(module, m
         assert db.execute("SELECT count(*) FROM study_attempts").fetchone()[0] == 1
 
 
-def test_three_question_flow_saves_originals_once_and_skips_rewards(module):
+@pytest.mark.parametrize(("theme", "artwork"), [("Spazio", "space"), ("Corpo umano (orecchio)", "ear")])
+def test_three_question_flow_saves_originals_once_and_skips_rewards(module, theme, artwork):
+    schedule(module, shared={**question_set(), "theme": theme})
     client = begin(module)
     assert client.get("/task-review/1").status_code == 404
     assert module.app.test_client().get("/task-review/1").status_code == 404
@@ -289,6 +291,9 @@ def test_three_question_flow_saves_originals_once_and_skips_rewards(module):
         review = client.post("/end", follow_redirects=True)
         assert review.request.path == f"/task-review/{number}"
         assert f"Before {number}" in review.text and f"After {number}" in review.text
+        image = f"/static/images/review/{artwork}-{before_final['task_number']}.webp"
+        assert image in review.text
+        assert client.get(image).mimetype == "image/webp"
         assert f"After {number}" in client.get(review.request.path).text
         assert module.app.test_client().get(review.request.path).status_code == 404
         assert begin(module).get(review.request.path).status_code == 404
@@ -304,6 +309,7 @@ def test_three_question_flow_saves_originals_once_and_skips_rewards(module):
         assert client.get("/reward").status_code == 302
     complete = client.get("/task", follow_redirects=True)
     assert "Hai risposto alle tre domande" in complete.text
+    assert complete.text.count(f"/static/images/review/{artwork}-recap.webp") == 1
     assert all(f"Before {number}" in complete.text and f"After {number}" in complete.text for number in range(1, 4))
     own = events(module)
     assert [event["task_number"] for event in own if event["type"] == "TaskEnded"] == [1, 2, 3]
