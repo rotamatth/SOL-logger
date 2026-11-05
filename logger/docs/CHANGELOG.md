@@ -65,6 +65,27 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Document dashboard v2
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `docs/research_dashboard.md` — new section on Sessions, the live view, statistics and the guide; the
+  header, setup steps, session removal and Study settings follow the new layout.
+- `docs/dashboard_integration.md` — module table and entry routes.
+- `docs/local_ui_development.md` — the collection walkthrough uses the new pages. Also corrects a stale
+  line that said unfinished work is not uploaded periodically: it is, at least once a minute.
+- `docs/follow_up_checks.md` — new item: check the live view with a real class and the new controls on an iPad.
+
+**What changed for the participant**
+No visible change.
+
+**Left alone**
+Historical verification notes, which describe what was true when they were written.
+
+**Verified**
+Each changed statement was checked against the code. Documentation only: no tests were run for this commit.
+
 ## 2026-11-05 — A guide for new researchers
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests

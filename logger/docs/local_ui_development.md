@@ -42,9 +42,9 @@ study settings are preserved. Repeating the command does not duplicate the fixtu
 
 To test collection:
 
-1. Open **Study settings → Sessions**, choose the grade and set the session date
-   to today (Europe/Zurich), with an optional name. Prepare the three V2 session
-   dates explicitly; dates do not have to be a month apart.
+1. Open **Sessions → Create**, choose the class and set the session date to today
+   (Europe/Zurich), with an optional name. Prepare the three V2 session dates explicitly;
+   dates do not have to be a month apart.
 2. Open **Configure questions** for today's session. Enter three topics/questions,
    or load a previous set/question into the editor and edit it. **Save draft** keeps
    incomplete work; **Save draft and return to session** also opens the session's
@@ -57,13 +57,14 @@ To test collection:
    per-ID assignments and puzzle files are optional. In another tab, open
    http://localhost:7001/welcome and start with a configured ID. Outside the date,
    or with missing/unapproved questions, the app shows **Session not available**.
-3. Submit a task answer, then return to the dashboard and select
-   the **Refresh saved data** icon in the header. Interaction logs and answers reach the dashboard at
-   task submission; unfinished work is not uploaded periodically.
+3. Open **Live** on today's session in **Sessions** and watch it update while you work in
+   the other tab. Logs reach the server at each page change, at least once a minute, when the
+   page is hidden and at task submission. In **Data and history**, the **Refresh saved data**
+   icon shows the latest at once.
 4. Choose a grade and use **Download all [grade]** beside the grade navigation to
    download its complete history. In **All participants**, **Download a full grade**
    offers the available grades. Every ZIP includes incomplete and repeated runs.
-   **Session history** can open a particular session's results, where the context
+   **Data** on a row of **Sessions** opens that session's results, where the context
    strip offers **Download session** and **Show full history**.
 5. Use **Visualize logs** in the participant list to open that participant's saved
    runs. Tick one or more participant rows and press **Download selected** to download
@@ -80,14 +81,12 @@ To test collection:
    **Manage logs** opens the run list, where one run can be moved to **Trash** after
    confirmation and later restored. Trashing hides it from views and downloads;
    original source files stay on disk.
-6. In **Study settings → Sessions**, choose a grade once for both creation and
-   history. Expand **New session**, enter a date and optional name, then press
+6. In **Sessions → Create**, enter a class, date and optional name, then press
    **Create session**. The next session number is assigned automatically; each grade
-   supports up to 100 sessions. Expand a session in **Session history** to edit its
-   name or date, then press **Save session**. History shows ten sessions per page,
-   newest first. Existing session numbers and source files are preserved.
-   For an accidentally created or unused session, expand **Remove session** and
-   confirm. It disappears from the schedule. **Removed sessions → Restore session**
+   supports up to 100 sessions. **Open** a session to edit its name or date, then press
+   **Save session**. Existing session numbers and source files are preserved.
+   For an accidentally created or unused session, expand **Remove session** at the bottom of
+   its page and confirm. It disappears from the schedule. **Removed sessions → Restore session**
    restores the original number and saved questions; its date can be adjusted if
    another active session uses that date. Sessions with participant records,
    including started attempts and records in log Trash, cannot be removed.
@@ -95,8 +94,8 @@ To test collection:
    **Save school year** changes only the year. **Participants** shows the saved
    setup for one grade, with a **Need tasks** filter and ten participants per page.
    **Edit setup → Review changes → Save changes** controls the shared participant roster.
-   Choose a session in Participants to check its date/question readiness. Assignments
-   are edited from **Sessions → Configure questions**, with a shared set per grade/session
+   Open a session to check its date/question readiness. Assignments
+   are edited from **Configure questions** on the session's page, with a shared set per grade/session
    and optional individual exceptions.
    Prefixes and digit padding are preserved exactly; the 3rd-grade roster is optional.
    Started runs retain their session, questions, metadata and order if settings later change.
