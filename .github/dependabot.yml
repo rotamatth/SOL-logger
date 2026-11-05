@@ -1,0 +1,47 @@
+# Weekly dependency update pull requests into matthias-dev, one grouped pull request
+# per ecosystem. They go through the same three checks and need an approval.
+# GitHub reads this file only from the default branch (main): it takes effect with
+# the next release. Dependabot pull requests get no Actions secrets, so SONAR_TOKEN
+# must also exist as a Dependabot secret (see logger/docs/follow_up_checks.md).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: matthias-dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Zurich
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Test and quality tools (requirements-*.txt). Dependabot reads only .txt and .in
+  # files, so the production pins in requirements.lock are refreshed by hand; the
+  # pip-audit step in "Code quality" still blocks known vulnerabilities in them.
+  - package-ecosystem: pip
+    directory: /logger/search-app
+    target-branch: matthias-dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Zurich
+    groups:
+      test-and-quality-tools:
+        patterns: ["*"]
+
+  # Base image of the student app. Only Python 3.14 patch releases: CI and
+  # SonarQube Cloud are set to Python 3.14.
+  - package-ecosystem: docker
+    directory: /logger/search-app
+    target-branch: matthias-dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Zurich
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
