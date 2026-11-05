@@ -11,17 +11,26 @@
   {% endif %}
 </head>
 <body class="study-review-page">
-  <main class="study-review" aria-labelledby="review-heading">
+  <main class="study-review{% if review_only %} study-review--single{% endif %}" aria-labelledby="review-heading">
     <h1 id="review-heading">{{ 'Rivedi la tua risposta' if review_only else 'Hai risposto alle tre domande' }}</h1>
     {% if review_tasks %}
+    {% if review_only %}
+    <p class="review-intro">Confronta quello che sapevi prima della ricerca con quello che sai adesso.</p>
+    {% endif %}
     {% if partial_review %}
     <p>Qui vedi le risposte che hai confermato su questo browser.</p>
     {% endif %}
-    <div class="review-diagram">
+    <div class="review-diagram{% if not review_only %} review-diagram--recap{% endif %}">
+      {% if illustration and not review_only %}
+      <img class="review-illustration review-illustration--recap" src="{{ url_for('static', filename=illustration) }}" alt="">
+      {% endif %}
       {% for task in review_tasks %}
       <section class="review-task" aria-labelledby="review-question-{{ task.number }}">
         <span class="review-number">Domanda {{ task.number }}</span>
         <h2 id="review-question-{{ task.number }}">{{ task.snapshot.question }}</h2>
+        {% if illustration and review_only %}
+        <img class="review-illustration" src="{{ url_for('static', filename=illustration) }}" alt="">
+        {% endif %}
         <div class="review-comparison">
           <div class="review-card review-before">
             <h3>Cosa sapevi prima</h3>
@@ -43,9 +52,6 @@
       {% if review_only %}
       <a class="review-button" href="{{ url_for('next_task', review=review_tasks[0].number) }}">{{ 'Continua' if is_last else 'Prossima domanda' }}</a>
       {% else %}
-      {% if review_tasks %}
-      <button class="review-button" type="button" id="print-review">Stampa o salva come PDF</button>
-      {% endif %}
       <a class="review-button review-close" href="{{ url_for('welcome', reset=1) }}">Chiudi l’attività</a>
       {% endif %}
     </div>

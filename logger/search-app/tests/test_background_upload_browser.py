@@ -15,7 +15,7 @@ import pytest
 from werkzeug.serving import make_server
 
 from .test_editor_browser import REQUIRE_BROWSER_TESTS, playwright_api, until
-from .test_study_enrollment import schedule
+from .test_study_enrollment import question_set, schedule
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 RESULTS = [{"docid": f"doc-{n}", "title": f"Synthetic result {n}", "snippet": f"Synthetic snippet {n}.",
@@ -24,7 +24,7 @@ RESULTS = [{"docid": f"doc-{n}", "title": f"Synthetic result {n}", "snippet": f"
 
 
 @pytest.fixture
-def student_site(tmp_path, monkeypatch):
+def student_site(tmp_path, monkeypatch, request):
     monkeypatch.chdir(APP_ROOT)
     for name, value in (("SOL_LOG_DIR", "v2"), ("RESEARCH_LEGACY_LOG_DIR", "legacy"),
                         ("RESEARCH_STATE_DIR", "state")):
@@ -45,7 +45,8 @@ def student_site(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location("background_upload_student_app", APP_ROOT / "search_app.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    schedule(module)
+    theme = getattr(request, "param", None)
+    schedule(module, shared={**question_set(), "theme": theme} if theme else None)
     server = make_server("127.0.0.1", 0, module.app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:

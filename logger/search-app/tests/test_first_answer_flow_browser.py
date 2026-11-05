@@ -1,6 +1,8 @@
 """The connected UI works against real routes and durable temporary storage."""
 import json
 
+import pytest
+
 from .test_background_upload_browser import student_site, saved, types_of, search  # noqa: F401
 
 
@@ -56,6 +58,7 @@ def test_failed_draft_save_survives_reload_and_can_retry(student_site):
     assert page.locator("button#first-answer-search").is_disabled()
 
 
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
 def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(student_site):
     page, base, root = student_site
     page.set_viewport_size({"width": 768, "height": 1024})
@@ -89,22 +92,32 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             page.click("#yes-end-btn")
         page.get_by_text(f"Prima risposta {number}", exact=True).wait_for()
         page.get_by_text(f"Risposta finale {number}", exact=True).wait_for()
+        page.wait_for_function("document.querySelector('.review-illustration')?.naturalWidth > 0")
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+        if number == 1:
+            page.set_viewport_size({"width": 320, "height": 700})
+            before = page.get_by_role("heading", name="Cosa sapevi prima").bounding_box()
+            after = page.get_by_role("heading", name="Cosa sai adesso").bounding_box()
+            assert before["x"] == after["x"] and before["y"] < after["y"]
+            assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+            page.set_viewport_size({"width": 768, "height": 1024})
         if number < 3:
             page.get_by_role("link", name="Prossima domanda").click()
             page.wait_for_function(f"document.querySelector('.first-answer-number')?.textContent === '#{number + 1}'")
         else:
             page.get_by_role("link", name="Continua", exact=True).click()
             page.get_by_role("heading", name="Hai risposto alle tre domande").wait_for()
+            page.wait_for_function("document.querySelector('.review-illustration--recap')?.naturalWidth > 0")
             for index in range(1, 4):
                 assert page.get_by_text(f"Prima risposta {index}", exact=True).is_visible()
                 assert page.get_by_text(f"Risposta finale {index}", exact=True).is_visible()
-            page.evaluate("window.print = () => { window.printRequested = true }")
-            page.get_by_role("button", name="Stampa o salva come PDF").click()
-            assert page.evaluate("window.printRequested")
-            page.emulate_media(media="print")
-            assert page.get_by_role("button", name="Stampa o salva come PDF").is_hidden()
-            assert page.pdf().startswith(b"%PDF-")
+            page.set_viewport_size({"width": 1024, "height": 768})
+            positions = [page.get_by_text(f"Domanda {index}", exact=True).bounding_box() for index in range(1, 4)]
+            assert positions[0]["y"] == positions[1]["y"] == positions[2]["y"]
+            assert positions[0]["x"] < positions[1]["x"] < positions[2]["x"]
+            assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+            assert page.get_by_role("button", name="Stampa o salva come PDF").count() == 0
+            assert page.get_by_role("link", name="Chiudi l’attività").is_visible()
         assert page.evaluate("sessionStorage.getItem('solFirstDraft:another-attempt:1')") == "An unrelated draft"
         assert not page.evaluate("JSON.parse(localStorage.getItem('browserHistory') || '[]').some(url => url.includes('/result'))")
     events = saved(root, "1")

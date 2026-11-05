@@ -1,5 +1,3 @@
-document.getElementById("print-review")?.addEventListener("click", () => window.print());
-
 window.addEventListener("pagehide", event => {
     if (event.persisted) document.querySelector(".study-review").hidden = true;
 });

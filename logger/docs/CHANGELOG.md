@@ -65,6 +65,23 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Add the illustrated participant review on tablets
+
+**Commit:** pending · **Type:** feature · **Area:** styling, task-flow, tests
+
+**Files**
+- `search-app/templates/study_handoff.html`, `search-app/static/study-review.css` —
+  clarify the comparison, stack answers on narrow screens, and align the three
+  questions side by side in the landscape recap.
+- `search-app/static/study-review.js` — remove the print action from the recap.
+- `search-app/static/images/review/` — the six task images and two recap images
+  from the Diagrammi page of Attività Lambertenghi 2026-2027, optimized for tablets.
+- `search-app/search_app.py` — select artwork from the saved theme and original
+  topic position so it follows the question when the display order changes.
+- `search-app/tests/test_first_answer_flow_browser.py` — cover the narrow comparison
+  and the landscape recap in the complete three-question flow.
+- `search-app/tests/test_connected_first_answer.py` — verify the artwork for both themes.
+
 ## 2026-11-05 — Mark draft retries as intentional background saves
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow
