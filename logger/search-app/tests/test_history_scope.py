@@ -49,7 +49,7 @@ def test_preparation_history_and_settings_links_retain_the_selected_session(app)
     history = client.get(destination)
     assert history.status_code == 200
     for response in (prep, history):
-        returning = parse_qs(urlsplit(named_link(response, "Prepare a session")).query)
+        returning = parse_qs(urlsplit(named_link(response, "Sessions")).query)
         assert returning["grade"] == ["4"] and returning["year"] == [YEAR]
         assert returning["session"] == [SESSION]
     settings_url = named_link(history, "Study settings")
@@ -89,7 +89,7 @@ def test_all_years_history_returns_to_the_sessions_own_preparation_year(app):
     login(client)
     response = client.get(f"/dashboard?collection=study&grade=4&session={SESSION}")
     assert response.status_code == 200
-    back = named_link(response, "Prepare a session")
+    back = named_link(response, "Sessions")
     query = parse_qs(urlsplit(back).query)
     assert query["year"] == [YEAR] and query["session"] == [SESSION]
     assert client.get(back).status_code == 200

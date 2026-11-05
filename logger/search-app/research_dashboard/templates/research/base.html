@@ -25,6 +25,7 @@
       {% if auth and auth.authenticated %}<a class="header-logo" href="{{ u('prepare_page') }}" aria-label="Cerca con SOL · {{ t('prepare_session') }}">{{ logo_mark }}</a>
       {% else %}<span class="header-logo" role="img" aria-label="Cerca con SOL">{{ logo_mark }}</span>{% endif %}
       <div class="header-utilities">
+      {% if auth and auth.authenticated %}<a class="header-settings" data-section="settings" href="{{ u('settings_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'settings' or request.endpoint == 'research.settings_page' %}aria-current="page"{% endif %}>{{ t('settings') }}</a>{% endif %}
       <span class="languages"><a href="{{ language_url('en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>EN</a><span>/</span><a href="{{ language_url('it') }}" lang="it" {% if language == 'it' %}aria-current="true"{% endif %}>IT</a></span>
       {% if auth and auth.authenticated %}
       <span class="header-separator" aria-hidden="true"></span>
@@ -38,9 +39,8 @@
     </nav>
       {% if auth and auth.authenticated %}
       <nav class="header-primary" aria-label="{{ t('primary_navigation') }}">
-      <a data-section="prepare" href="{{ u('prepare_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'prepare' %}aria-current="page"{% endif %}>{{ t('prepare_session') }}</a>
+      <a data-section="sessions" href="{{ u('prepare_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'sessions' %}aria-current="page"{% endif %}>{{ t('sessions') }}</a>
       <a data-section="history" href="{{ u('overview',collection='study',grade=study_context.grade if study_context is defined and study_context.grade in grades else 'all',school_year=study_context.school_year if study_context is defined else None,session=study_context.get('id') if study_context is defined and study_context.grade in grades else None) }}" {% if research_area|default('') == 'history' %}aria-current="page"{% endif %}>{{ t('data_and_history') }}</a>
-      <a data-section="settings" href="{{ u('settings_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'settings' or request.endpoint == 'research.settings_page' %}aria-current="page"{% endif %}>{{ t('settings') }}</a>
       </nav>
       {% endif %}
   </header>

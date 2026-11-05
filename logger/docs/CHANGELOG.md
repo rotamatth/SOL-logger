@@ -65,6 +65,35 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Dashboard v2: two main sections, Study settings beside EN/IT
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling
+
+**Files**
+- `search-app/research_dashboard/templates/research/base.html` — the main navigation is
+  Sessions and Data and history; Study settings moved to the header utilities, before EN/IT.
+- `search-app/research_dashboard/static/research.css` — current-page style for the header
+  link; the rule for the old third navigation item is gone.
+- `search-app/research_dashboard/{preparation,question,enrollment}_views.py` — the area
+  behind the navigation highlight is now called `sessions`.
+- `search-app/tests/` — navigation tests follow the new labels.
+
+**What changed for the participant**
+No visible change. Researchers see two main sections instead of three.
+
+**How it works**
+Only navigation moved. "Sessions" still opens the preparation page; the session list
+follows in the next commit.
+
+**If something looks wrong after this, check**
+- No section highlighted in the header → the view's `research_area` value.
+
+**Left alone**
+All routes and pages, including `/dashboard/settings`, which still has its Sessions tab.
+
+**Verified**
+The server test suite passes. The narrow-width layout is reviewed with the session list.
+
 ## 2026-11-03 — Weekly Dependabot updates into matthias-dev
 
 **Commit:** pending · **Type:** infra · **Area:** infra, docs

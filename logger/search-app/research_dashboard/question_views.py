@@ -209,7 +209,7 @@ def register_question_routes(dash):
             review_url = dash.u("enrollment_page", year=study_session.get("school_year") or None, q=uid)
         return dash.page("session_questions", settings=settings, study_session=study_session,
                          from_preparation=from_preparation, review_url=review_url,
-                         research_area="prepare" if from_preparation else "settings",
+                         research_area="sessions" if from_preparation else "settings",
                          study_context=study_session,
                          participant=uid, draft=draft, has_exception=uid in exceptions,
                          published=published, has_draft=has_draft, recovery_key=key,
