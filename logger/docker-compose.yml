@@ -1,5 +1,6 @@
 services:
   search_app:
+    image: "${SOL_APP_IMAGE:-sol-logger-search_app:local}"
     build:
       context: ./search-app
       args:
@@ -13,6 +14,7 @@ services:
       - ./logs-v2:/app/logs
       - ./logs:/app/legacy_logs:ro
       - ./research-state:/app/research_state
+      - ./student-sessions:/app/flask_session
       - ./research-secrets:/app/research-secrets:ro
       - ${API_KEYS_FILE:-./search-app/API_keys.json}:/app/API_keys.json:ro
       - ${GOOGLE_SERVICE_ACCOUNT_FILE:-./search-app/service_account.json}:/app/service_account.json:ro
@@ -21,9 +23,13 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: "${GOOGLE_APPLICATION_CREDENTIALS:-/app/service_account.json}"
       FLASK_DEBUG: "${FLASK_DEBUG:-0}"
       FLASK_SECRET_KEY: "${FLASK_SECRET_KEY:-}"
+      FLASK_SECRET_KEY_FILE: "${FLASK_SECRET_KEY_FILE:-/app/research-secrets/student-secret}"
+      SOL_ENV: production
+      SOL_SESSION_DIR: /app/flask_session
       SOL_LOG_DIR: "/app/logs"
       RESEARCH_LEGACY_LOG_DIR: "/app/legacy_logs"
       RESEARCH_STATE_DIR: "/app/research_state"
+      SOL_PROGRESS_DB_PATH: "${SOL_PROGRESS_DB_PATH:-/app/research_state/study-progress.sqlite3}"
       RESEARCH_PASSWORD_HASH_FILE: "/app/research-secrets/password.hash"
       RESEARCH_COOKIE_SECURE: "${RESEARCH_COOKIE_SECURE:-0}"
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-0}"
@@ -37,7 +43,7 @@ services:
       SERP_AUTOCOMPLETE_GL: "${SERP_AUTOCOMPLETE_GL:-it}"
       SERP_AUTOCOMPLETE_CLIENT: "${SERP_AUTOCOMPLETE_CLIENT:-gws-wiz}"  # default gws-wiz (google.com-style); override per host env
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:7001/welcome >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:7001/health/ready >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

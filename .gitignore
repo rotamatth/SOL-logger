@@ -8,6 +8,9 @@ experiments/data/corpus
 __pycache__/
 .venv/
 .pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
 experiments/testfile.ipynb
 logger/search-engine/test.ipynb
 # Local generated logs
@@ -15,9 +18,25 @@ logger/logs/*
 logger/logs-v2/
 logger/research-state/
 logger/research-secrets/
+logger/student-sessions/
+logger/backups/
 logger/search-app/logs_v2/
 logger/search-app/research_state/
 logger/search-app/flask_session/
+
+# Generated SQLite databases and transaction sidecars (including custom paths)
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-journal
+*.sqlite3-journal
+*.db-journal
+*.sqlite-wal
+*.sqlite3-wal
+*.db-wal
+*.sqlite-shm
+*.sqlite3-shm
+*.db-shm
 
 # unsused document collections
 logger/search-engine/datasets/kid-friend-en/
