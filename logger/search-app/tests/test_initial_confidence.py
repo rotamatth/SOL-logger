@@ -104,12 +104,14 @@ def test_version_four_upgrade_preserves_originals_pending_events_and_drafts(tmp_
         db.execute("PRAGMA user_version=4")
     pending = store.pending_events(key, aid)
     reopened, _ = make_store(tmp_path)
-    assert reopened.runtime_settings()["schema_version"] == 5
+    assert reopened.runtime_settings()["schema_version"] == 6
     snapshot = reopened.get_attempt(key, aid)
     assert snapshot["tasks"][0]["first_answer"]["text"] == "Old original"
     assert snapshot["tasks"][0]["first_answer"]["confidence"] is None
     assert snapshot["tasks"][0]["drafts"]["first-answer"]["text"] == "Old draft"
     assert snapshot["phase"] == "search"
+    assert reopened.pending_events(key, aid) == pending
+    assert reopened.submit_first_answer(key, aid, 1, "Old original") == snapshot["tasks"][0]["first_answer"]
     assert reopened.pending_events(key, aid) == pending
 
 
@@ -169,3 +171,36 @@ def test_draft_route_restores_confidence_in_another_worker(module, student_modul
     page = resumed.get("/task")
     assert "Laika</textarea>" in page.text and 'value="1" required checked' in page.text
     assert resumed.get("/search").status_code == 302
+
+
+def test_task_page_concurrently_advanced_by_another_worker_resumes_safely(module, monkeypatch):
+    client = begin(module)
+    original = module.PROGRESS.store.mark_task_started
+
+    def advance(key, aid, number):
+        module.PROGRESS.store.submit_first_answer(key, aid, number, "Idea", confidence=2)
+        module.PROGRESS.store.submit_final_answer(key, aid, number, "Final")
+        return original(key, aid, number)
+
+    monkeypatch.setattr(module.PROGRESS.store, "mark_task_started", advance)
+    response = client.get("/task")
+    assert response.status_code == 302
+    with client.session_transaction() as state:
+        assert state["task_position"] == 1
+
+
+def test_transient_task_start_failure_cannot_put_submission_before_start(module, monkeypatch):
+    client = begin(module)
+    original = module.PROGRESS.store.mark_task_started
+
+    def fail(*args, **kwargs):
+        raise sqlite3.OperationalError("synthetic start failure")
+
+    monkeypatch.setattr(module.PROGRESS.store, "mark_task_started", fail)
+    page = client.get("/task")
+    assert page.status_code == 503
+    fields = Fields(page.text).values
+    monkeypatch.setattr(module.PROGRESS.store, "mark_task_started", original)
+    assert client.post("/first-answer", data={**fields, "outcome": "answered", "text": "Idea", "confidence": "2"}).status_code == 303
+    assert [e["type"] for e in events(module) if e["type"] in ("TaskStarted", "OwnKnowledgeAnswerSubmitted")] == [
+        "TaskStarted", "OwnKnowledgeAnswerSubmitted"]

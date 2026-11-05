@@ -451,7 +451,7 @@
                         localStorage.removeItem(submissionKey);
                         clearDraftAnswer();
                         clearClientData();
-                        window.location.href = "{{ url_for('task') if study_context else url_for('reward') }}";
+                        window.location.href = "{{ url_for('task') if study_context else url_for('next_task') }}";
                         return;
                     }
 
@@ -675,7 +675,7 @@
             const href = a.getAttribute('href') || '';
             if (a.target === '_blank' || href.startsWith('javascript:') ||
                 href.startsWith('#') || a.hasAttribute('download')) return;
-            if (a.matches('a.result-link, a.page-link, #serp-back-btn, #viewer-back-btn, #serp-logo-link, .reward-continue-btn, .reward-final-btn, #continue-btn')) {
+            if (a.matches('a.result-link, a.page-link, #serp-back-btn, #viewer-back-btn, #serp-logo-link, #continue-btn')) {
                 maybeStart(e);
             }
         });

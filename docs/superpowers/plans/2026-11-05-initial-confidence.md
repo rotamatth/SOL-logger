@@ -33,27 +33,29 @@
 
 Files: `study_progress.py`, `student_progress.py`, first-answer/draft/event tests and shared setup helpers.
 
-- [ ] Add failing tests for typed validation, atomic save/event, concurrent retry conflicts, migration and draft resume.
-- [ ] Run targeted pytest and observe missing confidence behavior.
-- [ ] Add nullable confidence columns in schema 5; extend `submit_first_answer(..., confidence=None)` and `save_draft(..., confidence=None)` with validation.
-- [ ] Pass and restore confidence in participant routes, preserving failed POST text/selection.
-- [ ] Update synthetic submissions for the new required field; run affected server tests.
-- [ ] Commit with changelog.
+- [x] Add failing tests for typed validation, atomic save/event, concurrent retry conflicts, migration and draft resume.
+- [x] Run targeted pytest and observe missing confidence behavior.
+- [x] Add nullable confidence columns in schema 5; extend `submit_first_answer(..., confidence=None)` and `save_draft(..., confidence=None)` with validation.
+- [x] Pass and restore confidence in participant routes, preserving failed POST text/selection.
+- [x] Update synthetic submissions for the new required field; run affected server tests.
+- [x] Commit with changelog.
 
 ## Task 2: Figma assessment controls and recovery
 
 Files: `first_answer.html`, `first-answer.js`, `first-answer.css`, local Figma star assets and browser tests.
 
-- [ ] Add failing browser checks for immediate visibility, reset, required selection, unknown and cross-browser draft restore.
-- [ ] Add accessible radio options and the original Figma stars; style selected state orange.
-- [ ] Include confidence in revisioned autosave, recovery buffers and acknowledgment comparison.
-- [ ] Update existing browser setup to make an explicit synthetic assessment.
-- [ ] Run browser regressions and inspect desktop/tablet screenshots.
-- [ ] Commit with changelog.
+- [x] Add failing browser checks for immediate visibility, reset, required selection, unknown and cross-browser draft restore.
+- [x] Add accessible radio options and the original Figma stars; style selected state orange.
+- [x] Include confidence in revisioned autosave, recovery buffers and acknowledgment comparison.
+- [x] Update existing browser setup to make an explicit synthetic assessment.
+- [x] Run browser regressions and inspect desktop/tablet screenshots.
+- [x] Commit with changelog.
 
 ## Task 3: Issue audit and delivery
 
-- [ ] Audit date/resume/immutable snapshots, original answers, guards, outbox, backup, event inventory and obsolete reward consumers.
-- [ ] Finish reasonable uncovered #6 requirements with focused regression tests, documenting cross-issue dependencies accurately.
-- [ ] Run the complete server and required Chromium suites, Ruff, JavaScript syntax and diff checks.
-- [ ] Review final diff; push focused commits and rewrite the Draft PR description with current results and remaining external acceptance limits.
+Audit ruling: schema 6 adds internal recap draft/revision and source-snapshot repeat contracts required by #6. Their UI/authorization callers remain with #9/#15. See logger/docs/issue6_handover.md for API details and verification boundaries.
+
+- [x] Audit date/resume/immutable snapshots, original answers, guards, outbox, backup, event inventory and obsolete reward consumers.
+- [x] Finish reasonable uncovered #6 requirements with focused regression tests, documenting cross-issue dependencies accurately.
+- [x] Run the complete server and required Chromium suites, Ruff, JavaScript syntax and diff checks.
+- [x] Review final diff and prepare focused commits and the Draft PR handover. Push and hosted validation results are recorded on PR #23.
