@@ -65,6 +65,46 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Reduce autocomplete wait and recover from Vertex failures
+
+**Commit:** pending · **Type:** fix · **Area:** autocomplete, search-bar, logging, docs, tests
+
+**Files**
+- `search-app/templates/layout.html` — 200 ms debounce, browser request cancellation,
+  sequence checks around JSON parsing, and current-prefix logging context.
+- `search-app/search_app.py`, `search-app/search_backend.py` — normalized response,
+  reused Vertex completion client, and bounded attempts with SerpAPI fallback.
+- `search-app/tests/test_autocomplete_browser.py`, `test_backend_privacy.py`,
+  `test_student_security.py` — synthetic browser and provider contract coverage.
+- `docs/issue13_handover.md` — request trace, examples, and live verification steps.
+
+**What changed for the participant**
+Autocomplete requests start 100 ms sooner after typing stops. Clearing or editing the
+field drops suggestions and metadata for the previous prefix. If Vertex returns no
+suggestions or fails, SerpAPI can supply suggestions when configured.
+
+**How it works**
+Provider helpers return lists and the Flask route always returns `suggestions`,
+`source`, and `query_model`. A successful response preserves its study-log source
+label. Empty responses have `source: none` and a null model. The browser aborts
+superseded requests and checks the sequence again after parsing JSON.
+
+**If something looks wrong after this, check**
+- Late suggestions → the debounce and sequence checks in `layout.html`.
+- Missing suggestions → Vertex credentials, the completion deadline, and the
+  optional SerpAPI key, using the provider's error class in the app log.
+- Frequent SerpAPI fallback → check warm and cold Vertex timings against its
+  750 ms RPC deadline.
+
+**Left alone**
+Search ranking runs through `/result`. Vertex spell correction is suggestion-only
+and appears as `Forse cercavi` on the first result page when applicable.
+
+**Verified**
+Synthetic Vertex and SerpAPI responses and real Chromium exercised provider
+failures, request timing and cancellation, click and keyboard selection, clear,
+and the study log fields. See the handover for the live timing check.
+
 ## 2026-11-03 — Weekly Dependabot updates into matthias-dev
 
 **Commit:** pending · **Type:** infra · **Area:** infra, docs

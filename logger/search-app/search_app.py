@@ -803,14 +803,17 @@ def iframe_check():
 # Powers the search-bar autocomplete dropdown in layout.html.
 @app.route("/autocomplete")
 def autocomplete():
-    query = request.args.get("query")
+    query = request.args.get("query", "").strip()
+    empty_response = {"suggestions": [], "source": "none", "query_model": None}
 
     # Suggestions call the paid search API: only for a participant in a session.
-    if not session.get('user_id') or not query or len(query) < 3:
-        return jsonify({"suggestions": [], "source": "none", "query_model": None})
+    if not session.get('user_id') or len(query) < 3:
+        return jsonify(empty_response)
 
     try:
         suggestions, source = search_backend.autocomplete(query)
+        if not suggestions:
+            return jsonify(empty_response)
         return jsonify({
             "suggestions": suggestions,
             "source": source,
@@ -819,7 +822,7 @@ def autocomplete():
     except Exception as error:
         # Provider exceptions can contain the query or credentials; omit their text.
         app.logger.warning("Autocomplete failed (%s)", type(error).__name__)
-        return jsonify({"suggestions": [], "source": "none", "query_model": None}), 200
+        return jsonify(empty_response)
 
 def _append_log_registry(*, user_id, session_id, task_number, num_events,
                          saved_log_filename, status, error=None):
