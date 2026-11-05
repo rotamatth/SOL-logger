@@ -88,6 +88,27 @@
     form.addEventListener('change', update);
     update();
   });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-select-all-ids]'), function (all) {
+    var form = all.form;
+    var boxes = Array.prototype.slice.call(form.querySelectorAll('input[name="ids"]'));
+    var count = form.querySelector('[data-selected-count]');
+    var summary = form.querySelector('[data-selected-ids]');
+    var label = form.querySelector('[data-select-all-label]');
+    function update() {
+      var selected = boxes.filter(function (box) { return box.checked; }).length;
+      count.textContent = String(selected);
+      all.checked = selected === boxes.length;
+      all.indeterminate = selected > 0 && selected < boxes.length;
+    }
+    all.addEventListener('change', function () {
+      boxes.forEach(function (box) { box.checked = all.checked; });
+      update();
+    });
+    form.addEventListener('change', update);
+    label.hidden = false;
+    summary.hidden = false;
+    update();
+  });
   Array.prototype.forEach.call(document.querySelectorAll('textarea[data-known-ids]'), function (field) {
     var known = field.getAttribute('data-known-ids').split(' ').filter(Boolean);
     var message = document.getElementById('create-ids-check');
