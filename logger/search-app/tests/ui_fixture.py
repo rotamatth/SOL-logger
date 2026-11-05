@@ -70,7 +70,8 @@ def result():
 
 @app.get("/webpage")
 def webpage():
-    return render_template("webpage.html", url=url_for("article"), query="spazio", page=1)
+    return render_template("webpage.html", url=request.args.get("url", url_for("article", _external=True)),
+                           query=request.args.get("query", "spazio"), page=1)
 
 
 @app.get("/article")
@@ -86,7 +87,8 @@ def autocomplete():
 
 @app.post("/log_session")
 def log_session():
-    return jsonify(status="logged", saved_events=len(request.json.get("logs", [])))
+    return jsonify(status="logged", batch_id=request.json.get("batch_id"),
+                   saved_events=len(request.json.get("logs", [])))
 
 
 @app.get("/iframe_check")

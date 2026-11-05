@@ -35,6 +35,11 @@ tests cover draft recovery and keyboard focus. The iPad-sized runs emulate
 touch and viewport dimensions in Chromium. A physical iPad and its on-screen
 keyboard still need a device check.
 
+The merged interface passed 42 Playwright and logging tests. The separate
+template fixture passed 42 layout checks, seven keyboard scenarios and touch
+checks in both iPad orientations. It acknowledges background log batches so
+the keyboard and touch checks can inspect the submitted events.
+
 | Screen and viewport | Before | After |
 | --- | --- | --- |
 | Answer dialog, 1366×768 desktop | [Before](../../output/playwright/issue11-confirm-before-desktop.png) | [After](../../output/playwright/issue11-confirm-after-desktop.png) |
