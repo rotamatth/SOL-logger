@@ -71,6 +71,8 @@ def register_enrollment_routes(dash):
                     revision = int(form["revision"])
                     if operation in ("add", "enroll"):
                         arguments = dict(ids=parse_ids(form.get("ids", "")), year=form.get("year"), grade=form.get("grade"))
+                    elif operation == "deactivate":
+                        arguments = dict(ids=parse_ids(form.get("ids", "")), year=form.get("year"))
                     elif operation == "update":
                         if form.get("active") not in ("yes", "no"):
                             raise ValueError("invalid_enrollment")
@@ -83,9 +85,9 @@ def register_enrollment_routes(dash):
                         arguments = dict(link_id=form.get("link_id"))
                     else:
                         raise ValueError("invalid_enrollment")
-                if workflow_session and (operation not in ("add", "enroll", "update")
+                if workflow_session and (operation not in ("add", "enroll", "update", "deactivate")
                         or arguments.get("year") != workflow_session["school_year"]
-                        or operation != "update" and arguments.get("grade") != workflow_session["grade"]):
+                        or operation in ("add", "enroll") and arguments.get("grade") != workflow_session["grade"]):
                     raise ValueError("invalid_enrollment")
                 if operation == "link" and view != "links":
                     legacy = legacy_records()

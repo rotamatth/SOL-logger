@@ -65,6 +65,41 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Deactivate several children at once
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, tests
+
+**Files**
+- `search-app/research_dashboard/participants.py` — `deactivate_participants`, one audit line per ID.
+- `search-app/research_dashboard/state.py`, `enrollment_views.py` — the `deactivate` operation,
+  using the same signed review step as the other participant changes.
+- `search-app/research_dashboard/templates/research/enrollment.html` — checkboxes on the list,
+  "Select all on this page", "Deactivate selected".
+- `search-app/research_dashboard/static/editor.js`, `workflow.css`, `workflow_i18n.py` — selection count, layout, wording.
+- `search-app/tests/test_bulk_deactivate.py`, `test_bulk_deactivate_browser.py` (new).
+
+**What changed for the participant**
+No visible change. A deactivated child cannot start new sessions, exactly as with one-at-a-time.
+
+**What changed for researchers**
+On the participant list (from Study settings, or Edit participant IDs on a session) they can tick
+children and deactivate them after one review. Reactivating is still one child at a time.
+
+**How it works**
+All selected IDs change in one transaction. If any ID is unknown or already inactive, or the
+settings changed since the review, nothing changes. Selection covers the visible page of up to 50.
+
+**If something looks wrong after this, check**
+- A child is missing from a session's IDs → status filter on the list, then "Recent participant changes".
+- The select-all box is missing → it needs JavaScript; single checkboxes work without it.
+
+**Left alone**
+Enrollments, participant keys, logs and started attempts. The single Edit enrollment form.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). Browser tests use synthetic
+data, with a mouse on desktop and at phone width without JavaScript. Not tried on a real iPad.
+
 ## 2026-11-05 — Dashboard v2: session list, Create, and the Published status
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, session, styling, tests

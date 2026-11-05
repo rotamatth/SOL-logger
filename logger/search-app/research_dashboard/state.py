@@ -335,6 +335,8 @@ class State:
                 details = identities.enroll_participants(db, **arguments)
             elif operation == "update":
                 details = identities.update_participant(db, **arguments)
+            elif operation == "deactivate":
+                details = identities.deactivate_participants(db, **arguments)
             elif operation == "promote":
                 details = identities.promote(db, projected, **arguments)
             elif operation == "link":

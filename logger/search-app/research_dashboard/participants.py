@@ -155,6 +155,10 @@ def audit_rows(operation, details):
             rows = [{"id": details["id"],
                      "before": [grade(before.get("grade")), ("status", bool(before.get("active")))],
                      "after": [grade(after.get("grade")), ("status", bool(after.get("active")))]}]
+        elif operation == "deactivate":
+            rows = [{"id": item["id"], "before": [grade(item.get("grade")), ("status", True)],
+                     "after": [grade(item.get("grade")), ("status", False)]}
+                    for item in details.get("changes", [])]
         elif operation == "promote":
             rows = [{"id": item["id"], "before": [grade(item.get("from_grade"))], "after": [grade(item.get("to_grade"))]}
                     for item in details.get("participants", [])]
@@ -255,6 +259,28 @@ def update_participant(db, uid, year, grade, active):
     db.execute("UPDATE participants SET active=? WHERE id=?", (int(active), uid))
     return {"id": uid, "school_year": year, "before": {"active": bool(before["active"]), "grade": old[0] if old else None},
             "after": {"active": active, "grade": grade if active else (old[0] if old else None)}}
+
+
+def deactivate_participants(db, ids, year):
+    """Mark several children inactive together. Their IDs, enrollments and records stay."""
+    if (not isinstance(ids, list) or any(not isinstance(uid, str) for uid in ids)
+            or parse_ids("\n".join(ids)) != ids):
+        raise ValueError("invalid_participant_ids")
+    if not valid_school_year(year):
+        raise ValueError("school_year_required")
+    people = {uid: db.execute("SELECT active FROM participants WHERE id=?", (uid,)).fetchone() for uid in ids}
+    unknown = [uid for uid in ids if not people[uid]]
+    if unknown:
+        raise ParticipantError("participant_not_registered", unknown)
+    if any(not people[uid]["active"] for uid in ids):
+        raise ValueError("invalid_enrollment")
+    changes = []
+    for uid in ids:
+        enrolled = db.execute("SELECT grade FROM enrollments WHERE participant_id=? AND school_year=?",
+                              (uid, year)).fetchone()
+        db.execute("UPDATE participants SET active=0 WHERE id=?", (uid,))
+        changes.append({"id": uid, "grade": enrolled[0] if enrolled else None})
+    return {"ids": ids, "school_year": year, "changes": changes}
 
 
 def enroll_participants(db, ids, year, grade):
