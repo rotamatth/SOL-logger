@@ -65,6 +65,15 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Mark draft retries as intentional background saves
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `search-app/static/first-answer.js`, `search-app/static/final-answer-draft.js` —
+  explicitly discard the promise returned by the retry handler. The save function
+  handles failures and updates the retry message.
+
 ## 2026-11-04 — Show the participant’s before-and-after answers
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
