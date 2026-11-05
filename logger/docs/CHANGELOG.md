@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Collect the child's initial self-assessment from Figma
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/templates/first_answer.html`, `static/first-answer.js`, `static/first-answer.css`, `static/confidence/*.svg` — accessible assessment options and original Figma stars.
+- `search-app/tests/test_initial_confidence_browser.py` and browser setup helpers — visibility, reset, restore, unknown and responsive checks.
+
+**What changed for the participant**
+“Secondo te, quanto è giusta la tua risposta?” appears immediately when an answer contains text. The child selects “Poco giusta”, “Abbastanza giusta” or “Giustissima” before confirming. Clearing the text resets the selection. “Non lo so” retains its separate confirmation.
+
+**How it works**
+Native radios share the existing revisioned draft save and recovery buffer. Acknowledgements compare both text and assessment so a change made during a save cannot disappear.
+
+**If something looks wrong after this, check**
+The first-answer draft's confidence and browser recovery buffer, and loading of the two local star SVGs.
+
+**Left alone**
+Autosave labels, search/final-answer button layouts, recap/PDF, MP4 and researcher restart interfaces.
+
+**Verified**
+19 required Chromium first-answer/search/upload regressions passed. Assessment controls fit desktop, portrait/landscape tablet and 320px widths. Real iPad Safari is not available in this environment.
+
 ## 2026-11-05 — Persist initial confidence with the first answer
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, data, logging, tests

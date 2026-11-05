@@ -3,6 +3,24 @@
   if (!form) return;
 
   const text = document.getElementById('first-answer-text');
+  const assessment = document.getElementById('first-answer-confidence');
+  const options = Array.from(assessment.querySelectorAll('input[name="confidence"]'));
+  function confidence() {
+    const selected = options.find(option => option.checked);
+    return selected ? Number(selected.value) : null;
+  }
+  function updateAssessment() {
+    const blank = !text.value.trim();
+    assessment.hidden = blank;
+    assessment.disabled = blank;
+    if (blank) options.forEach(option => { option.checked = false; });
+  }
+  function restore(value) {
+    text.value = value.text;
+    options.forEach(option => { option.checked = Number(option.value) === value.confidence; });
+    updateAssessment();
+  }
+  updateAssessment();
   const dialog = document.getElementById('first-answer-unknown-dialog');
   document.getElementById('first-answer-unknown').addEventListener('click', () => {
     dialog.showModal();
@@ -10,7 +28,7 @@
   document.getElementById('first-answer-cancel-unknown').addEventListener('click', () => {
     dialog.close();
   });
-  text.addEventListener('input', () => text.setCustomValidity(''));
+  text.addEventListener('input', () => { text.setCustomValidity(''); updateAssessment(); });
   form.addEventListener('submit', (event) => {
     if (!text.value.trim()) {
       event.preventDefault();
@@ -36,28 +54,31 @@
   let timer;
 
   function buffer() {
-    try { sessionStorage.setItem(bufferKey, JSON.stringify({revision, text: text.value})); }
+    try { sessionStorage.setItem(bufferKey, JSON.stringify({revision, text: text.value, confidence: confidence()})); }
     catch (_) { /* The field remains available even when browser storage is full. */ }
   }
 
   async function save() {
     if (saving || !dirty || blocked) return;
     const value = text.value;
+    const selected = confidence();
     dirty = false;
     saving = true;
     status.textContent = 'Salvataggio della bozza…';
     try {
       const response = await fetch(status.dataset.url, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({...scope, text: value, revision})
+        body: JSON.stringify({...scope, text: value, confidence: selected, revision})
       });
       if (!response.ok) throw new Error(response.status === 409
         ? 'La bozza è cambiata. Il testo resta qui: ricarica la pagina per recuperarlo.'
         : 'Bozza non salvata. Il testo resta qui: riprova.');
       const saved = await response.json();
-      if (saved.revision !== revision + 1 || saved.text !== value) throw new Error('Salvataggio non confermato. Riprova.');
+      if (saved.revision !== revision + 1 || saved.text !== value || saved.confidence !== selected) {
+        throw new Error('Salvataggio non confermato. Riprova.');
+      }
       revision = saved.revision;
-      if (text.value === value) {
+      if (text.value === value && confidence() === selected) {
         try { sessionStorage.removeItem(bufferKey); } catch (_) { /* Optional recovery buffer. */ }
       } else {
         dirty = true;
@@ -85,13 +106,15 @@
     timer = window.setTimeout(save, 600);
   }
   text.addEventListener('input', changed);
+  options.forEach(option => option.addEventListener('change', changed));
   retry.addEventListener('click', () => { blocked = false; void save(); });
 
   try {
     const local = JSON.parse(sessionStorage.getItem(bufferKey) || 'null');
-    if (local && typeof local.text === 'string' && local.text !== text.value) {
+    if (local && typeof local.text === 'string'
+        && (local.text !== text.value || (local.confidence ?? null) !== confidence())) {
       if (local.revision === revision) {
-        text.value = local.text;
+        restore(local);
         changed();
       } else {
         // A stale tab must never silently overwrite a newer server draft.
@@ -107,7 +130,7 @@
         use.type = 'button';
         use.className = 'app-btn first-answer-outline';
         use.textContent = 'Usa questo testo';
-        use.addEventListener('click', () => { text.value = local.text; recovery.remove(); changed(); });
+        use.addEventListener('click', () => { restore(local); recovery.remove(); changed(); });
         recovery.append(summary, recovered, use);
         status.after(recovery);
       }

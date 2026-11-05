@@ -97,6 +97,72 @@
   margin-top: 20px;
 }
 
+.first-answer-confidence {
+  min-width: 0;
+  margin: 36px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.first-answer-confidence legend {
+  margin-bottom: 12px;
+  padding: 0 10px;
+  font-size: 1.3rem;
+}
+
+.first-answer-confidence-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.first-answer-confidence-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #222;
+  border-radius: 1000px;
+  color: #000;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.first-answer-confidence-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.first-answer-confidence-option:has(input:checked) {
+  background: #ffb347;
+}
+
+.first-answer-confidence-option:has(input:focus-visible) {
+  outline: 3px solid #174ea6;
+  outline-offset: 4px;
+}
+
+.first-answer-confidence-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.confidence-star-selected,
+.first-answer-confidence-option:has(input:checked) .confidence-star {
+  display: none;
+}
+
+.first-answer-confidence-option:has(input:checked) .confidence-star-selected {
+  display: block;
+}
+
 .first-answer-hint {
   margin: 14px 0;
   color: var(--text-muted);

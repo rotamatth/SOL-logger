@@ -44,6 +44,24 @@
         <button id="first-answer-unknown" class="app-btn first-answer-outline" type="button"
                 aria-haspopup="dialog" aria-controls="first-answer-unknown-dialog">Non lo so</button>
       </div>
+      <fieldset id="first-answer-confidence" class="first-answer-confidence"{% if not draft_text|trim %} hidden disabled{% endif %}>
+        <legend>Secondo te, quanto è giusta la tua risposta?</legend>
+        <div class="first-answer-confidence-options">
+          {% for label in ['Poco giusta', 'Abbastanza giusta', 'Giustissima'] %}
+          {% set level = loop.index %}
+          <label class="first-answer-confidence-option">
+            <input type="radio" name="confidence" value="{{ level }}" required{% if draft_confidence == level %} checked{% endif %}>
+            <span class="first-answer-confidence-stars" aria-hidden="true">
+              {% for star in range(level) %}
+              <img class="confidence-star" src="{{ url_for('static', filename='confidence/star.svg') }}" width="34" height="32" alt="">
+              <img class="confidence-star-selected" src="{{ url_for('static', filename='confidence/star-selected.svg') }}" width="34" height="32" alt="">
+              {% endfor %}
+            </span>
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
       {% if draft_url %}<output id="first-answer-draft-status" class="first-answer-hint" aria-live="polite"
           data-url="{{ draft_url }}" data-revision="{{ draft_revision }}"></output>
       <button id="first-answer-retry-draft" class="app-btn first-answer-outline" type="button" hidden>Riprova salvataggio</button>{% endif %}
