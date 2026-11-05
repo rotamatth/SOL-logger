@@ -128,7 +128,7 @@ def test_leaving_during_an_autosave_still_protects_the_latest_text(live):
     leave_by_link(page)
     page.wait_for_timeout(300)
     gate.release()
-    page.wait_for_url("**/dashboard/?lang=en", timeout=8000)
+    page.wait_for_url("**/dashboard/sessions?lang=en", timeout=8000)
     assert live.dialogs == []
     assert live.server_copy()["question_0"] == "First words and the newest sentence"
 
@@ -212,16 +212,14 @@ def test_settings_keep_entered_values_after_login_expiry(live, operation):
         state.save_settings(settings, settings["revision"])
     page = live.login()
     if operation == "year":
-        path, selector, value = "?section=year&grade=4", "#current-school-year", "2027/2028"
+        path, selector, value = "settings?section=year&grade=4", "#current-school-year", "2027/2028"
     elif operation == "edit_session":
-        path, selector, value = ("?section=sessions&grade=4&edit=grade-4-session-1",
-                                 "#name_grade-4-session-1", "Name entered before expiry")
+        path, selector, value = "prepare?grade=4&session=grade-4-session-1", "#prepare-name", "Name entered before expiry"
     elif operation == "add_session":
-        path, selector, value = "?section=sessions&grade=4&new=1", "#new-name", "New session before expiry"
+        path, selector, value = "sessions/new?grade=4", "#new-name", "New session before expiry"
     else:
-        path, selector, value = ("?section=sessions&grade=4&removed=1",
-                                 "#restore-date-grade-4-session-2", "2026-10-20")
-    page.goto(f"{live.base}/dashboard/settings{path}&lang=en")
+        path, selector, value = "sessions?grade=4&year=&removed=1", "#restore-date-grade-4-session-2", "2026-10-20"
+    page.goto(f"{live.base}/dashboard/{path}&lang=en")
     if operation == "add_session":
         page.fill("#new-date", "2026-10-20")
     page.fill(selector, value)

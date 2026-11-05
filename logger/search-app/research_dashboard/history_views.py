@@ -40,7 +40,7 @@ def register_history_routes(dash):
     @bp.get("")
     def overview():
         if not set(request.args) - {"lang"}:
-            return dash.prepare_view()
+            return redirect(dash.u("sessions_page"))
         settings, runs = dash.data()
         collection = request.args.get("collection", "study")
         if collection not in (*index.roots, "study"):

@@ -1,0 +1,74 @@
+{% extends 'research/base.html' %}
+{% from 'research/session_needs.html' import needs_links with context %}
+{% macro session_title(item) %}{{ item.name or (t('session') ~ ' ' ~ item.number) }}{% endmacro %}
+{% macro session_row(row) %}
+{% set item = row.session %}
+{% set open_url = u('prepare_page', grade=item.grade, year=item.school_year or None, session=item.id) %}
+<article class="session-row" id="{{ item.id }}">
+  <div class="session-row-title">
+    <a href="{{ open_url }}">{{ session_title(item) }}</a>
+    <span class="small muted">{{ t('grade_' ~ item.grade) }} · {{ item.date or t('date_not_set') }}{% if item.name %} · {{ t('session') }} {{ item.number }}{% endif %}</span>
+  </div>
+  <span class="session-row-count">{{ row.readiness.count }} {{ 'ID' if row.readiness.count == 1 else t('ids_short') }}</span>
+  <div class="session-row-status">
+    {% if row.group == 'today' %}<span class="badge {{ 'completed' if row.readiness.complete else 'incomplete' }}">{{ t('session_state_available_today') if row.readiness.complete else t('session_state_partly_available_today') }}</span>
+    {% elif row.group == 'published' %}<span class="badge completed">{{ t('session_published') }}</span>
+    {% elif row.group == 'draft' %}<span class="badge incomplete">{{ t('session_draft') }}</span>{% endif %}
+    {% if row.group != 'past' %}{{ needs_links(item, row.needs) }}{% endif %}
+  </div>
+  <div class="record-actions">
+    <a class="button compact" href="{{ open_url }}">{{ t('open_session') }}</a>
+    <a class="button compact" href="{{ u('overview', collection='study', grade=item.grade, school_year=item.school_year or None, session=item.id) }}">{{ t('session_data') }}</a>
+  </div>
+</article>
+{% endmacro %}
+{% block content %}
+<div class="sessions-workspace">
+  {% include 'research/sessions_tabs.html' %}
+  {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<p><a class="button" href="{{ u('sessions_page', grade=grade_filter if grade_filter != 'all' else None, year=selected_year) }}">{{ t('reload_saved_settings') }}</a></p>{% endif %}{% endif %}
+  {% if request.args.get('saved_action') == 'remove_session' %}<p class="notice success" role="status">{{ t('study_session_removed') }}</p>{% elif request.args.get('saved_action') == 'restore_session' %}<p class="notice success" role="status">{{ t('study_session_restored') }}</p>{% endif %}
+  <div class="sessions-filters">
+    <nav class="dashboard-grades" aria-label="{{ t('grade') }}">
+      <a href="{{ u('sessions_page', year=selected_year) }}" {% if grade_filter == 'all' %}aria-current="page"{% endif %}>{{ t('all_classes') }}</a>
+      {% for value in grades %}<a href="{{ u('sessions_page', grade=value, year=selected_year) }}" {% if grade_filter == value %}aria-current="page"{% endif %}>{{ t('grade_short_' ~ value) }}</a>{% endfor %}
+    </nav>
+    <form class="sessions-year" method="get" action="{{ u('sessions_page') }}">
+      <input type="hidden" name="lang" value="{{ language }}">{% if grade_filter != 'all' %}<input type="hidden" name="grade" value="{{ grade_filter }}">{% endif %}
+      <label for="sessions-year">{{ t('school_year') }}</label>
+      <select id="sessions-year" name="year"><option value="" {% if not selected_year %}selected{% endif %}>{{ t('all_school_years') }}</option>{% for value in school_years %}<option value="{{ value }}" {% if selected_year == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+      <button type="submit">{{ t('open_school_year') }}</button>
+    </form>
+  </div>
+  {% for group in ('today', 'published', 'draft') if groups[group] %}
+  <section class="session-group session-group-{{ group }}" aria-labelledby="session-group-{{ group }}">
+    <h2 id="session-group-{{ group }}">{{ t('session_group_' ~ group) }} <span class="count">{{ groups[group]|length }}</span></h2>
+    {% if group == 'draft' %}<p class="small muted">{{ t('session_group_draft_hint') }}</p>{% elif group == 'published' %}<p class="small muted">{{ t('session_group_published_hint') }}</p>{% endif %}
+    <div class="session-rows">{% for row in groups[group] %}{{ session_row(row) }}{% endfor %}</div>
+  </section>
+  {% endfor %}
+  {% if not has_current %}
+  <section class="panel settings-empty sessions-empty"><h2>{{ t('no_sessions_heading') }}</h2><p class="muted">{{ t('no_sessions_yet') }}</p><a class="button primary" href="{{ u('create_session_page', grade=grade_filter if grade_filter != 'all' else None) }}">{{ t('create_session') }}</a></section>
+  {% endif %}
+  {% if groups.past %}
+  <details class="panel session-group session-group-past" id="past-sessions">
+    <summary>{{ t('session_group_past') }} ({{ groups.past|length }})</summary>
+    <div class="session-rows">{% for row in groups.past %}{{ session_row(row) }}{% endfor %}</div>
+  </details>
+  {% endif %}
+  {% if removed_sessions %}
+  <details class="panel removed-study-sessions" id="removed-sessions" {% if request.args.get('removed') == '1' or request.form.get('action') == 'restore_session' %}open{% endif %}>
+    <summary>{{ t('removed_study_sessions') }} ({{ removed_sessions|length }})</summary>
+    <p class="small muted">{{ t('removed_sessions_hint') }}</p>
+    {% for removed in removed_sessions %}
+    <div class="removed-session-row"><h3>{{ session_title(removed) }}</h3><p class="small muted">{{ t('grade_' ~ removed.grade) }}{% if removed.name %} · {{ t('session') }} {{ removed.number }}{% endif %}</p>
+      <form class="new-session-form" method="post" data-guard{% if error and request.form.get('action') == 'restore_session' and request.form.get('session_id') == removed.id %} data-unsaved{% endif %} action="{{ u('sessions_page', grade=grade_filter if grade_filter != 'all' else None, year=selected_year, removed='1') }}#removed-sessions">
+        <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision_for('restore_session', removed.id) }}"><input type="hidden" name="action" value="restore_session"><input type="hidden" name="session_id" value="{{ removed.id }}">
+        <div><label for="restore-date-{{ removed.id }}">{{ t('date') }}</label><input id="restore-date-{{ removed.id }}" type="date" name="date" value="{{ request.form.get('date', removed.date) if request.form.get('session_id') == removed.id else removed.date }}"></div>
+        <button type="submit">{{ t('restore_study_session') }}</button>
+      </form>
+    </div>
+    {% endfor %}
+  </details>
+  {% endif %}
+</div>
+{% endblock %}

@@ -30,19 +30,25 @@ def test_navigation_exposes_one_section_and_retains_selected_grade(app):
     login(client)
     default = client.get("/dashboard/settings")
     assert 'id="school-year" >' in default.text
-    assert 'id="session-history" hidden' in default.text
+    assert 'id="session-history"' not in default.text
     assert 'id="participant-ids" hidden' in default.text
-    for selected, active_id in (("sessions", "session-history"), ("participants", "participant-ids")):
-        response = client.get(f"/dashboard/settings?section={selected}&grade=5&lang=it")
-        assert response.status_code == 200
-        assert f'id="{active_id}" >' in response.text
-        assert 'id="school-year" hidden' in response.text
-        current = next(link for link in Controls(response).links
-                       if link.get("aria-current") == "page"
-                       and parse_qs(urlsplit(link["href"]).query).get("section") == [selected])
-        assert parse_qs(urlsplit(current["href"]).query, keep_blank_values=True) == {
-            "section": [selected], "grade": ["5"], "year": [""], "lang": ["it"]}
+    response = client.get("/dashboard/settings?section=participants&grade=5&lang=it")
+    assert response.status_code == 200
+    assert 'id="participant-ids" >' in response.text
+    assert 'id="school-year" hidden' in response.text
     assert client.get("/dashboard/settings?section=unknown").status_code == 404
+
+
+def test_old_session_links_lead_to_the_sessions_section(app):
+    client = app.test_client()
+    login(client)
+    moved = client.get("/dashboard/settings?section=sessions&grade=5&year=2026/2027&lang=it")
+    assert moved.status_code == 302 and urlsplit(moved.location).path == "/dashboard/sessions"
+    assert parse_qs(urlsplit(moved.location).query) == {"grade": ["5"], "year": ["2026/2027"], "lang": ["it"]}
+    created = client.get("/dashboard/settings?section=sessions&grade=5&new=1")
+    assert created.status_code == 302 and urlsplit(created.location).path == "/dashboard/sessions/new"
+    assert parse_qs(urlsplit(created.location).query)["grade"] == ["5"]
+    assert urlsplit(client.get("/dashboard/prepare?grade=5&new=1").location).path == "/dashboard/sessions/new"
 
 
 def test_participant_view_has_no_setup_fields_and_filters_missing_tasks(app):
@@ -151,13 +157,12 @@ def test_stale_session_and_year_forms_preserve_input_and_revision(app):
     changed["current_school_year"] = "2026/2027"
     state.save_settings(changed, changed["revision"])
     latest = state.settings()
-    response = client.post("/dashboard/settings?section=sessions&grade=4", data={
-        "action": "save_session", "csrf": token, "revision": before["revision"],
-        "session_id": "grade-4-session-1", "name": "My classroom", "date": "2026-10-12"})
+    response = client.post("/dashboard/prepare?grade=4&year=2026/2027&session=grade-4-session-1", data={
+        "action": "save_details", "csrf": token, "revision": before["revision"],
+        "name": "My classroom", "date": "2026-10-12"})
     assert response.status_code == 400
-    assert 'id="grade-4-session-1" open' in response.text
     assert 'value="My classroom"' in response.text and 'value="2026-10-12"' in response.text
-    assert "Review saved session in a new tab" in response.text
+    assert "Reload saved settings" in response.text
     assert f'name="revision" value="{before["revision"]}"' in response.text
     year = client.post("/dashboard/settings?section=year", data={
         "action": "save_year", "csrf": token, "revision": before["revision"],
@@ -175,8 +180,8 @@ def test_invalid_year_and_unknown_calendar_grade_return_editable_errors(app):
     year = client.post("/dashboard/settings?section=year", data={
         "action": "save_year", "csrf": token, "revision": before["revision"], "current_school_year": "2027/2027"})
     assert year.status_code == 400 and 'value="2027/2027"' in year.text
-    invalid_grade = client.post("/dashboard/settings", data={
-        "action": "save_dates", "grade": "unknown", "csrf": token, "revision": before["revision"]})
+    invalid_grade = client.post("/dashboard/sessions/new", data={
+        "grade": "unknown", "date": "2026-10-12", "csrf": token, "revision": before["revision"]})
     assert invalid_grade.status_code == 400 and "Invalid study-session configuration" in invalid_grade.text
     assert state.settings() == before
 

@@ -3,8 +3,7 @@ from flask import abort, g, redirect, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from .state import DEFAULT_STUDY_ID, identity
-from .preparation_views import preparation_session
-from .settings_views import session_review_url
+from .preparation_views import preparation_session, session_review_url
 from .participants import GRADES, parse_ids, participant_sort_key, valid_school_year
 from .year_controls import school_year_choices
 
@@ -162,7 +161,7 @@ def register_enrollment_routes(dash):
             abort(404)
         audit = state.participant_changes()
         return page("enrollment", settings=settings, workflow_session=workflow_session,
-                    workflow_review_url=session_review_url(dash, settings, workflow_problem) if workflow_problem else None,
+                    workflow_review_url=session_review_url(dash, workflow_problem) if workflow_problem else None,
                     study_context=workflow_session or {"grade": grade, "school_year": year},
                     research_area="sessions" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
                     school_years=school_year_choices(settings, year, *(form.get(key) for key in ("year", "source_year", "target_year"))),

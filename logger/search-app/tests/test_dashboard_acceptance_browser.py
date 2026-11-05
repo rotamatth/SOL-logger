@@ -124,7 +124,7 @@ def test_dashboard_layout_and_three_question_edit_flow(acceptance_live, device, 
         # history view intentionally contains only IDs with recorded runs.
         "overview": f"/dashboard?collection=study&grade=4&session={SESSION}",
         "prepare": f"/dashboard/prepare?grade=4&year={YEAR}&session={SESSION}",
-        "sessions": f"/dashboard/settings?section=sessions&grade=4&year={YEAR}&session={SESSION}",
+        "sessions": f"/dashboard/sessions?grade=4&year={YEAR}",
         "enrollment": f"/dashboard/settings/enrollment?grade=4&year={YEAR}&prepare_session={SESSION}",
         "editor": EDITOR,
     }

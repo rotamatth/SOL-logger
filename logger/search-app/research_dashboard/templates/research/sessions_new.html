@@ -1,0 +1,20 @@
+{% extends 'research/base.html' %}
+{% block content %}
+<div class="sessions-workspace">
+  {% include 'research/sessions_tabs.html' %}
+  {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<p><a class="button" href="{{ u('create_session_page', grade=selected_grade if selected_grade in grades else None) }}">{{ t('reload_saved_settings') }}</a></p>{% endif %}{% endif %}
+  <section class="panel session-create" aria-labelledby="session-create-title">
+    <h2 id="session-create-title">{{ t('new_session') }}</h2>
+    <p class="muted">{{ t('prepare_creating_hint') }}</p>
+    <form class="session-create-form" method="post" data-guard{% if error %} data-unsaved{% endif %} action="{{ u('create_session_page') }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}">
+      <label for="new-grade">{{ t('grade') }}<select id="new-grade" name="grade">{% for value in grades %}<option value="{{ value }}" {% if selected_grade == value %}selected{% endif %}>{{ t('grade_' ~ value) }}</option>{% endfor %}</select></label>
+      <label for="new-name">{{ t('session_name_optional') }}<input id="new-name" name="name" type="text" maxlength="80" value="{{ request.form.get('name', '') }}" placeholder="{{ t('session_name_example') }}"></label>
+      <label for="new-date">{{ t('date') }}<input id="new-date" name="date" type="date" value="{{ request.form.get('date', '') }}" aria-describedby="new-date-year" required></label>
+      <button class="primary" type="submit">{{ t('create_session') }}</button>
+    </form>
+    <p class="small muted" id="new-date-year">{{ t('school_year_from_date') }} · Europe/Zurich</p>
+  </section>
+  <p class="small muted sessions-next-hint">{{ t('session_create_next_hint') }}</p>
+</div>
+{% endblock %}

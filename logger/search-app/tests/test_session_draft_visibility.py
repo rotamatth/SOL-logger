@@ -20,7 +20,7 @@ from research_dashboard.study_config import assignment_for, question_library
 
 
 SESSION_ID = "grade-4-session-1"
-SESSION_SETTINGS = "/dashboard/settings?section=sessions&grade=4"
+SESSION_PAGE = f"/dashboard/prepare?grade=4&session={SESSION_ID}"
 SESSION_OVERVIEW = f"/dashboard?grade=4&session={SESSION_ID}"
 
 
@@ -40,11 +40,11 @@ def test_incomplete_draft_is_visible_in_session_and_can_be_resumed_without_retyp
     saved = deepcopy(working_set(app))
     assert saved["approved"] is False
 
-    for path in (SESSION_SETTINGS, response.location):
+    assert "Water &lt;&amp;&gt;" in client.get(response.location).text
+    for path in (SESSION_PAGE, response.location):
         page = client.get(path)
         assert page.status_code == 200
         assert "Work in progress" in page.text
-        assert "Water &lt;&amp;&gt;" in page.text
         assert "Where does rain come from?" in page.text
         assert page.text.count("Question not written yet") >= 2
         assert "draft" in page.text.lower()
@@ -163,11 +163,10 @@ def test_individual_draft_reopens_for_exact_participant_and_keeps_shared_assignm
     assert assignment_for(settings, "1", SESSION_ID)["question_set"] == shared
     assert assignment_for(settings, "2", SESSION_ID)["ready"] is True
 
-    for path in (SESSION_SETTINGS, SESSION_OVERVIEW):
-        summary = client.get(path)
-        assert "Individual assignments" in summary.text
-        assert "Continue editing draft" in summary.text
-        assert f"{own_url}&" in unescape(summary.text)
+    summary = client.get(SESSION_OVERVIEW)
+    assert "Individual assignments" in summary.text
+    assert "Continue editing draft" in summary.text
+    assert f"{own_url}&" in unescape(summary.text)
     reopened = client.get(own_url)
     fields = EditorFields(reopened).fields
     assert "draft" in reopened.text.lower()

@@ -12,10 +12,10 @@ from flask import abort, g, redirect, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from .editor_views import recovery_key
+from .preparation_views import session_review_url
 from .question_versions import (discard_question_draft, publish_questions, published_questions, question_draft,
                                 question_fields, remove_individual_questions, save_question_draft,
                                 working_questions)
-from .settings_views import session_review_url
 from .state import SETTING_FIELDS, roster
 from .study_config import question_choices, question_library, session_readiness
 
@@ -204,7 +204,7 @@ def register_question_routes(dash):
                 error = str(exc) if str(exc) in VISIBLE_ERRORS else "invalid_question_set"
         review_url = None
         if error == "question_session_removed":
-            review_url = session_review_url(dash, settings, study_session)
+            review_url = session_review_url(dash, study_session)
         elif error == "question_participant_moved":
             review_url = dash.u("enrollment_page", year=study_session.get("school_year") or None, q=uid)
         return dash.page("session_questions", settings=settings, study_session=study_session,

@@ -115,11 +115,11 @@ def test_global_preparation_link_returns_to_the_selected_session(app, url):
     response = client.get(url)
     assert response.status_code == 200
     destination = link(response, "Sessions")
-    query = parse_qs(urlsplit(destination).query)
-    assert query["session"] == [SESSION]
-    assert query["grade"] == ["4"]
-    assert query["year"] == [YEAR]
+    assert parse_qs(urlsplit(destination).query)["year"] == [YEAR]
+    assert urlsplit(destination).fragment == SESSION
     assert client.get(destination).status_code == 200
+    back = parse_qs(urlsplit(link(response, "← Back to the session")).query)
+    assert back["session"] == [SESSION] and back["grade"] == ["4"] and back["year"] == [YEAR]
 
 
 @pytest.mark.parametrize("edit", [False, True])

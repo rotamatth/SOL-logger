@@ -20,19 +20,21 @@ def details(client, state, url=PREP, **values):
                                  'action':'save_details','name':'Research visit','date':'2026-10-20', **values})
 
 
-def test_login_and_bare_dashboard_start_with_session_preparation_without_writing(app):
+def test_login_and_bare_dashboard_start_with_the_session_list_without_writing(app):
     client = app.test_client()
     result = login(client)
-    assert '/prepare' in result.location
+    assert result.location == '/dashboard/sessions?lang=en'
     state = app.extensions['research']['state']
     before = state.settings()
     for url in ('/dashboard', '/dashboard?lang=it', '/dashboard/prepare'):
-        page = client.get(url)
-        assert page.status_code == 200
-        assert 'name="action" value="save_details"' in page.text
-        assert 'id="prepare-details"' in page.text
-        assert 'id="prepare-participants"' in page.text
+        response = client.get(url)
+        assert response.status_code == 302 and '/dashboard/sessions' in response.location
+        page = client.get(response.location)
+        assert page.status_code == 200 and 'class="sessions-workspace"' in page.text
     assert state.settings() == before
+    # Empty numbered slots are not sessions yet: a new study starts from Create.
+    first = client.get('/dashboard/sessions')
+    assert 'class="session-row"' not in first.text and '/dashboard/sessions/new' in first.text
     data = client.get('/dashboard?collection=study&grade=4')
     assert 'id="participants-heading"' in data.text
 
@@ -174,22 +176,17 @@ def test_preparation_works_when_reporting_cache_is_unavailable(app,monkeypatch):
     def unavailable(*args,**kwargs):
         raise OSError('synthetic reporting failure')
     monkeypatch.setattr(app.extensions['research']['index'],'refresh',unavailable)
-    assert client.get('/dashboard').status_code == 200
-    assert client.get('/dashboard/prepare').status_code == 200
+    assert client.get('/dashboard/sessions').status_code == 200
+    assert client.get('/dashboard', follow_redirects=True).status_code == 200
+    assert client.get(PREP).status_code == 200
     assert client.get('/dashboard?collection=study&grade=4').status_code == 503
 
 
-def test_context_picker_changes_class_without_retaining_a_foreign_session(app):
+def test_a_session_opened_under_another_class_is_not_found(app):
     configure(app)
     client=app.test_client()
     login(client)
-    before=app.extensions['research']['state'].settings()
-    url='/dashboard/prepare?grade=5&year=2026/2027&session=grade-4-session-1'
-    assert client.get(url).status_code == 404
-    changed=client.get(url+'&context_selection=1')
-    assert changed.status_code == 200
-    assert 'prepare_session=grade-5-session-' in changed.text
-    assert app.extensions['research']['state'].settings() == before
+    assert client.get('/dashboard/prepare?grade=5&year=2026/2027&session=grade-4-session-1').status_code == 404
 
 
 

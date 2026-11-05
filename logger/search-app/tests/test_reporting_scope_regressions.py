@@ -119,10 +119,9 @@ def test_year_change_of_a_session_with_records_explains_the_year_not_removal(app
     state = app.extensions["research"]["state"]
     with state.connect() as db:
         db.execute("INSERT INTO study_attempts VALUES (?,?,?,?,1)", ("tech-1", "grade-4-session-1", "1", "{}"))
-    url = f"/dashboard/settings?section=sessions&grade=4&year={YEAR}"
+    url = f"/dashboard/prepare?grade=4&year={YEAR}&session=grade-4-session-1"
     page = client.get(url)
     response = client.post(url, data={"csrf": csrf(page), "revision": state.settings()["revision"],
-                                      "action": "save_session", "session_id": "grade-4-session-1",
-                                      "school_year": "2027/2028", "date": "2027-10-01", "name": ""})
+                                      "action": "save_details", "date": "2027-10-01", "name": ""})
     assert response.status_code == 400
     assert "its school year cannot change" in response.text and "cannot be removed" not in response.text

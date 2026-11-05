@@ -29,7 +29,7 @@ def test_accepted_autosave_with_a_lost_response_reconciles_before_leaving(live):
     assert until(page, lambda: tone(page) == "error")
     assert live.server_copy()["question_0"] == "Accepted write whose response was lost"
     leave_by_link(page)
-    page.wait_for_url("**/dashboard/?lang=en", timeout=8000)
+    page.wait_for_url("**/dashboard/sessions?lang=en", timeout=8000)
     assert len(accepted) == len(conflicts) == 1
     assert live.dialogs == []
     assert live.server_copy()["question_0"] == "Accepted write whose response was lost"

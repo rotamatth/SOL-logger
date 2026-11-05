@@ -107,7 +107,7 @@ def register_security(dash):
     @bp.route("/login", methods=["GET", "POST"])
     def login():
         destination = (safe_research_next(request.args.get("next") or request.form.get("next"))
-                       or dash.u("prepare_page"))
+                       or dash.u("sessions_page"))
         if g.research_auth and g.research_auth["authenticated"]:
             return redirect(destination)
         if request.method == "GET":

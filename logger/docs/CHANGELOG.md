@@ -21,7 +21,7 @@ one only when nothing fits.
 
 `search-bar`, `autocomplete`, `serp`, `pagination`, `back-navigation`,
 `result-viewer`, `logging`, `session`, `task-flow`, `reward`, `styling`,
-`data`, `infra`, `docs`, `tests`
+`data`, `infra`, `docs`, `tests`, `dashboard`
 
 ## How to add an entry
 
@@ -64,6 +64,56 @@ Two rules that make this worth keeping:
 ---
 
 # Entries
+
+## 2026-11-05 — Dashboard v2: session list, Create, and the Published status
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, session, styling, tests
+
+**Files**
+- `search-app/research_dashboard/session_views.py` (new) — `/dashboard/sessions` (the list, now
+  the start page, with remove and restore) and `/dashboard/sessions/new` (Create).
+- `search-app/research_dashboard/preparation_views.py` — `session_group`, `session_needs`,
+  `is_placeholder`, `save_session_details`; `preparation_status` no longer calls a partly
+  ready future session scheduled; `/prepare` without a session redirects to the list.
+- `search-app/research_dashboard/settings_views.py` — session administration removed; Study
+  settings keeps School year and Participants. `/settings?section=sessions` redirects.
+- `search-app/research_dashboard/templates/research/` — new `sessions.html`, `sessions_new.html`,
+  `sessions_tabs.html`, `session_needs.html`; `prepare.html` loses the year/class/session menus
+  and gains "Back to Sessions" and "Remove session"; `settings_sessions.html` and
+  `settings_session_form.html` deleted; links elsewhere point to the list.
+- `search-app/research_dashboard/{i18n,workflow_i18n}.py` — Published/Draft wording, unused keys removed.
+- `search-app/research_dashboard/static/` — new `sessions.css`; rules of the old menus and
+  session tab removed from `research.css`.
+- `search-app/tests/` — new `test_session_list.py`; tests of the old tab moved to the new routes.
+
+**What changed for the participant**
+No visible change. Who can start, and when, is decided exactly as before.
+
+**What changed for researchers**
+They land on a list grouped into Today, Published, Drafts, and collapsed Past and Removed. A
+session is Published when it has a future date, IDs and approved questions for every child;
+it is never set by hand. Drafts say what they still need, each linking to its step. Opening a
+session shows the same three steps as before, with a back link instead of menus.
+
+**How it works**
+The status is computed on each request from `session_readiness`; nothing new is stored. The
+list reads settings only, not the reporting index, so a cache failure cannot block it. Numbered
+slots nobody has filled in are hidden, and Create fills the lowest free one for that class, so
+a new study starts empty and its first session is Session 1.
+
+**If something looks wrong after this, check**
+- A session sits in the wrong group → `session_group`, then `session_readiness` for that session.
+- "Needs" names the wrong step → `session_needs`.
+- A session seems to be missing → the year filter, or `is_placeholder` (no date, name or questions).
+- An old bookmark lands in the wrong place → the redirects in `settings_page` and `prepare_page`.
+
+**Left alone**
+Student routes, admission (`scheduled_assignment`, `admit_attempt`), question approval and its
+"Approve" wording, enrollment, exports and stored settings. The old range editor keeps its URL.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). Checked in a browser on
+synthetic data in English and Italian at 1440, 390 and 320 px, with no sideways scrolling.
 
 ## 2026-11-05 — Dashboard v2: two main sections, Study settings beside EN/IT
 

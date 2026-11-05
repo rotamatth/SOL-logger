@@ -24,7 +24,7 @@ def test_header_puts_language_before_logout_and_trash_moves_to_data_and_history(
     assert header.index('data-section="settings"') < header.index('class="languages"')
     primary = page.text.split('class="header-primary"')[1].split("</nav>")[0]
     assert re.findall(r'data-section="(\w+)"', primary) == ["sessions", "history"]
-    assert '<a class="header-logo" href="/dashboard/prepare' in header
+    assert '<a class="header-logo" href="/dashboard/sessions' in header
     overview = client.get("/dashboard?collection=study&grade=4&lang=it")
     trash = next(link for link in Controls(overview).links if link["text"] == "Cestino")
     shown = client.get(trash["href"])
@@ -93,7 +93,7 @@ def test_clearer_wording_for_past_sessions_class_questions_and_recovery_copies(a
     page = client.get(PREPARE)
     assert "I bambini non possono più iniziare questa sessione" in page.text
     assert "nuovi accessi" not in page.text
-    assert "Stai modificando <strong>" in page.text
+    assert "Torna alle sessioni" in page.text
     assert "Apri anno" not in page.text
     questions = client.get("/dashboard/settings/questions/grade-4-session-1?lang=it")
     assert "<h2>Domande per tutta la classe</h2>" in questions.text
