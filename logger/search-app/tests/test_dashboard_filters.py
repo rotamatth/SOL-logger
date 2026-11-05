@@ -169,7 +169,7 @@ def test_obsolete_filter_fields_do_not_narrow_or_reject_exports(app, mode):
     write_run(app, uid="21")
     client = app.test_client()
     login(client)
-    form = {"csrf": csrf(client.get("/dashboard")), "collection": "study", "grade": "4",
+    form = {"csrf": csrf(client.get("/dashboard", follow_redirects=True)), "collection": "study", "grade": "4",
             "mode": mode, "participant": "study:" + identity("2"), "q": "2026", "status": "obsolete"}
     _, manifest = archive(client.post("/dashboard/exports/selection", data=form))
     assert {run["run_id"] for run in manifest["runs"]} == ({second} if mode == "selected" else {first, second})
@@ -183,7 +183,7 @@ def test_refresh_preserves_collection_scope_and_drops_obsolete_filters(app):
     write_year_run(app)
     client = app.test_client()
     login(client)
-    fields = {"csrf": csrf(client.get("/dashboard")), "collection": "study", "grade": "4",
+    fields = {"csrf": csrf(client.get("/dashboard", follow_redirects=True)), "collection": "study", "grade": "4",
               "school_year": "2026/2027", "session": "grade-4-session-1",
               "q": "2026", "status": "obsolete"}
     response = client.post("/dashboard/refresh?lang=it", data=fields)

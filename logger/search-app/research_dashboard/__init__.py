@@ -5,11 +5,12 @@ its own module and registers its routes on a shared :class:`Dashboard` context:
 
 * ``security``          login, CSRF, response headers, error pages
 * ``template_context``  values available in every template
-* ``preparation_views`` session preparation (the dashboard's start page)
+* ``session_views``     the session list (the dashboard's start page) and Create
+* ``preparation_views`` one session's details, IDs and questions
 * ``question_views``    question editor (working draft vs approved questions)
 * ``editor_views``      private recovery of unsaved editor text
 * ``enrollment_views``  permanent participants and yearly enrollment
-* ``settings_views``    school year, session administration, ID ranges
+* ``settings_views``    school year and the original ID ranges
 * ``history_views``     data and history, runs, logs, trash
 * ``export_views``      ZIP downloads
 """
@@ -27,6 +28,7 @@ from .index import Index
 from .preparation_views import register_preparation_routes
 from .question_views import register_question_routes
 from .security import register_security
+from .session_views import register_session_routes
 from .settings_views import register_settings_routes
 from .state import State
 from .student_config import configure_students
@@ -59,6 +61,7 @@ def init_dashboard(app):
     register_security(dash)
     register_template_context(dash)
     register_editor_routes(dash)
+    register_session_routes(dash)
     register_preparation_routes(dash)
     register_question_routes(dash)
     register_enrollment_routes(dash)

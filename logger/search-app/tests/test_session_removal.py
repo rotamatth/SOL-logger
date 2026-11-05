@@ -11,7 +11,7 @@ from .test_study_enrollment import question_set
 from research_dashboard.state import identity, validate_settings
 from research_dashboard.study_config import assignment_for, scheduled_assignment, session_readiness
 
-URL = "/dashboard/settings?section=sessions&grade=4"
+URL = "/dashboard/sessions?grade=4"
 
 
 def action(client, state, session_id, operation="remove_session", **extra):

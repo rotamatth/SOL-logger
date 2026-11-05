@@ -50,7 +50,6 @@ class Dashboard:
         self.state = state
         self.index = index
         # Set while registering the route modules.
-        self.prepare_view = None
         self.clear_editor_saved = None
         self.clear_editor_owner = None
 

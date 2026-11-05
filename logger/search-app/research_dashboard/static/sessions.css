@@ -1,0 +1,55 @@
+/* Sessions: the list grouped by status, and the Create form. */
+.sessions-workspace,.preparation-workspace { max-width:1152px; margin-inline:auto }
+.sessions-heading h1 { margin-bottom:4px }
+.sessions-heading p { margin:0 0 16px }
+.sessions-tabs { margin-bottom:20px }
+.sessions-filters { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px 24px; margin-bottom:24px }
+.sessions-year { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 }
+.sessions-year label { margin:0; font-size:14px; font-weight:600 }
+.sessions-year select { width:auto; min-width:170px; margin:0 }
+.session-group { margin-bottom:28px }
+.session-group > h2 { margin:0 0 4px; font-size:18px }
+.session-group > p { margin:0 0 10px }
+.session-group > h2:last-of-type + .session-rows { margin-top:10px }
+.session-rows { display:grid; gap:10px }
+.session-row { display:grid; grid-template-columns:minmax(200px,1.4fr) 56px minmax(170px,1.3fr) auto; align-items:center; gap:8px 16px; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--white); scroll-margin-top:16px }
+.session-row:target { border-color:var(--logo); box-shadow:0 0 0 2px var(--selection) }
+.session-group-today .session-row { border-left:4px solid var(--logo) }
+.session-row-title { display:grid; gap:2px; min-width:0 }
+.session-row-title a { font-weight:650; overflow-wrap:anywhere }
+.session-row-count { color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums; white-space:nowrap }
+.session-row-status { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; min-width:0 }
+.session-row .record-actions { justify-content:flex-end }
+.session-needs { display:flex; align-items:center; flex-wrap:wrap; gap:2px 8px; margin:0; font-size:13px }
+.session-needs > span { color:var(--muted) }
+.session-needs a { text-decoration:underline; text-underline-offset:2px }
+.session-status-summary .session-needs { margin-top:8px }
+.session-group-past { padding:14px 16px }
+.session-group-past > summary,.removed-study-sessions > summary { cursor:pointer; font-weight:650 }
+.session-group-past .session-rows { margin-top:12px }
+.sessions-empty { margin-bottom:24px }
+.session-create { max-width:760px }
+.session-create h2 { margin-top:0 }
+.session-create-form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px 16px; align-items:end; margin:16px 0 8px }
+.session-create-form label { display:grid; gap:6px; margin:0 }
+.session-create-form select,.session-create-form input { width:100%; margin:0 }
+.session-create-form label[for="new-name"] { grid-column:1 / -1 }
+.session-create-form button { width:max-content; min-height:var(--control-height) }
+.sessions-next-hint { max-width:760px; margin-top:12px }
+.session-back { display:inline-block; margin-bottom:12px }
+.preparation-details label[for="prepare-name"] { flex:1 1 320px; max-width:520px }
+.preparation-details label[for="prepare-name"] input { width:100% }
+.preparation-removal { margin-top:20px; font-size:14px }
+.preparation-removal > summary { width:max-content; color:var(--muted); cursor:pointer }
+.preparation-removal form { margin:8px 0 4px }
+@media(max-width:800px) {
+  .session-row { grid-template-columns:minmax(0,1fr) auto }
+  .session-row-status { grid-column:1 / -1 }
+  .session-row .record-actions { grid-column:1 / -1; justify-content:flex-start }
+}
+@media(max-width:550px) {
+  .session-create-form { grid-template-columns:minmax(0,1fr) }
+  .sessions-year select { min-width:0; flex:1 }
+  .site-header .header-top { flex-wrap:wrap; row-gap:4px }
+  .header-utilities { flex-wrap:wrap; gap:6px 12px; justify-content:flex-end }
+}

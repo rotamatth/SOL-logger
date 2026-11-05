@@ -15,11 +15,11 @@ def test_malformed_next_keeps_login_available_and_uses_default_destination(app, 
         "password": PASSWORD, "csrf": csrf(response), "next": destination,
     })
     assert response.status_code == 302
-    assert response.location == "/dashboard/prepare?lang=it"
+    assert response.location == "/dashboard/sessions?lang=it"
 
     response = client.get("/dashboard/login", query_string={"next": destination, "lang": "it"})
     assert response.status_code == 302
-    assert response.location == "/dashboard/prepare?lang=it"
+    assert response.location == "/dashboard/sessions?lang=it"
 
 
 @pytest.mark.parametrize("destination", [

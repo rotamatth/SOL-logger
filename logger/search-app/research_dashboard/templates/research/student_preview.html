@@ -1,7 +1,7 @@
 {% extends 'research/base.html' %}
 {% block content %}
 <div class="student-preview-workspace">
-  <a href="{{ u('prepare_page',grade=study_session.grade,year=study_session.school_year or None,session=study_session.id) }}#prepare-questions">&larr; {{ t('prepare_session') }}</a>
+  <a href="{{ u('prepare_page',grade=study_session.grade,year=study_session.school_year or None,session=study_session.id) }}#prepare-questions">&larr; {{ t('back_to_session') }}</a>
   <h1>{{ t('preview_student_questions') }}</h1>
   <p class="muted">{{ study_session.name or (t('session') ~ ' ' ~ study_session.number) }} · {{ t('grade_' ~ study_session.grade) }} · {{ study_session.school_year or t('school_year_unknown') }} · {{ study_session.date or t('date_not_set') }}</p>
   <p class="notice preview-safety-notice"><strong>{{ t('research_preview_only') }}</strong> {{ t('research_preview_safety_hint') }}</p>

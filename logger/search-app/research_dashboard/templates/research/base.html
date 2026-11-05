@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ t('dashboard') }} · SOL</title>
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='research.css', v='dashboard-feedback-20261103') }}">
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='history.css', v='dashboard-feedback-20261103') }}">
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='workflow.css', v='dashboard-feedback-20261103') }}">
-  <link rel="stylesheet" href="{{ url_for('research.static', filename='editor.css', v='dashboard-feedback-20261103') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='research.css', v='dashboard-v2-20261105') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='history.css', v='dashboard-v2-20261105') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='workflow.css', v='dashboard-v2-20261105') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='editor.css', v='dashboard-v2-20261105') }}">
+  <link rel="stylesheet" href="{{ url_for('research.static', filename='sessions.css', v='dashboard-v2-20261105') }}">
   <script src="{{ url_for('research.static', filename='editor.js') }}" defer></script>
   {% block page_assets %}{% endblock %}
 </head>
@@ -22,7 +23,7 @@
           <path d="M21 16a9 9 0 0 1 7-6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
         </svg>
       {% endset %}
-      {% if auth and auth.authenticated %}<a class="header-logo" href="{{ u('prepare_page') }}" aria-label="Cerca con SOL · {{ t('prepare_session') }}">{{ logo_mark }}</a>
+      {% if auth and auth.authenticated %}<a class="header-logo" href="{{ u('sessions_page') }}" aria-label="Cerca con SOL · {{ t('sessions') }}">{{ logo_mark }}</a>
       {% else %}<span class="header-logo" role="img" aria-label="Cerca con SOL">{{ logo_mark }}</span>{% endif %}
       <div class="header-utilities">
       {% if auth and auth.authenticated %}<a class="header-settings" data-section="settings" href="{{ u('settings_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'settings' or request.endpoint == 'research.settings_page' %}aria-current="page"{% endif %}>{{ t('settings') }}</a>{% endif %}
@@ -39,7 +40,7 @@
     </nav>
       {% if auth and auth.authenticated %}
       <nav class="header-primary" aria-label="{{ t('primary_navigation') }}">
-      <a data-section="sessions" href="{{ u('prepare_page',grade=study_context.grade if study_context is defined and study_context.grade in grades else None,year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,session=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'sessions' %}aria-current="page"{% endif %}>{{ t('sessions') }}</a>
+      <a data-section="sessions" href="{{ u('sessions_page',year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,_anchor=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'sessions' %}aria-current="page"{% endif %}>{{ t('sessions') }}</a>
       <a data-section="history" href="{{ u('overview',collection='study',grade=study_context.grade if study_context is defined and study_context.grade in grades else 'all',school_year=study_context.school_year if study_context is defined else None,session=study_context.get('id') if study_context is defined and study_context.grade in grades else None) }}" {% if research_area|default('') == 'history' %}aria-current="page"{% endif %}>{{ t('data_and_history') }}</a>
       </nav>
       {% endif %}

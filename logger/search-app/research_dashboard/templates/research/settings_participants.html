@@ -30,7 +30,7 @@
       <div><label for="{{ rule.grade }}_width">{{ t('width') }}</label><input id="{{ rule.grade }}_width" name="{{ rule.grade }}_width" value="{{ rule.width }}" type="number" min="0" max="8" required></div>
     </div></details>
   </div>
-  <p class="small muted">{{ t('v2_roster_questions_hint') }} <a href="{{ u('settings_page', section='sessions', grade=history_grade) }}">{{ t('configure_questions') }}</a></p>
+  <p class="small muted">{{ t('v2_roster_questions_hint') }} <a href="{{ u('sessions_page', grade=history_grade) }}">{{ t('configure_questions') }}</a></p>
   <div class="setup-form-footer"><p class="small muted">{{ t('review_before_save_hint') }}</p><div class="actions"><button class="primary" type="submit" name="action" value="preview_ranges">{{ t('review_changes') }} &rarr;</button><a class="button" href="{{ u('settings_page', section='participants', grade=history_grade) }}">{{ t('cancel') }}</a></div></div>
 </form>
 {% elif participants_mode == 'review' %}
