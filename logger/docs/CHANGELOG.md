@@ -65,6 +65,34 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Rebuild the sign-in destination from the dashboard prefix
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, tests
+
+**Files**
+- `search-app/research_dashboard/dashboard.py` — `safe_research_next` returns a path built from `PREFIX` and the
+  parsed path and query, not the text it received.
+- `search-app/tools/capture_guide_screens.py` — the reason moves to its own line, with a bare `NOSONAR` on the
+  `Flask(__name__)` line, because SonarCloud did not honour the comment with text after it.
+- `search-app/tests/test_dashboard_redirects.py` — covers the rebuilt value.
+
+**What changed for the participant**
+No visible change. A destination with a leading space or a fragment now loses them; the dashboard's own links have
+neither.
+
+**How it works**
+SonarCloud's open redirect finding on PR #25 traces the input through `safe_research_next` as if unchanged. Returning
+a value built from the constant prefix makes the guarantee part of the function's result.
+
+**If something looks wrong after this, check**
+- A sign-in link loses its `#fragment` → this function. Dashboard pages do not use fragments in `next`.
+
+**Left alone**
+What the function refuses, which the previous entry describes.
+
+**Verified**
+See the pull request: the full server suite, Ruff, and a new test for the rebuilt value.
+
 ## 2026-11-05 — Keep the sign-in redirect inside the dashboard
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard, tests

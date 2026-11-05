@@ -176,7 +176,8 @@ def main():
         folder = Path(temporary)
         for name in ("state", "v2", "legacy"):
             (folder / name).mkdir()
-        app = Flask(__name__)  # NOSONAR: throwaway server on 127.0.0.1. The dashboard checks its own CSRF token.
+        # A throwaway server on 127.0.0.1, and the dashboard checks its own CSRF token.
+        app = Flask(__name__)  # NOSONAR
         app.config.update(SECRET_KEY=secrets.token_hex(32), RESEARCH_STATE_DIR=str(folder / "state"),
                           RESEARCH_LOG_DIR=str(folder / "v2"), RESEARCH_LEGACY_LOG_DIR=str(folder / "legacy"),
                           RESEARCH_PASSWORD_HASH=generate_password_hash(PASSWORD, method="pbkdf2:sha256:1000"),

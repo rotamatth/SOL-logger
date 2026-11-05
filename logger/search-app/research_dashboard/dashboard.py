@@ -43,7 +43,8 @@ def safe_research_next(value):
     path = unquote(parsed.path)
     if "\\" in path or "//" in path or {".", ".."} & set(path.split("/")):
         return None
-    return value
+    # Rebuilt from our own prefix rather than returned as received, so it can only be a dashboard path.
+    return PREFIX + parsed.path[len(PREFIX):] + (f"?{parsed.query}" if parsed.query else "")
 
 
 class Dashboard:
