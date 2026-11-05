@@ -38,6 +38,10 @@ def test_next_only_inspects_the_path_for_slashes_and_dots():
     assert safe_research_next(destination) == destination
 
 
+def test_next_is_rebuilt_from_the_dashboard_prefix():
+    assert safe_research_next(" /dashboard/settings?grade=4#top") == "/dashboard/settings?grade=4"
+
+
 def test_login_preserves_safe_dashboard_path_and_query(app):
     destination = "/dashboard/settings?grade=4&year=2026%2F2027&lang=it"
     client = app.test_client()
