@@ -164,7 +164,7 @@ def register_enrollment_routes(dash):
         return page("enrollment", settings=settings, workflow_session=workflow_session,
                     workflow_review_url=session_review_url(dash, settings, workflow_problem) if workflow_problem else None,
                     study_context=workflow_session or {"grade": grade, "school_year": year},
-                    research_area="prepare" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
+                    research_area="sessions" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
                     school_years=school_year_choices(settings, year, *(form.get(key) for key in ("year", "source_year", "target_year"))),
                     people=people[(number-1)*50:number*50], total=len(people), page_number=number,
                     page_count=page_count, editing=person, form=form, id_search=id_search,

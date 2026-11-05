@@ -56,7 +56,8 @@ def test_administration_defaults_to_current_year_and_explicit_all_years_survives
                   if control.get("id") == "settings-session-year")
     assert {option.get("value") for option in select["options"]} == {"", YEAR, FUTURE}
     for label in ("3rd Grade", "5th Grade", "School year", "Sessions"):
-        matches = [link for link in Controls(page).links if link["text"] == label]
+        matches = [link for link in Controls(page).links if link["text"] == label
+                   and link.get("data-section") != "sessions"]
         assert matches, label
         for link in matches:
             query = parse_qs(urlsplit(link["href"]).query, keep_blank_values=True)

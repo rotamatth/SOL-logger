@@ -156,11 +156,6 @@ a.header-logo:hover,a.header-logo:focus-visible {
   --section-soft:var(--selection)
 }
 
-.header-primary>[data-section="settings"] {
-  --section-ink:var(--settings);
-  --section-soft:var(--selection)
-}
-
 .header-primary>a:hover {
   color:var(--section-ink);
   background:var(--section-soft);
@@ -183,6 +178,12 @@ a.header-logo:hover,a.header-logo:focus-visible {
 
 .header-utilities>a,.header-utilities .languages a {
   color:var(--muted)
+}
+
+.header-utilities>a[aria-current="page"] {
+  color:var(--ink);
+  font-weight:700;
+  text-decoration:underline
 }
 
 .header-utilities>a,.header-utilities button {

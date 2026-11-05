@@ -137,7 +137,7 @@ def register_preparation_routes(dash):
                              or published and question_set_problem(published) is not None))
         return page('prepare', settings=settings, study_context={'grade': grade, 'school_year': year,
                     'id': selected['id'] if selected else None},
-                    research_area='prepare', selected=selected, sessions=sessions, creating=creating,
+                    research_area='sessions', selected=selected, sessions=sessions, creating=creating,
                     rejected=rejected, rejected_review_url=session_review_url(dash, settings, rejected) if rejected else None,
                     school_years=school_year_choices(settings, year, school_year_for(today)),
                     readiness=readiness, error=error, today=today,
@@ -179,7 +179,7 @@ def register_preparation_routes(dash):
         questions = question_set.get('questions', []) if question_set else []
         question = questions[number - 1] if len(questions) >= number else None
         return page('student_preview', settings=settings, study_session=study_session,
-                    study_context=study_session, research_area='prepare',
+                    study_context=study_session, research_area='sessions',
                     participant=participant, participant_ids=ids, mode=mode, number=number,
                     preview_question=question, preview_set=question_set, question_source=source)
     dash.prepare_view = prepare_page

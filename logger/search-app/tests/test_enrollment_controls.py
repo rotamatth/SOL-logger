@@ -114,7 +114,7 @@ def test_global_preparation_link_returns_to_the_selected_session(app, url):
     login(client)
     response = client.get(url)
     assert response.status_code == 200
-    destination = link(response, "Prepare a session")
+    destination = link(response, "Sessions")
     query = parse_qs(urlsplit(destination).query)
     assert query["session"] == [SESSION]
     assert query["grade"] == ["4"]
