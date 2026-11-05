@@ -65,6 +65,26 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Clear suggestion state if rendering fails
+
+**Commit:** pending · **Type:** fix · **Area:** autocomplete, logging, tests
+
+**Files**
+- `search-app/templates/layout.html` — clear partially applied suggestions and
+  metadata when the current response fails during rendering or logging.
+- `search-app/tests/test_autocomplete_browser.py` — synthetic logging failure.
+
+**What changed for the participant**
+When the suggestion list fails to open, the search field remains ready for a
+typed query without attributing it to a suggestion from that list.
+
+**If something looks wrong after this, check**
+- Suggestions disappear despite a successful response → check the browser console
+  for errors from rendering or saving the study log.
+
+**Verified**
+Chromium exercised a logging failure after the suggestions were prepared.
+
 ## 2026-11-05 — Reduce autocomplete wait and recover from Vertex failures
 
 **Commit:** pending · **Type:** fix · **Area:** autocomplete, search-bar, logging, docs, tests
