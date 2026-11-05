@@ -71,6 +71,7 @@ def start(page, base, uid):
     page.click("#continue-btn")
     page.wait_for_url("**/task")
     page.fill("#first-answer-text", "Idea iniziale prima della ricerca")
+    page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
     page.get_by_role("button", name="Conferma risposta", exact=True).click()
     page.locator("a#first-answer-search").wait_for()
     page.click("a#first-answer-search")

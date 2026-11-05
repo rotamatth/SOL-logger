@@ -610,6 +610,12 @@ sign-out notifies other editors and invalidates their recovery claims.
 
 
 
+## Initial self-assessment (#6)
+
+For each question, typing a nonblank first answer immediately shows “Secondo te, quanto è giusta la tua risposta?” with “Poco giusta”, “Abbastanza giusta” and “Giustissima”. There is no default. A typed answer requires a choice to confirm; clearing the text clears the choice. Confirmed “Non lo so” needs no assessment.
+
+SQLite schema 5 stores confidence as 1, 2 or 3 alongside the original first answer, or null for confirmed unknown and historical answers collected before this field existed. First-answer drafts save text and confidence together under the same revision and resume across browsers/workers. Search remains locked until confirmation. The canonical `OwnKnowledgeAnswerSubmitted` event includes `confidence`, `outcome`, `answerPhase: pre-search` and the existing attempt/session/task context. Identical retries do not duplicate the answer/event; a different confidence conflicts. Database upgrades do not infer historical confidence or rewrite previously queued/published events.
+
 ## Session question contract for progress saving (#6)
 
 The additive JSON configuration keeps `schema_version: 1` and the existing

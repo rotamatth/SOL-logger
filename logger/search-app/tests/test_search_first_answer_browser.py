@@ -17,6 +17,7 @@ def enter(page, base, unknown=False):
         page.get_by_role("button", name="Confermo: non lo so").click()
     else:
         page.fill("#first-answer-text", ORIGINAL)
+        page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
         page.get_by_role("button", name="Conferma risposta", exact=True).click()
     page.click("a#first-answer-search")
     page.wait_for_url("**/search")

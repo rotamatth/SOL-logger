@@ -141,3 +141,31 @@ def test_route_requires_assessment_and_logs_it_once_in_full_and_task_logs(module
     task_events = [json.loads(line) for path in module.LOG_STORE.root.glob("*_task*.log")
                    for line in path.read_text().splitlines()]
     assert [e for e in task_events if e["type"] == "OwnKnowledgeAnswerSubmitted"] == submitted
+
+
+def test_failed_confirmation_preserves_text_and_assessment(module, monkeypatch):
+    client = begin(module)
+    fields = Fields(client.get("/task").text).values
+
+    def fail(*args, **kwargs):
+        raise sqlite3.OperationalError("synthetic failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(module.PROGRESS.store, "submit_first_answer", fail)
+        response = client.post("/first-answer", data={**fields, "outcome": "answered",
+                               "text": "Keep this", "confidence": "3"})
+    assert response.status_code == 503 and "Keep this</textarea>" in response.text
+    assert 'value="3" required checked' in response.text
+    assert client.get("/search").status_code == 302
+
+
+def test_draft_route_restores_confidence_in_another_worker(module, student_modules):
+    client = begin(module)
+    fields = Fields(client.get("/task").text).values
+    saved = client.post("/first-answer/draft", json={**fields, "text": "Laika", "confidence": 1, "revision": 0})
+    assert saved.status_code == 200 and saved.json["confidence"] == 1
+    assert client.post("/first-answer/draft", json={**fields, "text": "Laika", "confidence": 3, "revision": 0}).status_code == 409
+    resumed = begin(student_modules())
+    page = resumed.get("/task")
+    assert "Laika</textarea>" in page.text and 'value="1" required checked' in page.text
+    assert resumed.get("/search").status_code == 302

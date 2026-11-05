@@ -78,6 +78,7 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
     for number in range(1, 4):
         page.locator("#first-answer-text").wait_for()
         page.fill("#first-answer-text", f"Prima risposta {number}")
+        page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
         page.get_by_role("button", name="Conferma risposta", exact=True).click()
         page.locator("a#first-answer-search").wait_for()
         page.click("a#first-answer-search")
