@@ -65,6 +65,45 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — A guide for new researchers
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `search-app/research_dashboard/guide_views.py`, `guide_i18n.py`, `static/guide.css`,
+  `templates/research/guide.html` (new) — `/dashboard/guide`, in English and Italian.
+- `search-app/research_dashboard/static/guide/{en,it}/*.jpg` (new) — screenshots of demo data only.
+- `search-app/tools/capture_guide_screens.py` (new) — regenerates those pictures in a throwaway dashboard.
+- `search-app/research_dashboard/security.py` — the first sign-in in a browser opens the guide.
+- `search-app/research_dashboard/templates/research/base.html` — a Guide button next to Study settings.
+- `search-app/research_dashboard/task_stats.py`, `templates/research/task_stats.html` — a chart's last
+  value now sits on its column.
+- `search-app/research_dashboard/static/sessions.css` — the header utilities take their own row on phones.
+- `search-app/tests/test_guide.py`, `test_guide_browser.py` (new); first-login expectations updated.
+
+**What changed for the participant**
+No visible change.
+
+**What changed for researchers**
+The first sign-in in a browser opens an illustrated guide to the dashboard, with a way straight to
+Sessions. Afterwards the Guide button on every page brings it back.
+
+**How it works**
+A cookie on the dashboard path remembers that this browser has seen the guide. Sign-ins are shared,
+so this is per browser, not per person. A sign-in that was asked to go to a specific page goes there.
+
+**If something looks wrong after this, check**
+- A picture shows an old layout → run `python tools/capture_guide_screens.py` and commit the images.
+- The guide opens every time → the browser is not keeping the `sol_guide_seen` cookie.
+
+**Left alone**
+Sign-in rules and session lifetime. The pictures are public static files, like the other dashboard
+assets, because they contain demo data only.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). All pictures load in both
+languages at 1365, 768, 390 and 320 px with no sideways scrolling.
+
 ## 2026-11-05 — Live view of a running session
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, logging, tests

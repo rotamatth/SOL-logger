@@ -48,7 +48,7 @@
     <g class="trend-group"><title>{{ session.name or (t('session') ~ ' ' ~ session.number) }} · {{ session.date or t('date_not_set') }}: {{ dash(column.value) }}</title>
       <rect class="trend-hit" x="{{ column.slot_left }}" y="0" width="{{ column.slot_width }}" height="106"></rect>
       {% if column.path %}<path class="trend-column" d="{{ column.path }}"></path>{% endif %}
-      {% if loop.last and column.value is not none %}<text class="trend-text trend-value" x="{{ column.center }}" y="11" text-anchor="middle">{{ column.value }}</text>{% endif %}
+      {% if loop.last and column.value is not none %}<text class="trend-text trend-value" x="{{ column.center }}" y="{{ column.label_y }}" text-anchor="middle">{{ column.value }}</text>{% endif %}
       <text class="trend-text" x="{{ column.center }}" y="102" text-anchor="middle">{{ session.number }}</text>
     </g>{% endfor %}
   </svg>

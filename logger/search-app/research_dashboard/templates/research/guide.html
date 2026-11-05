@@ -1,0 +1,38 @@
+{% extends 'research/base.html' %}
+{% block page_assets %}<link rel="stylesheet" href="{{ url_for('research.static', filename='guide.css', v='dashboard-v2-20261105') }}">{% endblock %}
+{% macro step(key, number) %}
+<article class="guide-step" id="guide-{{ key }}">
+  <div class="guide-caption">
+    <div class="guide-step-title"><span class="preparation-number">{{ number }}</span><h3>{{ t('guide_' ~ key ~ '_title') }}</h3></div>
+    <p>{{ t('guide_' ~ key ~ '_text') }}</p>
+    <p class="small muted">{{ t('guide_' ~ key ~ '_detail') }}</p>
+  </div>
+  <figure><img src="{{ url_for('research.static', filename='guide/' ~ language ~ '/' ~ key ~ '.jpg') }}" width="{{ image_size[0] }}" height="{{ image_size[1] }}" loading="lazy" alt="{{ t('guide_' ~ key ~ '_alt') }}"></figure>
+</article>
+{% endmacro %}
+{% block content %}
+<div class="guide-workspace">
+  <div class="guide-bar"><a class="button primary" href="{{ u('sessions_page') }}">{{ t('guide_go_to_sessions') }} &rarr;</a></div>
+  <header class="guide-intro">
+    <h1>{{ t('guide_title') }}</h1>
+    <p class="guide-lead">{{ t('guide_lead') }}</p>
+    <p class="small muted">{{ t('guide_demo_note') }}</p>
+  </header>
+  <section class="guide-group" aria-labelledby="guide-prepare">
+    <h2 id="guide-prepare">{{ t('guide_group_prepare') }}</h2>
+    {{ step('sessions', 1) }}{{ step('create', 2) }}{{ step('ids', 3) }}{{ step('questions', 4) }}
+  </section>
+  <section class="guide-group" aria-labelledby="guide-follow">
+    <h2 id="guide-follow">{{ t('guide_group_follow') }}</h2>
+    {{ step('live', 5) }}{{ step('data', 6) }}{{ step('child', 7) }}
+  </section>
+  <section class="guide-group" aria-labelledby="guide-settings-group">
+    <h2 id="guide-settings-group">{{ t('guide_group_settings') }}</h2>
+    {{ step('settings', 8) }}
+  </section>
+  <footer class="guide-closing">
+    <p class="muted">{{ t('guide_closing') }}</p>
+    <a class="button primary" href="{{ u('sessions_page') }}">{{ t('guide_go_to_sessions') }} &rarr;</a>
+  </footer>
+</div>
+{% endblock %}

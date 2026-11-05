@@ -42,6 +42,8 @@
 .preparation-removal { margin-top:20px; font-size:14px }
 .preparation-removal > summary { width:max-content; color:var(--muted); cursor:pointer }
 .preparation-removal form { margin:8px 0 4px }
+.header-utilities .header-guide { min-height:32px; padding:4px 10px; font-size:12px; font-weight:600 }
+.header-utilities .header-guide[aria-current] { background:var(--selection); text-decoration:none }
 @media(max-width:800px) {
   .session-row { grid-template-columns:minmax(0,1fr) auto }
   .session-row-status { grid-column:1 / -1 }
@@ -51,5 +53,5 @@
   .session-create-form { grid-template-columns:minmax(0,1fr) }
   .sessions-year select { min-width:0; flex:1 }
   .site-header .header-top { flex-wrap:wrap; row-gap:4px }
-  .header-utilities { flex-wrap:wrap; gap:6px 12px; justify-content:flex-end }
+  .header-utilities { flex:1 1 100%; flex-wrap:wrap; gap:6px 12px; justify-content:flex-end; min-width:0; margin-left:0 }
 }

@@ -207,7 +207,7 @@ def test_secure_cookie_headers_and_bilingual_ui(app):
     assert b"Accesso ricercatori" in response.data
     assert "Secure" in response.headers["Set-Cookie"]
     response = login(client, lang="it")
-    assert response.location == "/dashboard/sessions?lang=it"
+    assert response.location == "/dashboard/guide?lang=it"
     response = client.get("/dashboard/sessions?lang=it", headers={"Origin": "https://untrusted.example"})
     assert b"Quarta" in response.data
     assert response.headers["X-Frame-Options"] == "DENY"
