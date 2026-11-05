@@ -610,6 +610,14 @@ sign-out notifies other editors and invalidates their recovery claims.
 
 
 
+## Initial self-assessment (#6)
+
+For each question, typing a nonblank first answer immediately shows “Secondo te, quanto è giusta la tua risposta?” with “Poco giusta”, “Abbastanza giusta” and “Giustissima”. There is no default. A typed answer requires a choice to confirm; clearing the text clears the choice. Confirmed “Non lo so” needs no assessment.
+
+SQLite stores confidence as 1, 2 or 3 alongside the original first answer, or null for confirmed unknown and historical answers collected before this field existed. First-answer drafts save text and confidence together under the same revision and resume across browsers/workers. Search remains locked until confirmation. The canonical `OwnKnowledgeAnswerSubmitted` event includes `confidence`, `outcome`, `answerPhase: pre-search` and the existing attempt/session/task context. Identical retries do not duplicate the answer/event; a different confidence conflicts. Database upgrades do not infer historical confidence or rewrite previously queued/published events.
+
+The current progress schema is 6. It also provides internal storage for recap drafts/revisions and source-snapshot repeats, with the UI and authorization controls left to #9/#15. Reward assets no longer affect question-set eligibility. See [Issue #6 handover](issue6_handover.md) for the API contracts and acceptance boundaries.
+
 ## Session question contract for progress saving (#6)
 
 The additive JSON configuration keeps `schema_version: 1` and the existing

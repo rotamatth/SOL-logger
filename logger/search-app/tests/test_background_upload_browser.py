@@ -15,7 +15,7 @@ import pytest
 from werkzeug.serving import make_server
 
 from .test_editor_browser import REQUIRE_BROWSER_TESTS, playwright_api, until
-from .test_study_enrollment import schedule
+from .test_study_enrollment import question_set, schedule
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 RESULTS = [{"docid": f"doc-{n}", "title": f"Synthetic result {n}", "snippet": f"Synthetic snippet {n}.",
@@ -24,7 +24,7 @@ RESULTS = [{"docid": f"doc-{n}", "title": f"Synthetic result {n}", "snippet": f"
 
 
 @pytest.fixture
-def student_site(tmp_path, monkeypatch):
+def student_site(tmp_path, monkeypatch, request):
     monkeypatch.chdir(APP_ROOT)
     for name, value in (("SOL_LOG_DIR", "v2"), ("RESEARCH_LEGACY_LOG_DIR", "legacy"),
                         ("RESEARCH_STATE_DIR", "state")):
@@ -45,7 +45,8 @@ def student_site(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location("background_upload_student_app", APP_ROOT / "search_app.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    schedule(module)
+    theme = getattr(request, "param", None)
+    schedule(module, shared={**question_set(), "theme": theme} if theme else None)
     server = make_server("127.0.0.1", 0, module.app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -69,7 +70,11 @@ def start(page, base, uid):
     page.select_option("#id-box", uid)
     page.click("#continue-btn")
     page.wait_for_url("**/task")
-    page.click("#task-btn")
+    page.fill("#first-answer-text", "Idea iniziale prima della ricerca")
+    page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
+    page.get_by_role("button", name="Conferma risposta", exact=True).click()
+    page.locator("a#first-answer-search").wait_for()
+    page.click("a#first-answer-search")
     page.wait_for_url("**/search*")
     page.wait_for_load_state("load")
 
@@ -137,11 +142,12 @@ def test_the_answer_is_saved_once_with_background_uploads(student_site):
     page.fill("#textarea_feedback", "Le api producono il miele dal nettare.")
     page.click("#feedback-btn")
     page.click("#yes-end-btn")
-    page.wait_for_url("**/reward")
+    page.wait_for_url("**/task-review/1")
     events = saved(root, "1")
     answers = types_of(events, "TaskEnded")
     assert [event["answer"] for event in answers] == ["Le api producono il miele dal nettare."]
     assert len(types_of(events, "searchResultGenerated")) == len(RESULTS)
     assert len(events) == len({json.dumps(event, sort_keys=True) for event in events})  # no duplicate events
-    assert all(event["task_number"] == 1 for event in events)
+    assert all(event["task_number"] == 1 for event in events if event["type"] != "TaskStarted")
+    assert not types_of(events, "rewardShown")
     assert datetime.fromisoformat(answers[0]["timestamp"])

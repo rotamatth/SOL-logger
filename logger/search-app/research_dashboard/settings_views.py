@@ -93,7 +93,7 @@ def _session_in_grade(settings, session_id, grade):
     return next((s for s in settings["sessions"] if s["id"] == session_id and s["grade"] == grade), None)
 
 
-def _apply_ranges(form, updated, catalog, asset_dir):
+def _apply_ranges(form, updated, catalog):
     """Apply the range editor fields (bulk ID ranges and their task sets)."""
     scope = form.range_scope
     if scope is not None and scope not in GRADES:
@@ -116,13 +116,13 @@ def _apply_ranges(form, updated, catalog, asset_dir):
         if f"{grade}_prefix" in request.form:
             rule["prefix"] = request.form[f"{grade}_prefix"]
         if f"{grade}_task_set" in request.form:
-            _apply_task_set(rule, request.form[f"{grade}_task_set"], catalog, asset_dir)
+            _apply_task_set(rule, request.form[f"{grade}_task_set"], catalog)
     validate_settings(updated)
     form.range_draft = updated
     form.range_preview = form.action == "preview_ranges"
 
 
-def _apply_task_set(rule, selected, catalog, asset_dir):
+def _apply_task_set(rule, selected, catalog):
     grade = rule["grade"]
     if selected == "existing":
         rule.pop("assignment", None)
@@ -135,7 +135,7 @@ def _apply_task_set(rule, selected, catalog, asset_dir):
         raise ValueError("invalid_task_assignment")
     if rule.get("assignment"):
         rule["assignment"]["mode"] = request.form.get(f"{grade}_assignment_mode", "missing")
-        if not topics_ready(rule["assignment"]["topics"], asset_dir):
+        if not topics_ready(rule["assignment"]["topics"]):
             raise ValueError("invalid_task_assignment")
 
 
@@ -312,7 +312,7 @@ def register_settings_routes(dash):
         if action in ("save", "save_year") and "current_school_year" in request.form:
             updated["current_school_year"] = request.form["current_school_year"].strip()
         if action in ("save", *RANGE_ACTIONS):
-            _apply_ranges(form, updated, catalog, app.config["STUDENT_ASSET_DIR"])
+            _apply_ranges(form, updated, catalog)
         if action == "save_dates":
             _apply_save_dates(form, updated)
         if action == "save_session":

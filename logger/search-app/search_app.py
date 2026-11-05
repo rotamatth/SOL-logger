@@ -15,7 +15,7 @@ from copy import deepcopy
 import sqlite3
 import tempfile
 
-from flask import Flask, render_template, url_for, request, session, redirect, jsonify
+from flask import Flask, abort, render_template, url_for, request, session, redirect, jsonify
 from markupsafe import Markup, escape
 from flask_session import Session
 from forms import SearchForm
@@ -28,6 +28,8 @@ from research_dashboard.collection import record_run, publish_metadata
 from research_dashboard.log_store import LogStore, UploadConflict
 from research_dashboard.runtime import configure_runtime
 from research_dashboard.study_config import scheduled_assignment
+from study_progress import init_progress, SubmissionConflict
+from student_progress import SessionUnavailable, StudentProgress
 
 app = Flask(__name__)
 
@@ -111,7 +113,8 @@ def load_user_topics(filepath='data/user_topics.csv'):
 USER_TOPICS = load_user_topics()
 app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
-PUZZLE_ASSET_DIR = 'puzzle_pieces'
+PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
+                           lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw))
 
 
 @app.get('/health/ready')
@@ -125,6 +128,7 @@ def ready():
         if os.getenv("SOL_ENV") == "production" and not app.extensions["research"]["credential_ready"]():
             raise RuntimeError("Research authentication is unconfigured")
         LOG_STORE.recover()
+        PROGRESS.recover_pending()
         for directory in (LOG_DIR, RESEARCH_STATE.path.parent, app.config["SESSION_FILE_DIR"]):
             fd, name = tempfile.mkstemp(prefix=".health-", dir=directory)
             try:
@@ -192,22 +196,39 @@ def advance_to_next_random_task():
     session["task_number"] = task_order[next_position]
     return True
 
+def legacy_completed_tasks():
+    """Read old browser state once without discarding already completed tasks."""
+    if 'pieces_earned' in session:
+        session['completed_tasks'] = session.pop('pieces_earned')
+        session.pop('reward_shown_logged', None)
+    return session.get('completed_tasks', [])
+
+
 def current_phase():
     user_id = session.get('user_id')
     if not user_id:
         return 'pre_id'
 
+    progress = PROGRESS.current()
+    if progress:
+        task = progress['tasks'][session.get('task_position', 0)]
+        if task['final_answer']:
+            return 'completed' if progress['status'] == 'completed' else 'question_complete'
+        if not task['first_answer']:
+            return 'task_intro'
+        return 'searching'
+
     task_number = session.get('task_number')
-    pieces = session.get('pieces_earned', [])
+    completed = legacy_completed_tasks()
     tasks_started = session.get('tasks_started', [])
     total_tasks = get_total_tasks(user_id)
 
-    if total_tasks and len(pieces) >= total_tasks:
+    if total_tasks and len(completed) >= total_tasks:
         return 'completed'
     if not task_number:
         return 'completed'
-    if task_number in pieces:
-        return 'reward'
+    if task_number in completed:
+        return 'question_complete'
     if task_number in tasks_started:
         return 'searching'
     return 'task_intro'
@@ -215,14 +236,17 @@ def current_phase():
 def phase_redirect_url(phase=None):
     if phase is None:
         phase = current_phase()
+    if phase in ('question_complete', 'completed') and (progress := PROGRESS.current()):
+        if PROGRESS.pending_review(progress):
+            return url_for('task')
     if phase == 'pre_id':
         return url_for('welcome')
     if phase == 'task_intro':
         return url_for('task')
     if phase == 'searching':
         return url_for('search_page')
-    if phase == 'reward':
-        return url_for('reward')
+    if phase == 'question_complete':
+        return url_for('next_task')
     if phase == 'completed':
         return url_for('thank_you')
     return url_for('welcome')
@@ -259,7 +283,7 @@ def rich_text(value):
         return f"<{match.group(1)}{match.group(2).lower()}>" if match.group(2) else "<br>"
     return Markup(RICH_TEXT_TAGS.sub(allowed, text))
 
-class PuzzleConfigError(Exception):
+class TaskConfigError(Exception):
     pass
 
 #Global constants for template rendering
@@ -267,9 +291,9 @@ ERROR_URL = "error.html"
 SEARCH_URL = "search.html"
 HOME_URL = "home.html"
 
-def render_puzzle_config_error(message):
+def render_task_config_error(message):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Puzzle Configuration Error",
+                           error_title="Task Configuration Error",
                            error_message=message), 500
 
 def get_user_config(user_id):
@@ -278,7 +302,7 @@ def get_user_config(user_id):
         assignment = scheduled_assignment(RESEARCH_STATE.settings(), user_id)
         user = assignment['topics'] if assignment else None
     if not user:
-        raise PuzzleConfigError(
+        raise TaskConfigError(
             f"No complete student task assignment found for user '{user_id}'."
         )
     return user
@@ -288,7 +312,7 @@ def untouched_run_for(user_id):
     """This browser already holds today's admitted run for the ID, and no task has been searched yet."""
     if not user_id or session.get('user_id') != user_id or not session.get('session_id'):
         return False
-    if session.get('tasks_started') or session.get('pieces_earned') or session.get('task_position', 0):
+    if session.get('tasks_started') or legacy_completed_tasks() or session.get('task_position', 0):
         return False
     if (session.get('study_session') or {}).get('date') != datetime.now(LOG_TIME_ZONE).date().isoformat():
         return False
@@ -301,7 +325,7 @@ def untouched_run_for(user_id):
 STUDENT_IDLE_SECONDS = 60 * 60
 
 
-def idle_session_expired():
+def idle_session_expired(*, touch=True):
     """Apply the 60-minute idle limit on a page navigation; True once the run has ended.
 
     Every page the participant opens counts as activity, and every page enforces
@@ -318,63 +342,10 @@ def idle_session_expired():
     if idle > STUDENT_IDLE_SECONDS:
         session.clear()
         return True
-    session['last_active'] = datetime.now().isoformat()
+    if touch:
+        session['last_active'] = datetime.now().isoformat()
     return False
 
-
-def optional_reward_asset(user_id, field, allow_video=False):
-    """A question set can be collected without a puzzle or other reward media."""
-    user = get_user_config(user_id)
-    filename = user.get(field, '').strip()
-    allowed = ('.gif', '.mp4') if allow_video else ('.gif',)
-    if (not filename or os.path.basename(filename) != filename
-            or not filename.lower().endswith(allowed)):
-        return None
-    if not os.path.isfile(os.path.join(app.static_folder, PUZZLE_ASSET_DIR, filename)):
-        return None
-    return f'{PUZZLE_ASSET_DIR}/{filename}'
-
-def validate_reward_asset(user_id, csv_field, allow_video=False):
-    user = get_user_config(user_id)
-    filename = user.get(csv_field, '').strip()
-    if not filename:
-        raise PuzzleConfigError(
-            f"Missing '{csv_field}' in data/user_topics.csv for user '{user_id}'."
-        )
-
-    allowed_exts = ('.gif', '.mp4') if allow_video else ('.gif',)
-    if os.path.basename(filename) != filename or not filename.lower().endswith(allowed_exts):
-        exts_label = ".gif or .mp4" if allow_video else ".gif"
-        raise PuzzleConfigError(
-            f"Invalid '{csv_field}' value for user '{user_id}': '{filename}'. "
-            f"Use a {exts_label} filename stored directly in static/puzzle_pieces."
-        )
-
-    static_path = os.path.join(app.static_folder, PUZZLE_ASSET_DIR, filename)
-    if not os.path.isfile(static_path):
-        raise PuzzleConfigError(
-            f"Missing reward asset for user '{user_id}': static/{PUZZLE_ASSET_DIR}/{filename}."
-        )
-    return f"{PUZZLE_ASSET_DIR}/{filename}"
-
-def get_unlocked_piece(user_id, task_number, display_task_number=None):
-    try:
-        task_num = int(task_number)
-    except (TypeError, ValueError):
-        raise PuzzleConfigError(f"Invalid task number for puzzle reward: '{task_number}'.") from None
-
-    label_number = display_task_number if display_task_number is not None else task_num
-
-    labels = {
-        1: "primo",
-        2: "secondo",
-        3: "ultimo",
-    }
-    return {
-        'task_num': task_num,
-        'label': labels.get(label_number, str(label_number)),
-        'static_filename': validate_reward_asset(user_id, f'{task_num}_gif'),
-    }
 
 @app.context_processor
 def base():
@@ -393,6 +364,10 @@ def index():
 def welcome():
     """Splash page — SOL Search logo + Start button."""
     if request.args.get('reset') == '1':
+        progress = PROGRESS.current()
+        if (request.args.get('finished') == '1' and progress and progress['status'] == 'completed'
+                and not PROGRESS.session_event(progress, 'experimentFinished')):
+            return PROGRESS.unavailable()
         session.clear()
         return render_template("welcome.html", show_search=False)
     if current_phase() != 'pre_id':
@@ -422,9 +397,12 @@ def search_page():
     return render_template(HOME_URL, form=form, show_search=True, reminder=reminder)
 
 @app.route('/start', methods=['GET', 'POST'])
+@PROGRESS.start_route
 def start_page():
     enrollment_settings = RESEARCH_STATE.settings()
-    val_ids = sorted((uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']), key=participant_sort_key)
+    resumable = RESEARCH_STATE.progress_ids_for_date(datetime.now(LOG_TIME_ZONE).date().isoformat())
+    val_ids = sorted({uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']}
+                     | resumable, key=participant_sort_key)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         if untouched_run_for(user_id):
@@ -450,9 +428,8 @@ def start_page():
             session['assignment_source'] = assignment['source']
             session['session_id'] = str(uuid.uuid4())
             session['log_id'] = generate_log_id()
-            session['pieces_earned'] = []
+            session['completed_tasks'] = []
             session['tasks_started'] = []
-            session['reward_shown_logged'] = []
             session['last_active'] = datetime.now().isoformat()
 
             assign_random_task_order(user_id)
@@ -463,7 +440,7 @@ def start_page():
                            settings=enrollment_settings,
                            study_session=session['study_session'],
                            question_set=session['question_set'],
-                           assignment_source=session['assignment_source'], admit=True)
+                           assignment_source=session['assignment_source'], admit=True, progress_enabled=True)
             except ValueError as error:
                 if str(error) == 'settings_changed' and admission_try < 2:
                     # A researcher saved settings during this request. Nothing was
@@ -498,6 +475,10 @@ def start_page():
 
 @app.route('/task', methods=['GET', 'POST'])
 def task():
+    if PROGRESS.current():
+        if idle_session_expired():
+            return redirect(url_for('welcome'))
+        return PROGRESS.page()
     phase = current_phase()
     if phase != 'task_intro':
         return redirect(phase_redirect_url(phase))
@@ -509,8 +490,8 @@ def task():
 
     try:
         user = get_user_config(user_id)
-    except PuzzleConfigError as err:
-        return render_puzzle_config_error(str(err))
+    except TaskConfigError as err:
+        return render_task_config_error(str(err))
 
     topic = user.get(str(task_number)+'_full')
     topic_title = user.get(str(task_number)+'_short')
@@ -953,14 +934,22 @@ def log_session():
     try:
         receipt = LOG_STORE.accept(session_id, data.get('batch_id'),
             {"session_id": session_id, "logs": logs},
-            lambda: _prepare_upload(logs, user_id, server_session_id, log_id, task_number,
-                                    session.get('task_order', []), session.get('task_position', 0)))
+            lambda: PROGRESS.prepare_logs(logs, lambda entries: _prepare_upload(
+                entries, user_id, server_session_id, log_id, task_number,
+                session.get('task_order', []), session.get('task_position', 0))))
     except UploadConflict:
         return jsonify(error="Upload identifier already used for different data"), 409
+    except SubmissionConflict:
+        return jsonify(error="La risposta è già confermata oppure la domanda è cambiata."), 409
+    except SessionUnavailable:
+        return jsonify(error="La sessione non è disponibile oggi."), 403
     except (ValueError, TypeError):
         return jsonify(error="Invalid upload"), 400
     except (OSError, sqlite3.Error):
         app.logger.exception("Upload not acknowledged; pending bytes retained for recovery")
+        return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
+    progress = PROGRESS.current()
+    if progress and not PROGRESS.publish(progress):
         return jsonify(error="Saving temporarily unavailable. Keep this page open and retry."), 503
     # Attempt context is already durable in research.sqlite3. A missing sidecar
     # can be recreated without blocking an acknowledgement of saved interactions.
@@ -1025,6 +1014,11 @@ def warn_logging_contract_issues(logs, default_task_number):
 
 @app.route('/end', methods=['POST'])
 def end_task():
+    progress = PROGRESS.current()
+    if progress:
+        if not progress['tasks'][session['task_position']]['final_answer']:
+            return jsonify(error="Conferma la risposta finale prima di continuare."), 409
+        return PROGRESS.next_page()
     phase = current_phase()
     if phase != 'searching':
         return redirect(phase_redirect_url(phase))
@@ -1032,18 +1026,54 @@ def end_task():
         return redirect(url_for('welcome'))
     task_number = session.get('task_number')
 
-    # Record the earned puzzle piece for the current task
-    pieces = session.get('pieces_earned', [])
-    if task_number not in pieces:
-        pieces.append(task_number)
-        session['pieces_earned'] = pieces
+    # Preserve completion for an admitted pre-upgrade run.
+    completed = legacy_completed_tasks()
+    if task_number not in completed:
+        completed.append(task_number)
+        session['completed_tasks'] = completed
 
-    return redirect(url_for('reward'))
+    return redirect(url_for('next_task'))
+
+
+REVIEW_ARTWORK_THEMES = {
+    'spazio': 'space', 'tema spazio': 'space', 'sistema solare': 'space', 'space': 'space',
+    'corpo umano': 'ear', 'corpo umano (orecchio)': 'ear', 'tema corpo umano (orecchio)': 'ear',
+    'orecchio': 'ear', 'udito': 'ear',
+}
+
+
+def review_illustration(progress, topic='recap'):
+    if str(topic) not in ('1', '2', '3', 'recap'):
+        return None
+    metadata = progress['metadata']
+    for label in (metadata.get('question_set_theme'), metadata['study_session_snapshot'].get('theme')):
+        if isinstance(label, str):
+            theme = REVIEW_ARTWORK_THEMES.get(' '.join(label.casefold().split()))
+            if theme:
+                return f'images/review/{theme}-{topic}.webp'
+    return None
+
+
+@app.get('/task-review/<int:number>')
+def task_review(number):
+    progress = PROGRESS.current()
+    if (not progress or progress['status'] == 'retired' or number not in PROGRESS.reviews(progress)
+            or progress['metadata']['study_session_snapshot']['date'] != datetime.now(LOG_TIME_ZONE).date().isoformat()):
+        abort(404)
+    if idle_session_expired():
+        return redirect(url_for('welcome'))
+    task = progress['tasks'][number - 1]
+    return render_template('study_handoff.html', review_tasks=[task], review_only=True,
+                           illustration=review_illustration(progress, task['snapshot']['topic_id']),
+                           is_last=number == len(progress['tasks']))
+
 
 @app.route('/next_task')
 def next_task():
+    if PROGRESS.current():
+        return PROGRESS.next_page(finish_review=True)
     phase = current_phase()
-    if phase != 'reward':
+    if phase != 'question_complete':
         return redirect(phase_redirect_url(phase))
     if idle_session_expired():
         return redirect(url_for('welcome'))
@@ -1065,82 +1095,35 @@ def next_task():
     
     return redirect(url_for('task'))
 
-@app.route('/reward')
-def reward():
-    phase = current_phase()
-    if phase not in ('reward', 'completed'):
-        return redirect(phase_redirect_url(phase))
-    if idle_session_expired():
-        return redirect(url_for('welcome'))
-    user_id = session.get('user_id')
-    task_number = session.get('task_number')
-    pieces = session.get('pieces_earned', [])
-    total_tasks = get_total_tasks(user_id)
-    is_last = len(pieces) >= total_tasks
-    display_task_number = session.get("task_position", 0) + 1
-    reward_log_key = f"{display_task_number}:{task_number}"
-    reward_shown_logged = session.get('reward_shown_logged', [])
-    reward_asset = optional_reward_asset(user_id, f'{task_number}_gif')
-    unlocked_piece = None
-    if reward_asset:
-        unlocked_piece = {'task_num': task_number,
-                          'label': {1: 'primo', 2: 'secondo', 3: 'ultimo'}.get(display_task_number, str(display_task_number)),
-                          'static_filename': reward_asset}
-
-    log_id = session.get('log_id')
-    if log_id and user_id and reward_log_key not in reward_shown_logged:
-        try:
-            safe_user = _sanitize_for_filename(user_id)
-            combined_path = os.path.join(LOG_DIR, f"{safe_user}_{log_id}_FULL.log")
-            task_path = os.path.join(LOG_DIR, f"{safe_user}_{log_id}_task{display_task_number}_topic{task_number}.log")
-            entry = {
-                "type": "rewardShown",
-                "uid": user_id,
-                "sessionID": session.get("session_id"),
-                "task_number": display_task_number,
-                "actual_topic_number": task_number,
-                "task_order": session.get("task_order", []),
-                "piecesEarned": pieces,
-                "totalTasks": total_tasks,
-                "isLast": is_last,
-                "timestamp": datetime.now(LOG_TIME_ZONE).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3],
-                "source": "server"
-            }
-            line = json.dumps(entry) + '\n'
-            LOG_STORE.accept(session.get('session_id'), 'reward:' + reward_log_key,
-                             {"type": "rewardShown", "task": reward_log_key},
-                             lambda: ({os.path.basename(combined_path): line,
-                                       os.path.basename(task_path): line}, {"status": "logged"}))
-            reward_shown_logged.append(reward_log_key)
-            session['reward_shown_logged'] = reward_shown_logged
-        except Exception as exc:
-            app.logger.warning("Failed to write server-side rewardShown: %s", exc)
-
-    return render_template('reward.html',
-                           show_search=False,
-                           task_number=display_task_number,
-                           actual_topic_number=task_number,
-                           pieces_earned=pieces,
-                           unlocked_piece=unlocked_piece,
-                           total_tasks=total_tasks,
-                           is_last=is_last)
-
 @app.route('/thank_you')
 def thank_you():
+    progress = PROGRESS.current()
+    if progress:
+        if idle_session_expired():
+            return redirect(url_for('welcome'))
+        if progress['status'] != 'completed':
+            return PROGRESS.next_page()
+        if progress['metadata']['study_session_snapshot']['date'] != datetime.now(LOG_TIME_ZONE).date().isoformat():
+            return redirect(url_for('welcome', reset=1))
+        reviews = PROGRESS.reviews(progress)
+        if not all(reviews.values()):
+            return redirect(url_for('task'))
+        if not PROGRESS.session_event(progress, 'sessionCompleted'):
+            return PROGRESS.unavailable()
+        tasks = [task for task in progress['tasks'] if task['number'] in reviews]
+        return render_template('study_handoff.html', review_tasks=tasks, review_only=False,
+                               illustration=review_illustration(progress) if tasks else None,
+                               partial_review=len(tasks) < len(progress['tasks']))
     phase = current_phase()
     if phase != 'completed':
         return redirect(phase_redirect_url(phase))
     user_id = session.get('user_id')
-    pieces = session.get('pieces_earned', [])
     total_tasks = get_total_tasks(user_id)
-    full_puzzle_static_filename = optional_reward_asset(user_id, 'full_gif', allow_video=True)
     # Don't clear session yet — the "Finish Experiment" button needs
     # user_id/task_number to send final logs via /log_session.
     # Session will be cleared client-side via clearClientData().
     return render_template('end.html', show_search=False,
-                           pieces_earned=pieces,
-                           total_tasks=total_tasks,
-                           full_puzzle_static_filename=full_puzzle_static_filename)
+                           total_tasks=total_tasks)
 
 @app.errorhandler(404)
 def page_not_found(e):

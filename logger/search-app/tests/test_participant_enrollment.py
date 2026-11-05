@@ -135,7 +135,7 @@ def test_prefix_padding_optional_third_grade_and_missing_only_assignment(app):
     assert b"C-001" in client.get("/dashboard?grade=3").data
 
 
-def test_stale_enrollment_and_unavailable_rewards_are_rejected(app, tmp_path):
+def test_stale_enrollment_is_rejected_and_question_sets_need_no_reward_assets(app, tmp_path):
     client = app.test_client()
     login(client)
     fields = ranges_form(app, client, **{"4_task_set": task_catalog(app)[0]["id"]})
@@ -146,8 +146,8 @@ def test_stale_enrollment_and_unavailable_rewards_are_rejected(app, tmp_path):
     fields = ranges_form(app, client, **{"4_task_set": task_catalog(app)[0]["id"]})
     app.config["STUDENT_ASSET_DIR"] = str(tmp_path / "missing-rewards")
     before = state.settings()
-    assert client.post("/dashboard/settings", data=fields).status_code == 400
-    assert state.settings() == before
+    assert client.post("/dashboard/settings", data=fields).status_code == 302
+    assert state.settings()["revision"] == before["revision"] + 1
 
 
 def test_run_metadata_uses_enrollment_revision_even_when_settings_change(app, tmp_path):
@@ -257,8 +257,10 @@ def test_removing_ids_blocks_new_runs_and_keeps_in_progress_run(student_app):
     student_app.RESEARCH_STATE.save_settings(settings, settings["revision"])
     assert student.post("/start", data={"user_id": "1"}).status_code == 302
     assert researcher.post("/dashboard/settings", data=ranges_form(
-        app, researcher, **{"4_start": 2})).status_code == 302
+        app, researcher, **{"4_start": 3})).status_code == 302
     assert student.get("/task").status_code == 200
     fresh = app.test_client()
-    assert 'value="1"' not in fresh.get("/start").text
-    assert fresh.post("/start", data={"user_id": "1"}).status_code == 400
+    assert 'value="1"' in fresh.get("/start").text  # Today's admitted child can resume.
+    assert 'value="2"' not in fresh.get("/start").text
+    assert fresh.post("/start", data={"user_id": "1"}).status_code == 302
+    assert fresh.post("/start", data={"user_id": "2"}).status_code == 400

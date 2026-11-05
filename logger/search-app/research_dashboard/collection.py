@@ -14,7 +14,8 @@ from .participants import enrollment
 
 
 def record_run(directory, state, user_id, session_id, log_id, order, topics, settings=None,
-               study_session=None, question_set=None, assignment_source=None, admit=False):
+               study_session=None, question_set=None, assignment_source=None, admit=False,
+               progress_enabled=False):
     started = datetime.now(ZoneInfo("Europe/Zurich"))
     settings = settings if settings is not None else state.settings()
     grade = roster(settings).get(user_id)
@@ -63,6 +64,8 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
                         question_set_theme=question_set.get("theme"),
                         question_set_metadata=deepcopy(question_set.get("metadata", {})),
                         assignment_source=assignment_source)
+    if progress_enabled:
+        metadata.update(progress_enabled=True, topics_snapshot=deepcopy(topics))
     if admit:
         state.admit_attempt(metadata)
     publish_metadata(directory, metadata)
