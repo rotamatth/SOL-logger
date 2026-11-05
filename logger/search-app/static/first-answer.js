@@ -64,7 +64,6 @@
     const selected = confidence();
     dirty = false;
     saving = true;
-    status.textContent = 'Salvataggio della bozza…';
     try {
       const response = await fetch(status.dataset.url, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -85,7 +84,7 @@
         buffer();
       }
       retry.hidden = true;
-      status.textContent = dirty ? 'Modifiche da salvare…' : 'Bozza salvata.';
+      status.textContent = '';
     } catch (error) {
       dirty = true;
       blocked = true;
@@ -101,7 +100,6 @@
   function changed() {
     dirty = true;
     buffer();
-    if (!blocked) status.textContent = 'Modifiche da salvare…';
     window.clearTimeout(timer);
     timer = window.setTimeout(save, 600);
   }

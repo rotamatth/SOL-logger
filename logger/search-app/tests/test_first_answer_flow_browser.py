@@ -13,12 +13,18 @@ def open_first(page, base, uid="1"):
     page.locator("#first-answer-text").wait_for()
 
 
+def wait_for_draft_ack(page, phase):
+    page.wait_for_function("prefix => !Object.keys(sessionStorage).some(key => key.startsWith(prefix))",
+                           arg=f"sol{phase.capitalize()}Draft:")
+    assert page.locator(f"#{phase}-answer-draft-status").inner_text() == ""
+
+
 def test_autosaved_first_draft_resumes_in_another_browser_without_search_access(student_site):
     page, base, root = student_site
     open_first(page, base)
     assert page.get_by_role("button", name="Riprova salvataggio").is_hidden()
     page.fill("#first-answer-text", "Un cane di nome Laika")
-    page.get_by_text("Bozza salvata.", exact=True).wait_for()
+    wait_for_draft_ack(page, "first")
     assert page.get_by_role("button", name="Riprova salvataggio").is_hidden()
     assert page.locator("button#first-answer-search").is_disabled()
     other = page.context.browser.new_context()
@@ -49,19 +55,24 @@ def test_failed_draft_save_survives_reload_and_can_retry(student_site):
     page.route("**/first-answer/draft", lambda route: route.abort())
     page.fill("#first-answer-text", "Questa bozza deve restare")
     page.locator("#first-answer-retry-draft:not([hidden])").wait_for()
+    assert page.locator("#first-answer-draft-status").inner_text().strip()
     page.reload()
     page.wait_for_function("document.getElementById('first-answer-text').value === 'Questa bozza deve restare'")
     page.locator("#first-answer-retry-draft:not([hidden])").wait_for()
     page.unroute("**/first-answer/draft")
     page.get_by_role("button", name="Riprova salvataggio").click()
-    page.get_by_text("Bozza salvata.", exact=True).wait_for()
+    wait_for_draft_ack(page, "first")
     assert page.locator("button#first-answer-search").is_disabled()
 
 
-@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
-def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(student_site):
+@pytest.mark.parametrize("student_site, clip_prefix", [("Spazio", "Spazio"), ("Corpo umano (orecchio)", "Orecchio")],
+                         indirect=["student_site"])
+def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(student_site, clip_prefix):
     page, base, root = student_site
     page.set_viewport_size({"width": 768, "height": 1024})
+    reduced_motion = clip_prefix == "Orecchio"
+    if reduced_motion:
+        page.emulate_media(reduced_motion="reduce")
     open_first(page, base)
     lost = []
 
@@ -83,6 +94,7 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
         page.locator("a#first-answer-search").wait_for()
         page.click("a#first-answer-search")
         search(page, "api miele")
+        topic = page.evaluate("Number(window.TASK_NUMBER)")
         page.evaluate("sessionStorage.setItem('solFirstDraft:another-attempt:1', 'An unrelated draft')")
         page.click("#end-task-btn")
         page.fill("#textarea_feedback", f"Risposta finale {number}")
@@ -93,7 +105,16 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             page.click("#yes-end-btn")
         page.get_by_text(f"Prima risposta {number}", exact=True).wait_for()
         page.get_by_text(f"Risposta finale {number}", exact=True).wait_for()
-        page.wait_for_function("document.querySelector('.review-illustration')?.naturalWidth > 0")
+        video = page.locator(".review-task video")
+        assert video.count() == 1
+        assert video.get_attribute("src") == f"/static/videos/review/{clip_prefix}_{topic:02d}.mp4"
+        video.wait_for(state="visible")
+        page.wait_for_function("document.querySelector('.review-task video')?.videoWidth > 0")
+        assert video.evaluate("video => video.controls && video.muted && video.playsInline")
+        if reduced_motion:
+            assert video.evaluate("video => video.paused && video.currentTime === 0")
+            video.evaluate("video => video.play()")
+        page.wait_for_function("document.querySelector('.review-task video')?.currentTime > 0")
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         if number == 1:
             page.set_viewport_size({"width": 320, "height": 700})
@@ -109,6 +130,7 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             page.get_by_role("link", name="Continua", exact=True).click()
             page.get_by_role("heading", name="Hai risposto alle tre domande").wait_for()
             page.wait_for_function("document.querySelector('.review-illustration--recap')?.naturalWidth > 0")
+            assert page.locator("video").count() == 0
             for index in range(1, 4):
                 assert page.get_by_text(f"Prima risposta {index}", exact=True).is_visible()
                 assert page.get_by_text(f"Risposta finale {index}", exact=True).is_visible()

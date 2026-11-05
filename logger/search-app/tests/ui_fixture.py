@@ -17,6 +17,11 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 QUESTION = "Come si forma un buco nero e quali sono le sue caratteristiche?"
 
 
+@app.template_filter("rich_text")
+def plain_text(value):
+    return value
+
+
 @app.before_request
 def fixture_identity():
     session.update(user_id="UI-TEST", task_number="1", task_position=0)
@@ -91,11 +96,11 @@ def iframe_check():
 
 @app.post("/end")
 def end_task():
-    return redirect(url_for("reward"))
+    return redirect(url_for("next_task"))
 
 
-@app.get("/reward")
-def reward():
+@app.get("/next_task")
+def next_task():
     return "<p>Conferma ricevuta dalla fixture locale.</p>"
 
 

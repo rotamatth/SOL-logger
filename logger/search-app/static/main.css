@@ -863,9 +863,12 @@ a:hover {
 
 .final-answer-draft-status {
   display: block;
-  margin: 8px 0;
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.final-answer-draft-status:not(:empty) {
+  margin: 8px 0;
 }
 
 #feedback details textarea {
@@ -932,6 +935,10 @@ a:hover {
   touch-action: manipulation;
 }
 
+.close[hidden] {
+  display: none;
+}
+
 .modal-buttons {
   display: flex;
   justify-content: center;
@@ -947,6 +954,18 @@ body.dialog-open {
 .modal-buttons .app-btn {
   flex: 0 1 auto;
   min-width: 0;
+}
+
+.feedback-actions {
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 640px) {
+  .feedback-actions .app-btn {
+    flex: 1;
+    padding-inline: clamp(6px, 2vw, 14px);
+    font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+  }
 }
 
 textarea {

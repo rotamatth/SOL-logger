@@ -65,6 +65,23 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Refine answer dialogs and animate question review
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/static/first-answer.js`, `final-answer-draft.js`, `main.css` and `templates/layout.html` keep routine saves quiet, surface errors and fit the answer actions on one row.
+- `search-app/search_app.py`, `templates/study_handoff.html`, `static/study-review.css` and `study-review.js` select and play each question's animation beside the existing answer comparison.
+- `search-app/static/videos/review/` contains the six supplied MP4s.
+- Student browser tests and `desktop_interface.md` cover the connected flow and record before and after captures.
+
+The animation uses the theme and original question position saved for the
+attempt. Inline playback is muted and honors the browser's reduced-motion
+setting. The recap uses its static theme image. If a clip looks wrong, compare
+the attempt's assigned theme and topic ID with the matching file in
+`static/videos/review/`. For draft recovery, use the inline error and retry
+control. [Desktop and tablet verification](desktop_interface.md)
+
 ## 2026-11-05 — Complete progress history contracts and retire puzzle rewards
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, reward, data, logging, tests
