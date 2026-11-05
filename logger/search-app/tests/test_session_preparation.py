@@ -23,7 +23,7 @@ def details(client, state, url=PREP, **values):
 def test_login_and_bare_dashboard_start_with_the_session_list_without_writing(app):
     client = app.test_client()
     result = login(client)
-    assert result.location == '/dashboard/sessions?lang=en'
+    assert result.location == '/dashboard/guide?lang=en'  # Only on the first sign-in in a browser.
     state = app.extensions['research']['state']
     before = state.settings()
     for url in ('/dashboard', '/dashboard?lang=it', '/dashboard/prepare'):

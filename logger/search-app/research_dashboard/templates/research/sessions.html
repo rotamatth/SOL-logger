@@ -48,7 +48,7 @@
   </section>
   {% endfor %}
   {% if not has_current %}
-  <section class="panel settings-empty sessions-empty"><h2>{{ t('no_sessions_heading') }}</h2><p class="muted">{{ t('no_sessions_yet') }}</p><a class="button primary" href="{{ u('create_session_page', grade=grade_filter if grade_filter != 'all' else None) }}">{{ t('create_session') }}</a></section>
+  <section class="panel settings-empty sessions-empty"><h2>{{ t('no_sessions_heading') }}</h2><p class="muted">{{ t('no_sessions_yet') }}</p><a class="button primary" href="{{ u('create_session_page', grade=grade_filter if grade_filter != 'all' else None) }}">{{ t('create_session') }}</a> <a class="button" href="{{ u('guide_page') }}">{{ t('guide_title') }}</a></section>
   {% endif %}
   {% if groups.past %}
   <details class="panel session-group session-group-past" id="past-sessions">

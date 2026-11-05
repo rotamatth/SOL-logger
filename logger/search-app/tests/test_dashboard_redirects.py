@@ -15,7 +15,7 @@ def test_malformed_next_keeps_login_available_and_uses_default_destination(app, 
         "password": PASSWORD, "csrf": csrf(response), "next": destination,
     })
     assert response.status_code == 302
-    assert response.location == "/dashboard/sessions?lang=it"
+    assert response.location == "/dashboard/guide?lang=it"  # The first sign-in in this browser.
 
     response = client.get("/dashboard/login", query_string={"next": destination, "lang": "it"})
     assert response.status_code == 302

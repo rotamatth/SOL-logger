@@ -12,6 +12,7 @@ its own module and registers its routes on a shared :class:`Dashboard` context:
 * ``enrollment_views``  permanent participants and yearly enrollment
 * ``settings_views``    school year and the original ID ranges
 * ``live_views``        the live view of a running session
+* ``guide_views``       the guide for new researchers
 * ``history_views``     data and history, runs, logs, trash
 * ``export_views``      ZIP downloads
 """
@@ -25,6 +26,7 @@ from .enrollment_views import register_enrollment_routes
 from .export_views import register_export_routes
 from .history_data import display_session
 from .history_views import register_history_routes
+from .guide_views import register_guide_routes
 from .index import Index
 from .live_views import register_live_routes
 from .preparation_views import register_preparation_routes
@@ -65,6 +67,7 @@ def init_dashboard(app):
     register_editor_routes(dash)
     register_session_routes(dash)
     register_live_routes(dash)
+    register_guide_routes(dash)
     register_preparation_routes(dash)
     register_question_routes(dash)
     register_enrollment_routes(dash)

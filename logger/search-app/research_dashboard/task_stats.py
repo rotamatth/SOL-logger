@@ -182,11 +182,12 @@ def chart_columns(values):
     for position, value in enumerate(values):
         left = round(position * slot + (slot - width) / 2, 1)
         column = {"left": left, "center": round(left + width / 2, 1), "slot_left": round(position * slot, 1),
-                  "slot_width": round(slot, 1), "value": value, "path": None}
+                  "slot_width": round(slot, 1), "value": value, "path": None, "label_y": CHART_BASE - 4}
         if value:
             height = max((CHART_BASE - CHART_TOP) * value / top, 2)
             radius = min(COLUMN_RADIUS, height, width / 2)
             y = round(CHART_BASE - height, 1)
+            column["label_y"] = round(y - 4, 1)
             column["path"] = (f"M{left} {CHART_BASE}V{round(y + radius, 1)}Q{left} {y} {round(left + radius, 1)} {y}"
                               f"H{round(left + width - radius, 1)}Q{round(left + width, 1)} {y} "
                               f"{round(left + width, 1)} {round(y + radius, 1)}V{CHART_BASE}Z")
