@@ -3,10 +3,17 @@ async page => {
     page.setDefaultTimeout(3000);
     const origin = new URL(page.url()).origin;
     const report = [];
+    const uploaded = [];
+    page.on('request', request => {
+        if (request.url().endsWith('/log_session') && request.method() === 'POST') {
+            uploaded.push(...request.postDataJSON().logs);
+        }
+    });
     for (const [width, height] of [[768, 1024], [1024, 768]]) {
         await page.setViewportSize({width, height});
         await page.goto(`${origin}/search`);
-        await page.evaluate(() => { window.studyLogger.logs = []; localStorage.setItem('sessionLogs', '[]'); });
+        await page.evaluate(() => window.studyLogger.sendLogs());
+        uploaded.length = 0;
         if (!await page.evaluate(() => navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches))
             throw new Error('Run with a touch-enabled browser context');
         await page.locator('#task-help-btn').tap();
@@ -20,7 +27,8 @@ async page => {
         await page.waitForURL('**/result');
         if (await page.locator('#search-box').inputValue() !== 'spazio e stelle')
             throw new Error('Tapping a suggestion did not submit the chosen query');
-        const logs = await page.evaluate(() => window.studyLogger.logs);
+        await page.evaluate(() => window.studyLogger.sendLogs());
+        const logs = uploaded.splice(0);
         if (!logs.some(event => event.type === 'choseAutoCompleteSuggestion') ||
             logs.filter(event => event.type === 'querySubmitted' && event.query === 'spazio e stelle').length !== 1)
             throw new Error('Touch selection logging was lost or duplicated');

@@ -65,6 +65,15 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Update desktop interface verification for background uploads
+
+**Commit:** pending · **Type:** fix · **Area:** tests, logging
+
+The isolated `tests/ui_fixture.py` echoes the batch identifier expected by the
+logger. The desktop keyboard and touch scripts now inspect submitted events
+through that acknowledgement. All seven keyboard scenarios, both touch
+orientations and 42 layout checks passed in Chromium.
+
 ## 2026-11-05 — Refine answer dialogs and animate question review
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests

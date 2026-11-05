@@ -4,6 +4,16 @@ async page => {
     const origin = new URL(page.url()).origin;
     const failures = [];
     const passed = [];
+    const uploaded = [];
+    page.on('request', request => {
+        if (request.url().endsWith('/log_session') && request.method() === 'POST') {
+            uploaded.push(...request.postDataJSON().logs);
+        }
+    });
+    async function flushLogs() {
+        await page.evaluate(() => window.studyLogger.sendLogs());
+        return uploaded.splice(0);
+    }
     function check(condition, message) {
         if (!condition) throw new Error(message);
     }
@@ -28,7 +38,7 @@ async page => {
         await page.locator('#task-btn').focus();
         await page.keyboard.press('Enter');
         await page.waitForURL(url => url.pathname === '/search');
-        const logs = await page.evaluate(() => window.studyLogger.logs);
+        const logs = await flushLogs();
         check(logs.filter(event => event.type === 'TaskStarted').length === 1, 'task start logging changed');
     });
     await scenario('Escape discards keyboard selection before a typed query is submitted', async () => {
@@ -56,13 +66,13 @@ async page => {
               'initial ArrowUp did not select the last suggestion');
         await input.press('Enter');
         await page.waitForURL('**/result');
-        const logs = await page.evaluate(() => window.studyLogger.logs);
+        const logs = await flushLogs();
         const submitted = logs.filter(event => event.type === 'querySubmitted' && event.query === 'spazio e pianeti');
         check(submitted.length === 1, 'selected query was not logged exactly once');
     });
     await scenario('answer and confirmation dialogs keep focus, restore drafts and preserve logging', async () => {
         await page.goto(`${origin}/result?query=spazio`);
-        await page.evaluate(() => { window.studyLogger.logs = []; localStorage.setItem('sessionLogs', '[]'); });
+        await flushLogs();
         const opener = page.locator('#end-task-btn');
         await opener.click();
         const answer = page.getByRole('dialog', {name: 'Hai completato la risposta?'});
@@ -92,9 +102,11 @@ async page => {
         await answer.waitFor({state: 'visible'});
         check(await textarea.inputValue() === 'Una stella molto grande può formare un buco nero.', 'returning from confirmation lost the draft');
         await page.locator('#feedback-btn').click();
-        const sent = page.waitForRequest(request => request.url().endsWith('/log_session') && request.method() === 'POST');
+        const sent = page.waitForRequest(request => request.url().endsWith('/log_session') &&
+            request.method() === 'POST' && request.postDataJSON().logs.some(event => event.type === 'TaskEnded'));
         await page.locator('#yes-end-btn').click();
-        const logs = (await sent).postDataJSON().logs;
+        await sent;
+        const logs = uploaded.splice(0);
         const ended = logs.filter(event => event.type === 'TaskEnded');
         check(ended.length === 1 && ended[0].answer === 'Una stella molto grande può formare un buco nero.', 'final answer logging changed');
         check(logs.some(event => event.type === 'AnswerBoxClosed' && event.reason === 'x-button'), 'Escape lost the existing close event');
@@ -111,15 +123,15 @@ async page => {
         await page.keyboard.press('Escape');
         await dialog.waitFor({state: 'hidden'});
         check(await opener.evaluate(element => element === document.activeElement), 'help did not restore focus');
-        const logs = await page.evaluate(() => window.studyLogger.logs);
+        const logs = await flushLogs();
         check(logs.some(event => event.type === 'taskQuestionHelpClosed'), 'help close event was lost');
     });
     await scenario('viewer back navigation keeps its close and navigation events', async () => {
         await page.goto(`${origin}/webpage`);
         await page.locator('#viewer-back-btn').focus();
         await page.keyboard.press('Enter');
-        await page.waitForURL('**/result?*');
-        const logs = await page.evaluate(() => window.studyLogger.logs);
+        await page.waitForURL(url => url.pathname === '/result');
+        const logs = await flushLogs();
         check(logs.some(event => event.type === 'webpageClosed' && event.exitReason === 'back-button'), 'viewer close event was lost');
         check(logs.some(event => event.type === 'customBackButtonClicked'), 'viewer navigation event was lost');
     });
