@@ -21,7 +21,7 @@ def confirm_first(client, text="Synthetic first answer"):
         assert "La mia prima risposta" in page.text
         return
     data = HiddenFields(page.text).values
-    assert client.post("/first-answer", data={**data, "outcome": "answered", "text": text}).status_code == 303
+    assert client.post("/first-answer", data={**data, "outcome": "answered", "confidence": "2", "text": text}).status_code == 303
 
 
 def final_event(client, text, **extra):

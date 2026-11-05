@@ -39,7 +39,7 @@ def begin(module, uid="1"):
 def first(client, text="Un'idea", outcome="answered"):
     fields = Fields(client.get("/task").text).values
     return client.post("/first-answer", data={**fields, "outcome": outcome,
-                       **({"text": text} if outcome == "answered" else {})})
+                       **({"text": text, "confidence": "2"} if outcome == "answered" else {})})
 
 
 def context(client):
@@ -79,7 +79,7 @@ def test_direct_search_routes_are_locked_before_a_persisted_answer(module, path)
 def test_first_confirmation_and_retry_unlock_search_on_the_same_question_page(module):
     client = begin(module)
     fields = Fields(client.get("/task").text).values
-    data = {**fields, "outcome": "answered", "text": "  Laika\n"}
+    data = {**fields, "outcome": "answered", "confidence": "2", "text": "  Laika\n"}
     assert client.post("/first-answer", data=data).status_code == 303
     assert client.post("/first-answer", data=data).status_code == 303
     page = client.get("/task")
@@ -103,7 +103,7 @@ def test_search_phase_cannot_be_rewound_by_a_late_browser_session_write(module):
 def test_blank_unknown_csrf_and_stale_context_are_distinct(module):
     client = begin(module)
     fields = Fields(client.get("/task").text).values
-    assert client.post("/first-answer", data={**fields, "outcome": "answered", "text": "  "}).status_code == 400
+    assert client.post("/first-answer", data={**fields, "outcome": "answered", "confidence": "2", "text": "  "}).status_code == 400
     assert client.post("/first-answer", data={**fields, "csrf_token": "wrong", "outcome": "unknown"}).status_code == 403
     assert client.post("/first-answer", data={**fields, "attempt_id": "another-attempt", "outcome": "unknown"}).status_code == 409
     assert client.get("/search").status_code == 302
@@ -140,7 +140,7 @@ def test_first_save_failure_keeps_text_and_search_locked(module, monkeypatch):
     fields = Fields(client.get("/task").text).values
     monkeypatch.setattr(module.PROGRESS.store, "submit_first_answer", fail)
     monkeypatch.setattr(module.PROGRESS.store, "mark_task_started", fail)
-    response = client.post("/first-answer", data={**fields, "outcome": "answered", "text": "Keep my answer"})
+    response = client.post("/first-answer", data={**fields, "outcome": "answered", "confidence": "2", "text": "Keep my answer"})
     assert response.status_code == 503 and "Keep my answer" in response.text
     assert 'id="first-answer-error"' in response.text
     assert client.get("/search").status_code == 302
