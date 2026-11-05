@@ -1,5 +1,6 @@
 {% extends 'research/base.html' %}
 {% import 'research/icons.html' as icons %}
+{% from 'research/task_stats.html' import task_table, trend_chart, trend_table with context %}
 {% block content %}
 <p class="breadcrumbs"><a href="{{ u('overview', collection=collection, grade=grade, school_year=selected_year, session=selected_session) }}">{{ t('grade_' ~ grade) if grade in grades else t('overview') }}</a> / {{ person.id }}{% if collection == 'legacy' %} · {{ t('historical_records') }}{% endif %}{% if selected_year %} · {{ selected_year }}{% endif %}</p>
 <div class="page-heading">
@@ -78,4 +79,27 @@
   </div>
   {% endif %}{% else %}<p class="muted participant-empty">{{ t('no_data') }}</p>{% endfor %}
 </section>
+{% set stat_groups = display_groups | selectattr('runs') | list %}
+{% if trend %}
+<section class="panel stats-panel" aria-labelledby="trend-heading">
+  <h2 id="trend-heading">{{ t('stats_across_sessions') }}</h2>
+  <p class="small muted">{{ t('stats_across_hint') }}</p>
+  {% if trend_view %}<div class="trend-charts">{% for label, chart in trend_view.charts %}{{ trend_chart(label, chart, trend_view.sessions) }}{% endfor %}</div>{% endif %}
+  {{ trend_table(trend) }}
+</section>
+{% endif %}
+{% if stat_groups %}
+<section class="panel stats-panel" aria-labelledby="task-stats-heading">
+  <h2 id="task-stats-heading">{{ t('stats_by_question') }}</h2>
+  {% for group in stat_groups %}
+  <details class="stats-session" {% if loop.first %}open{% endif %}>
+    <summary>{% if group.session %}{{ group.session.name or (t('session') ~ ' ' ~ group.session.number) }}{% if group.session.date %} · {{ group.session.date }}{% endif %}{% else %}{{ t('other_saved_runs') }}{% endif %}</summary>
+    {% for run in group.runs if run.task_stats and not run.recovery_only %}
+    {% if group.runs | length > 1 %}<h3>{{ t('run') }} {{ loop.index }}{% if run.started_at %} · <span class="muted small">{{ run.started_at }}</span>{% endif %}</h3>{% endif %}
+    {{ task_table(run) }}
+    {% else %}<p class="muted">{{ t('stats_nothing_yet') }}</p>{% endfor %}
+  </details>
+  {% endfor %}
+</section>
+{% endif %}
 {% endblock %}

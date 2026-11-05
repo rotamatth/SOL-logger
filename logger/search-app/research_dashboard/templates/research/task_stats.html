@@ -1,0 +1,74 @@
+{% macro count_notes(items) %}{% set shown = items | selectattr(0) | list %}{% if shown %}<small class="muted">{% for value, label in shown %}{% if not loop.first %} · {% endif %}{{ value }} {{ t(label) }}{% endfor %}</small>{% endif %}{% endmacro %}
+{% macro dash(value) %}{{ '—' if value is none else value }}{% endmacro %}
+
+{% macro task_table(run) %}
+<div class="stats-table-wrap"><table class="stats-table">
+  <thead><tr><th scope="col">{{ t('stats_question') }}</th><th scope="col">{{ t('stats_time') }}</th><th scope="col">{{ t('stats_events') }}</th><th scope="col">{{ t('stats_searches') }}</th><th scope="col">{{ t('stats_results') }}</th><th scope="col">{{ t('stats_pages') }}</th><th scope="col">{{ t('stats_difficulty') }}</th></tr></thead>
+  <tbody>
+  {% for number, task in run.task_stats | dictsort %}
+    <tr>
+      <th scope="row"><span class="stats-question">{{ number }}. {{ task.question or task.topic or '—' }}</span>{% if not task.finished %} <span class="badge incomplete">{{ t('incomplete') }}</span>{% endif %}</th>
+      <td data-label="{{ t('stats_time') }}">{{ duration(task.seconds) }}</td>
+      <td data-label="{{ t('stats_events') }}">{{ dash(task.events) }}</td>
+      <td data-label="{{ t('stats_searches') }}">{{ dash(task.searches) }}{{ count_notes([(task.no_results, 'stats_no_results'), (task.suggestions, 'stats_suggestions')]) }}</td>
+      <td data-label="{{ t('stats_results') }}">{{ dash(task.results_opened) }}{{ count_notes([(task.mean_rank, 'stats_mean_rank')]) }}</td>
+      <td data-label="{{ t('stats_pages') }}">{{ duration(task.page_seconds) }}</td>
+      <td data-label="{{ t('stats_difficulty') }}">{% if task.events is none %}—{% elif task.help_opened or task.search_errors or task.pages_failed %}{{ count_notes([(task.help_opened, 'stats_help'), (task.search_errors, 'stats_errors'), (task.pages_failed, 'stats_failed_pages')]) }}{% else %}{{ t('stats_none') }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endmacro %}
+
+{% macro question_table(rows) %}
+<div class="stats-table-wrap"><table class="stats-table">
+  <thead><tr><th scope="col">{{ t('stats_question') }}</th><th scope="col">{{ t('stats_finished') }}</th><th scope="col">{{ t('stats_time') }}</th><th scope="col">{{ t('stats_events') }}</th><th scope="col">{{ t('stats_searches') }}</th><th scope="col">{{ t('stats_results') }}</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <th scope="row"><span class="stats-question">{{ row.question }}</span>{% if row.individual %} <span class="badge unknown">{{ t('stats_individual') }}</span>{% endif %}</th>
+      <td data-label="{{ t('stats_finished') }}">{{ row.finished }}{% if row.expected and row.expected >= row.finished %} / {{ row.expected }}{% endif %}</td>
+      <td data-label="{{ t('stats_time') }}">{{ duration(row.seconds.median) }}{% if row.seconds.low != row.seconds.high %}<small class="muted">{{ t('stats_range') }} {{ duration(row.seconds.low) }} – {{ duration(row.seconds.high) }}</small>{% endif %}</td>
+      <td data-label="{{ t('stats_events') }}">{{ dash(row.events.median) }}</td>
+      <td data-label="{{ t('stats_searches') }}">{{ dash(row.searches.median) }}</td>
+      <td data-label="{{ t('stats_results') }}">{{ dash(row.results_opened.median) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endmacro %}
+
+{% macro trend_chart(label, chart, sessions) %}
+<figure class="trend-chart">
+  <figcaption>{{ t(label) }}</figcaption>
+  <svg viewBox="0 0 {{ chart.width }} 106" role="img" aria-label="{{ t(label) }}">
+    <line class="trend-axis" x1="0" x2="{{ chart.width }}" y1="{{ chart.base }}" y2="{{ chart.base }}"></line>
+    <text class="trend-text" x="0" y="9">{{ chart.top }}</text>
+    {% for column in chart.columns %}{% set session = sessions[loop.index0] %}
+    <g class="trend-group"><title>{{ session.name or (t('session') ~ ' ' ~ session.number) }} · {{ session.date or t('date_not_set') }}: {{ dash(column.value) }}</title>
+      <rect class="trend-hit" x="{{ column.slot_left }}" y="0" width="{{ column.slot_width }}" height="106"></rect>
+      {% if column.path %}<path class="trend-column" d="{{ column.path }}"></path>{% endif %}
+      {% if loop.last and column.value is not none %}<text class="trend-text trend-value" x="{{ column.center }}" y="11" text-anchor="middle">{{ column.value }}</text>{% endif %}
+      <text class="trend-text" x="{{ column.center }}" y="102" text-anchor="middle">{{ session.number }}</text>
+    </g>{% endfor %}
+  </svg>
+</figure>
+{% endmacro %}
+
+{% macro trend_table(rows) %}
+<div class="stats-table-wrap"><table class="stats-table">
+  <thead><tr><th scope="col">{{ t('session') }}</th><th scope="col">{{ t('stats_finished') }}</th><th scope="col">{{ t('stats_time') }}</th><th scope="col">{{ t('stats_events') }}</th><th scope="col">{{ t('stats_searches') }}</th><th scope="col">{{ t('stats_results') }}</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <th scope="row"><span class="stats-question">{{ row.session.name or (t('session') ~ ' ' ~ row.session.number) }}</span><small class="muted">{{ t('session') }} {{ row.session.number }}{% if row.session.date %} · {{ row.session.date }}{% endif %}</small></th>
+      <td data-label="{{ t('stats_finished') }}">{{ row.finished }} / 3</td>
+      <td data-label="{{ t('stats_time') }}">{{ duration(row.seconds) }}</td>
+      <td data-label="{{ t('stats_events') }}">{{ row.events }}</td>
+      <td data-label="{{ t('stats_searches') }}">{{ row.searches }}</td>
+      <td data-label="{{ t('stats_results') }}">{{ row.results_opened }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endmacro %}

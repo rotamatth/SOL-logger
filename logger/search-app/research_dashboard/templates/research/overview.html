@@ -1,5 +1,6 @@
 {% extends 'research/base.html' %}
 {% import 'research/icons.html' as icons %}
+{% from 'research/task_stats.html' import question_table with context %}
 {% block content %}
 {% set is_roster_view = grade in grades or grade == 'all' %}
 <div class="dashboard-workspace">
@@ -38,6 +39,11 @@
     <p class="small muted">{{ t('session_configuration_hint') }}</p>
     {% if request.args.get('draft_saved') == '1' %}<p class="notice success" role="status">{{ t('question_draft_saved') }}</p>{% endif %}
     {% with configured_session=selected_session_configuration %}{% include 'research/session_question_preview.html' %}{% endwith %}
+  </section>{% endif %}
+
+  {% if question_stats is not none %}<section class="panel stats-panel" aria-labelledby="class-stats-heading">
+    <h2 id="class-stats-heading">{{ t('stats_class_heading') }}</h2>
+    {% if question_stats %}<p class="small muted">{{ t('stats_class_hint') }}</p>{{ question_table(question_stats) }}{% else %}<p class="muted">{{ t('stats_nothing_yet') }}</p>{% endif %}
   </section>{% endif %}
 
   {% if people %}<div class="participant-jump" data-participant-jump data-missing="{{ t('jump_id_missing') }}" data-participant-label="{{ t('participant') }}" hidden>

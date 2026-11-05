@@ -134,7 +134,7 @@ def test_dashboard_layout_and_three_question_edit_flow(acceptance_live, device, 
         assert_page_layout(page, (device, language, name), errors)
         screenshot_if_requested(page, f"{live.engine}-{language}-{device}-{name}")
         if name == "overview":
-            assert page.locator("tbody tr").count() == 40
+            assert page.locator(".dashboard-table-panel tbody tr").count() == 40
 
     # Save all three long questions, reopen the saved draft, then inspect each
     # researcher preview. The approved version stays intact throughout.
