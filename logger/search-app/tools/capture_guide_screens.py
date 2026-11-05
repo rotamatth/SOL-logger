@@ -11,6 +11,7 @@ study data is involved. Only the pictures in research_dashboard/static/guide/ ar
 import json
 from pathlib import Path
 import random
+import secrets
 import sys
 import tempfile
 import threading
@@ -27,7 +28,7 @@ from research_dashboard import init_dashboard, live_views, preparation_views, se
 from research_dashboard.guide_views import GUIDE_IMAGE_SIZE, GUIDE_STEPS  # noqa: E402
 from research_dashboard.state import SETTING_FIELDS, identity  # noqa: E402
 
-PASSWORD = "guide-screenshots-only"
+PASSWORD = secrets.token_urlsafe(16)  # New on every run; the server it opens lasts only as long as the run.
 OUTPUT = APP_ROOT / "research_dashboard" / "static" / "guide"
 TODAY = "2026-11-05"
 YEAR = "2026/2027"
@@ -175,8 +176,8 @@ def main():
         folder = Path(temporary)
         for name in ("state", "v2", "legacy"):
             (folder / name).mkdir()
-        app = Flask(__name__)
-        app.config.update(SECRET_KEY="guide-screenshots-only", RESEARCH_STATE_DIR=str(folder / "state"),
+        app = Flask(__name__)  # NOSONAR: throwaway server on 127.0.0.1. The dashboard checks its own CSRF token.
+        app.config.update(SECRET_KEY=secrets.token_hex(32), RESEARCH_STATE_DIR=str(folder / "state"),
                           RESEARCH_LOG_DIR=str(folder / "v2"), RESEARCH_LEGACY_LOG_DIR=str(folder / "legacy"),
                           RESEARCH_PASSWORD_HASH=generate_password_hash(PASSWORD, method="pbkdf2:sha256:1000"),
                           RESEARCH_PASSWORD_HASH_FILE="")

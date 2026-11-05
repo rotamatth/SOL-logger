@@ -107,8 +107,8 @@ def register_security(dash):
 
     @bp.route("/login", methods=["GET", "POST"])
     def login():
-        requested = safe_research_next(request.args.get("next") or request.form.get("next"))
-        destination = requested or dash.u("sessions_page")
+        home = dash.u("sessions_page")
+        destination = safe_research_next(request.args.get("next") or request.form.get("next")) or home
         if g.research_auth and g.research_auth["authenticated"]:
             return redirect(destination)
         if request.method == "GET":
@@ -131,7 +131,7 @@ def register_security(dash):
         state.revoke(g.research_cookie)
         g.research_new_token, g.research_auth = state.new_session(identity(g.research_hash), authenticated=True)
         # The first sign-in in a browser opens the guide, unless a specific page was asked for.
-        if not requested and not request.cookies.get(GUIDE_COOKIE):
+        if destination == home and not request.cookies.get(GUIDE_COOKIE):
             return redirect(dash.u("guide_page"))
         return redirect(destination)
 

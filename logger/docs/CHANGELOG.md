@@ -65,6 +65,44 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Keep the sign-in redirect inside the dashboard
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, tests
+
+**Files**
+- `search-app/research_dashboard/dashboard.py` — `safe_research_next` also refuses dot segments, doubled
+  slashes and encoded backslashes in the path, encoded forms included.
+- `search-app/research_dashboard/security.py` — `login` compares the destination with the Sessions page to
+  decide whether the guide opens, instead of keeping a second variable.
+- `search-app/tools/capture_guide_screens.py` — the throwaway server gets a random password and secret key on
+  each run. Its `Flask(__name__)` line carries a `NOSONAR` comment, with the reason.
+- `search-app/tests/test_dashboard_redirects.py` — the new refusals, and a check that the query string is not
+  inspected.
+
+**What changed for the participant**
+No visible change. For researchers, a crafted sign-in link such as `/dashboard/../welcome` now opens the Sessions
+page instead of a page outside the dashboard. Normal links are unaffected.
+
+**How it works**
+A browser resolves `..`, including `%2e%2e`, before requesting a page, so a path that starts with `/dashboard/`
+could still end up elsewhere on the same site. No tested link reached another site, before or after this change.
+Found while checking SonarCloud's open redirect finding on PR #25, which also failed the quality gate on the tool's
+fixed password.
+
+**If something looks wrong after this, check**
+- A sign-in link lands on Sessions instead of the page asked for → `safe_research_next`; does its path contain `//`
+  or a dot segment?
+- A brand-new browser signing in with `next` set to exactly the Sessions page opens the guide. That is intended:
+  it is the same destination as no link at all.
+
+**Left alone**
+The rule that the first sign-in opens the guide, the login throttling and the session handling. The guide's
+pictures were not regenerated, because the tool's output does not depend on the password.
+
+**Verified**
+See the pull request: the redirect and guide tests, the full server suite, Ruff, and the tool run into a temporary
+folder.
+
 ## 2026-11-05 — Document dashboard v2
 
 **Commit:** pending · **Type:** content · **Area:** docs
