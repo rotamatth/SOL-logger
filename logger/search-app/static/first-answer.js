@@ -85,7 +85,7 @@
     timer = window.setTimeout(save, 600);
   }
   text.addEventListener('input', changed);
-  retry.addEventListener('click', () => { blocked = false; save(); });
+  retry.addEventListener('click', () => { blocked = false; void save(); });
 
   try {
     const local = JSON.parse(sessionStorage.getItem(bufferKey) || 'null');

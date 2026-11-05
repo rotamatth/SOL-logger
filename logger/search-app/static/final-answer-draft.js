@@ -74,7 +74,7 @@
     retry.disabled = true;
   }
   window.finalAnswerDraft = {value: () => text.value, update, pause, clear: () => { pause(); forget(); }};
-  retry.addEventListener('click', () => { blocked = false; save(); });
+  retry.addEventListener('click', () => { blocked = false; void save(); });
 
   // A confirmed pending upload owns its exact text, even if SQLite still has
   // an earlier draft. The existing confirmation-retry UI restores that intent.
