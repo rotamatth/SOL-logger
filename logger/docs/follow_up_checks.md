@@ -29,6 +29,11 @@ history of what was checked stays visible.
   who recorded the feedback to repeat her walkthrough: new session from name and date,
   importing an ID from another class, the warning colour, Cestino on Dati e storico.
   Done when she confirms or files new points.
+- [ ] **Dashboard v2 with a real class.** The live view was tested with one synthetic child at a
+  time on a laptop. In the first real lesson: open it on the researcher's own device, check that
+  finished questions appear within seconds with a full class, and watch server load (8 request
+  slots are shared with the children). Also repeat on an iPad: the session list, the checkboxes
+  under Participants, opening a child in the live view, and the guide. Done when these hold.
 - [ ] **First V2 deploy rollback path.** If `scripts/deploy.sh` rolls back on the first
   V2 deployment, the old image starts with `logs-v2` mounted at `/app/logs` and would
   write old-format logs there. Watch the first deploy; if a rollback happens, stop and
