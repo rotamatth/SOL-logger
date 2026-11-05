@@ -1,0 +1,38 @@
+<details class="live-child live-{{ child.status }}" data-child="{{ child.id }}" data-digest="{{ child.digest }}">
+  <summary>
+    <strong class="live-child-id">{{ child.id }}</strong>
+    <span class="badge {{ 'completed' if child.status == 'completed' else 'incomplete' if child.status == 'in_progress' else 'no_data' }}">{{ t('live_' ~ child.status) }}</span>
+    {% if child.status != 'not_started' %}
+    <span class="live-child-fact">{% if child.current %}{{ t('stats_question') }} {{ child.current }} / 3{% else %}{{ child.finished }} / 3 {{ t('live_finished') }}{% endif %}</span>
+    {% if child.current %}<span class="live-child-fact">{{ child.finished }} / 3 {{ t('live_finished') }}</span>{% endif %}
+    <span class="live-child-fact">{{ child.searches }} {{ t('stats_search_one') if child.searches == 1 else t('stats_searches') | lower }}</span>
+    <span class="live-child-fact muted">{% if child.saved %}{{ t('live_saved_at') }} {{ child.saved }}{% else %}{{ t('live_nothing_saved') }}{% endif %}</span>
+    {% if child.runs > 1 %}<span class="live-child-fact muted">{{ child.runs }} {{ t('live_runs') }}</span>{% endif %}
+    {% endif %}
+  </summary>
+  <div class="live-child-body">
+    {% if child.status == 'not_started' %}<p class="muted">{{ t('live_nothing_saved') }}</p>
+    {% else %}
+    <div class="stats-table-wrap"><table class="stats-table">
+      <thead><tr><th scope="col">{{ t('stats_question') }}</th><th scope="col">{{ t('stats_time') }}</th><th scope="col">{{ t('stats_events') }}</th><th scope="col">{{ t('stats_searches') }}</th><th scope="col">{{ t('stats_results') }}</th><th scope="col">{{ t('stats_pages') }}</th><th scope="col">{{ t('stats_difficulty') }}</th></tr></thead>
+      <tbody>
+      {% for task in child.tasks %}
+        <tr>
+          <th scope="row"><span class="stats-question">{{ task.number }}. {{ task.question or '—' }}</span></th>
+          {% if task.status == 'finished' %}{% set figures = task.figures %}
+          <td data-label="{{ t('stats_time') }}">{{ duration(figures.seconds) }}</td>
+          <td data-label="{{ t('stats_events') }}">{{ figures.events }}</td>
+          <td data-label="{{ t('stats_searches') }}">{{ figures.searches }}{% if figures.no_results or figures.suggestions %}<small class="muted">{% if figures.no_results %}{{ figures.no_results }} {{ t('stats_no_results') }}{% endif %}{% if figures.no_results and figures.suggestions %} · {% endif %}{% if figures.suggestions %}{{ figures.suggestions }} {{ t('stats_suggestions') }}{% endif %}</small>{% endif %}</td>
+          <td data-label="{{ t('stats_results') }}">{{ figures.results_opened }}{% if figures.mean_rank is not none %}<small class="muted">{{ t('stats_mean_rank') }} {{ figures.mean_rank }}</small>{% endif %}</td>
+          <td data-label="{{ t('stats_pages') }}">{{ duration(figures.page_seconds) }}</td>
+          <td data-label="{{ t('stats_difficulty') }}">{% if figures.help_opened or figures.search_errors or figures.pages_failed %}<small class="muted">{% if figures.help_opened %}{{ figures.help_opened }} {{ t('stats_help') }} {% endif %}{% if figures.search_errors %}{{ figures.search_errors }} {{ t('stats_errors') }} {% endif %}{% if figures.pages_failed %}{{ figures.pages_failed }} {{ t('stats_failed_pages') }}{% endif %}</small>{% else %}{{ t('stats_none') }}{% endif %}</td>
+          {% elif task.status == 'in_progress' %}<td class="live-task-note" colspan="6">{{ t('live_in_progress') }}{% if task.since %} · {{ t('live_since') }} {{ task.since }}{% endif %}</td>
+          {% else %}<td class="live-task-note muted" colspan="6">{{ t('live_not_reached') }}</td>{% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <p class="small"><a href="{{ u('participant', collection='study', token=child.token, session=study_session.id, view='logs') }}">{{ t('live_open_child') }} &rarr;</a></p>
+    {% endif %}
+  </div>
+</details>

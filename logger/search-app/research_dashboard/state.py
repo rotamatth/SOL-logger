@@ -398,6 +398,12 @@ class State:
             row = db.execute("SELECT metadata FROM study_attempts WHERE technical_session_id=?", (technical_session_id,)).fetchone()
         return json.loads(row[0]) if row else None
 
+    def session_attempts(self, session_id):
+        """Every started attempt of one session, oldest row first. Read-only."""
+        with self.connect() as db:
+            return [json.loads(row[0]) for row in db.execute(
+                "SELECT metadata FROM study_attempts WHERE study_session_id=? ORDER BY rowid", (session_id,))]
+
     def pending_attempts(self):
         with self.connect() as db:
             return [json.loads(row[0]) for row in db.execute("SELECT metadata FROM study_attempts WHERE published=0")]

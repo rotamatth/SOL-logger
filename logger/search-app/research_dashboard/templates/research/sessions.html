@@ -17,6 +17,7 @@
     {% if row.group != 'past' %}{{ needs_links(item, row.needs) }}{% endif %}
   </div>
   <div class="record-actions">
+    {% if row.group == 'today' %}<a class="button compact primary" href="{{ u('session_live', session_id=item.id) }}">{{ t('live_view') }}</a>{% endif %}
     <a class="button compact" href="{{ open_url }}">{{ t('open_session') }}</a>
     <a class="button compact" href="{{ u('overview', collection='study', grade=item.grade, school_year=item.school_year or None, session=item.id) }}">{{ t('session_data') }}</a>
   </div>

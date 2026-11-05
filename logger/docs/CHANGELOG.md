@@ -65,6 +65,54 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Live view of a running session
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, logging, tests
+
+**Files**
+- `search-app/research_dashboard/live.py` (new) — reads started attempts and each attempt's `_FULL.log`.
+- `search-app/research_dashboard/live_views.py` (new) — `/dashboard/sessions/<id>/live` and `live.json`.
+- `search-app/research_dashboard/static/live.js` (new) — checks every 5 seconds and updates rows in place.
+- `search-app/research_dashboard/templates/research/session_live*.html` (new) — the page, its rows and totals.
+- `search-app/research_dashboard/state.py` — read-only `session_attempts`.
+- `search-app/research_dashboard/collection.py` — `safe_participant`, shared with `publish_metadata`.
+- `search-app/research_dashboard/dashboard.py` — the data route answers failures as JSON.
+- `search-app/research_dashboard/templates/research/{sessions,prepare}.html` — links to the live view on the day.
+- `search-app/research_dashboard/{stats_i18n,task_stats}.py`, `static/stats.css`, `templates/research/task_stats.html` — wording and layout.
+- `search-app/tests/test_live_view.py`, `test_live_view_browser.py` (new).
+
+**What changed for the participant**
+No visible change. The children's app, its uploads and its logs are untouched.
+
+**What changed for researchers**
+On the day of a session, Sessions and the session page link to a live view: class totals, one row
+per child (Not started, In progress, Completed, current question, questions finished, last save)
+and the class question by question. Opening a child shows the figures of each finished question;
+a question in progress only says since when.
+
+**How it works**
+Short polling, because the server has 8 request slots shared with the children and a push stream
+would hold one per viewer. The page checks every 5 seconds and stops while its tab is hidden. It
+reads files directly and never through the reporting index. Each worker re-reads a log only when
+its size or time changes. Nothing is written.
+
+**If something looks wrong after this, check**
+- A finished question does not appear → did `/log_session` accept `TaskEnded`? Then `_read_log`.
+- A child stays Not started → is there a row in `study_attempts` for that session?
+- A researcher stays signed in with the page open → expected while the tab is visible; the 8-hour limit applies.
+- Researcher pages slow during class → `session_progress`, and how many live pages are open.
+
+**Left alone**
+Issue #17 stays open: it asks for 1-2 second push built on Samuele's progress work (PR #23), which
+this does not do. `TaskEnded` is unchanged on that branch, so this keeps working after it merges;
+its question phases can then be added in `live.py`.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). One test goes through real
+admission and the real upload route. In a browser with a real student page on synthetic data, a
+finished question appeared within 5 seconds, and the figures matched the raw log by hand. Not
+tried on a real iPad or with a full class.
+
 ## 2026-11-05 — Task statistics for each child, each question and across sessions
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests

@@ -80,7 +80,7 @@ def summarize(stats):
         return {**dict.fromkeys(COUNTERS), "seconds": None, "mean_rank": None, "page_seconds": None, "finished": False}
     return {**{key: stats[key] for key in COUNTERS},
             "seconds": _seconds_between(stats["started_at"], stats["ended_at"]),
-            "mean_rank": round(stats["rank_sum"] / stats["rank_count"], 1) if stats["rank_count"] else None,
+            "mean_rank": _plain(round(stats["rank_sum"] / stats["rank_count"], 1)) if stats["rank_count"] else None,
             "page_seconds": round(stats["page_ms"] / 1000) if stats["pages_timed"] else None,
             "finished": bool(stats["ended_at"])}
 
