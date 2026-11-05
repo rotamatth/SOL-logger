@@ -4,7 +4,7 @@ Every route module receives one :class:`Dashboard`. It owns the blueprint, the
 authoritative study state, the reporting index and the small helpers that all
 pages share (URL building, rendering and error responses).
 """
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from flask import g, jsonify, render_template, request, url_for
 
@@ -38,6 +38,10 @@ def safe_research_next(value):
         return None
     if (parsed.scheme or parsed.netloc or not parsed.path.startswith(PREFIX + "/")
             or parsed.path in (PREFIX + "/login", PREFIX + "/logout") or "\\" in value):
+        return None
+    # A browser resolves dot segments, encoded ones too, so these would leave the dashboard.
+    path = unquote(parsed.path)
+    if "\\" in path or "//" in path or {".", ".."} & set(path.split("/")):
         return None
     return value
 
