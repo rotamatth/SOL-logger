@@ -1,5 +1,6 @@
 {% extends 'research/base.html' %}
 {% import 'research/icons.html' as icons %}
+{% from 'research/task_stats.html' import task_table with context %}
 {% block content %}
 <p class="breadcrumbs"><a href="{{ u('overview', collection=run.collection, grade=run.grade or 'unassigned') }}">{{ t('overview') }}</a> / {% if run.participant_token %}<a href="{{ u('participant', collection=run.collection, token=run.participant_token) }}">{{ t('participant') }} {{ run.participant_id }}</a> / {% endif %}{{ t('run') }} {{ run.id[:12] }}</p>
 <div class="page-heading">
@@ -9,6 +10,7 @@
     {% if not task %}<a class="button" href="{{ u('export', scope='run', collection=run.collection, run=run.id) }}">{{ icons.download() }} {{ t('download_run') }}</a>{% endif %}
   </div>
 </div>
+{% if run.task_stats and not task %}<section class="panel stats-panel" aria-labelledby="run-stats-heading"><h2 id="run-stats-heading">{{ t('stats_by_question') }}</h2>{{ task_table(run) }}</section>{% endif %}
 <nav class="tabs" aria-label="{{ t('task') }}">
   <a {% if not task %}aria-current="page"{% endif %} href="{{ u('run_detail', key=run.id) }}">{{ t('full_task') }}</a>
   {% for n in ('1','2','3') %}<a {% if task == n %}aria-current="page"{% endif %} href="{{ u('run_detail', key=run.id, task=n) }}">{{ t('task') }} {{ n }}</a>{% endfor %}

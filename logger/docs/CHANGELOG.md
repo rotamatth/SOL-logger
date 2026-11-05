@@ -65,6 +65,50 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Task statistics for each child, each question and across sessions
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests
+
+**Files**
+- `search-app/research_dashboard/task_stats.py` (new) — counts one task's events; class rows by
+  question; a child's totals by session; chart geometry; time formatting.
+- `search-app/research_dashboard/index.py` — stores the figures per file and per run; index version 3,
+  so already indexed files are read again once.
+- `search-app/research_dashboard/history_views.py`, `template_context.py` — pass them to the pages.
+- `search-app/research_dashboard/templates/research/task_stats.html` (new) — tables and charts, used by
+  `participant.html`, `overview.html` (when a session is selected) and `run.html`.
+- `search-app/research_dashboard/static/stats.css`, `stats_i18n.py` (new), `i18n.py`, `base.html`.
+- `search-app/tests/test_task_stats.py`, `test_task_stats_pages.py` (new).
+
+**What changed for the participant**
+No visible change. Nothing the children do is logged differently.
+
+**What changed for researchers**
+A child's page shows, for each question: time, logged events, searches, results opened, time on
+pages and difficulty signals, plus totals and small charts across sessions. A session in Data and
+history shows the class by question: how many finished, typical time with range, events, searches
+and results. A run's page shows the same figures for that run.
+
+**How it works**
+Time runs from the first `TaskStarted` to the first `TaskEnded`. Questions are grouped by what was
+asked, because order is shuffled per child. In class figures each child counts once per question,
+using their latest run that finished it. A count of 0 means none were logged; a dash means there
+was nothing to measure. Runs made only of recovered fragments are left out.
+
+**If something looks wrong after this, check**
+- A figure looks off → compare with the run's events, then `add_event` and `COUNTED_EVENTS`.
+- Time is a dash → the task has no `TaskStarted` or `TaskEnded`, or their timestamps can't be compared.
+- A question appears twice in the class table → its text differs between children (edited after approval).
+- The first page load after upgrading is slow → the index is reading every log again, once.
+
+**Left alone**
+Original logs and everything in exports: the figures are not added to manifests or metadata.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). Figures checked against
+synthetic logs by hand, including text ranks as the student app logs them. English and Italian
+at desktop and phone width.
+
 ## 2026-11-05 — Deactivate several children at once
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, tests

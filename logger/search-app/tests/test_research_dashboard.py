@@ -1343,7 +1343,7 @@ def test_hundred_sessions_remain_browsable_exportable_and_capped_per_grade(app):
                         and parse_qs(link.query).get("grade") == ["4"])
     history_page = client.get(history_link.geturl())
     assert history_page.status_code == 200 and 'id="grade-4-session-100"' in history_page.text
-    assert len(re.findall(r'<th\b', overview.text.split("<thead>")[1].split("</thead>")[0])) == 4
+    assert len(re.findall(r'<th\b', overview.text.split("<thead>")[-1].split("</thead>")[0])) == 4
     downloaded = next(link for link in dashboard_links(overview) if link.path.endswith("/exports/grade_session"))
     _, manifest = archive(client.get(downloaded.geturl()))
     assert {run["run_id"] for run in manifest["runs"]} == {key}
