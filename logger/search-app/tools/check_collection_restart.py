@@ -50,7 +50,7 @@ def seed(root):
         first_context = {"csrf_token": active["progress_csrf"], "attempt_id": active["progress_id"],
                          "question_number": active["task_position"] + 1}
     assert client.post("/first-answer", data={**first_context, "outcome": "answered",
-                                             "text": "Synthetic first answer"}).status_code == 303
+                                             "text": "Synthetic first answer", "confidence": "2"}).status_code == 303
     assert client.get("/search").status_code == 200
     with client.session_transaction() as active:
         sid, questions = active["session_id"], active["task_config"]
@@ -87,7 +87,8 @@ def verify(root):
     assert evidence["snapshot"]["participant_key"] == settings["participant_registry"]["1"]["key"]
     records = [json.loads(line) for line in next((root / "logs-v2").glob("*_FULL.log")).read_text().splitlines()]
     assert len([entry for entry in records if entry["type"] == "TaskEnded"]) == 1
-    assert len([entry for entry in records if entry["type"] == "OwnKnowledgeAnswerSubmitted"]) == 1
+    first_events = [entry for entry in records if entry["type"] == "OwnKnowledgeAnswerSubmitted"]
+    assert len(first_events) == 1 and first_events[0]["confidence"] == 2
     # Viewing Q2 now emits TaskStarted; a late Q1 retry must never become its final answer.
     for path in (root / "logs-v2").glob("*_task2_*.log"):
         assert all(json.loads(line)["type"] != "TaskEnded" for line in path.read_text().splitlines())
@@ -103,6 +104,7 @@ def verify(root):
         fresh.get("/task")
         progress = module.PROGRESS.current()
         assert progress["tasks"][0]["first_answer"]["text"] == "Synthetic first answer"
+        assert progress["tasks"][0]["first_answer"]["confidence"] == 2
         assert progress["tasks"][0]["final_answer"]["text"] == "Synthetic answer after restart"
     assert client.get("/task").status_code == 200
     assert client.get("/health/ready").status_code == 200

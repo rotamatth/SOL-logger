@@ -225,31 +225,10 @@ def test_start_post_resets_server_session_before_new_experiment_state():
     order_index = source.index("assign_random_task_order(user_id)", post_index)
 
     assert post_index < clear_index < user_index < session_id_index < log_id_index < order_index
-    assert "session['pieces_earned'] = []" in source
+    assert "session['completed_tasks'] = []" in source
     assert "session['tasks_started'] = []" in source
-    assert "session['reward_shown_logged'] = []" in source
     assert "session['last_active'] = datetime.now().isoformat()" in source
     assert "session[\"search_results\"]" not in source[post_index:order_index]
-
-
-def test_reward_shown_server_logging_is_idempotent_per_task():
-    source = SEARCH_APP.read_text(encoding="utf-8")
-    reward_source = source[
-        source.index("def reward():"):
-        source.index("@app.route('/thank_you')")
-    ]
-
-    key_index = reward_source.index('reward_log_key = f"{display_task_number}:{task_number}"')
-    logged_index = reward_source.index("reward_shown_logged = session.get('reward_shown_logged', [])")
-    guard_index = reward_source.index("if log_id and user_id and reward_log_key not in reward_shown_logged:")
-    write_index = reward_source.index("LOG_STORE.accept(")
-    append_index = reward_source.index("reward_shown_logged.append(reward_log_key)")
-    assign_index = reward_source.index("session['reward_shown_logged'] = reward_shown_logged")
-
-    assert key_index < guard_index < write_index < append_index < assign_index
-    assert logged_index < guard_index
-    assert '"type": "rewardShown"' in reward_source
-    assert '"source": "server"' in reward_source
 
 
 def test_client_cleanup_clears_local_session_and_in_memory_logger_state():
@@ -409,7 +388,6 @@ if __name__ == "__main__":
         test_log_session_writes_full_and_per_task_logs_without_aggregate_outputs,
         test_log_filename_timestamp_uses_europe_zurich_timezone,
         test_start_post_resets_server_session_before_new_experiment_state,
-        test_reward_shown_server_logging_is_idempotent_per_task,
         test_client_cleanup_clears_local_session_and_in_memory_logger_state,
         test_duplicate_query_submit_suppression_contract,
         test_italian_pagination_target_parsing,

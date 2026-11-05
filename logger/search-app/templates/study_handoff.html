@@ -52,7 +52,7 @@
       {% if review_only %}
       <a class="review-button" href="{{ url_for('next_task', review=review_tasks[0].number) }}">{{ 'Continua' if is_last else 'Prossima domanda' }}</a>
       {% else %}
-      <a class="review-button review-close" href="{{ url_for('welcome', reset=1) }}">Chiudi l’attività</a>
+      <a class="review-button review-close" href="{{ url_for('welcome', reset=1, finished=1) }}">Chiudi l’attività</a>
       {% endif %}
     </div>
   </main>

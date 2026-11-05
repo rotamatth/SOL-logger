@@ -13,7 +13,8 @@ the saved log therefore grows while the task is still open.
 ### Session and task flow
 
 - `idSubmitted`: emitted when the participant ID form is submitted.
-- `TaskStarted`: emitted when the task start button is clicked.
+- `TaskStarted`: emitted once when the first-answer screen is first shown for an attempt/question.
+- `OwnKnowledgeAnswerSubmitted`: emitted once with the confirmed original first answer, outcome, confidence and `answerPhase: pre-search`.
 - `ClickedOnSendAndTerminateTask`: emitted when the answer box is opened from the task button.
 - `OpenedAnswerBox`: emitted whenever the answer modal is shown.
 - `AnswerBoxClosed`: emitted when the answer modal is closed with the x button or by continuing search.
@@ -72,13 +73,10 @@ the saved log therefore grows while the task is still open.
 
 - `browserBackBlocked`: emitted when native browser back navigation is intercepted, blocked, or redirected back to the latest allowed app URL, including the current URL and target URL.
 
-### Reward and completion
+### Completion
 
-- `rewardShown`: emitted server-side when a task reward page is rendered.
-- `sessionCompleted`: emitted when the final completion page loads.
-- `finalRewardRevealClicked`: emitted when the final reward reveal button is clicked.
-- `finalRewardRevealCompleted`: emitted when the final reward reveal animation completes.
-- `experimentFinished`: emitted when the final save-and-finish button is clicked.
+- `sessionCompleted`: emitted once when the final completion handoff is opened.
+- `experimentFinished`: emitted on explicit activity closure; publication is durable before browser state is cleared.
 
 ### Errors
 
@@ -87,6 +85,7 @@ the saved log therefore grows while the task is still open.
 ## Event inventory
 
 <!-- event-inventory:start -->
+- `OwnKnowledgeAnswerSubmitted`
 - `autocompleteSuggestionsShown`
 - `AnswerBoxClosed`
 - `ClickedEndTaskConfirmation`
@@ -105,8 +104,6 @@ the saved log therefore grows while the task is still open.
 - `cursorLeftSnippet`
 - `customBackButtonClicked`
 - `experimentFinished`
-- `finalRewardRevealClicked`
-- `finalRewardRevealCompleted`
 - `firstAnswerClosed`
 - `firstAnswerOpened`
 - `generatedDidYouMean`
@@ -125,7 +122,6 @@ the saved log therefore grows while the task is still open.
 - `resourceViewStarted`
 - `resultExposureEnded`
 - `resultExposureStarted`
-- `rewardShown`
 - `searchError`
 - `searchNoResults`
 - `searchResultGenerated`
@@ -147,7 +143,8 @@ generated full log and per-task log open while exercising the flow.
 
 ### 1. Start a session
 
-Submit a valid participant ID and start the first task. Confirm that
+Submit a valid participant ID and open the first task. Type an answer, select
+an initial confidence and confirm it (also test confirmed “Non lo so”). Confirm that
 `idSubmitted` appears before `TaskStarted` and that following events carry the
 same `sessionID` and `uid`.
 
@@ -214,12 +211,14 @@ enter an answer, and continue through the confirmation dialog. Confirm
 closed instead, confirm `EndTaskDialogClosed`, `EndTaskConfirmationClosed`, and
 `TaskContinued`.
 
-### 9. Exercise final reward logging
+### 9. Exercise completion logging
 
-After each task, confirm the server writes `rewardShown`. After the final task,
-open the completion page and confirm `sessionCompleted`, click the reveal
-button to confirm `finalRewardRevealClicked` and `finalRewardRevealCompleted`,
-then finish the experiment and confirm `experimentFinished`.
+Confirm all three final answers and continue through the question reviews.
+Opening the completion handoff writes `sessionCompleted` once; refreshing it
+does not duplicate the event. Closing the activity writes `experimentFinished`
+durably before clearing the browser session. If publication fails, the close
+remains retryable and the same outbox event is published once. No reward events
+or reveal controls remain. The recap/PDF/save-session interface belongs to #9.
 
 ### 10. Exercise search error logging
 

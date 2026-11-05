@@ -306,7 +306,7 @@ def test_three_question_flow_saves_originals_once_and_skips_rewards(module, them
         with client.session_transaction() as state:
             assert datetime.now() - datetime.fromisoformat(state["last_active"]) < timedelta(minutes=1)
         assert client.get("/next_task").status_code == 302
-        assert client.get("/reward").status_code == 302
+        assert client.get("/reward").status_code == 404
     complete = client.get("/task", follow_redirects=True)
     assert "Hai risposto alle tre domande" in complete.text
     assert complete.text.count(f"/static/images/review/{artwork}-recap.webp") == 1
@@ -324,7 +324,7 @@ def test_three_question_flow_saves_originals_once_and_skips_rewards(module, them
     assert client.get("/task-review/3").status_code == 404
 
 
-@pytest.mark.parametrize("path", ["/task-review/1", "/next_task", "/reward", "/start"])
+@pytest.mark.parametrize("path", ["/task-review/1", "/next_task", "/start"])
 def test_review_page_expires_an_idle_participant_session(module, path):
     client = begin(module)
     first(client, "Private initial answer")

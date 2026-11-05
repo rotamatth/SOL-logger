@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Complete progress history contracts and retire puzzle rewards
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, reward, data, logging, tests
+
+**Files**
+- `search-app/study_progress.py`, `student_progress.py` — schema 6 recap drafts/revisions, repeat receipts, session lifecycle events and stale-page/start-failure recovery.
+- `search-app/search_app.py`, templates, `static/main.css` — remove the reward route, reveal controls and styles; retain task review and neutral completion/close events.
+- `search-app/static/puzzle_pieces/*`, `templates/reward.html` — remove obsolete reward media and page.
+- `search-app/research_dashboard/student_config.py`, `settings_views.py`, `study_config.py`, `i18n.py` — question sets no longer require reward assets; historical metadata remains readable.
+- Progress/history/retirement/logging tests, restart smoke and `issue6_handover.md` — acceptance coverage and API handover.
+
+**What changed for the participant**
+The three-question flow contains no reward page or puzzle. An old browser's completed questions still continue safely. Concurrent advancement and a transient TaskStarted save failure remain recoverable.
+
+**How it works**
+Recap edits are append-only records with original before/after text, timestamp and verified editing context. Revision counters remain monotonic after draft confirmation, rejecting delayed autosaves. The internal repeat API atomically retires the old attempt and copies its exact snapshot/order into a fresh run with an idempotent authorization receipt. These are storage contracts for the separate #9/#15 interfaces. Identical pre-upgrade first-answer retries keep their historical null confidence. Completion and explicit closure publish through the durable outbox before success/clear.
+
+**If something looks wrong after this, check**
+`recap_draft_revisions` when restoring inactive drafts, new technical/log IDs when integrating #15, and the once-only TaskStarted/session events in FULL/per-task logs. A missing asset must not block enrollment.
+
+**Left alone**
+Recap/PDF/save-session UI, researcher reset authorization UI, autocomplete, MP4 and layout/autosave-label changes. The existing illustrated read-only handoff is retained.
+
+**Verified**
+Full server suite: 722 tests passed; current focused history/confidence checks: 40 passed. The complete required Chromium suite passed 116 tests. Ruff and JavaScript syntax passed. New-process restart, offline backup/restore and restored-process verification passed with confidence preserved. Desktop/tablet screenshots were inspected. Independent review findings were reproduced and fixed; real iPad Safari and local Docker replacement were not tested locally.
+
 ## 2026-11-05 — Collect the child's initial self-assessment from Figma
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests

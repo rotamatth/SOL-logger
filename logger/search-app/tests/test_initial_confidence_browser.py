@@ -3,6 +3,7 @@ import pytest
 
 from .test_background_upload_browser import student_site, saved, types_of  # noqa: F401
 from .test_first_answer_flow_browser import open_first
+from .test_editor_browser import until
 
 
 def test_confidence_appears_immediately_resets_on_blank_and_is_required(student_site):
@@ -70,6 +71,39 @@ def test_failed_autosave_recovers_confidence_with_text_after_reload(student_site
     page.get_by_text("Bozza salvata.", exact=True).wait_for()
     page.reload()
     assert page.get_by_role("radio", name="Giustissima", exact=True).is_checked()
+
+
+@pytest.mark.parametrize("clear_text", [False, True])
+def test_change_during_inflight_save_keeps_the_latest_assessment(student_site, clear_text):
+    page, base, _ = student_site
+    open_first(page, base)
+    held = []
+
+    def delay_first(route):
+        if not held:
+            response = route.fetch()
+            held.append((route, response))
+        else:
+            route.continue_()
+
+    page.route("**/first-answer/draft", delay_first)
+    page.fill("#first-answer-text", "Laika")
+    page.get_by_role("radio", name="Poco giusta", exact=True).check()
+    assert until(page, lambda: bool(held))
+    if clear_text:
+        page.fill("#first-answer-text", " ")
+    else:
+        page.get_by_role("radio", name="Giustissima", exact=True).check()
+    route, response = held[0]
+    route.fulfill(response=response)
+    page.get_by_text("Bozza salvata.", exact=True).wait_for()
+    page.reload()
+    if clear_text:
+        assert page.locator("#first-answer-text").input_value() == " "
+        assert page.get_by_role("group", name="Secondo te, quanto è giusta la tua risposta?").is_hidden()
+        assert page.locator('input[name="confidence"]:checked').count() == 0
+    else:
+        assert page.get_by_role("radio", name="Giustissima", exact=True).is_checked()
 
 
 @pytest.mark.parametrize("width,height", [(1440, 960), (768, 1024), (1024, 768), (320, 700)])

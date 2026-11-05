@@ -110,7 +110,7 @@ class StudentProgress:
                        task_order=[task["snapshot"]["topic_id"] for task in attempt["tasks"]],
                        task_position=number - 1,
                        task_number=attempt["tasks"][number - 1]["snapshot"]["topic_id"],
-                       pieces_earned=[], tasks_started=[], last_active=datetime.now().isoformat())
+                       tasks_started=[], last_active=datetime.now().isoformat())
         if attempt["phase"] == "search" and not pending_review:
             session["tasks_started"] = [session["task_number"]]
 
@@ -178,6 +178,13 @@ class StudentProgress:
             if not self.publish(attempt):
                 raise OSError("Progress publication temporarily unavailable")
 
+    def session_event(self, attempt, event_type):
+        try:
+            self.store.record_session_event(self.key(attempt["metadata"]), attempt["attempt_id"], event_type)
+            return self.publish(attempt)
+        except (SubmissionConflict, OSError, sqlite3.Error):
+            return False
+
     def page(self, error=None, text=None, status=200, *, start_task=True, confidence=None):
         attempt = self.current()
         if attempt["metadata"]["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat():
@@ -199,6 +206,8 @@ class StudentProgress:
             try:
                 self.store.mark_task_started(self.key(attempt["metadata"]), attempt["attempt_id"], number)
                 self.publish(attempt)
+            except SubmissionConflict:
+                return self.next_page()
             except (OSError, sqlite3.Error):
                 error = "Salvataggio non disponibile. Ricarica la pagina o chiedi al ricercatore."
                 status = 503
@@ -237,8 +246,13 @@ class StudentProgress:
             outcome = request.form.get("outcome")
             if outcome not in ("answered", "unknown"):
                 raise ValueError("Choose an explicit outcome")
+            number = int(request.form["question_number"])
+            if attempt["tasks"][number - 1]["first_answer"] is None:
+                # A transient failed page-start save must never put the answer
+                # before TaskStarted in the durable outbox.
+                self.store.mark_task_started(self.key(attempt["metadata"]), attempt["attempt_id"], number)
             self.store.submit_first_answer(self.key(attempt["metadata"]), attempt["attempt_id"],
-                                           int(request.form["question_number"]), request.form.get("text"),
+                                           number, request.form.get("text"),
                                            unknown_confirmed=outcome == "unknown", confidence=confidence)
         except SubmissionConflict:
             return self.page("La risposta è già stata confermata. Ricarica la pagina.", status=409)
