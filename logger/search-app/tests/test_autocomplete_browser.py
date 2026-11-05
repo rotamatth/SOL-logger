@@ -112,6 +112,23 @@ def test_editing_immediately_clears_old_suggestion_metadata(student_browser):
     assert page.locator("#search-box").get_attribute("aria-expanded") == "false"
 
 
+def test_failed_suggestion_render_leaves_no_selection_metadata(student_browser):
+    page = student_browser
+    page.route("**/autocomplete?**", lambda route: route.fulfill(json=RESPONSE))
+    page.evaluate("""() => {
+        const logEvent = studyLogger.logEvent.bind(studyLogger);
+        studyLogger.logEvent = (type, details) => {
+            if (type === 'autocompleteSuggestionsShown') throw new Error('Synthetic storage error');
+            logEvent(type, details);
+        };
+    }""")
+    with page.expect_console_message(predicate=lambda message: "Synthetic storage error" in message.text):
+        page.fill("#search-box", "fasi")
+
+    assert page.evaluate("window.autocompleteContext.suggestions") == []
+    assert page.locator("#search-box").get_attribute("aria-expanded") == "false"
+
+
 @pytest.mark.parametrize("selection", ["click", "keyboard"])
 def test_suggestion_selection_preserves_search_and_event_context(student_browser, selection):
     page = student_browser

@@ -259,6 +259,7 @@
 
                 } catch (err) {
                     if (requestId === autocompleteRequestSequence) {
+                        resetSuggestions(query);
                         console.error("Autocomplete error:", err);
                     }
                 } finally {
