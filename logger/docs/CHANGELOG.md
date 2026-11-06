@@ -65,6 +65,35 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Keep the deploy script running after its backup
+
+**Commit:** pending · **Type:** fix · **Area:** infra
+
+**Files**
+- `scripts/deploy.sh` — the backup container no longer reads the script's standard input
+- `logger/search-app/tests/test_deploy_script.py` — new; runs the remote part from standard input with a fake `docker`
+- `logger/docs/follow_up_checks.md` — the fake May logs are gone from the server
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+`deploy.sh` sends its remote part to `ssh ... bash -s`, so that part is on standard input while it runs. `docker compose run`
+attaches standard input to the container and drained the rest of the script. The remote shell then found nothing more to do and
+exited with success, leaving the app stopped, with "Deploy complete" printed and no rollback. The backup itself was fine.
+`</dev/null` keeps that one command away from the script.
+
+**If something looks wrong after this, check**
+- A deploy that prints "Deploy complete" without "Verified backup" → a step read standard input; the app is stopped, so start it with `docker compose up -d --no-build --wait search_app`.
+
+**Left alone**
+Every other step of the deploy, and the backup tool.
+
+**Verified**
+Reproduced with real Docker: the line after `docker compose run` did not run from `bash -s`, and did with `</dev/null`. The new test
+failed before the fix and passes after it. The first real deploy on 2026-11-06 hit this. The earlier Linux rehearsal ran the remote
+part from a file, which hid it, so a deploy rehearsal must feed it through standard input. The fixed script has not yet run on the server.
+
 ## 2026-11-06 — Set May's classes from the server's logs
 
 **Commit:** pending · **Type:** infra · **Area:** data, dashboard

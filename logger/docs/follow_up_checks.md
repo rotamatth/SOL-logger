@@ -58,8 +58,8 @@ history of what was checked stays visible.
   in the search box. Done when each theme returns its own results and suggestions appear.
 - [ ] **Orecchio questions.** Diletta enters them in the dashboard after the deploy, in animation order: slot 1 plays
   `Orecchio_01`. Keep the theme `orecchio`, which the setup pre-fills. Done when `5a orecchio` shows Published.
-- [ ] **Fake May logs on the server.** `UserTestLog*` and `Utente*` are to be removed from `logs/`; a plain delete was refused,
-  because the container owns the files. Done when their count is 0, with the class runs of 19 May still there.
+- [x] **Fake May logs on the server.** _2026-11-06, Matthias: `UserTestLog*`, `Utente*` and 11 numeric test runs removed through a
+  container, with safety copies in the home folder. `logs/` holds 73 files: the 18 class runs of 19 May and the registry._
 - [ ] **Permanent test IDs on the server, Tuesday morning.** Run `TEST-spazio` and `TEST-orecchio` on an iPad with Brave before
   the class, then check the logs reached `logs-v2/test-runs` and nothing changed in Data and history. Done when both hold.
 
