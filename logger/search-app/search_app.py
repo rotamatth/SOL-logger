@@ -1109,6 +1109,8 @@ def thank_you():
         reviews = PROGRESS.reviews(progress)
         if not all(reviews.values()):
             return redirect(url_for('task'))
+        if not reviews.get(3):
+            return render_template('study_handoff.html', review_tasks=[], review_only=False)
         return RECAP.page(progress, review_illustration(progress))
     phase = current_phase()
     if phase != 'completed':

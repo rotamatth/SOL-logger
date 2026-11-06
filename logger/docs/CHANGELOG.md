@@ -65,6 +65,14 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Preserve recap access across the browser handoff
+
+- Require the browser's completed third-question review before showing,
+  editing or downloading the recap. A fresh browser that selects the same
+  completed ID sees the completion message.
+- Align the connected-flow and enrollment tests with the new recap and
+  verify that the same browser can download the durable PDF from another worker.
+
 ## 2026-11-05 — Add editable session recap and saved PDF
 
 **Type:** feature · **Area:** participant recap, persistence, logging

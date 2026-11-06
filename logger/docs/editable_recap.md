@@ -23,7 +23,9 @@ non-cacheable attachment only to the admitted participant in that session.
 
 Successful publication exposes **Scarica PDF** and **Ricomincia l’attività**.
 The second action returns to welcome, clearing the active browser state.
-Selecting the same ID again preserves the completed attempt and its PDF.
+Selecting the same ID again shows a neutral completion screen. The recap and
+download require the browser's existing review grant for the third question.
+The completed attempt and PDF remain in durable storage after exit.
 An authorized repeat can create another attempt with its own PDF. If the PDF
 write fails, the transaction retains the drafts. If log publication fails,
 the committed PDF and events are retried using their existing receipts.

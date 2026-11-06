@@ -113,14 +113,23 @@ def test_pdf_failure_rolls_back_edits_and_finished_events(recap, monkeypatch, st
     assert "attachment" in pdf.headers["Content-Disposition"]
     assert commit(client, auth, "finish", revisions).status_code == 200
     assert client.get("/recap/pdf").data == pdf.data
+    worker = student_modules()
+    same_browser = worker.app.test_client()
+    cookie_name = module.app.config["SESSION_COOKIE_NAME"]
+    same_browser.set_cookie(cookie_name, client.get_cookie(cookie_name).value)
+    assert same_browser.get("/recap/pdf").data == pdf.data
     assert draft(client, auth, past_id, 1, "Late draft", 2).status_code == 409
     assert client.post("/recap/restart", json=auth).status_code == 200
     assert client.get("/recap/pdf").status_code == 404
     types = [event["type"] for event in events(module)]
     assert types.count("studySessionFinished") == 1 and "experimentFinished" not in types
-    resumed = begin(student_modules())
+    resumed = begin(worker)
     assert context(resumed)["attempt_id"] == auth["attempt_id"]
-    assert resumed.get("/recap/pdf").data == pdf.data
+    assert "Keep this draft" not in resumed.get("/thank_you").text
+    assert resumed.get("/recap/pdf").status_code == 404
+    with resumed.session_transaction() as state:
+        fresh_auth = {**auth, "csrf_token": state["progress_csrf"]}
+    assert resumed.post("/recap/finish", json=fresh_auth).status_code == 404
 
 
 def test_session_three_finishes_the_study_exactly_once(student_modules):
