@@ -15,8 +15,8 @@ HOSTILE_QUERY = '"><script>alert(1)</script> "luna"'
 def searching_client(module, results=()):
     """A participant who started today's session and opened the search page."""
     schedule(module)
-    module.search_backend.search = lambda query, page, rpp: (query, [dict(r) for r in results], len(results), "none")
-    module.search_backend.autocomplete = lambda query: (["should not be called"], "test")
+    module.search_backend.search = lambda query, page, rpp, theme=None: (query, [dict(r) for r in results], len(results), "none")
+    module.search_backend.autocomplete = lambda query, theme=None: (["should not be called"], "test")
     module.search_backend.autocomplete_query_model = lambda: None
     client = module.app.test_client()
     assert client.post("/start", data={"user_id": "1"}).status_code == 302
@@ -202,13 +202,13 @@ def test_every_result_link_survives_the_trip_to_the_probe(student_modules, monke
 def test_autocomplete_is_only_for_participants_in_a_session(student_modules):
     module = student_modules()
     calls = []
-    module.search_backend.autocomplete = lambda query: calls.append(query) or (["luna piena"], "vertex")
+    module.search_backend.autocomplete = lambda query, theme=None: calls.append(query) or (["luna piena"], "vertex")
     module.search_backend.autocomplete_query_model = lambda: "search-history"
     anonymous = module.app.test_client()
     assert anonymous.get("/autocomplete?query=luna").get_json()["suggestions"] == []
     assert calls == []
     client = searching_client(module)
-    module.search_backend.autocomplete = lambda query: calls.append(query) or (["luna piena"], "vertex")
+    module.search_backend.autocomplete = lambda query, theme=None: calls.append(query) or (["luna piena"], "vertex")
     module.search_backend.autocomplete_query_model = lambda: "search-history"
     assert client.get("/autocomplete", query_string={"query": "  lu  "}).get_json() == {
         "suggestions": [], "source": "none", "query_model": None,
@@ -225,7 +225,7 @@ def test_autocomplete_failure_keeps_its_fallback_without_logging_private_text(st
     query = "synthetic private autocomplete query"
     credential = "synthetic-provider-key"
 
-    def broken_autocomplete(value):
+    def broken_autocomplete(value, theme=None):
         raise RuntimeError(f"Provider failed for {value} with credential {credential}")
 
     module.search_backend.autocomplete = broken_autocomplete

@@ -65,6 +65,40 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Choose the search engine from the session's theme
+
+**Commit:** pending · **Type:** feature · **Area:** serp, autocomplete, infra
+
+**Files**
+- `logger/search-app/search_backend.py` — `load_theme_configs`, `vertex_config_for`; `search` and `autocomplete` take the run's theme
+- `logger/search-app/search_app.py` — `run_theme` reads the theme frozen in the run; `known_theme` shared with the recap pictures
+- `logger/docker-compose.yml` — passes `VERTEX_SPAZIO_*` and `VERTEX_ORECCHIO_*`
+- `logger/search-app/tools/check_search_engines.py` — asks each engine one real question before a session
+- `logger/search-app/tests/test_search_by_theme.py` — new; test doubles of the backend accept the theme
+- `logger/docs/production_readiness.md` — how to set the engines on the server
+
+**What changed for the participant**
+A class searches the dataset of its own theme: spazio and orecchio can use different engines on one server.
+
+**How it works**
+The theme comes from the question set frozen when the run started, the same text that chooses the animations. Once any
+per-theme engine is set, a theme without its own engine raises an error, so the child sees the search error page and the
+server logs it, rather than results from another dataset. Autocomplete then returns no suggestions.
+
+**If something looks wrong after this, check**
+- Search error page for one class only → that theme's `VERTEX_*_ENGINE_ID` in `logger/.env`, or a theme text the app does not recognise.
+- `PermissionDenied` in the logs → the service account has no role on the engines' project.
+- No Vertex suggestions for one class → that theme's `VERTEX_*_DATA_STORE_ID`.
+
+**Left alone**
+What is logged per event, the result handling in `vertex_search`, the PyTerrier backend and the SerpAPI fallback, which has
+no dataset. A single engine still works with no new setting.
+
+**Verified**
+Tests with fake clients check the engine and data store each theme reaches and that no call happens without one, and
+real student routes check the theme passed, including after resuming in a new browser. A real query from a Mac reached Google,
+but was refused for this service account's missing permission, so real results per engine are still unverified.
+
 ## 2026-11-06 — Fit the tests to the combined release
 
 **Commit:** pending · **Type:** infra · **Area:** tests, task-flow, dashboard

@@ -39,6 +39,12 @@ Both must be present in API_keys.json (or the env vars below).
 autocomplete_query_model is optional and defaults to search-history, which
 matches Vertex AI Search website data stores.
 The vertex Ai or search agent has to be set up on google console.
+
+Two datasets can be served side by side. Set VERTEX_SPAZIO_ENGINE_ID and
+VERTEX_SPAZIO_DATA_STORE_ID, and the same two for ORECCHIO, and each run searches
+the engine of its question set's theme. A theme without its own engine then fails
+visibly on the search page: it never answers from another theme's dataset. With
+none of these set, every run uses the single engine above, as before.
 """
 
 import os
@@ -124,6 +130,22 @@ def load_vertex_config():
         language_code,
         autocomplete_query_model,
     )
+
+
+# Theme names come from the caller, which reads them from the frozen question set.
+VERTEX_THEME_SETTINGS = {"space": "SPAZIO", "ear": "ORECCHIO"}
+
+
+def load_theme_configs(default):
+    """Per-theme engines. Project, location, language and model stay shared."""
+    configs = {}
+    for theme, label in VERTEX_THEME_SETTINGS.items():
+        engine_id = os.getenv(f"VERTEX_{label}_ENGINE_ID", "").strip()
+        data_store_id = os.getenv(f"VERTEX_{label}_DATA_STORE_ID", "").strip()
+        if engine_id or data_store_id:
+            configs[theme] = (*default[:2], engine_id, data_store_id, *default[4:])
+    return configs
+
 
 # ---------------------------------------------------------------------------
 # Lazy client factories
@@ -343,18 +365,30 @@ def serp_autocomplete(query, max_suggestions=5):
 
 SEARCH_BACKEND = os.getenv("SEARCH_BACKEND", "vertex").lower()
 _vertex_config = load_vertex_config()
+_theme_configs = load_theme_configs(_vertex_config)
 
 
-def search(query, page, rpp):
+def vertex_config_for(theme):
+    """Once any theme has its own engine, a run may only search the engine of its theme."""
+    if not _theme_configs:
+        return _vertex_config
+    config = _theme_configs.get(theme)
+    if config is None:
+        logger.error("[Vertex Config ERROR] No search engine is set for this run's theme")
+        raise RuntimeError("No search engine is set for this run's theme")
+    return config
+
+
+def search(query, page, rpp, theme=None):
     if SEARCH_BACKEND == "vertex":
-        return vertex_search(query, page, rpp, _vertex_config)
+        return vertex_search(query, page, rpp, vertex_config_for(theme))
     return pyterrier_search(query, page, rpp)
 
 
-def autocomplete(query):
+def autocomplete(query, theme=None):
     """Return (suggestions, source), preserving the source labels in study logs."""
     if SEARCH_BACKEND == "vertex":
-        suggestions = vertex_autocomplete(query, _vertex_config)
+        suggestions = vertex_autocomplete(query, vertex_config_for(theme))
         if suggestions:
             return suggestions, "vertex"
         source = "SERP_API"

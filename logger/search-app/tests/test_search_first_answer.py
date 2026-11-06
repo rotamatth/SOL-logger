@@ -12,7 +12,7 @@ def test_original_first_answer_is_read_only_on_each_search_surface(module, path)
     client = begin(module)
     text = '  Laika\n</textarea><script>alert("original")</script>'
     assert first(client, text).status_code == 303
-    module.search_backend.search = lambda query, page, rpp: (query, [], 0, "none")
+    module.search_backend.search = lambda query, page, rpp, theme=None: (query, [], 0, "none")
     html = client.get(path).text
     fields = Fields(html)
     assert 'id="search-first-answer-btn"' in html

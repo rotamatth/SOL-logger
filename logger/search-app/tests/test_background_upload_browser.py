@@ -30,8 +30,8 @@ def student_site(tmp_path, monkeypatch, request):
                         ("RESEARCH_STATE_DIR", "state")):
         monkeypatch.setenv(name, str(tmp_path / value))
     backend = types.ModuleType("search_backend")
-    backend.search = lambda query, page, rpp: (query, [dict(result) for result in RESULTS], len(RESULTS), "none")
-    backend.autocomplete = lambda query: ([], "none")
+    backend.search = lambda query, page, rpp, theme=None: (query, [dict(result) for result in RESULTS], len(RESULTS), "none")
+    backend.autocomplete = lambda query, theme=None: ([], "none")
     backend.autocomplete_query_model = lambda: None
     monkeypatch.setitem(sys.modules, "search_backend", backend)
     import flask_session
