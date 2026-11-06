@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">    
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}?v=question-breaks-20261023">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}?v=responsive-interface-20261105">
 
     {% if title %}
         <title>Search App - {{ title }}</title>
@@ -14,6 +14,7 @@
     {% endif %}
 </head>
 <body>
+    {% include "test_run_banner.html" %}
     <main role="main" class="app-main">
         {% block content %}{% endblock content %}
     </main>
@@ -40,7 +41,7 @@
 
     <div id="endTaskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="task-confirm-title">
         <div class="modal-content-box">
-            <span id="task-confirm-close" class="close" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</span>
+            <button type="button" id="task-confirm-close" class="close" aria-label="Chiudi" onclick="window._endTaskCloseReason='x-close'; closeEndTaskModal()">&times;</button>
             <h2 id="task-confirm-title">Sei sicuro di voler terminare il compito?</h2>
             <p id="task-confirm-detail">Non potrai tornare indietro. Vuoi davvero terminare il compito adesso?</p>
             <p id="task-save-error" class="form-error" role="alert" hidden>Salvataggio non riuscito. La risposta è conservata in questo browser. Controlla la connessione e premi Riprova.</p>
@@ -50,22 +51,31 @@
         <!-- <button id = "yes-end-btn" class="btn btn-primary" onclick="closeEndTaskModal();openFeedbackModal()">Yes, end task</button> -->
         <button id = "yes-end-btn" class="app-btn app-btn-primary">Si, termina</button>
 
-        <button id = "no-end-btn" onclick="window._endTaskCloseReason='no-btn'; closeEndTaskModal(); openFeedbackModal()" class="app-btn app-btn-secondary">No, continua a cercare</button>
+        <button id = "no-end-btn" data-dialog-initial-focus onclick="window._endTaskCloseReason='no-btn'; closeEndTaskModal(); openFeedbackModal()" class="app-btn app-btn-secondary">No, continua a cercare</button>
         </div>
         </div>
     </div>
 
-    <div id="feedbackModal" class="modal">
+    <div id="feedbackModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
     <div class="modal-content-box">
-        <span class="close" onclick="window._feedbackCloseReason='x-button'; closeFeedbackModal()">&times;</span>
-        <h2>Hai completato la risposta?</h2>
+        <button type="button" class="close" aria-label="Chiudi" onclick="window._feedbackCloseReason='x-button'; closeFeedbackModal()">&times;</button>
+        <h2 id="feedback-title">Hai completato la risposta?</h2>
 
             <div id="feedback">
-                <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5"></textarea>
-                <p id="answer-error-message" class="form-error" hidden>Inserisci una risposta</p>
+                <textarea id="textarea_feedback" name="feedbackText" cols="40" rows="5" aria-labelledby="feedback-title">{% if final_answer_draft %}
+{{ final_answer_draft.text }}{% endif %}</textarea>
+                <p id="answer-error-message" class="form-error" role="alert" hidden>Inserisci una risposta</p>
+                {% if final_answer_draft %}
+                <output id="final-answer-draft-status" class="final-answer-draft-status" aria-live="polite"
+                        data-url="{{ final_answer_draft.url }}" data-revision="{{ final_answer_draft.revision }}"
+                        data-csrf-token="{{ final_answer_draft.csrf_token }}"
+                        data-attempt-id="{{ final_answer_draft.attempt_id }}"
+                        data-question-number="{{ final_answer_draft.question_number }}"></output>
+                <button id="final-answer-draft-retry" class="app-btn app-btn-secondary" type="button" hidden>Riprova salvataggio</button>
+                {% endif %}
             </div>
 
-            <div class="modal-buttons">
+            <div class="modal-buttons feedback-actions">
                 <button id="feedback-btn" class="app-btn app-btn-primary">Invia risposta e termina</button>
                 <button id="continue-search-btn" class="app-btn app-btn-secondary">Continua a cercare</button>
             </div>
@@ -87,7 +97,9 @@
             let debounceTimer;
             let activeIndex = -1;
             let autocompleteRequestSequence = 0;
+            let autocompleteRequest = null;
             let searchSubmitted = false;
+            const autocompleteDebounceMs = 200;
 
             function setAutocompleteContext(details = {}) {
                 const suggestions = Array.isArray(details.suggestions)
@@ -122,6 +134,22 @@
                 clearBtn.disabled = !hasValue;
             }
 
+            function cancelSuggestions() {
+                clearTimeout(debounceTimer);
+                autocompleteRequestSequence += 1;
+                autocompleteRequest?.abort();
+                autocompleteRequest = null;
+            }
+
+            function resetSuggestions(prefix) {
+                cancelSuggestions();
+                list.replaceChildren();
+                list.removeAttribute("aria-busy");
+                activeIndex = -1;
+                setAutocompleteContext({ prefix });
+                hideList();
+            }
+
             syncClearButton();
 
             if (clearBtn) {
@@ -130,12 +158,7 @@
                     if (!clearedQuery) return;
 
                     input.value = "";
-                    list.innerHTML = "";
-                    activeIndex = -1;
-                    autocompleteRequestSequence += 1;
-                    clearTimeout(debounceTimer);
-                    setAutocompleteContext({ prefix: "" });
-                    hideList();
+                    resetSuggestions("");
                     syncClearButton();
                     input.focus();
 
@@ -150,70 +173,78 @@
 
             input.addEventListener("input", () => {
                 const query = input.value.trim();
-                list.innerHTML = "";
-                activeIndex = -1;
                 syncClearButton();
-
                 if (query.length < 3) {
-                    autocompleteRequestSequence += 1;
-                    setAutocompleteContext({ prefix: query });
-                    hideList();
+                    resetSuggestions(query);
                     return;
                 }
+                cancelSuggestions();
+                activeIndex = -1;
+                setAutocompleteContext({ prefix: query });
+                list.setAttribute("aria-busy", "true");
+                for (const option of list.children) {
+                    option.setAttribute("aria-selected", "false");
+                    option.setAttribute("aria-disabled", "true");
+                }
 
-                clearTimeout(debounceTimer);
-
-                const requestId = autocompleteRequestSequence + 1;
-                autocompleteRequestSequence = requestId;
+                const requestId = autocompleteRequestSequence;
                 debounceTimer = setTimeout(() => {
                     fetchSuggestions(query, requestId);
-                }, 300);
+                }, autocompleteDebounceMs);
             });
 
             input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" || e.key === "Tab") {
+                    dismissList();
+                    if (e.key === "Escape") e.preventDefault();
+                    return;
+                }
+                if (list.getAttribute("aria-busy") === "true") return;
                 const items = list.querySelectorAll("li");
                 if (!items.length) return;
 
                 if (e.key === "ArrowDown") {
                     e.preventDefault();
+                    showList();
                     activeIndex = (activeIndex + 1) % items.length;
                     updateActive(items);
                 }
 
                 if (e.key === "ArrowUp") {
                     e.preventDefault();
+                    showList();
                     activeIndex =
-                        (activeIndex - 1 + items.length) % items.length;
+                        activeIndex < 0 ? items.length - 1 : (activeIndex - 1 + items.length) % items.length;
                     updateActive(items);
                 }
 
-                if (e.key === "Enter" && activeIndex >= 0) {
+                if (e.key === "Enter" && activeIndex >= 0 && !list.classList.contains("hidden")) {
                     // Take over the native submit so the highlighted
                     // suggestion, not the typed prefix, is what gets searched.
                     e.preventDefault();
                     select(items[activeIndex].textContent);
                 }
 
-                if (e.key === "Escape") {
-                    hideList();
-                }
             });
 
             async function fetchSuggestions(query, requestId) {
+                const request = new AbortController();
+                autocompleteRequest = request;
                 try {
                     const response = await fetch(
-                        `/autocomplete?query=${encodeURIComponent(query)}`
+                        `/autocomplete?query=${encodeURIComponent(query)}`,
+                        { signal: request.signal }
                     );
 
                     if (requestId !== autocompleteRequestSequence) return;
-
                     if (!response.ok) {
-                        setAutocompleteContext({ prefix: query });
-                        hideList();
+                        resetSuggestions(query);
                         return;
                     }
 
                     const data = await response.json();
+                    if (requestId !== autocompleteRequestSequence) return;
+
                     const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
                     const source = data?.source || "none";
                     const queryModel = data?.query_model || data?.queryModel || null;
@@ -224,24 +255,24 @@
                         queryModel
                     });
 
-                    list.innerHTML = "";
-
                     if (suggestions.length === 0) {
-                        hideList();
+                        resetSuggestions(query);
                         return;
                     }
 
-                    suggestions.forEach(value => {
+                    const options = document.createDocumentFragment();
+                    suggestions.forEach((value, index) => {
                         const li = document.createElement("li");
                         li.textContent = value;
                         li.role = "option";
+                        li.id = `query-suggestion-${index}`;
                         li.setAttribute("aria-selected", "false");
 
                         li.addEventListener("mousedown", () => {
                             select(value);
                         });
 
-                        list.appendChild(li);
+                        options.appendChild(li);
                     });
 
                     if (window.studyLogger) {
@@ -253,14 +284,17 @@
                         });
                     }
 
+                    list.replaceChildren(options);
+                    list.removeAttribute("aria-busy");
                     showList();
 
                 } catch (err) {
                     if (requestId === autocompleteRequestSequence) {
-                        setAutocompleteContext({ prefix: query });
-                        hideList();
+                        resetSuggestions(query);
+                        console.error("Autocomplete error:", err);
                     }
-                    console.error("Autocomplete error:", err);
+                } finally {
+                    if (autocompleteRequest === request) autocompleteRequest = null;
                 }
             }
 
@@ -268,19 +302,24 @@
                 items.forEach((el, i) =>
                     el.setAttribute("aria-selected", i === activeIndex)
                 );
+                const active = items[activeIndex];
+                if (active) {
+                    input.setAttribute("aria-activedescendant", active.id);
+                    active.scrollIntoView({ block: "nearest" });
+                }
             }
 
             // Picking a suggestion runs the search straight away, so the
             // participant never has to press "Cerca" a second time.
             function select(value) {
+                if (list.getAttribute("aria-busy") === "true") return;
                 input.value = value;
                 syncClearButton();
                 hideList();
 
                 // Drop any in-flight or pending suggestion request: the
                 // chosen value is final.
-                clearTimeout(debounceTimer);
-                autocompleteRequestSequence += 1;
+                cancelSuggestions();
 
                 submitSearch();
             }
@@ -312,7 +351,10 @@
 
             // Fires when the field is emptied without an "input" event,
             // e.g. Escape in a search field or a browser-restored value.
-            input.addEventListener("search", syncClearButton);
+            input.addEventListener("search", () => {
+                syncClearButton();
+                if (!input.value) resetSuggestions("");
+            });
 
             // Back-navigation can restore this page from the bfcache with its
             // JavaScript state intact, so release the submit guard.
@@ -329,12 +371,21 @@
             function hideList() {
                 list.classList.add("hidden");
                 input.setAttribute("aria-expanded", "false");
+                input.removeAttribute("aria-activedescendant");
+                activeIndex = -1;
+                list.querySelectorAll("li").forEach(item => item.setAttribute("aria-selected", "false"));
+            }
+
+            function dismissList() {
+                clearTimeout(debounceTimer);
+                autocompleteRequestSequence += 1;
+                hideList();
             }
 
             document.addEventListener("click", (e) => {
                 if (!e.target.closest("#query-suggestions") &&
                     e.target !== input) {
-                    hideList();
+                    dismissList();
                 }
             });
         })();
@@ -359,6 +410,8 @@
                         answerError.hidden = false;
                     }
                     if (answerBox) {
+                        answerBox.setAttribute("aria-invalid", "true");
+                        answerBox.setAttribute("aria-describedby", "answer-error-message");
                         answerBox.focus();
                     }
                     return;
@@ -366,6 +419,8 @@
                 if (answerError) {
                     answerError.hidden = true;
                 }
+                answerBox.removeAttribute("aria-invalid");
+                answerBox.removeAttribute("aria-describedby");
 
                 if (typeof saveDraftAnswer === 'function') {
                     saveDraftAnswer(answerBox.value);
@@ -393,6 +448,7 @@
             yesEndBtn.addEventListener('click', async () => {
                 if (isSubmitting) return;
                 isSubmitting = true;
+                if (window.finalAnswerDraft) window.finalAnswerDraft.pause();
                 yesEndBtn.disabled = true;
                 document.getElementById("task-save-error").hidden = true;
                 if (finalbtn) finalbtn.disabled = true;
@@ -441,7 +497,7 @@
                         localStorage.removeItem(submissionKey);
                         clearDraftAnswer();
                         clearClientData();
-                        window.location.href = "{{ url_for('reward') }}";
+                        window.location.href = "{{ url_for('task') if study_context else url_for('next_task') }}";
                         return;
                     }
 
@@ -488,12 +544,15 @@
         return `answer_${sid}_${tnum}`;
     }
     function loadDraftAnswer() {
+        if (window.finalAnswerDraft) return window.finalAnswerDraft.value();
         try { return sessionStorage.getItem(answerStorageKey()) || ""; } catch (_) { return ""; }
     }
     function saveDraftAnswer(value) {
+        if (window.finalAnswerDraft) { window.finalAnswerDraft.update(value); return; }
         try { sessionStorage.setItem(answerStorageKey(), value); } catch (_) {}
     }
     function clearDraftAnswer() {
+        if (window.finalAnswerDraft) { window.finalAnswerDraft.clear(); return; }
         try { sessionStorage.removeItem(answerStorageKey()); } catch (_) {}
     }
 
@@ -521,6 +580,8 @@
         }
         const answerBox = document.getElementById("textarea_feedback");
         if (answerBox) {
+            answerBox.removeAttribute("aria-invalid");
+            answerBox.removeAttribute("aria-describedby");
             answerBox.value = loadDraftAnswer();
             setTimeout(() => answerBox.focus(), 0);
         }
@@ -567,6 +628,13 @@
 
     <script>
     function clearClientData() {
+        if (window.STUDY_PROGRESS_CONTEXT) {
+            // The next question keeps the run and any unrelated recovery buffers.
+            if (window.studyLogger) window.studyLogger.historyTracker = [];
+            localStorage.removeItem('browserHistory');
+            try { sessionStorage.removeItem('solLastAllowedAppUrl'); } catch (_) {}
+            return;
+        }
         if (window.studyLogger && typeof window.studyLogger.clearClientData === 'function') {
             window.studyLogger.clearClientData();
             return;
@@ -582,8 +650,11 @@
         window.SESSION_ID = {{ session_id|tojson }};
         window.TASK_NUMBER = {{ session.get('task_number')|tojson }};
         window.USER_ID = {{ session.get('user_id')|tojson }};
+        window.STUDY_PROGRESS_CONTEXT = {{ study_context|default(none)|tojson }};
     </script>
     <script src="{{ url_for('static', filename='logger.js') }}"></script>
+    <script src="{{ url_for('static', filename='interface.js') }}?v=20261022"></script>
+    {% if final_answer_draft %}<script src="{{ url_for('static', filename='final-answer-draft.js') }}"></script>{% endif %}
 
     <script>
     (function () {
@@ -653,7 +724,7 @@
             const href = a.getAttribute('href') || '';
             if (a.target === '_blank' || href.startsWith('javascript:') ||
                 href.startsWith('#') || a.hasAttribute('download')) return;
-            if (a.matches('a.result-link, a.page-link, #serp-back-btn, #viewer-back-btn, #serp-logo-link, .reward-continue-btn, .reward-final-btn, #continue-btn')) {
+            if (a.matches('a.result-link, a.page-link, #serp-back-btn, #viewer-back-btn, #serp-logo-link, #continue-btn')) {
                 maybeStart(e);
             }
         });

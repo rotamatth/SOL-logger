@@ -1,0 +1,14 @@
+/* Only a permanent test run shows this, so a wrong ID is noticed at once. */
+.test-run-banner {
+  background: #7a2e0e;
+  color: #fff;
+  font-weight: 600;
+  padding: 6px 16px;
+  text-align: center;
+}
+
+.test-run-banner a {
+  color: #fff;
+  margin-left: 8px;
+  text-decoration: underline;
+}

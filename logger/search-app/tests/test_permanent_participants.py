@@ -272,7 +272,10 @@ def test_promotion_and_deactivation_do_not_change_started_attempt(student_module
     # Today's session still uses its own prior year, even when planning advances.
     assert module.app.test_client().post('/start', data={'user_id':'2'}).status_code == 302
     change(state, 'update', uid='1', year=next_year, grade='5', active=False)
-    assert module.app.test_client().post('/start', data={'user_id':'1'}).status_code == 400
+    resumed = module.app.test_client()
+    assert resumed.post('/start', data={'user_id':'1'}).status_code == 302
+    with resumed.session_transaction() as active:
+        assert active['session_id'] == sid  # Resuming an admitted child is not a new admission.
     assert student.get('/task').status_code == 200
     assert state.attempt_metadata(sid) == before
     settings = state.settings()

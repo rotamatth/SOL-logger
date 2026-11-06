@@ -13,6 +13,9 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 TOPIC_FIELDS = tuple(f"{n}_{kind}" for n in range(1, 4) for kind in ("short", "full", "gif")) + ("full_gif",)
 
 
+CONTENT_FIELDS = tuple(f"{n}_{kind}" for n in range(1, 4) for kind in ("short", "full"))
+
+
 def load_topics(path):
     with open(path, newline="", encoding="utf-8") as source:
         return {row["uid"]: {key: row.get(
@@ -21,7 +24,7 @@ def load_topics(path):
 
 
 def load_topic_metadata(path):
-    """Keep CSV conditions separate from the strict legacy task/reward shape."""
+    """Keep CSV experimental conditions separate from legacy positional fields."""
     with open(path, newline="", encoding="utf-8") as source:
         return {row["uid"]: {key: (value or "").strip() for key, value in row.items()
                              if isinstance(key, str) and key not in ("uid", "full_gif")
@@ -43,35 +46,30 @@ def configure_students(app):
             if uid in metadata and topics == source_topics.get(uid)}
     if "STUDENT_LEGACY_IDS" not in app.config:
         app.config["STUDENT_LEGACY_IDS"] = set((APP_ROOT / "data/uids.txt").read_text().split())
-    app.config.setdefault("STUDENT_ASSET_DIR", str(APP_ROOT / "static/puzzle_pieces"))
 
 
 def validate_topics(topics):
-    if not isinstance(topics, dict) or set(topics) != set(TOPIC_FIELDS):
+    if (not isinstance(topics, dict) or not set(CONTENT_FIELDS) <= set(topics)
+            or not set(topics) <= set(TOPIC_FIELDS)):
         raise ValueError("invalid_task_assignment")
-    for key, value in topics.items():
+    for key in CONTENT_FIELDS:
+        value = topics[key]
         if not isinstance(value, str) or not value.strip() or len(value) > 2000:
             raise ValueError("invalid_task_assignment")
-        if key.endswith("gif"):
-            extensions = (".gif", ".mp4") if key == "full_gif" else (".gif",)
-            if not re.fullmatch(r"[A-Za-z0-9_.-]+", value) or value in (".", "..") or not value.lower().endswith(extensions):
-                raise ValueError("invalid_task_assignment")
     return topics
 
 
-def topics_ready(topics, asset_dir):
+def topics_ready(topics, asset_dir=None):
     return assignment_problem(topics, asset_dir) is None
 
 
-def assignment_problem(topics, asset_dir):
+def assignment_problem(topics, asset_dir=None):
     if topics is None:
         return "assignment_missing"
     try:
         validate_topics(topics)
     except ValueError:
         return "assignment_invalid"
-    if not all((Path(asset_dir) / topics[key]).is_file() for key in TOPIC_FIELDS if key.endswith("gif")):
-        return "assignment_rewards_missing"
     return None
 
 
@@ -79,7 +77,7 @@ def task_catalog(app):
     unique = {}
     for topics in app.config["STUDENT_TOPICS"].values():
         normalized = {key: topics.get(key, "") for key in TOPIC_FIELDS}
-        if not topics_ready(normalized, app.config["STUDENT_ASSET_DIR"]):
+        if not topics_ready(normalized):
             continue
         token = sha256(json.dumps(normalized, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:24]
         unique[token] = {"id": token, "topics": normalized,
@@ -95,7 +93,7 @@ def configured_topics(app, rule, uid):
     original = app.config["STUDENT_TOPICS"].get(uid) if uid in app.config["STUDENT_LEGACY_IDS"] else None
     original = {key: original.get(key, "") for key in TOPIC_FIELDS} if original else None
     assignment = rule.get("assignment")
-    if assignment and (assignment["mode"] == "all" or not topics_ready(original, app.config["STUDENT_ASSET_DIR"])):
+    if assignment and (assignment["mode"] == "all" or not topics_ready(original)):
         return assignment["topics"]
     return original
 
@@ -104,7 +102,7 @@ def eligible_students(app, settings):
     """Legacy assignment inventory; use scheduled_assignment for V2 eligibility."""
     return {uid: topics for rule in settings["ranges"] for uid in range_ids(rule)
             if (topics := configured_topics(app, rule, uid))
-            and topics_ready(topics, app.config["STUDENT_ASSET_DIR"])}
+            and topics_ready(topics)}
 
 
 def range_summary(app, rule):
@@ -112,7 +110,7 @@ def range_summary(app, rule):
     participants = []
     for uid in ids:
         topics = configured_topics(app, rule, uid)
-        problem = assignment_problem(topics, app.config["STUDENT_ASSET_DIR"])
+        problem = assignment_problem(topics)
         participants.append({"id": uid, "ready": problem is None, "problem": problem,
                              "titles": [topics.get(f"{n}_short", "") for n in range(1, 4)] if topics else [],
                              "questions": [topics.get(f"{n}_full", "") for n in range(1, 4)] if topics else []})

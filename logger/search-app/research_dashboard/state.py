@@ -375,18 +375,19 @@ class State:
         """Serialize eligibility and immutable attempt creation with settings edits."""
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
-            if row["revision"] != metadata["settings_revision_at_collection"]:
-                raise ValueError("settings_changed")
-            configuration = {**json.loads(row["body"]), **identities.projection(db)}
-            selected = scheduled_assignment(configuration, metadata["participant_id"])
-            if not selected or selected["session"]["id"] != metadata["study_session_at_collection"]:
-                raise ValueError("session_unavailable")
-            context = selected.get("enrollment")
-            if not context or any(metadata.get(key) != context[field] for key, field in (
-                    ("participant_key", "participant_key"), ("enrollment_id", "enrollment_id"),
-                    ("school_year_at_collection", "school_year"), ("grade_at_collection", "grade"))):
-                raise ValueError("invalid_enrollment")
+            if not metadata.get("is_test"):
+                row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
+                if row["revision"] != metadata["settings_revision_at_collection"]:
+                    raise ValueError("settings_changed")
+                configuration = {**json.loads(row["body"]), **identities.projection(db)}
+                selected = scheduled_assignment(configuration, metadata["participant_id"])
+                if not selected or selected["session"]["id"] != metadata["study_session_at_collection"]:
+                    raise ValueError("session_unavailable")
+                context = selected.get("enrollment")
+                if not context or any(metadata.get(key) != context[field] for key, field in (
+                        ("participant_key", "participant_key"), ("enrollment_id", "enrollment_id"),
+                        ("school_year_at_collection", "school_year"), ("grade_at_collection", "grade"))):
+                    raise ValueError("invalid_enrollment")
             db.execute("""INSERT INTO study_attempts
                        (technical_session_id,study_session_id,participant_id,metadata,published)
                        VALUES (?,?,?,?,0)""",
@@ -403,6 +404,29 @@ class State:
         with self.connect() as db:
             return [json.loads(row[0]) for row in db.execute(
                 "SELECT metadata FROM study_attempts WHERE study_session_id=? ORDER BY rowid", (session_id,))]
+
+    def progress_run_for_date(self, participant_id, study_date):
+        """Recover a progress-enabled admission from its frozen collection date."""
+        with self.connect() as db:
+            rows = db.execute("SELECT metadata FROM study_attempts WHERE participant_id=? ORDER BY rowid",
+                              (participant_id,)).fetchall()
+        for row in rows:
+            metadata = json.loads(row[0])
+            if (metadata.get("progress_enabled") is True and not metadata.get("is_test")
+                    and metadata.get("study_id_at_collection") == DEFAULT_STUDY_ID
+                    and metadata.get("study_session_snapshot", {}).get("date") == study_date):
+                return metadata
+        return None
+
+    def progress_ids_for_date(self, study_date):
+        """Already admitted children remain available for same-day resume."""
+        with self.connect() as db:
+            rows = db.execute("SELECT participant_id,metadata FROM study_attempts").fetchall()
+        return {row["participant_id"] for row in rows
+                if (metadata := json.loads(row["metadata"])).get("progress_enabled") is True
+                and not metadata.get("is_test")
+                and metadata.get("study_id_at_collection") == DEFAULT_STUDY_ID
+                and metadata.get("study_session_snapshot", {}).get("date") == study_date}
 
     def pending_attempts(self):
         with self.connect() as db:

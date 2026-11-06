@@ -65,6 +65,204 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Keep the deploy script running after its backup
+
+**Commit:** pending · **Type:** fix · **Area:** infra
+
+**Files**
+- `scripts/deploy.sh` — the backup container no longer reads the script's standard input
+- `logger/search-app/tests/test_deploy_script.py` — new; runs the remote part from standard input with a fake `docker`
+- `logger/docs/follow_up_checks.md` — the fake May logs are gone from the server
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+`deploy.sh` sends its remote part to `ssh ... bash -s`, so that part is on standard input while it runs. `docker compose run`
+attaches standard input to the container and drained the rest of the script. The remote shell then found nothing more to do and
+exited with success, leaving the app stopped, with "Deploy complete" printed and no rollback. The backup itself was fine.
+`</dev/null` keeps that one command away from the script.
+
+**If something looks wrong after this, check**
+- A deploy that prints "Deploy complete" without "Verified backup" → a step read standard input; the app is stopped, so start it with `docker compose up -d --no-build --wait search_app`.
+
+**Left alone**
+Every other step of the deploy, and the backup tool.
+
+**Verified**
+Reproduced with real Docker: the line after `docker compose run` did not run from `bash -s`, and did with `</dev/null`. The new test
+failed before the fix and passes after it. The first real deploy on 2026-11-06 hit this. The earlier Linux rehearsal ran the remote
+part from a file, which hid it, so a deploy rehearsal must feed it through standard input. The fixed script has not yet run on the server.
+
+## 2026-11-06 — Set May's classes from the server's logs
+
+**Commit:** pending · **Type:** infra · **Area:** data, dashboard
+
+**Files**
+- `logger/search-app/tools/setup_session_2026_11_10.py` — May is 19 May 2026, class 3 with IDs 1-8, 17, 18 and class 4 with IDs 9-16
+- `logger/search-app/tests/test_setup_session_2026_11_10.py` — checks the shipped values, and that other days stay out
+- `logger/docs/follow_up_checks.md` — May is set, real search answered from a Mac; the server's own check and Diletta's questions remain
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The server's logs show two class starts on 19 May 2026: IDs 9-16 within 8 seconds at 10:41 and IDs 1-8, 17, 18 within 71 seconds at
+14:47. All 18 finished three questions, so no later run is a redo. Only that day is classified and linked to the children, so runs
+on other days stay out of the classes, also under a real ID. IDs 19 and 20 have no May run, so they are enrolled for this year only.
+The rule works by date, so a test on that same day counts with the class: ID 11 has one at 08:00.
+
+**If something looks wrong after this, check**
+- A May run without a class → it is not dated 19 May, or its name is not a numeric ID.
+- Class 4 of 2025/2026 shows 8 children → expected; 19 and 20 start this year.
+
+**Left alone**
+The May log files. Removing the fake runs from the server is a separate manual step.
+
+**Verified**
+The tool's tests on a real `State` and index, with runs on other days under real IDs. The dates, times and finished counts come
+from the server's real file list, read by Matthias; the log contents were not read here.
+
+## 2026-11-06 — One-step setup of the 10 November session and May's classes
+
+**Commit:** pending · **Type:** infra · **Area:** data, dashboard
+
+**Files**
+- `logger/search-app/tools/setup_session_2026_11_10.py` — new; prepares a fresh dashboard in one step, with `--dry-run`
+- `logger/search-app/tests/test_setup_session_2026_11_10.py` — new
+- `logger/docs/follow_up_checks.md` — what is still open before the class: real engines, May's dates, test IDs on the server
+
+**What changed for the participant**
+No visible change: the start page lists the real IDs once this has run.
+
+**How it works**
+On a fresh dashboard it creates Session 1 for class 4 (`spazio`, IDs 1-8, 17, 18) and class 5 (`orecchio`, IDs 9-16, 19, 20),
+removes the pre-filled IDs 21-40 and the empty sessions, enrolls the same children a class lower in 2025/2026, and adds
+historical rules and identity links for May's records. It writes through the dashboard's validated functions, apart from
+deleting the unused IDs. May's files are only read. The tool refuses when it finds a school year, a prepared session, a
+child's run, a link or a log, and changes nothing.
+
+May does not appear in the Sessions list. Session numbers run per class across years, so a May session for class 4 would make
+Tuesday its Session 2, which changes the recap and ends the study one session early.
+
+**If something looks wrong after this, check**
+- "Nothing changed" from the tool → it names what it found; look at that before anything else.
+- A May run without a class → its date is outside the tool's May periods, or its name is not a numeric ID.
+
+**Left alone**
+Default settings for other installs, the May log files, the dashboard's editors. Test names such as `UserTestLog1` and
+`Utente1` stay unclassified and remain under historical records.
+
+**Verified**
+16 tests on a real `State` and index, including that May's files stay byte-identical. Rehearsed on the production image.
+
+## 2026-11-06 — Add permanent test IDs that stay out of the results
+
+**Commit:** pending · **Type:** feature · **Area:** session, task-flow, logging, dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — new; the two test experiments and their assignment
+- `logger/search-app/research_dashboard/collection.py` — a test run's sidecar goes to `test-runs`, marked `is_test`
+- `logger/search-app/research_dashboard/state.py` — test attempts skip session checks and same-day resume
+- `logger/search-app/research_dashboard/index.py` — a test ID's file is never read as a child's
+- `logger/search-app/search_app.py` — a second `LogStore` for test runs, `/test-run/restart`, test IDs on the start list
+- `logger/search-app/student_progress.py` — progress events of a test run go with its logs
+- `logger/search-app/templates/test_run_banner.html`, `logger/search-app/static/test-run.css` — new; PROVA banner, included in the four page shells
+- `logger/search-app/tests/test_permanent_test_experiment.py` — new
+- `logger/docs/research_dashboard.md`, `logger/docs/production_readiness.md` — what the IDs do and where their logs are
+
+**What changed for the participant**
+`TEST-spazio` and `TEST-orecchio` appear at the end of the ID list. A child's own pages do not change: the banner and its
+stylesheet exist only in a test run.
+
+**How it works**
+Choosing a test ID makes a one-person session on the spot, with a new session ID each time, so every start is a new attempt.
+It needs no enrollment or settings. Its uploads, sidecar and progress events go through a separate `LogStore` in
+`logs-v2/test-runs`. The dashboard scans only the top of `logs-v2`, so test runs are out of the results by where they are
+written, not by a filter. Unsent batches are routed by the attempt they belong to, not by who is using the browser.
+
+**If something looks wrong after this, check**
+- A child's logs missing from the dashboard → look in `logs-v2/test-runs`; a test ID may have been chosen, and the PROVA banner would have shown.
+- `TEST-` files in the top of `logs-v2` → events of a test run inside a child's batch; the dashboard ignores them.
+- A start page without test IDs → an image older than this commit.
+
+**Left alone**
+The children's admission, `scheduled_assignment`, `LogStore` itself and the event format. Events of a real run gain no field,
+which is why the banner reads the session and not `study_context`, whose content goes into every logged event.
+
+**Verified**
+12 new tests: any day with no session, a whole run through the recap with nothing in the real folder, no receipt journal
+created there, results and resume lists beside a real child, repeated restarts, a double tap, unsent batches in both
+directions, a pending sidecar. Rehearsed on the production image with 20 children at once.
+
+## 2026-11-06 — Choose the search engine from the session's theme
+
+**Commit:** pending · **Type:** feature · **Area:** serp, autocomplete, infra
+
+**Files**
+- `logger/search-app/search_backend.py` — `load_theme_configs`, `vertex_config_for`; `search` and `autocomplete` take the run's theme
+- `logger/search-app/search_app.py` — `run_theme` reads the theme frozen in the run; `known_theme` shared with the recap pictures
+- `logger/docker-compose.yml` — passes `VERTEX_SPAZIO_*` and `VERTEX_ORECCHIO_*`
+- `logger/search-app/tools/check_search_engines.py` — asks each engine one real question before a session
+- `logger/search-app/tests/test_search_by_theme.py` — new; test doubles of the backend accept the theme
+- `logger/docs/production_readiness.md` — how to set the engines on the server
+
+**What changed for the participant**
+A class searches the dataset of its own theme: spazio and orecchio can use different engines on one server.
+
+**How it works**
+The theme comes from the question set frozen when the run started, the same text that chooses the animations. Once any
+per-theme engine is set, a theme without its own engine raises an error, so the child sees the search error page and the
+server logs it, rather than results from another dataset. Autocomplete then returns no suggestions.
+
+**If something looks wrong after this, check**
+- Search error page for one class only → that theme's `VERTEX_*_ENGINE_ID` in `logger/.env`, or a theme text the app does not recognise.
+- `PermissionDenied` in the logs → the service account has no role on the engines' project.
+- No Vertex suggestions for one class → that theme's `VERTEX_*_DATA_STORE_ID`.
+
+**Left alone**
+What is logged per event, the result handling in `vertex_search`, the PyTerrier backend and the SerpAPI fallback, which has
+no dataset. A single engine still works with no new setting.
+
+**Verified**
+Tests with fake clients check the engine and data store each theme reaches and that no call happens without one, and
+real student routes check the theme passed, including after resuming in a new browser. A real query from a Mac reached Google,
+but was refused for this service account's missing permission, so real results per engine are still unverified.
+
+## 2026-11-06 — Fit the tests to the combined release
+
+**Commit:** pending · **Type:** infra · **Area:** tests, task-flow, dashboard
+
+**Files**
+- `logger/search-app/tests/test_live_view.py` — the real-run test confirms a first answer and sends a complete final answer
+- `logger/search-app/tests/test_first_answer_flow_browser.py` — the expected recap picture now depends on the theme; waits for the search page
+- `logger/search-app/tests/test_search_first_answer_browser.py` — waits for the search page before tapping the button
+- `logger/search-app/tests/test_final_answer_draft_browser.py` — waits for the search page and the viewer before tapping
+
+**What changed for the participant**
+No visible change. Only tests changed.
+
+**How it works**
+The live view and recap tests passed on their own branches and failed only once dashboard v2, the question flow and the
+recap were merged together. #23 refuses a final answer without its attempt and question, and the server now logs the start of a
+task itself, so the live view test takes its times from the real run. It also checks that a finished question shows a
+time instead of "—". The recap test expected the space picture for both themes.
+
+The other two were intermittent: they tapped "La mia prima risposta" or "Scrivi la risposta" while the page was still
+loading, before the button's handler existed. They now wait for the page, as the other browser tests do.
+
+**If something looks wrong after this, check**
+- A live view showing "—" for time on the real flow → `started_at` and `ended_at` in `research_dashboard/task_stats.py`.
+
+**Left alone**
+A tap on those buttons while the page is still loading still does nothing, and a second tap works. Nothing is logged or
+lost and a saved draft stays, so the app was not changed days before a session.
+
+**Verified**
+Two throwaway tests confirmed the cause. With `logger.js` held back, an early tap did nothing and a tap after loading
+opened the dialog. In 40 runs of the draft flow, 9 first taps were lost with `openFeedbackModal is not defined`, and
+every second tap opened the box with the draft still there. Real iPads were not part of this.
+
 ## 2026-11-06 — Run the deploy backup in a container
 
 **Commit:** pending · **Type:** fix · **Area:** infra, docs
@@ -524,6 +722,254 @@ All routes and pages, including `/dashboard/settings`, which still has its Sessi
 
 **Verified**
 The server test suite passes. The narrow-width layout is reviewed with the session list.
+## 2026-11-05 — Update desktop interface verification for background uploads
+
+**Commit:** pending · **Type:** fix · **Area:** tests, logging
+
+The isolated `tests/ui_fixture.py` echoes the batch identifier expected by the
+logger. The desktop keyboard and touch scripts now inspect submitted events
+through that acknowledgement. All seven keyboard scenarios, both touch
+orientations and 42 layout checks passed in Chromium.
+
+## 2026-11-05 — Refine answer dialogs and animate question review
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/static/first-answer.js`, `final-answer-draft.js`, `main.css` and `templates/layout.html` keep routine saves quiet, surface errors and fit the answer actions on one row.
+- `search-app/search_app.py`, `templates/study_handoff.html`, `static/study-review.css` and `study-review.js` select and play each question's animation beside the existing answer comparison.
+- `search-app/static/videos/review/` contains the six supplied MP4s.
+- Student browser tests and `desktop_interface.md` cover the connected flow and record before and after captures.
+
+The animation uses the theme and original question position saved for the
+attempt. Inline playback is muted and honors the browser's reduced-motion
+setting. The recap uses its static theme image. If a clip looks wrong, compare
+the attempt's assigned theme and topic ID with the matching file in
+`static/videos/review/`. For draft recovery, use the inline error and retry
+control. [Desktop and tablet verification](desktop_interface.md)
+## 2026-11-06 — Validate recap autosave acknowledgements
+
+- Advance the locally tracked draft revision only when the server confirms
+  the expected revision. Keep the draft available to retry after a malformed
+  acknowledgement.
+
+## 2026-11-06 — Preserve recap access across the browser handoff
+
+- Require the browser's completed third-question review before showing,
+  editing or downloading the recap. A fresh browser that selects the same
+  completed ID sees the completion message.
+- Align the connected-flow and enrollment tests with the new recap and
+  verify that the same browser can download the durable PDF from another worker.
+
+## 2026-11-05 — Add editable session recap and saved PDF
+
+**Type:** feature · **Area:** participant recap, persistence, logging
+
+- Show completed sessions in three independently navigable columns with the
+  original question order, saved initial confidence and final-answer revisions.
+- Commit edits from every card together and save the final PDF in the progress
+  database before exposing download and return to welcome.
+- Record recap edits and per-session finish in the durable outbox. See
+  [recap behavior and storage](editable_recap.md).
+
+## 2026-11-05 — Complete progress history contracts and retire puzzle rewards
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, reward, data, logging, tests
+
+**Files**
+- `search-app/study_progress.py`, `student_progress.py` — schema 6 recap drafts/revisions, repeat receipts, session lifecycle events and stale-page/start-failure recovery.
+- `search-app/search_app.py`, templates, `static/main.css` — remove the reward route, reveal controls and styles; retain task review and neutral completion/close events.
+- `search-app/static/puzzle_pieces/*`, `templates/reward.html` — remove obsolete reward media and page.
+- `search-app/research_dashboard/student_config.py`, `settings_views.py`, `study_config.py`, `i18n.py` — question sets no longer require reward assets; historical metadata remains readable.
+- Progress/history/retirement/logging tests, restart smoke and `issue6_handover.md` — acceptance coverage and API handover.
+
+**What changed for the participant**
+The three-question flow contains no reward page or puzzle. An old browser's completed questions still continue safely. Concurrent advancement and a transient TaskStarted save failure remain recoverable.
+
+**How it works**
+Recap edits are append-only records with original before/after text, timestamp and verified editing context. Revision counters remain monotonic after draft confirmation, rejecting delayed autosaves. The internal repeat API atomically retires the old attempt and copies its exact snapshot/order into a fresh run with an idempotent authorization receipt. These are storage contracts for the separate #9/#15 interfaces. Identical pre-upgrade first-answer retries keep their historical null confidence. Completion and explicit closure publish through the durable outbox before success/clear.
+
+**If something looks wrong after this, check**
+`recap_draft_revisions` when restoring inactive drafts, new technical/log IDs when integrating #15, and the once-only TaskStarted/session events in FULL/per-task logs. A missing asset must not block enrollment.
+
+**Left alone**
+Recap/PDF/save-session UI, researcher reset authorization UI, autocomplete, MP4 and layout/autosave-label changes. The existing illustrated read-only handoff is retained.
+
+**Verified**
+Full server suite: 722 tests passed; current focused history/confidence checks: 40 passed. The complete required Chromium suite passed 116 tests. Ruff and JavaScript syntax passed. New-process restart, offline backup/restore and restored-process verification passed with confidence preserved. Desktop/tablet screenshots were inspected. Independent review findings were reproduced and fixed; real iPad Safari and local Docker replacement were not tested locally.
+
+## 2026-11-05 — Collect the child's initial self-assessment from Figma
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/templates/first_answer.html`, `static/first-answer.js`, `static/first-answer.css`, `static/confidence/*.svg` — accessible assessment options and original Figma stars.
+- `search-app/tests/test_initial_confidence_browser.py` and browser setup helpers — visibility, reset, restore, unknown and responsive checks.
+
+**What changed for the participant**
+“Secondo te, quanto è giusta la tua risposta?” appears immediately when an answer contains text. The child selects “Poco giusta”, “Abbastanza giusta” or “Giustissima” before confirming. Clearing the text resets the selection. “Non lo so” retains its separate confirmation.
+
+**How it works**
+Native radios share the existing revisioned draft save and recovery buffer. Acknowledgements compare both text and assessment so a change made during a save cannot disappear.
+
+**If something looks wrong after this, check**
+The first-answer draft's confidence and browser recovery buffer, and loading of the two local star SVGs.
+
+**Left alone**
+Autosave labels, search/final-answer button layouts, recap/PDF, MP4 and researcher restart interfaces.
+
+**Verified**
+19 required Chromium first-answer/search/upload regressions passed. Assessment controls fit desktop, portrait/landscape tablet and 320px widths. Real iPad Safari is not available in this environment.
+
+## 2026-11-05 — Persist initial confidence with the first answer
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, data, logging, tests
+
+**Files**
+- `search-app/study_progress.py`, `search-app/student_progress.py` — schema 5 migration, validated confidence, revisioned drafts and canonical events.
+- `search-app/tests/test_initial_confidence.py` and first-answer/progress setup helpers — atomicity, retries, concurrency, upgrade and route contracts.
+
+**What changed for the participant**
+Typed first answers require a confidence assessment. Confirmed “Non lo so” records no confidence.
+
+**How it works**
+The integer confidence (1/2/3) is stored with the original answer, search phase and outbox event in one transaction. Drafts store text and confidence under the same revision. Old measurements remain null and existing outbox events are preserved.
+
+**If something looks wrong after this, check**
+The configured progress database's schema version and the `confidence` field in `OwnKnowledgeAnswerSubmitted`. Conflicting confidence on a retry must return 409.
+
+**Left alone**
+Final answers, recap/restart interfaces, autocomplete and deployment dependencies.
+
+**Verified**
+104 focused persistence/route/event tests passed before the UI increment; additional migration and browser checks passed with that increment.
+
+## 2026-11-05 — Add the illustrated participant review on tablets
+
+**Commit:** pending · **Type:** feature · **Area:** styling, task-flow, tests
+
+**Files**
+- `search-app/templates/study_handoff.html`, `search-app/static/study-review.css` —
+  clarify the comparison, stack answers on narrow screens, and align the three
+  questions side by side in the landscape recap.
+- `search-app/static/study-review.js` — remove the print action from the recap.
+- `search-app/static/images/review/` — the six task images and two recap images
+  from the Diagrammi page of Attività Lambertenghi 2026-2027, optimized for tablets.
+- `search-app/search_app.py` — select artwork from the saved theme and original
+  topic position so it follows the question when the display order changes.
+- `search-app/tests/test_first_answer_flow_browser.py` — cover the narrow comparison
+  and the landscape recap in the complete three-question flow.
+- `search-app/tests/test_connected_first_answer.py` — verify the artwork for both themes.
+
+## 2026-11-05 — Mark draft retries as intentional background saves
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `search-app/static/first-answer.js`, `search-app/static/final-answer-draft.js` —
+  explicitly discard the promise returned by the retry handler. The save function
+  handles failures and updates the retry message.
+
+## 2026-11-04 — Show the participant’s before-and-after answers
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/search_app.py`, `search-app/student_progress.py`, `search-app/study_progress.py` — route confirmed tasks
+  to a comparison page scoped to the active participant’s saved attempt.
+- `search-app/templates/study_handoff.html`,
+  `search-app/static/study-review.css`, `search-app/static/study-review.js` — show
+  the two answers after each task and a printable recap after the third task.
+- `search-app/tests/` — exercise the comparison, recap, and continuation after a lost
+  save acknowledgement in the real student app.
+
+**What changed for the participant**
+The first and final answers are shown together after each confirmation. The third
+comparison opens a recap with all three pairs and the browser’s print-to-PDF dialog.
+The comparison cards use temporary graphics while the original illustrations are exported.
+
+**How it works**
+The page reads the stored question snapshot and the answers confirmed in this browser session.
+The review grant is recorded in the same transaction as the final answer.
+Reopening a completed attempt by ID shows a confirmation without displaying the previous answers.
+Original answers and the existing completion events are kept in their existing stores.
+
+## 2026-11-04 — Update study progress to the shared integration branch
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `search-app/tests/test_student_security.py` — confirm the final answer before ending
+  the first task and confirm the first answer before opening the next search.
+
+**Verified**
+The iframe test reproduces the missing-answer conflict before the adjustment.
+All 19 student security tests pass with the corrected setup.
+## 2026-11-06 — Keep autocomplete suggestions visible while typing
+
+The existing list stays visible while a new prefix loads, then the current
+response replaces it in one update. Previous suggestions remain inactive
+while loading so they cannot be selected or logged for the new prefix.
+
+## 2026-11-05 — Clear suggestion state if rendering fails
+
+**Commit:** pending · **Type:** fix · **Area:** autocomplete, logging, tests
+
+**Files**
+- `search-app/templates/layout.html` — clear partially applied suggestions and
+  metadata when the current response fails during rendering or logging.
+- `search-app/tests/test_autocomplete_browser.py` — synthetic logging failure.
+
+**What changed for the participant**
+When the suggestion list fails to open, the search field remains ready for a
+typed query without attributing it to a suggestion from that list.
+
+**If something looks wrong after this, check**
+- Suggestions disappear despite a successful response → check the browser console
+  for errors from rendering or saving the study log.
+
+**Verified**
+Chromium exercised a logging failure after the suggestions were prepared.
+
+## 2026-11-05 — Reduce autocomplete wait and recover from Vertex failures
+
+**Commit:** pending · **Type:** fix · **Area:** autocomplete, search-bar, logging, docs, tests
+
+**Files**
+- `search-app/templates/layout.html` — 200 ms debounce, browser request cancellation,
+  sequence checks around JSON parsing, and current-prefix logging context.
+- `search-app/search_app.py`, `search-app/search_backend.py` — normalized response,
+  reused Vertex completion client, and bounded attempts with SerpAPI fallback.
+- `search-app/tests/test_autocomplete_browser.py`, `test_backend_privacy.py`,
+  `test_student_security.py` — synthetic browser and provider contract coverage.
+- `docs/issue13_handover.md` — request trace, examples, and live verification steps.
+
+**What changed for the participant**
+Autocomplete requests start 100 ms sooner after typing stops. Clearing or editing the
+field drops suggestions and metadata for the previous prefix. If Vertex returns no
+suggestions or fails, SerpAPI can supply suggestions when configured.
+
+**How it works**
+Provider helpers return lists and the Flask route always returns `suggestions`,
+`source`, and `query_model`. A successful response preserves its study-log source
+label. Empty responses have `source: none` and a null model. The browser aborts
+superseded requests and checks the sequence again after parsing JSON.
+
+**If something looks wrong after this, check**
+- Late suggestions → the debounce and sequence checks in `layout.html`.
+- Missing suggestions → Vertex credentials, the completion deadline, and the
+  optional SerpAPI key, using the provider's error class in the app log.
+- Frequent SerpAPI fallback → check warm and cold Vertex timings against its
+  750 ms RPC deadline.
+
+**Left alone**
+Search ranking runs through `/result`. Vertex spell correction is suggestion-only
+and appears as `Forse cercavi` on the first result page when applicable.
+
+**Verified**
+Synthetic Vertex and SerpAPI responses and real Chromium exercised provider
+failures, request timing and cancellation, click and keyboard selection, clear,
+and the study log fields. See the handover for the live timing check.
 
 ## 2026-11-03 — Weekly Dependabot updates into matthias-dev
 

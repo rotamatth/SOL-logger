@@ -50,9 +50,18 @@ history of what was checked stays visible.
 - [ ] **Read-only check of the real server, before Monday's deploy.** The rehearsal assumed a non-root operator and
   rootful Docker: `id`, `docker info --format '{{.SecurityOptions}}'`, `git log -1 --oneline`, `ls -ln logger/logs | head -3`,
   `df -h .`, `python3 --version`, `docker compose version`. Done when these match, or the differences are understood.
-- [ ] **Repeat the rehearsal on the code actually released.** PRs #21, #22, #23, #26 and #27 were still moving on
-  2026-11-06. The class, crash, fault and deploy rehearsals covered their heads at `6ab59d8`, `9fdbfa5`, `6148635`,
-  `cf3b8b2` and `880435a`. Done when they pass on the final merge.
+- [ ] **Repeat the rehearsal on the code actually released.** #28 combines #22 (with #23), #26, #27 and dashboard v2; #21 is
+  not in it. The class, crash, fault and deploy rehearsals covered earlier heads. Done when they pass on the final merge.
+- [ ] **Real search on both engines, on the server.** _2026-11-06: with the Discovery Engine Viewer role, a real query from a Mac
+  returned results from each engine on its own topic. Vertex gave no suggestions for either, so autocomplete relies on the
+  SerpAPI fallback._ Set the variables in `production_readiness.md` on the server and run `tools/check_search_engines.py`, then type
+  in the search box. Done when each theme returns its own results and suggestions appear.
+- [ ] **Orecchio questions.** Diletta enters them in the dashboard after the deploy, in animation order: slot 1 plays
+  `Orecchio_01`. Keep the theme `orecchio`, which the setup pre-fills. Done when `5a orecchio` shows Published.
+- [x] **Fake May logs on the server.** _2026-11-06, Matthias: `UserTestLog*`, `Utente*` and 11 numeric test runs removed through a
+  container, with safety copies in the home folder. `logs/` holds 73 files: the 18 class runs of 19 May and the registry._
+- [ ] **Permanent test IDs on the server, Tuesday morning.** Run `TEST-spazio` and `TEST-orecchio` on an iPad with Brave before
+  the class, then check the logs reached `logs-v2/test-runs` and nothing changed in Data and history. Done when both hold.
 
 ## Setup that needs Matthias
 
