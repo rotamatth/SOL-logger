@@ -41,7 +41,6 @@ REQUIRED_FIELDS = {
     "resultExposureStarted": ("query", "docid", "rank", "page", "url"),
     "resultExposureEnded": ("query", "docid", "rank", "page", "url", "durationMs", "exitReason"),
     "TaskEnded": ("answer",),
-    "rewardShown": ("piecesEarned", "totalTasks"),
     "resourceViewStarted": ("url", "windowLocation"),
     "resourceViewEnded": ("url", "windowLocation", "dwellTimeMs", "exitReason"),
     "iframeNavigation": ("fromUrl", "toUrl", "windowLocation"),

@@ -6,51 +6,9 @@
   <section class="app-panel completion-panel">
     <div class="completion-container">
     <h2>Complimenti, hai completato l'esperimento!</h2>
-    {% if full_puzzle_static_filename %}
-    <p>Hai raccolto tutti i pezzi del puzzle. Ora puoi scoprire il premio finale.</p>
-
-    <div class="final-reward-stage">
-        <div class="sol-loader is-pending" id="final-loader" aria-live="polite">
-            <div class="sol-loader__spinner" aria-hidden="true"></div>
-            <div class="sol-loader__text">Caricamento…</div>
-        </div>
-        <div id="final-reward-container" class="final-reward-container is-locked">
-        {% if full_puzzle_static_filename.lower().endswith('.mp4') %}
-        <video class="final-reward-media"
-               autoplay
-               muted
-               playsinline
-               preload="auto"
-               aria-label="Puzzle completo">
-            <source src="{{ url_for('static', filename=full_puzzle_static_filename) }}" type="video/mp4">
-        </video>
-        {% else %}
-        <img class="final-reward-media"
-             src="{{ url_for('static', filename=full_puzzle_static_filename) }}"
-             alt="Puzzle completo">
-        {% endif %}
-
-        <div class="final-reward-lock-overlay" id="final-reward-locked-card">
-            <div class="final-reward-lock-content">
-                <div class="final-reward-card-label">Premio Finale</div>
-                <div class="final-reward-sparkle" aria-hidden="true">✦</div>
-                <h3>Pronto da scoprire</h3>
-                <button id="final-reward-reveal-btn" class="app-btn final-reward-reveal-btn">
-                    Scopri il premio finale
-                </button>
-            </div>
-        </div>
-        </div>
-    </div>
-    {% else %}
     <p>Hai risposto a tutte le domande. Grazie per la tua partecipazione!</p>
-    {% endif %}
-
-    <p id="end-status-msg"{% if full_puzzle_static_filename %} hidden{% else %} class="is-visible"{% endif %}>Premi il pulsante qui sotto per salvare la sessione e concludere l'esperimento.</p>
-
-    <button id="finish-experiment-btn" class="app-btn app-btn-primary{% if not full_puzzle_static_filename %} is-visible{% endif %}"{% if full_puzzle_static_filename %} hidden{% endif %}>
-        Salva e chiudi
-    </button>
+    <p id="end-status-msg" class="is-visible">Premi il pulsante qui sotto per concludere l'esperimento.</p>
+    <button id="finish-experiment-btn" class="app-btn app-btn-primary is-visible">Salva e chiudi</button>
     </div>
   </section>
 </div>
@@ -63,99 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const finalLoader = document.getElementById("final-loader");
-    if (finalLoader) {
-        let shown = false;
-        const t = window.setTimeout(() => {
-            finalLoader.classList.remove("is-pending");
-            shown = true;
-        }, 250);
-
-        const hideFinal = () => {
-            window.clearTimeout(t);
-            finalLoader.classList.add("is-hidden");
-            if (!shown) finalLoader.classList.add("is-pending");
-        };
-
-        const media = document.querySelector(".final-reward-media");
-        if (!media) {
-            hideFinal();
-        } else if (media.tagName === "VIDEO") {
-            if (media.readyState >= 2) {
-                hideFinal();
-            } else {
-                media.addEventListener("loadeddata", hideFinal, { once: true });
-                media.addEventListener("error", hideFinal, { once: true });
-            }
-        } else {
-            if (media.complete && media.naturalWidth > 0) {
-                hideFinal();
-            } else {
-                media.addEventListener("load", hideFinal, { once: true });
-                media.addEventListener("error", hideFinal, { once: true });
-            }
-        }
-    }
-
-    const revealBtn = document.getElementById("final-reward-reveal-btn");
-    const rewardContainer = document.getElementById("final-reward-container");
-    const lockedCard = document.getElementById("final-reward-locked-card");
-    const finishBtn = document.getElementById("finish-experiment-btn");
-    const statusMsg = document.getElementById("end-status-msg");
-
-    if (!revealBtn || !rewardContainer || !lockedCard) return;
-
-    revealBtn.addEventListener("click", () => {
-        revealBtn.disabled = true;
-
-        if (window.studyLogger) {
-            studyLogger.logEvent("finalRewardRevealClicked", {
-                fromURL: window.location.href
-            });
-        }
-
-        const video = rewardContainer.querySelector("video");
-        rewardContainer.classList.remove("is-locked");
-        rewardContainer.classList.add("is-revealing");
-        lockedCard.classList.add("is-exiting");
-        revealBtn.classList.add("is-hidden");
-
-        if (video) {
-            try {
-                video.currentTime = 0;
-            } catch (err) {
-                console.warn("Final reward video rewind failed:", err);
-            }
-            const playPromise = video.play();
-            if (playPromise && typeof playPromise.catch === "function") {
-                playPromise.catch(err => {
-                    console.warn("Final reward video autoplay failed:", err);
-                });
-            }
-        }
-
-        window.setTimeout(() => {
-            rewardContainer.classList.add("is-visible");
-            rewardContainer.classList.remove("is-revealing");
-            lockedCard.hidden = true;
-            revealBtn.hidden = true;
-
-            if (statusMsg) {
-                statusMsg.hidden = false;
-                window.requestAnimationFrame(() => statusMsg.classList.add("is-visible"));
-            }
-            if (finishBtn) {
-                finishBtn.hidden = false;
-                window.requestAnimationFrame(() => finishBtn.classList.add("is-visible"));
-            }
-
-            if (window.studyLogger) {
-                studyLogger.logEvent("finalRewardRevealCompleted", {
-                    fromURL: window.location.href
-                });
-            }
-        }, 760);
-    });
 });
 
 document.getElementById("finish-experiment-btn").addEventListener("click", async function() {
