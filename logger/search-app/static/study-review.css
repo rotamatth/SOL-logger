@@ -90,12 +90,6 @@
   filter: url("review-animation-key.svg#remove-black");
 }
 
-.review-button.review-animation-start {
-  display: flex;
-  width: fit-content;
-  margin: 0 auto 16px;
-}
-
 .review-comparison {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -194,6 +188,12 @@
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+}
+
+.review-button.review-animation-start {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto 16px;
 }
 
 .review-close,
