@@ -1,0 +1,2 @@
+{% from 'research/task_stats.html' import question_table with context %}
+{% if questions %}<p class="small muted">{{ t('stats_class_hint') }}</p>{{ question_table(questions) }}{% else %}<p class="muted">{{ t('stats_nothing_yet') }}</p>{% endif %}

@@ -19,13 +19,13 @@ def test_logout_check_is_private_and_does_not_disclose_recovery_text(app):
     credential = identity(app.config['RESEARCH_PASSWORD_HASH'])
     store.save(owner, credential, 'questions:synthetic:', {'question_0': 'PRIVATE TEXT'}, 0)
     response = client.get(CHECK)
-    assert response.json == {'has_recovery': True, 'csrf': csrf(client.get('/dashboard'))}
+    assert response.json == {'has_recovery': True, 'csrf': csrf(client.get('/dashboard', follow_redirects=True))}
     assert b'PRIVATE' not in response.data and b'questions:' not in response.data
     assert 'no-store' in response.headers['Cache-Control']
     other = app.test_client()
     login(other)
     assert other.get(CHECK).json['has_recovery'] is False
-    token = csrf(client.get('/dashboard'))
+    token = csrf(client.get('/dashboard', follow_redirects=True))
     client.post('/dashboard/logout', data={'csrf': token})
     assert client.get(CHECK).status_code == 401
     assert not store.has_copies(owner, credential)
@@ -49,7 +49,7 @@ def test_logout_copy_check_excludes_expiry_tombstones_and_other_credentials(tmp_
 def test_optional_copy_check_failure_never_prevents_actual_logout(app, monkeypatch):
     client = app.test_client()
     login(client)
-    token = csrf(client.get('/dashboard'))
+    token = csrf(client.get('/dashboard', follow_redirects=True))
     monkeypatch.setattr(EditorRecovery, 'has_copies', lambda *args: (_ for _ in ()).throw(OSError('synthetic')))
     assert client.get(CHECK).status_code == 503
     assert client.post('/dashboard/logout', data={'csrf': token}).status_code == 302

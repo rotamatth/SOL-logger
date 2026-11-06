@@ -105,7 +105,11 @@ if [ -n "$container_id" ] && [ -z "$(ls -A student-sessions)" ]; then
     docker cp "$container_id:/app/flask_session/." student-sessions/
 fi
 backup="backups/study-$(date +%Y%m%d-%H%M%S).zip"
-python3 search-app/tools/backup_study.py create "$backup" --root .
+# Collected files are private to the container's user, so the backup runs in a container too.
+# The archive then belongs to whoever owns this directory, like the rest of the checkout.
+docker compose run --rm --no-deps -T --volume "$PWD:/study" search_app sh -c \
+    'python tools/backup_study.py create "/study/$0" --root /study && chown "$(stat -c %u:%g /study)" "/study/$0"' \
+    "$backup"
 
 echo "==> Starting release and waiting for collection readiness"
 docker compose up -d --no-build --wait --wait-timeout 120 search_app

@@ -4,7 +4,7 @@ Every route module receives one :class:`Dashboard`. It owns the blueprint, the
 authoritative study state, the reporting index and the small helpers that all
 pages share (URL building, rendering and error responses).
 """
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from flask import g, jsonify, render_template, request, url_for
 
@@ -15,7 +15,8 @@ COOKIE = "sol_research"
 EDITOR_COOKIE = "sol_research_editor"
 
 # Endpoints whose failures are answered as JSON for the browser scripts.
-JSON_ENDPOINTS = ("research.editor_recovery", "research.session_check", "research.editor_logout_check")
+JSON_ENDPOINTS = ("research.editor_recovery", "research.session_check", "research.editor_logout_check",
+                  "research.session_live_data")
 
 
 def is_dashboard_path(path):
@@ -38,7 +39,12 @@ def safe_research_next(value):
     if (parsed.scheme or parsed.netloc or not parsed.path.startswith(PREFIX + "/")
             or parsed.path in (PREFIX + "/login", PREFIX + "/logout") or "\\" in value):
         return None
-    return value
+    # A browser resolves dot segments, encoded ones too, so these would leave the dashboard.
+    path = unquote(parsed.path)
+    if "\\" in path or "//" in path or {".", ".."} & set(path.split("/")):
+        return None
+    # Rebuilt from our own prefix rather than returned as received, so it can only be a dashboard path.
+    return PREFIX + parsed.path[len(PREFIX):] + (f"?{parsed.query}" if parsed.query else "")
 
 
 class Dashboard:
@@ -50,7 +56,6 @@ class Dashboard:
         self.state = state
         self.index = index
         # Set while registering the route modules.
-        self.prepare_view = None
         self.clear_editor_saved = None
         self.clear_editor_owner = None
 
@@ -84,6 +89,8 @@ class Dashboard:
 
     @staticmethod
     def page(name, **values):
+        # Student pages have their own value under this name, empty outside a run: never let it reach these templates.
+        values.setdefault("study_context", {})
         return render_template("research/" + name + ".html", **values)
 
     def problem(self, key, code):

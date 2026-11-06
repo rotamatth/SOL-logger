@@ -61,3 +61,15 @@
 .id-choice:has(input:checked) { border-color:var(--logo); background:var(--selection) }
 .id-choice input { width:18px; height:18px; min-height:18px; margin:0; accent-color:var(--accent) }
 .id-dialog-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:20px }
+
+/* Selecting several children on the participant list. */
+#bulk-deactivate { max-width:none; width:100%; display:block; margin:0; padding:0; background:none; border:0; box-shadow:none }
+.register-selection { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin:12px 0 }
+.register-selection label { display:inline-flex; align-items:center; gap:8px; margin:0; font-size:14px; font-weight:600 }
+.register-selection input[type="checkbox"],.register-pick { width:18px; height:18px; min-height:18px; margin:0; accent-color:var(--accent) }
+.register-selection p { flex-basis:100%; margin:0 }
+.register-pick { margin-right:10px; vertical-align:middle }
+@media (pointer: coarse) {
+  .register-selection input[type="checkbox"],.register-pick { width:24px; height:24px; min-height:24px }
+  .register-selection label { min-height:44px }
+}

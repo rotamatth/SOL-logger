@@ -11,6 +11,7 @@ from .i18n import translate
 from .participants import GRADES
 from .question_versions import published_questions, question_draft, working_questions
 from .study_config import question_set_problem
+from .task_stats import format_duration
 
 ZURICH = ZoneInfo("Europe/Zurich")
 
@@ -68,6 +69,7 @@ def register_template_context(dash):
         return {"t": lambda key: translate(key, language), "u": dash.u, "language": language,
                 "question_status": question_status, "question_view": question_view,
                 "language_url": language_url, "auth": g.get("research_auth"), "when": when,
+                "duration": format_duration,
                 "grades": GRADES,
                 "editor_messages": {key: translate(key, language) for key in EDITOR_MESSAGE_KEYS},
                 "study_context": navigation_context(dash.state),

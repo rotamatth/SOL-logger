@@ -24,14 +24,14 @@ def values(form):
     return {item.get("name"): item.get("value") for item in form["controls"]}
 
 
-@pytest.mark.parametrize("action, fields", [
-    ("save_year", {"current_school_year": "2026/2026"}),
-    ("add_session", {"grade": "4", "date": "2026-10-01", "name": "New input"}),
-    ("save_session", {"session_id": SESSION, "date": "2026-10-02", "name": "Edited input"}),
-    ("restore_session", {"session_id": "grade-4-session-2", "date": "2026-10-01"}),
-    ("preview_ranges", {"range_grade": "4", "ranges_editor": "1", "4_start": "1", "4_end": "25", "4_width": "0"}),
+@pytest.mark.parametrize("url, action, fields", [
+    ("settings?grade=4", "save_year", {"current_school_year": "2026/2026"}),
+    ("sessions/new", None, {"grade": "4", "date": "2026-10-01", "name": "New input"}),
+    (f"prepare?grade=4&year={YEAR}&session={SESSION}", "save_details", {"date": "2026-10-02", "name": "Edited input"}),
+    ("sessions?grade=4&removed=1", "restore_session", {"session_id": "grade-4-session-2", "date": "2026-10-01"}),
+    ("settings?grade=4", "preview_ranges", {"range_grade": "4", "ranges_editor": "1", "4_start": "1", "4_end": "25", "4_width": "0"}),
 ])
-def test_settings_error_marks_only_the_submitted_form(app, action, fields):
+def test_settings_error_marks_only_the_submitted_form(app, url, action, fields):
     configure(app)
     state = app.extensions["research"]["state"]
     if action == "restore_session":
@@ -41,9 +41,9 @@ def test_settings_error_marks_only_the_submitted_form(app, action, fields):
     client = app.test_client()
     login(client)
     before = state.settings()
-    response = client.post("/dashboard/settings?grade=4", data={
+    response = client.post("/dashboard/" + url, data={
         "csrf": csrf(client.get("/dashboard/settings")), "revision": before["revision"],
-        "action": action, **fields})
+        **({"action": action} if action else {}), **fields})
     assert response.status_code == 400
     assert state.settings() == before
     forms = marked_forms(response)
@@ -52,7 +52,7 @@ def test_settings_error_marks_only_the_submitted_form(app, action, fields):
     if action == "preview_ranges":
         assert values(forms[0])["4_end"] == "25"
     else:
-        assert values(forms[0])["action"] == action
+        assert values(forms[0]).get("action") == action
         for field, value in fields.items():
             if field != "grade":
                 assert values(forms[0])[field] == value
@@ -160,22 +160,22 @@ def test_settings_validation_retry_preserves_values_and_leave_protection(live, o
         state.save_settings(settings, settings["revision"])
     page = live.login()
     if operation == "year":
-        path, selector, invalid, corrected = "?section=year&grade=4", "#current-school-year", "2026/2026", "2027/2028"
+        path, selector, invalid, corrected = "settings?section=year&grade=4", "#current-school-year", "2026/2026", "2027/2028"
     elif operation == "range":
-        path, selector, invalid, corrected = "?section=participants&grade=4&edit_participants=1", '[name="4_end"]', "25", "19"
+        path, selector, invalid, corrected = "settings?section=participants&grade=4&edit_participants=1", '[name="4_end"]', "25", "19"
     elif operation == "add_session":
-        path, selector, invalid, corrected = "?section=sessions&grade=4&new=1", "#new-date", "2026-10-15", "2026-10-20"
+        path, selector, invalid, corrected = "sessions/new?grade=4", "#new-date", "2026-10-15", "2026-10-20"
     elif operation == "edit_session":
-        path, selector, invalid, corrected = f"?section=sessions&grade=4&edit={SESSION}", f"#date_{SESSION}", "2026-11-05", "2026-10-20"
+        path, selector, invalid, corrected = f"prepare?grade=4&session={SESSION}", "#prepare-date", "2026-11-05", "2026-10-20"
     else:
-        path, selector, invalid, corrected = "?section=sessions&grade=4&removed=1", "#restore-date-grade-4-session-2", "2026-10-15", "2026-10-20"
-    page.goto(live.base + "/dashboard/settings" + path + "&lang=en")
+        path, selector, invalid, corrected = "sessions?grade=4&year=&removed=1", "#restore-date-grade-4-session-2", "2026-10-15", "2026-10-20"
+    page.goto(live.base + "/dashboard/" + path + "&lang=en")
     field = page.locator(selector)
     form = field.locator("xpath=ancestor::form")
     if operation == "add_session":
         page.fill("#new-name", "Created after correcting validation")
     elif operation == "edit_session":
-        page.fill(f"#name_{SESSION}", "Edited after correcting validation")
+        page.fill("#prepare-name", "Edited after correcting validation")
     field.fill(invalid)
     # Invalid: a year like 2026/2026, or a date another session of this class already uses.
     # Browser constraints are disabled so the server-error re-render is exercised too.
@@ -189,10 +189,10 @@ def test_settings_validation_retry_preserves_values_and_leave_protection(live, o
     assert_cancelled_leave(live, page, 'a[data-section="history"]')
     assert page.input_value(selector) == invalid
 
-    if operation in ("add_session", "edit_session", "restore_session"):
+    if operation == "edit_session":
         # A clean sibling submission must warn about the failed form too.
         before, dialogs = page.url, len(live.dialogs)
-        page.locator('form:has(input[name="action"][value="save_year"])').evaluate("form => form.requestSubmit()")
+        page.locator('form:has(input[name="action"][value="remove_session"])').evaluate("form => form.requestSubmit()")
         assert until(page, lambda: len(live.dialogs) > dialogs, seconds=3)
         assert page.url == before
     field = page.locator(selector)

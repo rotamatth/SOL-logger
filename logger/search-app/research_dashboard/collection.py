@@ -13,6 +13,11 @@ from .runtime import sync_directory
 from .participants import enrollment
 
 
+def safe_participant(participant_id):
+    """The participant part of a run's file names."""
+    return re.sub(r"[^A-Za-z0-9._-]", "_", str(participant_id))[:64] or "anon"
+
+
 def record_run(directory, state, user_id, session_id, log_id, order, topics, settings=None,
                study_session=None, question_set=None, assignment_source=None, admit=False):
     started = datetime.now(ZoneInfo("Europe/Zurich"))
@@ -72,8 +77,7 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
 
 
 def publish_metadata(directory, metadata):
-    safe_user = re.sub(r"[^A-Za-z0-9._-]", "_", str(metadata["participant_id"]))[:64] or "anon"
-    path = Path(directory) / f"{safe_user}_{metadata['log_id']}.run.json"
+    path = Path(directory) / f"{safe_participant(metadata['participant_id'])}_{metadata['log_id']}.run.json"
     if path.exists():
         if path.is_symlink() or json.loads(path.read_text()) != metadata:
             raise FileExistsError("Conflicting immutable run metadata")

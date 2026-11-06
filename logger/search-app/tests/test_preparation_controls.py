@@ -12,44 +12,22 @@ from .test_study_enrollment import question_set
 PREP = f"/dashboard/prepare?grade=4&year={YEAR}&session={SESSION}"
 
 
-def picker(response):
-    return next(form for form in Controls(response).forms
-                if "preparation-picker" in form["attrs"].get("class", "").split())
-
-
-def submit_choice(client, response, name, value, **changes):
-    form = picker(response)
-    choice = next(control for control in form["controls"]
-                  if control["tag"] == "button" and control.get("name") == name
-                  and control.get("value") == value)
-    fields = {control["name"]: control.get("value", "") for control in form["controls"]
-              if control["tag"] == "input" and control.get("name")}
-    fields.update(changes)
-    fields[choice["name"]] = choice["value"]
-    return client.get(urlsplit(form["attrs"]["action"]).path, query_string=fields)
-
-
-def test_class_choice_submits_and_opens_the_new_class_without_a_second_action(app):
+def test_the_session_page_has_no_menus_and_links_back_to_the_list(app):
     configure(app)
     state = app.extensions["research"]["state"]
     client = app.test_client()
     login(client)
     before = state.settings()
     page = client.get(PREP)
-    form = picker(page)
-    assert {control.get("value") for control in form["controls"]
-            if control["tag"] == "button" and control.get("name") == "select_grade"} == {"3", "4", "5"}
-    assert not any(control["tag"] == "select" and control.get("name") == "grade"
-                   for control in form["controls"])
-    changed = submit_choice(client, page, "select_grade", "3", session=SESSION)
-    assert changed.status_code == 200
-    assert any(control.get("name") == "grade" and control.get("value") == "3"
-               for control in picker(changed)["controls"])
-    assert f"prepare_session={SESSION}" not in changed.text
+    assert "preparation-picker" not in page.text and "select_grade" not in page.text
+    back = next(link for link in Controls(page).links if link["text"] == "← Back to Sessions")
+    assert urlsplit(back["href"]).path == "/dashboard/sessions"
+    assert parse_qs(urlsplit(back["href"]).query)["year"] == [YEAR] and urlsplit(back["href"]).fragment == SESSION
+    assert f'id="{SESSION}"' in client.get(back["href"]).text
     assert state.settings() == before
 
 
-def test_every_session_choice_opens_its_own_date_and_details(app):
+def test_every_listed_session_opens_its_own_date_and_details(app):
     configure(app)
     state = app.extensions["research"]["state"]
     settings = state.settings()
@@ -60,14 +38,11 @@ def test_every_session_choice_opens_its_own_date_and_details(app):
     client = app.test_client()
     login(client)
     before = state.settings()
-    page = client.get(PREP)
-    offered = {control.get("value") for control in picker(page)["controls"]
-               if control["tag"] == "button" and control.get("name") == "session"}
-    assert {item["id"] for item in sessions} <= offered
-    assert not any(control["tag"] == "select" and control.get("name") == "session"
-                   for control in picker(page)["controls"])
+    listed = client.get(f"/dashboard/sessions?grade=4&year={YEAR}")
     for item in sessions:
-        opened = submit_choice(client, page, "session", item["id"])
+        link = next(link for link in Controls(listed).links
+                    if link["text"] == item["name"])
+        opened = client.get(link["href"])
         assert opened.status_code == 200
         controls = [control for form in Controls(opened).forms for control in form["controls"]]
         assert any(control.get("name") == "name" and control.get("value") == item["name"]
@@ -78,29 +53,11 @@ def test_every_session_choice_opens_its_own_date_and_details(app):
     assert state.settings() == before
 
 
-def test_current_class_is_marked_without_offering_a_jump_to_another_session(app):
+def test_a_session_from_another_year_is_not_opened_under_this_year(app):
     configure(app)
     client = app.test_client()
     login(client)
-    choices = [control for control in picker(client.get(PREP))["controls"]
-               if control["tag"] == "button" and control.get("name") == "select_grade"]
-    current = next(control for control in choices if control.get("value") == "4")
-    assert "disabled" in current and current.get("aria-current") == "true"
-    assert all("disabled" not in control for control in choices if control is not current)
-
-
-def test_opening_another_year_discards_a_session_from_the_previous_year(app):
-    configure(app)
-    state = app.extensions["research"]["state"]
-    client = app.test_client()
-    login(client)
-    before = state.settings()
-    result = submit_choice(client, client.get(PREP), "session", SESSION, year="2027/2028")
-    assert result.status_code == 200
-    assert any(control.get("name") == "year" and control.get("value") == "2027/2028"
-               for control in picker(result)["controls"])
-    assert f"prepare_session={SESSION}" not in result.text
-    assert state.settings() == before
+    assert client.get(f"/dashboard/prepare?grade=4&year=2027/2028&session={SESSION}").status_code == 404
 
 
 @pytest.mark.parametrize("url", [PREP, f"/dashboard/settings/questions/{SESSION}?prepare_session={SESSION}"])

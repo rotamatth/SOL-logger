@@ -29,10 +29,30 @@ history of what was checked stays visible.
   who recorded the feedback to repeat her walkthrough: new session from name and date,
   importing an ID from another class, the warning colour, Cestino on Dati e storico.
   Done when she confirms or files new points.
+- [ ] **Dashboard v2 with a real class.** The live view was tested with one synthetic child at a
+  time on a laptop. In the first real lesson: open it on the researcher's own device, check that
+  finished questions appear within seconds with a full class, and watch server load (8 request
+  slots are shared with the children). Also repeat on an iPad: the session list, the checkboxes
+  under Participants, the ID menus (**Cerca un ID**, **Vai all'ID partecipante**), opening a child in
+  the live view, and the guide. Done when these hold.
 - [ ] **First V2 deploy rollback path.** If `scripts/deploy.sh` rolls back on the first
   V2 deployment, the old image starts with `logs-v2` mounted at `/app/logs` and would
   write old-format logs there. Watch the first deploy; if a rollback happens, stop and
-  check where new logs go before collecting.
+  check where new logs go before collecting. _2026-11-06: rehearsed on real Linux. After a failed first deploy the old
+  app answers, `/dashboard` is 404 and `logs-v2` is its log folder; deploying again from there succeeded. Do not let
+  children use the old app in that state. After any failed release the checkout stays on the failed branch until a
+  good one is deployed._
+
+- [x] **Same ID on two tablets.** In the question flow of PR #23, a second tablet choosing an ID already in use joins
+  the same run, its searches mix in one log, and its differing answers are refused. _2026-11-06, Matthias: this cannot
+  happen, because children receive the iPad after their number is set for them. No guard is needed. Revisit if children
+  ever choose their own number._
+- [ ] **Read-only check of the real server, before Monday's deploy.** The rehearsal assumed a non-root operator and
+  rootful Docker: `id`, `docker info --format '{{.SecurityOptions}}'`, `git log -1 --oneline`, `ls -ln logger/logs | head -3`,
+  `df -h .`, `python3 --version`, `docker compose version`. Done when these match, or the differences are understood.
+- [ ] **Repeat the rehearsal on the code actually released.** PRs #21, #22, #23, #26 and #27 were still moving on
+  2026-11-06. The class, crash, fault and deploy rehearsals covered their heads at `6ab59d8`, `9fdbfa5`, `6148635`,
+  `cf3b8b2` and `880435a`. Done when they pass on the final merge.
 
 ## Setup that needs Matthias
 

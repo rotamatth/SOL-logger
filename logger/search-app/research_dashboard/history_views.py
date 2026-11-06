@@ -5,6 +5,8 @@ from .exports import SourceSnapshotError, capture_log
 from .history_data import collect_participants, collection_runs, display_session, has_logs, scoped_people
 from .participants import GRADES, valid_school_year
 from .state import DEFAULT_STUDY_ID
+from .study_config import session_readiness
+from .task_stats import question_rows, session_rows, trend_charts
 
 GRADE_VIEWS = (*GRADES, "all", "unassigned", "legacy")
 
@@ -40,7 +42,7 @@ def register_history_routes(dash):
     @bp.get("")
     def overview():
         if not set(request.args) - {"lang"}:
-            return dash.prepare_view()
+            return redirect(dash.u("sessions_page"))
         settings, runs = dash.data()
         collection = request.args.get("collection", "study")
         if collection not in (*index.roots, "study"):
@@ -84,7 +86,12 @@ def register_history_routes(dash):
                          "id": preparation_session["id"] if preparation_session else None,
                          "preparation_year": (preparation_session.get("school_year")
                                               if preparation_session else selected_year)}
-        return dash.page("overview", people=people, grade=grade, collection=collection,
+        question_stats = None
+        if selected_session and collection in ("v2", "study"):
+            expected = (session_readiness(settings, selected_session_configuration)["count"]
+                        if selected_session_configuration else None)
+            question_stats = question_rows([run for run in scoped_runs if _in_session(run, selected_session)], expected)
+        return dash.page("overview", people=people, grade=grade, collection=collection, question_stats=question_stats,
                          study_context=study_context, research_area="history",
                          history_sessions=[card["session"] for card in session_cards],
                          unidentified=unidentified if grade in ("all", "unassigned", "legacy") else [],
@@ -139,7 +146,9 @@ def register_history_routes(dash):
                           or (not selected_session and group["runs"])]
         grade = grade_filter or (selected_session_group["grade"] if selected_session_group else
                                  next(iter(person["grades"])) if len(person["grades"]) == 1 else "all")
+        trend = session_rows(person["runs"])
         return dash.page("participant", person=person, groups=groups, display_groups=display_groups,
+                         trend=trend, trend_view=trend_charts(trend) if len(trend) > 1 else None,
                          collection=collection, grade=grade,
                          selected_session=selected_session, selected_year=year_filter, grade_filter=grade_filter,
                          open_logs=request.args.get("view") == "logs", manage=request.args.get("manage") == "1",

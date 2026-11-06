@@ -13,7 +13,7 @@ def test_logo_goes_home_and_logout_asks_si_or_no_first(live):
     page.goto(live.base + "/dashboard/settings?section=year&grade=4&lang=it")
     with page.expect_navigation():
         page.locator("a.header-logo").click()
-    assert "/dashboard/prepare" in page.url
+    assert "/dashboard/sessions" in page.url
     page.locator('form[action*="logout"] button').click()
     dialog = page.locator("#logout-dialog")
     dialog.wait_for(state="visible")

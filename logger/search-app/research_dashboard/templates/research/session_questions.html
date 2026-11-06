@@ -6,7 +6,7 @@
 {% block content %}
 <div class="question-workspace">
 {% if from_preparation %}{% include 'research/preparation_context.html' %}{% else %}
-<a href="{{ u('settings_page', section='sessions', grade=study_session.grade, edit=study_session.id) }}#{{ study_session.id }}">&larr; {{ t('manage_sessions') }}</a>
+<a href="{{ u('sessions_page', year=study_session.school_year or None, _anchor=study_session.id) }}">&larr; {{ t('back_to_sessions') }}</a>
 {% endif %}
 <h1>{{ t('grade_' ~ study_session.grade) }} · {{ t('session') }} {{ study_session.number }}</h1>
 <p>{% if study_session.name %}{{ study_session.name }} · {% endif %}{{ study_session.date or t('date_not_set') }} · Europe/Zurich</p>

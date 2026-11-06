@@ -74,6 +74,20 @@ def configure(app):
     return state.settings()
 
 
+def create_session(client, state, grade, study_date, name="", **extra):
+    """Submit the Create form of the Sessions section."""
+    return client.post("/dashboard/sessions/new", data={
+        "grade": grade, "date": study_date, "name": name, "revision": state.settings()["revision"],
+        "csrf": csrf(client.get("/dashboard/sessions/new")), **extra})
+
+
+def save_details(client, state, grade, session_id, study_date, name="", year="2026/2027"):
+    """Submit step 1 of a session's page."""
+    url = f"/dashboard/prepare?grade={grade}&year={year}&session={session_id}"
+    return client.post(url, data={"action": "save_details", "name": name, "date": study_date,
+                                  "revision": state.settings()["revision"], "csrf": csrf(client.get(url))})
+
+
 def write_run(app, uid="1", suffix="a", collection="v2", answers=3, finish=False, metadata=True, date="2026-10-01"):
     root = Path(app.config["RESEARCH_LOG_DIR" if collection == "v2" else "RESEARCH_LEGACY_LOG_DIR"])
     stem = f"{uid}_{date}_09-00-00_{suffix}"
@@ -147,7 +161,7 @@ def test_login_csrf_rotation_logout_and_separate_student_state(app):
     assert client.post("/dashboard/login", data={"password": PASSWORD, "csrf": csrf(response)}).status_code == 302
     assert client.get_cookie("sol_research", path="/dashboard").value != first_cookie
     client.post("/student-reset")
-    response = client.get("/dashboard")
+    response = client.get("/dashboard", follow_redirects=True)
     assert response.status_code == 200
     assert b"studyLogger" not in response.data and b"logger.js" not in response.data
     assert client.post("/dashboard/logout").status_code == 400
@@ -193,8 +207,8 @@ def test_secure_cookie_headers_and_bilingual_ui(app):
     assert b"Accesso ricercatori" in response.data
     assert "Secure" in response.headers["Set-Cookie"]
     response = login(client, lang="it")
-    assert response.location == "/dashboard/prepare?lang=it"
-    response = client.get("/dashboard?lang=it", headers={"Origin": "https://untrusted.example"})
+    assert response.location == "/dashboard/guide?lang=it"
+    response = client.get("/dashboard/sessions?lang=it", headers={"Origin": "https://untrusted.example"})
     assert b"Quarta" in response.data
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["Referrer-Policy"] == "no-referrer"
@@ -229,10 +243,10 @@ def test_settings_require_csrf_reject_stale_revision_and_save_calendar(app):
     form = {"revision": current["revision"], "csrf": csrf(response)}
     for rule in current["ranges"]:
         form.update({f"{rule['grade']}_{k}": rule[k] for k in ("start", "end", "prefix", "width")})
-    form["grade-4-session-1"] = "2026-10-01"
+    form["current_school_year"] = "2026/2027"
     assert client.post("/dashboard/settings", data={k:v for k,v in form.items() if k != "csrf"}).status_code == 400
     assert client.post("/dashboard/settings", data=form).status_code == 302
-    assert state.settings()["sessions"][0]["date"] == "2026-10-01"
+    assert state.settings()["current_school_year"] == "2026/2027"
     response = client.post("/dashboard/settings", data=form)
     assert response.status_code == 400
     assert b"another tab or by another researcher" in response.data
@@ -586,7 +600,7 @@ def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monke
     enroll_initial_roster(settings, school_year(study_session["date"]))
     module.RESEARCH_STATE.save_settings(settings, settings["revision"])
     assert client.post("/start", data={"user_id":"1"}).status_code == 302
-    assert client.get("/dashboard").status_code == 200
+    assert client.get("/dashboard", follow_redirects=True).status_code == 200
     assert client.get("/task").status_code == 200
     assert client.get("/search").status_code == 200
     with client.session_transaction() as student:
@@ -602,7 +616,7 @@ def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monke
     assert metadata["study_session_at_collection"] == "grade-4-session-1"
     assert metadata["git_commit"] == "integration-commit"
     assert client.get("/welcome?reset=1").status_code == 200
-    assert client.get("/dashboard").status_code == 200
+    assert client.get("/dashboard", follow_redirects=True).status_code == 200
 
 
 @pytest.mark.parametrize("suffix", ["_FULL.log", "_task1_topic3.log"])
@@ -940,7 +954,7 @@ def test_empty_dashboard_shows_clear_status_without_unavailable_row_actions(app)
     client = app.test_client()
     login(client)
     for path in ("/dashboard", f"/dashboard/participants/v2/{identity('1')}", "/dashboard/settings"):
-        response = client.get(path)
+        response = client.get(path, follow_redirects=True)
         assert response.status_code == 200
         assert "V2 collection" not in response.text and "Unassigned" not in response.text and "Legacy archive" not in response.text
         assert not any("/exports/" in link.path for link in dashboard_links(response))
@@ -994,20 +1008,10 @@ def test_calendar_form_keeps_both_grades_and_preserves_id_format_when_saving_dat
     state.save_settings(settings, settings["revision"])
     client = app.test_client()
     login(client)
-    fourth = client.get("/dashboard/settings?grade=4")
-    assert 'id="grade-4-session-1"' in fourth.text and 'id="grade-5-session-1"' not in fourth.text
     participant_editor = client.get("/dashboard/settings?section=participants&grade=4&edit_participants=1")
     assert 'name="4_prefix" value="P-"' in participant_editor.text
-    assert client.post("/dashboard/settings?grade=4", data={
-        "action": "save_session", "session_id": "grade-4-session-1", "name": "", "date": "2026-10-02",
-        "revision": state.settings()["revision"], "csrf": csrf(fourth),
-    }).status_code == 302
-    fifth = client.get("/dashboard/settings?grade=5")
-    assert 'id="grade-5-session-1"' in fifth.text and 'id="grade-4-session-1"' not in fifth.text
-    assert client.post("/dashboard/settings?grade=5", data={
-        "action": "save_session", "session_id": "grade-5-session-1", "name": "", "date": "2026-10-03",
-        "revision": state.settings()["revision"], "csrf": csrf(fifth),
-    }).status_code == 302
+    assert save_details(client, state, "4", "grade-4-session-1", "2026-10-02").status_code == 302
+    assert save_details(client, state, "5", "grade-5-session-1", "2026-10-03").status_code == 302
     saved = state.settings()
     assert saved["ranges"][0]["prefix"] == "P-" and saved["ranges"][0]["width"] == 2
     assert saved["sessions"][0]["date"] == "2026-10-02"
@@ -1019,8 +1023,8 @@ def test_settings_actions_change_only_their_named_fields(app):
     client = app.test_client()
     login(client)
     page = client.get("/dashboard/settings?grade=4")
-    assert b"Prepare the school year, sessions and student access" in page.data
-    assert 'id="grade-4-session-1"' in page.text and 'id="grade-5-session-1"' not in page.text
+    assert b"The school year and the participants of the study" in page.data
+    assert 'id="grade-4-session-1"' not in page.text
     assert "Historical grade assignments" not in page.text
     original = state.settings()
     year = client.post("/dashboard/settings?grade=4", data={
@@ -1031,45 +1035,30 @@ def test_settings_actions_change_only_their_named_fields(app):
     after_year = state.settings()
     assert after_year["current_school_year"] == "2026/2027"
     assert after_year["sessions"] == original["sessions"] and after_year["ranges"] == original["ranges"]
-    page = client.get("/dashboard/settings?grade=4")
-    wrong_grade = client.post("/dashboard/settings?grade=4", data={
-        "action": "save_dates", "grade": "4", "revision": after_year["revision"], "csrf": csrf(page),
-        "grade-4-session-1": "2026-10-01", "grade-5-session-1": "2026-10-01",
-    })
-    assert wrong_grade.status_code == 400 and state.settings() == after_year
-    dates = client.post("/dashboard/settings?grade=4", data={
-        "action": "save_dates", "grade": "4", "revision": after_year["revision"], "csrf": csrf(page),
-        "grade-4-session-1": "2026-10-01", "current_school_year": "2030/2031", "4_end": "19",
-    })
-    assert dates.status_code == 302 and urlsplit(dates.location).fragment == "session-history"
-    after_dates = state.settings()
-    assert after_dates["sessions"][0]["date"] == "2026-10-01"
-    assert after_dates["current_school_year"] == "2026/2027" and after_dates["ranges"] == original["ranges"]
     ranges = client.post("/dashboard/settings?grade=4", data={
-        "action": "save_ranges", "revision": after_dates["revision"], "csrf": csrf(page),
+        "action": "save_ranges", "revision": after_year["revision"], "csrf": csrf(page),
         "4_end": "19", "grade-4-session-1": "2030-01-01", "current_school_year": "2030/2031",
     })
     assert ranges.status_code == 302 and urlsplit(ranges.location).fragment == "participant-ids"
     after_ranges = state.settings()
     assert after_ranges["ranges"][0]["end"] == 19
-    assert after_ranges["sessions"] == after_dates["sessions"]
+    assert after_ranges["sessions"] == after_year["sessions"]
     assert after_ranges["current_school_year"] == "2026/2027"
 
 
-def test_individual_session_editor_rejects_other_grades_and_keeps_invalid_input_open(app):
+def test_session_page_rejects_other_grades_and_keeps_invalid_input_open(app):
     state = app.extensions["research"]["state"]
     client = app.test_client()
     login(client)
-    page = client.get("/dashboard/settings?grade=4")
     before = state.settings()
-    form = {"action": "save_session", "revision": before["revision"], "csrf": csrf(page),
-            "session_id": "grade-5-session-1", "name": "Moved", "date": "2026-10-04"}
-    assert client.post("/dashboard/settings?grade=4", data=form).status_code == 400
+    token = csrf(client.get("/dashboard/settings"))
+    form = {"action": "save_details", "revision": before["revision"], "csrf": token,
+            "name": "Moved", "date": "2026-10-04"}
+    assert client.post("/dashboard/prepare?grade=4&year=2026/2027&session=grade-5-session-1", data=form).status_code == 400
     assert state.settings() == before
-    invalid = client.post("/dashboard/settings?grade=4", data={
-        **form, "session_id": "grade-4-session-1", "name": "Needs a date", "date": "2026-02-30"})
-    assert invalid.status_code == 400 and 'id="grade-4-session-1" open' in invalid.text
-    assert 'value="Needs a date"' in invalid.text
+    invalid = client.post("/dashboard/prepare?grade=4&year=2026/2027&session=grade-4-session-1", data={
+        **form, "name": "Needs a date", "date": "2026-02-30"})
+    assert invalid.status_code == 400 and 'value="Needs a date"' in invalid.text
     assert state.settings() == before
 
 
@@ -1213,19 +1202,18 @@ def test_creating_and_redating_sessions_preserves_history_and_source_files(app):
     before = state.settings()
     client = app.test_client()
     login(client, lang="it")
-    settings_page = client.get("/dashboard/settings?grade=4&lang=it")
-    created = client.post("/dashboard/settings?lang=it", data={
-        "action": "add_session", "grade": "4", "date": "2026-10-04",
-        "revision": before["revision"], "csrf": csrf(settings_page),
+    created = client.post("/dashboard/sessions/new?lang=it", data={
+        "grade": "4", "date": "2026-10-04", "revision": before["revision"],
+        "csrf": csrf(client.get("/dashboard/sessions/new?lang=it")),
     })
     assert created.status_code == 302
     query = parse_qs(urlsplit(created.location).query)
-    assert query == {"grade": ["4"], "session": ["grade-4-session-4"], "lang": ["it"]}
+    assert query == {"grade": ["4"], "year": ["2026/2027"], "session": ["grade-4-session-4"], "saved": ["1"], "lang": ["it"]}
     after = state.settings()
     assert after["sessions"][:6] == before["sessions"]
     assert after["ranges"] == before["ranges"]
     assert len(after["sessions"]) == 7 and after["revision"] == before["revision"] + 1
-    overview = client.get(created.location)
+    overview = client.get("/dashboard?grade=4&session=grade-4-session-4&lang=it")
     assert "Sessione 4 · 2026-10-04" in re.sub(r'<[^>]+>', '', overview.text)
     session_download = next(link for link in dashboard_links(overview) if link.path.endswith("/exports/grade_session"))
     _, manifest = archive(client.get(session_download.geturl()))
@@ -1236,13 +1224,10 @@ def test_creating_and_redating_sessions_preserves_history_and_source_files(app):
     old_view = client.get("/dashboard?session=grade-4-session-1")
     old_download = next(link for link in dashboard_links(old_view) if link.path.endswith("/exports/grade_session"))
     assert {run["run_id"] for run in archive(client.get(old_download.geturl()))[1]["runs"]} == {old_key}
-    settings_page = client.get("/dashboard/settings")
-    assert 'id="grade-4-session-4"' in settings_page.text
-    assert 'id="grade-5-session-4"' not in settings_page.text
-    changed = client.post("/dashboard/settings", data={
-        "action": "save_session", "session_id": "grade-4-session-4", "name": "", "date": "2026-10-05",
-        "revision": after["revision"], "csrf": csrf(settings_page),
-    })
+    session_list = client.get("/dashboard/sessions")
+    assert 'id="grade-4-session-4"' in session_list.text
+    assert 'id="grade-5-session-4"' not in session_list.text
+    changed = save_details(client, state, "4", "grade-4-session-4", "2026-10-05")
     assert changed.status_code == 302
     latest = state.settings()
     assert latest["sessions"][:6] == before["sessions"] and latest["ranges"] == before["ranges"]
@@ -1267,10 +1252,7 @@ def test_new_session_rejects_invalid_or_overlapping_dates_without_changes(app, g
     before = state.settings()
     client = app.test_client()
     login(client)
-    response = client.post("/dashboard/settings", data={
-        "action": "add_session", "grade": grade, "date": study_date,
-        "revision": before["revision"], "csrf": csrf(client.get("/dashboard/settings")),
-    })
+    response = create_session(client, state, grade, study_date)
     assert response.status_code == 400 and error in response.text
     assert state.settings() == before
 
@@ -1282,19 +1264,14 @@ def test_custom_session_name_is_editable_without_changing_session_identity_or_lo
     state = app.extensions["research"]["state"]
     client = app.test_client()
     login(client)
-    settings_page = client.get("/dashboard/settings?grade=4")
-    assert settings_page.text.index('id="school-year"') < settings_page.text.index('id="new-session"')
-    assert settings_page.text.index('id="session-history"') < settings_page.text.index('id="new-session"')
-    assert 'id="new-name" name="name"' in settings_page.text
-    before = state.settings()
-    created = client.post("/dashboard/settings?grade=4", data={
-        "action": "add_session", "grade": "4", "date": "2026-10-04", "name": " Baseline <Round 1> ",
-        "revision": before["revision"], "csrf": csrf(settings_page),
-    })
+    assert 'id="new-name" name="name"' in client.get("/dashboard/sessions/new").text
+    created = create_session(client, state, "4", "2026-10-04", " Baseline <Round 1> ")
     assert created.status_code == 302
     session = state.settings()["sessions"][-1]
     assert session["id"] == "grade-4-session-4" and session["name"] == "Baseline <Round 1>"
-    overview = client.get(created.location)
+    session_page = client.get(created.location)
+    assert "Baseline &lt;Round 1&gt;" in session_page.text and "Baseline <Round 1>" not in session_page.text
+    overview = client.get(f"/dashboard?grade=4&session={session['id']}")
     assert "Baseline &lt;Round 1&gt;" in overview.text
     assert "Baseline <Round 1>" not in overview.text
     participant = client.get(f"/dashboard/participants/v2/{identity('1')}?session={session['id']}")
@@ -1303,17 +1280,12 @@ def test_custom_session_name_is_editable_without_changing_session_identity_or_lo
     _, manifest = archive(client.get(grade_session.geturl()))
     assert {run["run_id"] for run in manifest["runs"]} == {run_id}
     assert manifest["runs"][0]["study_session"]["name"] == "Baseline <Round 1>"
-    settings_page = client.get("/dashboard/settings?grade=4")
-    current = state.settings()
-    changed = client.post("/dashboard/settings?grade=4", data={
-        "action": "save_session", "session_id": "grade-4-session-4", "name": "Follow-up", "date": session["date"],
-        "revision": current["revision"], "csrf": csrf(settings_page),
-    })
+    changed = save_details(client, state, "4", "grade-4-session-4", session["date"], "Follow-up")
     assert changed.status_code == 302
     renamed = state.settings()["sessions"][-1]
     assert renamed["id"] == session["id"] and renamed["date"] == session["date"]
     assert renamed["name"] == "Follow-up"
-    assert "Follow-up" in client.get(created.location).text
+    assert "Follow-up" in client.get(f"/dashboard?grade=4&session={session['id']}").text
     assert all(path.read_bytes() == original[path.name] for path in root.iterdir())
 
 
@@ -1323,10 +1295,7 @@ def test_session_names_reject_oversized_or_multiline_values(app, name):
     before = state.settings()
     client = app.test_client()
     login(client)
-    response = client.post("/dashboard/settings", data={
-        "action": "add_session", "grade": "4", "date": "2026-10-04", "name": name,
-        "revision": before["revision"], "csrf": csrf(client.get("/dashboard/settings")),
-    })
+    response = create_session(client, state, "4", "2026-10-04", name)
     assert response.status_code == 400 and b"Use a session name of at most 80 characters" in response.data
     assert state.settings() == before
 
@@ -1335,18 +1304,18 @@ def test_new_session_requires_auth_csrf_and_current_revision(app):
     configure(app)
     state = app.extensions["research"]["state"]
     before = state.settings()
-    form = {"action": "add_session", "grade": "4", "date": "2026-10-04", "revision": before["revision"]}
+    form = {"grade": "4", "date": "2026-10-04", "revision": before["revision"]}
     anonymous = app.test_client()
-    assert anonymous.post("/dashboard/settings", data=form).status_code == 302
+    assert anonymous.post("/dashboard/sessions/new", data=form).status_code == 302
     client = app.test_client()
     login(client)
-    assert client.post("/dashboard/settings", data=form).status_code == 400
+    assert client.post("/dashboard/sessions/new", data=form).status_code == 400
     assert state.settings() == before
-    form["csrf"] = csrf(client.get("/dashboard/settings"))
-    assert client.post("/dashboard/settings", data=form).status_code == 302
+    form["csrf"] = csrf(client.get("/dashboard/sessions/new"))
+    assert client.post("/dashboard/sessions/new", data=form).status_code == 302
     after = state.settings()
     form["date"] = "2026-10-05"
-    stale = client.post("/dashboard/settings", data=form)
+    stale = client.post("/dashboard/sessions/new", data=form)
     assert stale.status_code == 400 and b"another tab or by another researcher" in stale.data
     assert state.settings() == after
 
@@ -1354,6 +1323,8 @@ def test_new_session_requires_auth_csrf_and_current_revision(app):
 def test_hundred_sessions_remain_browsable_exportable_and_capped_per_grade(app):
     state = app.extensions["research"]["state"]
     settings = state.settings()
+    for item in settings["sessions"]:
+        item["date"] = (date(2026, 1, 1) + timedelta(days=item["number"] - 1)).isoformat()
     for grade in ("4", "5"):
         settings["sessions"].extend({"id": f"grade-{grade}-session-{number}", "grade": grade,
                                      "number": number, "date": (date(2026, 1, 1) + timedelta(days=number - 1)).isoformat()}
@@ -1363,69 +1334,44 @@ def test_hundred_sessions_remain_browsable_exportable_and_capped_per_grade(app):
     key, _, _ = write_run(app, date=study_date)
     client = app.test_client()
     login(client)
-    csrf_token = csrf(client.get("/dashboard/settings"))
-    created = client.post("/dashboard/settings", data={
-        "action": "add_session", "grade": "4", "date": study_date, "school_year": school_year(study_date),
-        "revision": state.settings()["revision"], "csrf": csrf_token,
-    })
+    created = create_session(client, state, "4", study_date)
     assert created.status_code == 302
-    overview = client.get(created.location)
+    overview = client.get("/dashboard?grade=4&session=grade-4-session-100")
     assert "Session 100 · " + study_date in re.sub(r'<[^>]+>', '', overview.text)
     assert 'id="session-filter"' not in overview.text
-    history_link = next(link for link in dashboard_links(overview) if link.fragment == "session-history")
+    history_link = next(link for link in dashboard_links(overview) if link.path == "/dashboard/sessions"
+                        and parse_qs(link.query).get("grade") == ["4"])
     history_page = client.get(history_link.geturl())
     assert history_page.status_code == 200 and 'id="grade-4-session-100"' in history_page.text
-    assert len(re.findall(r'<th\b', overview.text.split("<thead>")[1].split("</thead>")[0])) == 4
+    assert len(re.findall(r'<th\b', overview.text.split("<thead>")[-1].split("</thead>")[0])) == 4
     downloaded = next(link for link in dashboard_links(overview) if link.path.endswith("/exports/grade_session"))
     _, manifest = archive(client.get(downloaded.geturl()))
     assert {run["run_id"] for run in manifest["runs"]} == {key}
     assert manifest["available_sessions"][0]["id"] == "grade-4-session-100"
     before = state.settings()
-    overflow = client.post("/dashboard/settings", data={
-        "action": "add_session", "grade": "4", "date": "2027-01-01",
-        "revision": before["revision"], "csrf": csrf_token,
-    })
+    overflow = create_session(client, state, "4", "2027-01-01")
     assert overflow.status_code == 400 and b"up to 100 sessions" in overflow.data
     assert state.settings() == before
-    available = client.get("/dashboard/settings?grade=4")
-    assert re.search(r'<a href="[^"]*section=sessions&amp;grade=4[^"]*"\s+aria-current="page"', available.text)
-    assert "This grade has 100 sessions" in available.text
     # A full grade must not block the other grade's next session on the same date.
-    assert client.post("/dashboard/settings", data={
-        "action": "add_session", "grade": "5", "date": study_date, "school_year": school_year(study_date),
-        "revision": before["revision"], "csrf": csrf_token,
-    }).status_code == 302
-    fourth_history = client.get("/dashboard/settings?grade=4")
-    fifth_history = client.get("/dashboard/settings?grade=5")
+    assert create_session(client, state, "5", study_date).status_code == 302
+    fourth_history = client.get("/dashboard/sessions?grade=4&year=")
+    fifth_history = client.get("/dashboard/sessions?grade=5&year=")
     assert 'id="grade-4-session-100"' in fourth_history.text and 'id="grade-5-session-100"' not in fourth_history.text
-    assert 'id="grade-4-session-1"' not in fourth_history.text
     assert 'id="grade-5-session-100"' in fifth_history.text and 'id="grade-4-session-100"' not in fifth_history.text
-    assert 'id="grade-5-session-1"' not in fifth_history.text
-    assert fourth_history.text.count('class="settings-session-item"') == 10
-    fourth_oldest = client.get("/dashboard/settings?grade=4&page=10")
-    fifth_oldest = client.get("/dashboard/settings?grade=5&page=10")
-    assert 'id="grade-4-session-1"' in fourth_oldest.text
-    assert 'id="grade-5-session-1"' in fifth_oldest.text
-    assert 'id="grade-4-session-100"' not in fourth_oldest.text
-    older_edit = client.post("/dashboard/settings?grade=4&page=10", data={
-        "action": "save_session", "session_id": "grade-4-session-1", "name": "First visit",
-        "date": before["sessions"][0]["date"], "revision": state.settings()["revision"],
-        "csrf": csrf(fourth_oldest),
-    })
+    assert fourth_history.text.count('class="session-row"') == 100
+    assert fifth_history.text.count('class="session-row"') == 100
+    older_edit = save_details(client, state, "4", "grade-4-session-1", before["sessions"][0]["date"], "First visit",
+                              year="2025/2026")
     assert older_edit.status_code == 302
-    assert parse_qs(urlsplit(older_edit.location).query)["page"] == ["10"]
     assert state.settings()["sessions"][0]["name"] == "First visit"
-    assert 'id="grade-4-session-1" open' in client.get(older_edit.location).text
     assert len(state.settings()["sessions"]) == 200
-    assert "This grade has 100 sessions" in fourth_history.text
     third = state.settings()
     third["sessions"].extend({"id": f"grade-3-session-{number}", "grade": "3", "number": number,
                                "date": (date(2026, 1, 1) + timedelta(days=number - 1)).isoformat()}
                               for number in range(1, 101))
     state.save_settings(third, third["revision"])
-    history = client.get("/dashboard/settings")
+    assert client.get("/dashboard/sessions?year=").status_code == 200
     assert len(state.settings()["sessions"]) == 300
-    assert "This grade has 100 sessions" in history.text
 
 
 def test_concurrent_session_creation_does_not_overwrite_history(app):
@@ -1509,14 +1455,11 @@ def test_all_participants_empty_roster_translation_and_refresh(app):
     assert ids == [str(number) for number in range(1, 41)]
     assert response.text.count('<span class="badge no_data">Senza dati salvati</span>') == 40
     assert 'type="checkbox"' not in response.text and "Scarica log</button>" not in response.text
-    history = next(link for link in dashboard_links(response) if link.fragment == "session-history")
-    # New sessions start from session preparation (session-first workflow).
-    creation = next(link for link in dashboard_links(response) if link.fragment == "prepare-details")
+    history = next(link for link in dashboard_links(response) if link.path == "/dashboard/sessions")
+    creation = next(link for link in dashboard_links(response) if link.path == "/dashboard/sessions/new")
     assert client.get(history.geturl()).status_code == 200
-    assert parse_qs(creation.query)["new"] == ["1"]
     creation_page = client.get(creation.geturl())
-    assert creation_page.status_code == 200 and 'id="prepare-details"' in creation_page.text
-    assert 'value="save_details"' in creation_page.text
+    assert creation_page.status_code == 200 and 'id="new-date"' in creation_page.text
     refreshed = client.post("/dashboard/refresh?lang=it", data={
         "csrf": csrf(response), "grade": "all", "collection": "v2",
     })
@@ -1553,8 +1496,7 @@ def test_historical_grade_categories_and_downloads_preserve_both_cohorts(app):
     add_history_rule(state)
     add_history_rule(state, grade="4", start=21, end=40)
     history_before = state.settings()["historical_grades"]
-    session = client.post("/dashboard/settings", data={"action": "add_session", "grade": "3", "date": "2025-10-01", "school_year": "2025/2026",
-                          "revision": state.settings()["revision"], "csrf": csrf(client.get("/dashboard/settings"))})
+    session = create_session(client, state, "3", "2025-10-01")
     assert session.status_code == 302
     assert parse_qs(urlsplit(session.location).query)["session"] == ["grade-3-session-1"]
     assert state.settings()["historical_grades"] == history_before

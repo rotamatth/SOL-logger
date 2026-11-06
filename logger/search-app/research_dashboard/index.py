@@ -16,6 +16,7 @@ import uuid
 
 from .participants import resolve_identity, school_year_for
 from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
+from .task_stats import add_event, merge_stats, new_stats, summarize
 
 MAX_LINE = 1024 * 1024
 MODULUS = 2 ** 256
@@ -97,9 +98,11 @@ class Index:
                         error = sqlite3.DatabaseError("Corrupt reporting cache")
                         error.sqlite_errorcode = sqlite3.SQLITE_CORRUPT
                         raise error
-                    if db.execute("PRAGMA user_version").fetchone()[0] < 2:
-                        db.execute("DELETE FROM scan")
-                        db.execute("PRAGMA user_version=2")
+                    if db.execute("PRAGMA user_version").fetchone()[0] < 3:
+                        # Version 3 adds task statistics: indexed files must be read again.
+                        for table in ("scan", "files", "events", "runs"):
+                            db.execute(f"DELETE FROM {table}")
+                        db.execute("PRAGMA user_version=3")
                     db.commit()
                     self.path.chmod(0o600)
                     self._initialized = True
@@ -185,7 +188,7 @@ class Index:
         stem, kind, position = file_identity(name)
         info = {"id": key, "name": name, "stem": stem, "kind": kind, "position": position,
                 "collection": collection, "issues": [], "uids": [], "session_ids": [],
-                "dates": [], "tasks": {}, "event_count": 0, "signature_sum": 0,
+                "dates": [], "tasks": {}, "task_stats": {}, "event_count": 0, "signature_sum": 0,
                 "finished": False, "size": 0, "mtime": 0, "metadata": {}}
         try:
             with safe_open(self.roots[collection], name) as f:
@@ -250,6 +253,7 @@ class Index:
                         if task is not None:
                             t = info["tasks"].setdefault(task, {"topics": [], "questions": [], "answers": [], "events": 0})
                             t["events"] += 1
+                            add_event(info["task_stats"].setdefault(task, new_stats()), event)
                             topic = event.get("actual_topic_number")
                             if isinstance(topic, (str, int)) and str(topic) not in t["topics"]:
                                 t["topics"].append(str(topic))
@@ -329,7 +333,9 @@ class Index:
                                      and all(f["kind"] in ("recovery", "metadata") for f in files)),
                    "log_id": meta.get("log_id") or (filename_log_id[1] if filename_log_id else None),
                    "log_id_source": "metadata" if meta.get("log_id") else "filename" if filename_log_id else None,
-                   "started_at": meta.get("started_at")}
+                   "started_at": meta.get("started_at"),
+                   "assignment_source": meta.get("assignment_source"),
+                   "task_stats": _task_figures(canonical, tasks)}
         # Missing predates session recording; explicit null records that no session
         # was selected. Preserve the distinction when rebuilding the file index.
         for key in ("study_session_at_collection", "study_session_snapshot"):
@@ -460,6 +466,22 @@ def _assign_task_status(tasks, issues):
             issues.append(f"multiple_answer_records:task={task['number']}")
         if any(a["present"] and not isinstance(a["value"], str) for a in task["answers"]):
             issues.append(f"non_text_answer:task={task['number']}")
+
+
+def _task_figures(canonical, tasks):
+    """The figures of each task with events, combined from the canonical logs."""
+    figures = {}
+    for number, task in tasks.items():
+        if task["events"]:
+            stats = None
+            for source in canonical:
+                if number in source.get("task_stats", {}):
+                    stats = merge_stats(stats, source["task_stats"][number])
+            figures[number] = {**summarize(stats), "finished": task["status"] == "completed",
+                               "topic": task["topics"][0] if task["topics"] else None,
+                               "question": task["questions"][0] if task["questions"] else None}
+    return figures
+
 
 def classify(run, settings):
     grade, school_year, source, rule_id, current_grade = None, None, "unknown", None, None

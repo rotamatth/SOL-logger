@@ -1,5 +1,6 @@
 {% extends 'research/base.html' %}
 {% import 'research/icons.html' as icons %}
+{% from 'research/task_stats.html' import question_table with context %}
 {% block content %}
 {% set is_roster_view = grade in grades or grade == 'all' %}
 <div class="dashboard-workspace">
@@ -40,10 +41,14 @@
     {% with configured_session=selected_session_configuration %}{% include 'research/session_question_preview.html' %}{% endwith %}
   </section>{% endif %}
 
+  {% if question_stats is not none %}<section class="panel stats-panel" aria-labelledby="class-stats-heading">
+    <h2 id="class-stats-heading">{{ t('stats_class_heading') }}</h2>
+    {% if question_stats %}<p class="small muted">{{ t('stats_class_hint') }}</p>{{ question_table(question_stats) }}{% else %}<p class="muted">{{ t('stats_nothing_yet') }}</p>{% endif %}
+  </section>{% endif %}
+
   {% if people %}<div class="participant-jump" data-participant-jump data-missing="{{ t('jump_id_missing') }}" data-participant-label="{{ t('participant') }}" hidden>
     <label for="participant-jump-id">{{ t('jump_to_id') }}</label>
-    <div class="participant-jump-controls"><input id="participant-jump-id" type="search" list="participant-jump-options" autocomplete="off" aria-describedby="participant-jump-hint"><button type="button">{{ t('jump_to_participant') }}</button></div>
-    <datalist id="participant-jump-options">{% for uid in people|map(attribute='id')|unique %}<option value="{{ uid }}">{% endfor %}</datalist>
+    <div class="participant-jump-controls"><select id="participant-jump-id" aria-describedby="participant-jump-hint"><option value="">{{ t('jump_choose_id') }}</option>{% for uid in people|map(attribute='id')|unique %}<option value="{{ uid }}">{{ uid }}</option>{% endfor %}</select><button type="button">{{ t('jump_to_participant') }}</button></div>
     <p id="participant-jump-hint" class="small muted">{{ t('jump_id_hint') }}</p>
     <p class="small" data-jump-result role="status" aria-live="polite"></p>
   </div>{% endif %}
@@ -68,7 +73,7 @@
       </div>{% endif %}
     </div>
     {% include 'research/overview_table.html' %}
-    <div class="dashboard-table-footer"><span>{{ t('dashboard_saved_hint') }}</span>{% if is_roster_view %}<div class="dashboard-settings-links"><a href="{{ u('enrollment_page', grade=grade if grade in grades else None,year=study_context.preparation_year or selected_year) }}">{{ t('manage_participants') }}</a><a href="{{ u('settings_page', section='sessions', grade=grade if grade in grades else None,year=study_context.preparation_year or selected_year,session=study_context.get('id')) }}#session-history">{{ t('session_history') }}</a><a href="{{ u('prepare_page',grade=grade if grade in grades else '4',year=selected_year or settings.current_school_year or None,new='1') }}#prepare-details">+ {{ t('new_session') }}</a></div>{% endif %}</div>
+    <div class="dashboard-table-footer"><span>{{ t('dashboard_saved_hint') }}</span>{% if is_roster_view %}<div class="dashboard-settings-links"><a href="{{ u('enrollment_page', grade=grade if grade in grades else None,year=study_context.preparation_year or selected_year) }}">{{ t('manage_participants') }}</a><a href="{{ u('sessions_page', grade=grade if grade in grades else None,year=study_context.preparation_year or selected_year) }}">{{ t('session_history') }}</a><a href="{{ u('create_session_page',grade=grade if grade in grades else None) }}">+ {{ t('new_session') }}</a></div>{% endif %}</div>
   </section>
   {% if unidentified %}<details class="panel dashboard-unidentified"><summary>{{ t('unidentified') }} <span class="count">{{ unidentified|length }}</span></summary><div>{% for run in unidentified %}<p><a href="{{ u('run_detail', key=run.id) }}">{{ t('run') }} {{ run.id[:12] }}</a> · {{ run.date or '—' }} · <span class="badge unknown">{{ t(run.status) }}</span></p>{% endfor %}</div></details>{% endif %}
 </div>

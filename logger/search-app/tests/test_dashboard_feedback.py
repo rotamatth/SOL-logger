@@ -21,7 +21,10 @@ def test_header_puts_language_before_logout_and_trash_moves_to_data_and_history(
     header = page.text.split('<header class="site-header">')[1].split("</nav>")[0]
     assert "/dashboard/trash" not in header
     assert header.index('class="languages"') < header.index("header-separator") < header.index("data-clears-editor-recovery")
-    assert '<a class="header-logo" href="/dashboard/prepare' in header
+    assert header.index('data-section="settings"') < header.index('class="languages"')
+    primary = page.text.split('class="header-primary"')[1].split("</nav>")[0]
+    assert re.findall(r'data-section="(\w+)"', primary) == ["sessions", "history"]
+    assert '<a class="header-logo" href="/dashboard/sessions' in header
     overview = client.get("/dashboard?collection=study&grade=4&lang=it")
     trash = next(link for link in Controls(overview).links if link["text"] == "Cestino")
     shown = client.get(trash["href"])
@@ -90,7 +93,9 @@ def test_clearer_wording_for_past_sessions_class_questions_and_recovery_copies(a
     page = client.get(PREPARE)
     assert "I bambini non possono più iniziare questa sessione" in page.text
     assert "nuovi accessi" not in page.text
+    assert "Torna alle sessioni" in page.text
     assert "Stai modificando <strong>" in page.text
+    assert "Le modifiche in questa pagina valgono solo per questa sessione." in page.text
     assert "Apri anno" not in page.text
     questions = client.get("/dashboard/settings/questions/grade-4-session-1?lang=it")
     assert "<h2>Domande per tutta la classe</h2>" in questions.text
@@ -143,6 +148,81 @@ def test_id_search_says_where_a_hidden_id_is(app):
     absent = client.get(from_prepare + "41")
     assert "non è iscritto in questo anno scolastico. Ultima classe: <strong>Quarta elementare · 2025/2026</strong>" in absent.text
     assert "Nessun partecipante corrisponde ai filtri" not in absent.text
+
+
+def select_options(html, control_id):
+    """(value, label, selected) of each option in one select, in order."""
+    field = re.search(rf'<select id="{control_id}".*?</select>', html, re.S)[0]
+    return [(value, " ".join(label.split()), "selected" in attrs)
+            for value, attrs, label in re.findall(r'<option value="([^"]*)"([^>]*)>(.*?)</option>', field, re.S)]
+
+
+def test_id_search_lists_every_id_with_its_class_so_nothing_has_to_be_typed(app):
+    client = signed_in(app)
+    from_prepare = f"/dashboard/settings/enrollment?prepare_session=grade-4-session-1&year={YEAR}&grade=4&lang=it"
+    page = client.get(from_prepare)
+    assert '<input id="filter-id"' not in page.text
+    options = select_options(page.text, "filter-id")
+    assert options[0] == ("", "Tutti gli ID", False)
+    # IDs of other classes are offered too: the researcher does not know where each child is.
+    assert ("1", "1 · Quarta", False) in options
+    assert ("21", "21 · Quinta", False) in options
+    chosen = client.get(from_prepare + "&q=21")
+    assert ("21", "21 · Quinta", True) in select_options(chosen.text, "filter-id")
+    assert "ID 21</strong> non è in questa classe" in chosen.text
+    # An ID from an old link stays visible, with the message saying it is not in the study.
+    unknown = client.get(from_prepare + "&q=999")
+    assert ("999", "999", True) in select_options(unknown.text, "filter-id")
+    assert "non è nello studio" in unknown.text
+
+
+def test_participants_filter_chooses_the_school_year_from_a_menu(app):
+    client = signed_in(app)
+    page = client.get(f"/dashboard/settings/enrollment?year={YEAR}&lang=it")
+    assert '<input id="filter-year"' not in page.text
+    assert (YEAR, YEAR, True) in select_options(page.text, "filter-year")
+
+
+def test_new_session_asks_name_and_date_first_and_the_class_is_an_explicit_choice(app):
+    client = signed_in(app)
+    state = app.extensions["research"]["state"]
+    page = client.get("/dashboard/sessions/new?lang=it")
+    assert page.text.index('id="new-name"') < page.text.index('id="new-date"') < page.text.index('id="new-grade"')
+    assert re.search(r'<option value="" disabled selected>Scegli la classe</option>', page.text)
+    assert 'id="new-grade" name="grade" required' in page.text
+    filtered = client.get("/dashboard/sessions/new?grade=5&lang=it")
+    assert ("5", "Quinta elementare", True) in select_options(filtered.text, "new-grade")
+    before = state.settings()
+    refused = client.post("/dashboard/sessions/new?lang=it", data={
+        "csrf": csrf(page), "revision": before["revision"], "name": "Senza classe", "date": "2026-12-01", "grade": ""})
+    assert refused.status_code == 400
+    assert 'value="Senza classe"' in refused.text
+    assert state.settings()["revision"] == before["revision"]
+    assert client.get("/dashboard/sessions/new?grade=7").status_code == 404
+
+
+def test_a_saved_year_that_lags_behind_does_not_hide_this_years_sessions(app):
+    from copy import deepcopy
+
+    from research_dashboard.participants import school_year_for
+    from research_dashboard.preparation_views import zurich_today
+    from research_dashboard.state import SETTING_FIELDS
+
+    client = signed_in(app)
+    state = app.extensions["research"]["state"]
+    settings = state.settings()
+    today = zurich_today()
+    updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
+    updated["current_school_year"] = "2025/2026"
+    target = next(item for item in updated["sessions"] if item["grade"] == "4")
+    target.update(name="Sessione di oggi", date=today, school_year=school_year_for(today))
+    state.save_settings(updated, settings["revision"])
+    landing = client.get("/dashboard/sessions?lang=it")
+    assert "Sessione di oggi" in landing.text
+    assert (school_year_for(today), school_year_for(today), True) in select_options(landing.text, "sessions-year")
+    # Today's session stays listed even with another year selected, and only then is the class filter applied.
+    assert "Sessione di oggi" in client.get("/dashboard/sessions?year=2025%2F2026&lang=it").text
+    assert "Sessione di oggi" not in client.get("/dashboard/sessions?grade=5&lang=it").text
 
 
 def test_unnamed_session_has_no_stray_dot_on_the_questions_page(app):

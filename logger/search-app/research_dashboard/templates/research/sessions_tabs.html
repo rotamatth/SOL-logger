@@ -1,0 +1,5 @@
+<div class="sessions-heading"><h1>{{ t('sessions') }}</h1><p class="muted">{{ t('sessions_hint') }}</p></div>
+<nav class="settings-tabs sessions-tabs" aria-label="{{ t('sessions') }}">
+  <a href="{{ u('sessions_page') }}" {% if sessions_tab == 'list' %}aria-current="page"{% endif %}>{{ t('sessions_view_manage') }}</a>
+  <a href="{{ u('create_session_page', grade=grade_filter if grade_filter is defined and grade_filter in grades else None) }}" {% if sessions_tab == 'create' %}aria-current="page"{% endif %}>{{ t('sessions_create') }}</a>
+</nav>

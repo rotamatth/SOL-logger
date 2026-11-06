@@ -3,8 +3,7 @@ from flask import abort, g, redirect, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from .state import DEFAULT_STUDY_ID, identity
-from .preparation_views import preparation_session
-from .settings_views import session_review_url
+from .preparation_views import preparation_session, session_review_url
 from .participants import GRADES, parse_ids, participant_sort_key, valid_school_year
 from .year_controls import school_year_choices
 
@@ -72,6 +71,8 @@ def register_enrollment_routes(dash):
                     revision = int(form["revision"])
                     if operation in ("add", "enroll"):
                         arguments = dict(ids=parse_ids(form.get("ids", "")), year=form.get("year"), grade=form.get("grade"))
+                    elif operation == "deactivate":
+                        arguments = dict(ids=parse_ids(form.get("ids", "")), year=form.get("year"))
                     elif operation == "update":
                         if form.get("active") not in ("yes", "no"):
                             raise ValueError("invalid_enrollment")
@@ -84,9 +85,9 @@ def register_enrollment_routes(dash):
                         arguments = dict(link_id=form.get("link_id"))
                     else:
                         raise ValueError("invalid_enrollment")
-                if workflow_session and (operation not in ("add", "enroll", "update")
+                if workflow_session and (operation not in ("add", "enroll", "update", "deactivate")
                         or arguments.get("year") != workflow_session["school_year"]
-                        or operation != "update" and arguments.get("grade") != workflow_session["grade"]):
+                        or operation in ("add", "enroll") and arguments.get("grade") != workflow_session["grade"]):
                     raise ValueError("invalid_enrollment")
                 if operation == "link" and view != "links":
                     legacy = legacy_records()
@@ -162,12 +163,14 @@ def register_enrollment_routes(dash):
             abort(404)
         audit = state.participant_changes()
         return page("enrollment", settings=settings, workflow_session=workflow_session,
-                    workflow_review_url=session_review_url(dash, settings, workflow_problem) if workflow_problem else None,
+                    workflow_review_url=session_review_url(dash, workflow_problem) if workflow_problem else None,
                     study_context=workflow_session or {"grade": grade, "school_year": year},
-                    research_area="prepare" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
+                    research_area="sessions" if workflow_session else "settings", view=view, year=year, grade=grade, status=status, query=query,
                     school_years=school_year_choices(settings, year, *(form.get(key) for key in ("year", "source_year", "target_year"))),
                     people=people[(number-1)*50:number*50], total=len(people), page_number=number,
                     page_count=page_count, editing=person, form=form, id_search=id_search,
                     preview=preview, review_token=token, operation=operation, error=error, error_ids=error_ids,
                     participant_token=identity, registry_ids=sorted(settings["participant_registry"], key=participant_sort_key),
+                    id_choices=[(uid, enrollments.get(uid, {}).get("grade"))
+                                for uid in sorted(settings["participant_registry"], key=participant_sort_key)],
                     legacy_ids=sorted({run["participant_id"] for run in legacy}, key=participant_sort_key), audit=audit), 400 if error else 200

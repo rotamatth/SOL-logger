@@ -49,15 +49,14 @@ def test_preparation_history_and_settings_links_retain_the_selected_session(app)
     history = client.get(destination)
     assert history.status_code == 200
     for response in (prep, history):
-        returning = parse_qs(urlsplit(named_link(response, "Prepare a session")).query)
-        assert returning["grade"] == ["4"] and returning["year"] == [YEAR]
-        assert returning["session"] == [SESSION]
+        returning = urlsplit(named_link(response, "Sessions"))
+        assert parse_qs(returning.query)["year"] == [YEAR] and returning.fragment == SESSION
     settings_url = named_link(history, "Study settings")
     settings = client.get(settings_url)
     assert settings.status_code == 200
     back = next(link["href"] for link in Controls(settings).links
-                if link["text"] == "← Prepare a session")
-    assert parse_qs(urlsplit(back).query)["session"] == [SESSION]
+                if link["text"] == "← Back to Sessions")
+    assert parse_qs(urlsplit(back).query)["year"] == [YEAR]
     assert state.settings() == before
 
 
@@ -89,9 +88,8 @@ def test_all_years_history_returns_to_the_sessions_own_preparation_year(app):
     login(client)
     response = client.get(f"/dashboard?collection=study&grade=4&session={SESSION}")
     assert response.status_code == 200
-    back = named_link(response, "Prepare a session")
-    query = parse_qs(urlsplit(back).query)
-    assert query["year"] == [YEAR] and query["session"] == [SESSION]
+    back = named_link(response, "Sessions")
+    assert parse_qs(urlsplit(back).query)["year"] == [YEAR] and urlsplit(back).fragment == SESSION
     assert client.get(back).status_code == 200
     history = parse_qs(urlsplit(named_link(response, "Data and history")).query)
     assert "school_year" not in history  # All-years history remains an explicit scope.
