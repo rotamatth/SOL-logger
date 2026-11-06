@@ -635,7 +635,7 @@ def result():
     else:
         cached_no_results_message = None
         try:
-            corrected_query, raw_results, _, query_correction_source = search_backend.search(query, page, rpp)
+            corrected_query, raw_results, _, query_correction_source = search_backend.search(query, page, rpp, theme=run_theme())
         except Exception:
             if ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING:
                 return render_no_results("Modalità test: nessun risultato disponibile, ma puoi comunque scrivere una risposta.", query_correction_source=query_correction_source)
@@ -793,7 +793,7 @@ def autocomplete():
         return jsonify(empty_response)
 
     try:
-        suggestions, source = search_backend.autocomplete(query)
+        suggestions, source = search_backend.autocomplete(query, theme=run_theme())
         if not suggestions:
             return jsonify(empty_response)
         return jsonify({
@@ -1046,14 +1046,24 @@ REVIEW_ARTWORK_THEMES = {
 }
 
 
-def review_artwork_theme(progress):
-    metadata = progress['metadata']
-    for label in (metadata.get('question_set_theme'), metadata['study_session_snapshot'].get('theme')):
+def known_theme(*labels):
+    for label in labels:
         if isinstance(label, str):
             theme = REVIEW_ARTWORK_THEMES.get(' '.join(label.casefold().split()))
             if theme:
                 return theme
     return None
+
+
+def review_artwork_theme(progress):
+    metadata = progress['metadata']
+    return known_theme(metadata.get('question_set_theme'), metadata['study_session_snapshot'].get('theme'))
+
+
+def run_theme():
+    """The theme of this browser's run, from what was frozen when the run started."""
+    return known_theme((session.get('question_set') or {}).get('theme'),
+                       (session.get('study_session') or {}).get('theme'))
 
 
 def review_illustration(progress):

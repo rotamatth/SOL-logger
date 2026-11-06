@@ -99,6 +99,27 @@ on the server. For access outside that private network, configure HTTPS and set
 `SESSION_COOKIE_SECURE=1` and `RESEARCH_COOKIE_SECURE=1`. Server network rules and
 external search credentials cannot be proven by local tests.
 
+## Search engines per theme
+
+Two datasets can run on one server. Add these to `logger/.env` on the server, taking
+the values from `vertex-space.env` and `vertex-ear.env`:
+
+```
+VERTEX_PROJECT_NUMBER=<GOOGLE_CLOUD_PROJECT>
+VERTEX_SPAZIO_ENGINE_ID=<GOOGLE_ENGINE_ID of vertex-space.env>
+VERTEX_SPAZIO_DATA_STORE_ID=<GOOGLE_DATASTORE_ID of vertex-space.env>
+VERTEX_ORECCHIO_ENGINE_ID=<GOOGLE_ENGINE_ID of vertex-ear.env>
+VERTEX_ORECCHIO_DATA_STORE_ID=<GOOGLE_DATASTORE_ID of vertex-ear.env>
+```
+
+Each run searches the engine of its question set's theme, frozen when it starts. Once
+any of these is set, a theme without its own engine shows the search error page instead
+of answering from another dataset. With none of them set, every run uses `VERTEX_ENGINE_ID`
+or `API_keys.json`, as before. The service account needs the Discovery Engine Viewer role
+on the engines' project. After a change, recreate the container and run
+`docker compose exec search_app python tools/check_search_engines.py`, which asks each
+engine one real question and prints no IDs or keys.
+
 ## Verified backup and restoration
 
 Run from `logger/` on the server. Choose a new backup filename each time:

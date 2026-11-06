@@ -96,7 +96,7 @@ def test_search_phase_cannot_be_rewound_by_a_late_browser_session_write(module):
     assert client.get("/search").status_code == 200
     with client.session_transaction() as state:
         state["tasks_started"] = []
-    module.search_backend.search = lambda query, page, rpp: (query, [], 0, "none")
+    module.search_backend.search = lambda query, page, rpp, theme=None: (query, [], 0, "none")
     assert client.get("/result?query=still-searching").status_code == 200
 
 
