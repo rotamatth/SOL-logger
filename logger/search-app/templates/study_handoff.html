@@ -11,6 +11,7 @@
   {% endif %}
 </head>
 <body class="study-review-page">
+{% include "test_run_banner.html" %}
   <main class="study-review{% if review_only %} study-review--single{% endif %}" aria-labelledby="review-heading">
     <h1 id="review-heading">{{ 'Rivedi la tua risposta' if review_only else 'Hai risposto alle tre domande' }}</h1>
     {% if review_tasks %}

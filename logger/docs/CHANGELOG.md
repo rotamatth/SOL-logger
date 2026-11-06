@@ -65,6 +65,45 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Add permanent test IDs that stay out of the results
+
+**Commit:** pending · **Type:** feature · **Area:** session, task-flow, logging, dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — new; the two test experiments and their assignment
+- `logger/search-app/research_dashboard/collection.py` — a test run's sidecar goes to `test-runs`, marked `is_test`
+- `logger/search-app/research_dashboard/state.py` — test attempts skip session checks and same-day resume
+- `logger/search-app/research_dashboard/index.py` — a test ID's file is never read as a child's
+- `logger/search-app/search_app.py` — a second `LogStore` for test runs, `/test-run/restart`, test IDs on the start list
+- `logger/search-app/student_progress.py` — progress events of a test run go with its logs
+- `logger/search-app/templates/test_run_banner.html`, `logger/search-app/static/test-run.css` — new; PROVA banner, included in the four page shells
+- `logger/search-app/tests/test_permanent_test_experiment.py` — new
+- `logger/docs/research_dashboard.md`, `logger/docs/production_readiness.md` — what the IDs do and where their logs are
+
+**What changed for the participant**
+`TEST-spazio` and `TEST-orecchio` appear at the end of the ID list. A child's own pages do not change: the banner and its
+stylesheet exist only in a test run.
+
+**How it works**
+Choosing a test ID makes a one-person session on the spot, with a new session ID each time, so every start is a new attempt.
+It needs no enrollment or settings. Its uploads, sidecar and progress events go through a separate `LogStore` in
+`logs-v2/test-runs`. The dashboard scans only the top of `logs-v2`, so test runs are out of the results by where they are
+written, not by a filter. Unsent batches are routed by the attempt they belong to, not by who is using the browser.
+
+**If something looks wrong after this, check**
+- A child's logs missing from the dashboard → look in `logs-v2/test-runs`; a test ID may have been chosen, and the PROVA banner would have shown.
+- `TEST-` files in the top of `logs-v2` → events of a test run inside a child's batch; the dashboard ignores them.
+- A start page without test IDs → an image older than this commit.
+
+**Left alone**
+The children's admission, `scheduled_assignment`, `LogStore` itself and the event format. Events of a real run gain no field,
+which is why the banner reads the session and not `study_context`, whose content goes into every logged event.
+
+**Verified**
+12 new tests: any day with no session, a whole run through the recap with nothing in the real folder, no receipt journal
+created there, results and resume lists beside a real child, repeated restarts, a double tap, unsent batches in both
+directions, a pending sidecar. Rehearsed on the production image with 20 children at once.
+
 ## 2026-11-06 — Choose the search engine from the session's theme
 
 **Commit:** pending · **Type:** feature · **Area:** serp, autocomplete, infra

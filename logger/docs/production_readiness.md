@@ -23,6 +23,9 @@ quarantined under `index-corrupt-*` and rebuilt on the next reporting request.
 Collection does not open this cache at startup. An unavailable cache can make the
 dashboard return 503 without preventing student starts/uploads.
 
+`logs-v2/test-runs` holds only the logs, sidecars and receipts of the permanent test IDs
+(see `research_dashboard.md`). The dashboard never reads it, so it can be left out of analysis.
+
 Do not delete `.uploads.sqlite3` as if it were a cache. Original log bytes and
 upload receipts must remain together. Keep backups private: they contain research
 data, session tokens and signing material. Store an additional encrypted copy off

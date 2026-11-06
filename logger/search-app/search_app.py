@@ -23,6 +23,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urljoin, urlparse
 from research_dashboard.participants import participant_sort_key
+from research_dashboard.permanent_test import (TEST_EXPERIMENTS, TEST_RUNS_FOLDER, assignment_for_test_id,
+                                               is_test_participant)
 from research_dashboard import init_dashboard
 from research_dashboard.collection import record_run, publish_metadata
 from research_dashboard.log_store import LogStore, UploadConflict
@@ -64,6 +66,7 @@ LOG_TIME_ZONE = ZoneInfo("Europe/Zurich")
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_REGISTRY_PATH = os.path.join(LOG_DIR, 'log_registry.jsonl')
 LOG_STORE = LogStore(LOG_DIR)
+TEST_LOG_STORE = LogStore(os.path.join(LOG_DIR, TEST_RUNS_FOLDER))
 
 SERP_QUERY_FIELD_EVENTS = {
     'querySubmitted',
@@ -117,7 +120,8 @@ USER_TOPICS = load_user_topics()
 app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
-                           lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw))
+                           lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw),
+                           test_logs=TEST_LOG_STORE)
 app.config["SOL_RECAP_BACKGROUND"] = os.getenv("SOL_RECAP_BACKGROUND")
 RECAP = StudentRecap(app, PROGRESS)
 
@@ -403,7 +407,7 @@ def start_page():
     enrollment_settings = RESEARCH_STATE.settings()
     resumable = RESEARCH_STATE.progress_ids_for_date(datetime.now(LOG_TIME_ZONE).date().isoformat())
     val_ids = sorted({uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']}
-                     | resumable, key=participant_sort_key)
+                     | resumable, key=participant_sort_key) + list(TEST_EXPERIMENTS)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         if untouched_run_for(user_id):
@@ -412,7 +416,8 @@ def start_page():
             return redirect(url_for('task'))
         previous_session = dict(session)
         for admission_try in range(3):
-            assignment = scheduled_assignment(enrollment_settings, user_id)
+            assignment = (assignment_for_test_id(user_id, datetime.now(LOG_TIME_ZONE).date())
+                          if is_test_participant(user_id) else scheduled_assignment(enrollment_settings, user_id))
             if assignment is None:
                 if admission_try:
                     session.clear()
@@ -473,6 +478,14 @@ def start_page():
         return redirect(phase_redirect_url())
     
     return render_template('start.html', show_search=False, valid_ids=val_ids)
+
+@app.get('/test-run/restart')
+def restart_test_run():
+    """Leave a test run, so a test ID can start again. A child's run is never left this way."""
+    if session.get('progress_is_test'):
+        session.clear()
+    return redirect(url_for('start_page'))
+
 
 @app.route('/task', methods=['GET', 'POST'])
 def task():
@@ -809,6 +822,8 @@ def autocomplete():
 def _append_log_registry(*, user_id, session_id, task_number, num_events,
                          saved_log_filename, status, error=None):
     """Append one summary line to logs/log_registry.jsonl. Never raises."""
+    if is_test_participant(user_id):
+        return
     try:
         entry = {
             "timestamp": datetime.now(LOG_TIME_ZONE).isoformat(timespec='milliseconds'),
@@ -895,7 +910,9 @@ def _accept_other_session_batch(data, batch_session_id, logs, user_id):
     newer events. It is stored like events of a previous, unfinished participant.
     """
     try:
-        receipt = LOG_STORE.accept(batch_session_id, data.get('batch_id'),
+        metadata = RESEARCH_STATE.attempt_metadata(batch_session_id)
+        store = TEST_LOG_STORE if metadata and metadata.get('is_test') else LOG_STORE
+        receipt = store.accept(batch_session_id, data.get('batch_id'),
                                    {"session_id": batch_session_id, "logs": logs},
                                    lambda: _prepare_other_session_upload(logs, batch_session_id, user_id))
     except UploadConflict:
@@ -936,7 +953,8 @@ def log_session():
         log_id = generate_log_id()
         session['log_id'] = log_id
     try:
-        receipt = LOG_STORE.accept(session_id, data.get('batch_id'),
+        store = TEST_LOG_STORE if session.get('progress_is_test') else LOG_STORE
+        receipt = store.accept(session_id, data.get('batch_id'),
             {"session_id": session_id, "logs": logs},
             lambda: PROGRESS.prepare_logs(logs, lambda entries: _prepare_upload(
                 entries, user_id, server_session_id, log_id, task_number,

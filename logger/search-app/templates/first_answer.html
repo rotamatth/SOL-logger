@@ -9,6 +9,7 @@
   <script src="{{ url_for('static', filename='first-answer.js') }}" defer></script>
 </head>
 <body class="first-answer-page">
+{% include "test_run_banner.html" %}
   <main class="first-answer-panel" aria-labelledby="first-answer-question">
     <span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>
     <p class="first-answer-intro">Pensi di sapere la risposta a questa domanda?</p>
