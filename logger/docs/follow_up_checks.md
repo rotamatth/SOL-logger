@@ -60,6 +60,11 @@ history of what was checked stays visible.
   `Orecchio_01`. Keep the theme `orecchio`, which the setup pre-fills. Done when `5a orecchio` shows Published.
 - [x] **Fake May logs on the server.** _2026-11-06, Matthias: `UserTestLog*`, `Utente*` and 11 numeric test runs removed through a
   container, with safety copies in the home folder. `logs/` holds 73 files: the 18 class runs of 19 May and the registry._
+- [ ] **A real classroom tablet.** The tablets are not iPads and their screens are shorter (Matthias, 2026-11-06); model and browser are unknown.
+  On one of them, run a test ID through a whole question and the recap: everything fits, the animation plays without a box around it, buttons respond.
+  Done when these hold.
+- [ ] **Diletta's check of the child pages.** The orecchio text of "Cominciamo!", which was written for her to review, and each clip against its question.
+  See `child_pages_2026-11.md`. Done when she has seen them.
 - [ ] **Permanent test IDs on the server, Tuesday morning.** Run `TEST-spazio` and `TEST-orecchio` on an iPad with Brave before
   the class, then check the logs reached `logs-v2/test-runs` and nothing changed in Data and history. Done when both hold.
 

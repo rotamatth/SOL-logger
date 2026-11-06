@@ -5,6 +5,7 @@ import pytest
 
 from .test_background_upload_browser import student_site, start, search, saved, types_of, until  # noqa: F401
 from .test_first_answer_flow_browser import wait_for_draft_ack
+from .progress_helpers import through_intro
 
 
 def open_box(page):
@@ -195,6 +196,7 @@ def test_pending_final_intent_wins_over_older_sqlite_draft_and_retries_once(stud
         page.click("#yes-end-btn")
     review.wait_for()
     page.get_by_role("link", name="Prossima domanda").click()
+    through_intro(page)
     page.wait_for_function("document.querySelector('.first-answer-number')?.textContent === '#2'")
     assert [event["answer"] for event in types_of(saved(root, "1"), "TaskEnded")] == ["Finale confermata da conservare"]
     assert persisted(root) == ("Bozza precedente", 1) and persisted(root, 2) is None

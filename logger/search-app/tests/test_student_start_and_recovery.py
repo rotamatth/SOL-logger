@@ -21,7 +21,7 @@ def test_same_id_submitted_twice_continues_the_untouched_run(student_modules, tm
     with client.session_transaction() as student:
         first = student["session_id"]
     again = client.post("/start", data={"user_id": "1"})
-    assert again.status_code == 302 and again.location.endswith("/task")
+    assert again.status_code == 302 and again.location.endswith("/task/intro")
     with client.session_transaction() as student:
         assert student["session_id"] == first
     assert attempts(module) == [first]

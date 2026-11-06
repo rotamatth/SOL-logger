@@ -121,7 +121,7 @@ app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
                            lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw),
-                           test_logs=TEST_LOG_STORE)
+                           test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt))
 app.config["SOL_RECAP_BACKGROUND"] = os.getenv("SOL_RECAP_BACKGROUND")
 RECAP = StudentRecap(app, PROGRESS)
 
@@ -1064,6 +1064,14 @@ REVIEW_ARTWORK_THEMES = {
 }
 
 
+# The dashed arrow from the first answer to the final one, on the review page's 760 x 420 stage.
+_ARROW_LEFT = {"line": "M110 100 C 20 195, 124 318, 205 372", "tip": "M193 373 L205 372 L199 361", "x": 93, "y": 251}
+_ARROW_RIGHT = {"line": "M610 112 C 700 200, 680 330, 604 362", "tip": "M615 351 L604 362 L619 365", "x": 669, "y": 258}
+_ARROW_FAR_LEFT = {"line": "M165 100 C 80 190, 90 320, 168 360", "tip": "M156 362 L168 360 L161 349", "x": 105, "y": 249}
+REVIEW_ARROWS = {'space-1': _ARROW_LEFT, 'ear-1': _ARROW_LEFT, 'space-2': _ARROW_RIGHT, 'ear-2': _ARROW_RIGHT,
+                 'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT}
+
+
 def known_theme(*labels):
     for label in labels:
         if isinstance(label, str):
@@ -1100,13 +1108,14 @@ def task_review(number):
     task = progress['tasks'][number - 1]
     theme = review_artwork_theme(progress)
     topic = str(task['snapshot']['topic_id'])
-    animation = poster = None
+    animation = poster = piece = None
     if theme and topic in ('1', '2', '3'):
         prefix = 'Spazio' if theme == 'space' else 'Orecchio'
         animation = f'videos/review/{prefix}_0{topic}.mp4'
         poster = f'images/review/{theme}-{topic}.webp'
+        piece = f'{theme}-{topic}'
     return render_template('study_handoff.html', review_tasks=[task], review_only=True,
-                           animation=animation, poster=poster,
+                           animation=animation, poster=poster, piece=piece, arrow=REVIEW_ARROWS.get(piece),
                            is_last=number == len(progress['tasks']))
 
 

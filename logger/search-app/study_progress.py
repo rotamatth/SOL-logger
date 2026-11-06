@@ -625,6 +625,11 @@ class ProgressStore:
                     for row in db.execute("""SELECT * FROM progress_events
                         WHERE attempt_id = ? AND published_at IS NULL ORDER BY rowid""", (attempt_id,))]
 
+    def task_started(self, attempt_id, question_number):
+        with self._transaction() as db:
+            return db.execute("SELECT 1 FROM progress_events WHERE event_key = ?",
+                              (f"{attempt_id}:{question_number}:TaskStarted",)).fetchone() is not None
+
     def mark_task_started(self, key, attempt_id, question_number):
         """Queue TaskStarted once when the current first-answer page is shown."""
         if type(question_number) is not int or not 1 <= question_number <= 3:
