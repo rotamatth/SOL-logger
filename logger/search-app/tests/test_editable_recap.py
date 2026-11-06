@@ -141,7 +141,7 @@ def test_session_three_finishes_the_study_exactly_once(student_modules):
     module.RESEARCH_STATE.save_settings(settings, settings["revision"])
     client = begin(module)
     auth = complete_today(client)
-    assert "termina lo studio" in client.get("/thank_you").text
+    assert "Salva l’attività" in client.get("/thank_you").text
     for _ in range(2):
         assert commit(client, auth, "finish").status_code == 200
     for kind in ("sessionCompleted", "studySessionFinished", "experimentFinished"):

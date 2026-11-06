@@ -41,7 +41,7 @@ def test_open_field_restores_draft_without_unlocking_search():
     assert "Un cane di nome Laika</textarea>" in html
     assert page.find("label", **{"for": field["id"]})
     assert not page.find("a", href="/search")
-    assert "disabled" in page.find("button", id="first-answer-search")[0]
+    assert not page.find("button", id="first-answer-search")
 
 
 def test_unknown_has_a_separate_explicit_confirmation_post_without_answer_text():
@@ -66,12 +66,9 @@ def test_only_persisted_submission_reveals_search_and_preserves_original(answer)
     assert not page.find("form")
     assert not page.find("dialog")
     assert "Old draft" not in html
-    if answer["outcome"] == "answered":
-        assert "readonly" in page.find("textarea")[0]
-        assert "Laika</textarea>" in html
-    else:
-        assert "Non lo so" in html
-        assert not page.find("textarea")
+    assert not page.find("textarea")
+    saved = "Laika" if answer["outcome"] == "answered" else "Non lo so"
+    assert f'<p class="first-answer-saved-text">{saved}</p>' in html
 
 
 def test_error_keeps_recoverable_text_and_does_not_report_success():
@@ -89,8 +86,7 @@ def test_question_answer_and_error_are_escaped_without_legacy_reward_scripts():
     page = Page(html)
     assert "&lt;/textarea&gt;&lt;script&gt;" in html
     assert attack not in html
-    assert all(a.get("src", "").endswith("first-answer.js")
-               for a in page.find("script"))
+    assert all("first-answer.js" in a.get("src", "") for a in page.find("script"))
     assert "reward" not in html.lower()
 
 
@@ -100,4 +96,5 @@ def test_leading_newline_survives_html_textarea_parsing(submitted):
     text = "\nLaika"
     answer = {"outcome": "answered", "text": text} if submitted else None
     html = render(draft_text=text, first_answer=answer)
-    assert re.search(r"<textarea\b[^>]*>\n\nLaika</textarea>", html)
+    pattern = r'<p class="first-answer-saved-text">\nLaika</p>' if submitted else r"<textarea\b[^>]*>\n\nLaika</textarea>"
+    assert re.search(pattern, html)

@@ -65,6 +65,42 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Match the child pages to Diletta's Figma
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, session
+
+**Files**
+- `logger/search-app/templates/first_answer.html`, `static/first-answer.css`, `static/first-answer.js` — equal buttons, no search button until the answer is confirmed, saved answer as text, sizes that follow the screen height
+- `logger/search-app/templates/task_intro.html` — new; "Cominciamo!" and the question introduction
+- `logger/search-app/student_progress.py`, `study_progress.py` — `/task/intro`, `entry_url`, `task_started`, theme texts
+- `logger/search-app/templates/search_first_answer.html`, `static/main.css` — the first answer pop-up in the layout of the `?` pop-up; Nunito and Poppins
+- `logger/search-app/static/fonts/` — new; the Figma's fonts, served from here
+- `logger/search-app/templates/study_handoff.html`, `static/study-review.css`, `search_app.py` — the review page as the Figma's "Pieces Unlock"; `static/review-animation-key.svg` removed
+- `logger/search-app/templates/recap.html`, `static/recap.css` — the Figma's look over the same functions
+- `logger/search-app/static/test-run.css` — the test banner sits in the blue band
+- `logger/search-app/tests/test_child_pages.py`, `test_child_pages_browser.py` — new; other tests follow the new labels and steps
+- `logger/docs/desktop_interface.md`, `editable_recap.md`, `follow_up_checks.md`
+
+**What changed for the participant**
+See `logger/docs/child_pages_2026-11.md`. New steps: "Cominciamo!" at the start of a run and an introduction before each question. Pages fit shorter tablets.
+
+**How it works**
+`/start` and the next question lead to `/task/intro` while the question has no `TaskStarted`. `/task` is unchanged and logs `TaskStarted` when it shows the form, so the
+introductions log nothing and a question already begun resumes directly. Everything else is templates and styles. Pages load their styles with `?v=child-pages-1` so tablets do not keep old ones.
+
+**If something looks wrong after this, check**
+- A button below the screen on a tablet → the `vh` sizes in `first-answer.css` and `--stage` in `study-review.css`; `test_child_pages_browser.py` sets the sizes it guards.
+- A child repeating an introduction → `task_started` and `entry_url`.
+- Cards in the wrong place on an animation → the `.unlock--` rules and `REVIEW_ARROWS`.
+
+**Left alone**
+What is saved and logged, `/first-answer`, the confirmation step of issue #6, recap saving and the PDF, the search page's layout.
+Session 3's finish button no longer says "termina lo studio", but it still ends the study.
+
+**Verified**
+Full suite with browser tests. Every step measured at 1180 x 699, 1280 x 680, 1024 x 520 and 800 x 1100 in WebKit, and at 1280 x 680 in Chromium. Class, crash, fault and shared-tablet
+rehearsals on the production image. Not yet on a real classroom tablet.
+
 ## 2026-11-07 — Re-encode the review animations on white
 
 **Commit:** pending · **Type:** content · **Area:** task-flow, styling

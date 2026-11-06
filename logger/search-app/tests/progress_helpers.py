@@ -29,3 +29,12 @@ def final_event(client, text, **extra):
         return {"type": "TaskEnded", "answer": text, "attempt_id": state["progress_id"],
                 "task_number": state["task_position"] + 1, "uid": state["user_id"],
                 "sessionID": state["session_id"], **extra}
+
+
+def through_intro(page):
+    """Tap through whatever introductions a question still has, as a child does, up to the answer form."""
+    page.locator("#task-intro-continue, #first-answer-text").first.wait_for()
+    while page.locator("#task-intro-continue").count():
+        with page.expect_navigation():
+            page.locator("#task-intro-continue").click()
+    page.locator("#first-answer-text").wait_for()

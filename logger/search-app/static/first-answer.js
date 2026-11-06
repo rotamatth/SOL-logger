@@ -14,6 +14,12 @@
     assessment.hidden = blank;
     assessment.disabled = blank;
     if (blank) options.forEach(option => { option.checked = false; });
+    showReadiness();
+  }
+  // Conferma stays tappable, so a child who taps early is told what is missing.
+  function showReadiness() {
+    document.getElementById('first-answer-confirm').classList.toggle('is-waiting', !text.value.trim() || confidence() === null);
+    document.getElementById('first-answer-unknown').classList.toggle('is-waiting', Boolean(text.value.trim()));
   }
   function restore(value) {
     text.value = value.text;
@@ -29,6 +35,7 @@
     dialog.close();
   });
   text.addEventListener('input', () => { text.setCustomValidity(''); updateAssessment(); });
+  options.forEach(option => option.addEventListener('change', showReadiness));
   form.addEventListener('submit', (event) => {
     if (!text.value.trim()) {
       event.preventDefault();

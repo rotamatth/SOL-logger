@@ -1,13 +1,29 @@
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}
+
+/* The whole picture stays in view, as in the Figma: narrow columns with the cards on top of it. */
 .recap-board {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1 1 auto;
+  grid-template-columns: repeat(3, minmax(0, 262px));
+  justify-content: space-between;
   align-items: start;
-  min-height: clamp(380px, 58vw, 680px);
-  gap: clamp(10px, 2vw, 26px);
-  padding: clamp(12px, 2vw, 26px);
-  border-radius: 16px;
+  width: min(100%, 1060px);
+  min-height: 400px;
+  margin: 0 auto;
+  padding: clamp(8px, 1.6vh, 12px) clamp(12px, 3.5vw, 40px);
+  border: 1px solid #111;
+  border-radius: 6px;
   overflow: hidden;
   background: #eaf4ff;
 }
@@ -22,85 +38,142 @@
 }
 
 .recap-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   min-width: 0;
-  text-align: center;
+  max-height: 100%;
 }
 
 .recap-column h2 {
-  margin: 0;
-  font-size: 1rem;
+  margin: 0 0 6px;
+}
+
+.review-number {
+  display: inline-block;
+  padding: 3px 14px;
+  border-radius: 999px;
+  background: var(--sol-yellow);
+  color: #38250a;
+  font-size: 0.95rem;
+  font-weight: 800;
 }
 
 .recap-navigation {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin: 12px 0;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
   color: #173354;
-  background: #fff;
-  border-radius: 12px;
+  background: rgb(255 255 255 / 92%);
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .recap-navigation button {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 4px 8px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
 }
 
 .recap-question {
-  background: rgb(244 249 255 / 96%);
+  width: 100%;
+  overflow: auto;
   text-align: start;
 }
 
 .recap-question h3 {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 92%);
   color: #153e6c;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.recap-question .review-card {
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.28;
 }
 
 .recap-question h4 {
-  margin: 0 0 6px;
-  font-size: 1rem;
+  margin: 0 0 2px;
+  color: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
 }
 
-.recap-question .review-after,
-.recap-question details,
-.recap-question .recap-confidence {
-  margin-top: 10px;
+.recap-question .review-before h4 {
+  color: var(--sol-blue-dark);
 }
 
-.recap-confidence,
+.recap-question details {
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
+.recap-confidence {
+  margin: 2px 0 0;
+  line-height: 0;
+}
+
+.recap-confidence img {
+  width: 15px;
+  height: auto;
+  margin-right: 2px;
+}
+
 .recap-label {
-  font-size: 0.875rem;
+  display: block;
+  margin: 3px 0 2px;
+  font-size: 0.78rem;
+  opacity: 0.95;
 }
 
 .recap-question textarea {
   width: 100%;
-  min-height: 80px;
-  margin-top: 4px;
-  padding: 8px;
-  border: 1px solid #a2bde1;
+  min-height: 52px;
+  padding: 4px 8px;
+  border: 1px dashed rgb(255 255 255 / 80%);
   border-radius: 8px;
-  color: #173354;
+  background: rgb(255 255 255 / 16%);
+  color: #fff;
   font: inherit;
-  resize: vertical;
+  resize: none;
 }
 
 .recap-question summary {
   cursor: pointer;
+  text-decoration: underline;
 }
 
 .recap-empty {
-  margin: 12px 0 0;
-  padding: 16px;
-  border-radius: 12px;
-  color: #173354;
-  background: rgb(244 249 255 / 96%);
+  margin: 0;
+  padding: 3px 12px;
+  border-radius: 999px;
+  color: #334155;
+  background: rgb(255 255 255 / 60%);
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .recap-status {
+  margin: 2px 0 0;
   text-align: center;
+}
+
+.recap-status:empty {
+  display: none;
 }
 
 .recap-status[data-error] {
@@ -122,7 +195,7 @@
   outline-color: #ffcb74;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .recap-board {
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;
