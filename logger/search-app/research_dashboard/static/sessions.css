@@ -19,6 +19,9 @@
 .session-row-title a { font-weight:650; overflow-wrap:anywhere }
 .session-row-count { color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums; white-space:nowrap }
 .session-row-status { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; min-width:0 }
+/* A draft is the "setup to complete" warning: own colour and triangle, as on the session's page. */
+.session-row-status .badge.incomplete { display:inline-flex; align-items:center; gap:4px; border-color:var(--warning-line); background:var(--warning-soft); color:var(--warning-ink) }
+.session-row-status .badge.incomplete::before { content:""; width:12px; height:12px; flex:none; background-color:var(--warning-line); -webkit-mask:url("icon-warning.svg") center/contain no-repeat; mask:url("icon-warning.svg") center/contain no-repeat }
 .session-row .record-actions { justify-content:flex-end }
 .session-needs { display:flex; align-items:center; flex-wrap:wrap; gap:2px 8px; margin:0; font-size:13px }
 .session-needs > span { color:var(--muted) }

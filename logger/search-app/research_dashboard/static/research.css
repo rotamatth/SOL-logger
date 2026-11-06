@@ -1993,7 +1993,7 @@ select {
 .participant-jump[hidden] { display:none }
 .participant-jump label { margin-top:0 }
 .participant-jump-controls { display:flex; gap:8px; align-items:center }
-.participant-jump-controls input { min-width:0; flex:1; margin:0 }
+.participant-jump-controls select { min-width:0; flex:1; margin:0 }
 .participant-jump-controls button { flex:none }
 .participant-jump p { margin:6px 0 0 }
 .participant-jump-target { outline:2px solid #de9b34; outline-offset:-2px; background:var(--selection) }

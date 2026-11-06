@@ -171,4 +171,6 @@ def register_enrollment_routes(dash):
                     page_count=page_count, editing=person, form=form, id_search=id_search,
                     preview=preview, review_token=token, operation=operation, error=error, error_ids=error_ids,
                     participant_token=identity, registry_ids=sorted(settings["participant_registry"], key=participant_sort_key),
+                    id_choices=[(uid, enrollments.get(uid, {}).get("grade"))
+                                for uid in sorted(settings["participant_registry"], key=participant_sort_key)],
                     legacy_ids=sorted({run["participant_id"] for run in legacy}, key=participant_sort_key), audit=audit), 400 if error else 200

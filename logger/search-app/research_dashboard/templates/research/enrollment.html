@@ -39,10 +39,10 @@
     <input type="hidden" name="year" value="{{ year }}">
     <input type="hidden" name="grade" value="{{ workflow_session.grade }}">
     {% else %}
-    <div>{{ school_year_input('filter-year', 'year', year, school_years, required=false) }}</div>
+    <div><label for="filter-year">{{ t('school_year') }}</label><select id="filter-year" name="year">{% if not year %}<option value="" selected>{{ t('school_year_unknown') }}</option>{% endif %}{% for value in school_years %}<option value="{{ value }}" {% if year == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></div>
     <div><label for="filter-grade">{{ t('grade') }}</label><select id="filter-grade" name="grade"><option value="all">{{ t('all') }}</option>{% for item in grades %}<option value="{{ item }}" {% if grade == item %}selected{% endif %}>{{ t('grade_' ~ item) }}</option>{% endfor %}</select></div>
     {% endif %}
-    <div><label for="filter-id">{{ t('find_exact_id') }}</label><input id="filter-id" name="q" type="search" value="{{ query }}" maxlength="32" placeholder="001" aria-describedby="id-search-hint" autocomplete="off"></div>
+    <div><label for="filter-id">{{ t('find_exact_id') }}</label><select id="filter-id" name="q" aria-describedby="id-search-hint"><option value="">{{ t('all_ids') }}</option>{% if query and query not in registry_ids %}<option value="{{ query }}" selected>{{ query }}</option>{% endif %}{% for uid, id_grade in id_choices %}<option value="{{ uid }}" {% if query == uid %}selected{% endif %}>{{ uid }} · {{ t('grade_short_' ~ id_grade) if id_grade else t('not_enrolled') }}</option>{% endfor %}</select></div>
     <div><label for="filter-status">{{ t('participant_study_status') }}</label><select id="filter-status" name="status">{% for item in ('all','active','inactive') %}<option value="{{ item }}" {% if status == item %}selected{% endif %}>{{ t(item) }}</option>{% endfor %}</select></div>
     <div class="enrollment-filter-actions"><button type="submit">{{ t('apply_filters') }}</button><a href="{{ u('enrollment_page',year=year,grade=grade) }}">{{ t('dashboard_reset') }}</a></div>
   </form>
