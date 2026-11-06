@@ -78,6 +78,18 @@
   border-radius: 12px;
 }
 
+.review-diagram:has(.review-animation),
+.review-task:has(.review-animation) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.review-animation {
+  /* The supplied MP4s encode a black backdrop. Key it out over the page. */
+  filter: url("review-animation-key.svg#remove-black");
+}
+
 .review-comparison {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
