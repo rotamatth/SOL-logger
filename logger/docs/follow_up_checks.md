@@ -52,13 +52,14 @@ history of what was checked stays visible.
   `df -h .`, `python3 --version`, `docker compose version`. Done when these match, or the differences are understood.
 - [ ] **Repeat the rehearsal on the code actually released.** #28 combines #22 (with #23), #26, #27 and dashboard v2; #21 is
   not in it. The class, crash, fault and deploy rehearsals covered earlier heads. Done when they pass on the final merge.
-- [ ] **Real search on both engines.** On 2026-11-06 a real query from a Mac reached Google and was refused
-  (`IAM_PERMISSION_DENIED`) for that service account, on the spazio and on the `API_keys.json` engine. Give the service
-  account the server uses the Discovery Engine Viewer role on the engines' project, set the variables in
-  `production_readiness.md`, and run `tools/check_search_engines.py` on the server. Done when each theme returns results
-  from its own dataset.
-- [ ] **May's classes.** `tools/setup_session_2026_11_10.py` needs the real May dates and numeric IDs from the server's
-  `logs/`, and the three orecchio questions in clip order. Done when `--dry-run` reports both classes ready and May classified.
+- [ ] **Real search on both engines, on the server.** _2026-11-06: with the Discovery Engine Viewer role, a real query from a Mac
+  returned results from each engine on its own topic. Vertex gave no suggestions for either, so autocomplete relies on the
+  SerpAPI fallback._ Set the variables in `production_readiness.md` on the server and run `tools/check_search_engines.py`, then type
+  in the search box. Done when each theme returns its own results and suggestions appear.
+- [ ] **Orecchio questions.** Diletta enters them in the dashboard after the deploy, in animation order: slot 1 plays
+  `Orecchio_01`. Keep the theme `orecchio`, which the setup pre-fills. Done when `5a orecchio` shows Published.
+- [ ] **Fake May logs on the server.** `UserTestLog*` and `Utente*` are to be removed from `logs/`; a plain delete was refused,
+  because the container owns the files. Done when their count is 0, with the class runs of 19 May still there.
 - [ ] **Permanent test IDs on the server, Tuesday morning.** Run `TEST-spazio` and `TEST-orecchio` on an iPad with Brave before
   the class, then check the logs reached `logs-v2/test-runs` and nothing changed in Data and history. Done when both hold.
 

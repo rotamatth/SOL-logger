@@ -40,12 +40,13 @@ SPAZIO_QUESTIONS = (
     ("Primo animale nello spazio", "Qual è stato il primo animale nello spazio e come si chiamava?"),
     ("Altre galassie", "Quali sono i nomi di altre 3 galassie oltre la nostra?"),
 )
-ORECCHIO_QUESTIONS = ()  # Until these are known, class 5 stays a draft that needs its questions.
+ORECCHIO_QUESTIONS = ()  # Diletta enters them in the dashboard. Until then class 5 is a draft that needs them.
 
-# (first day, last day) of May's classroom runs, from the server's logs.
-MAY_PERIODS = {"3": (), "4": ()}
-# The IDs that have May logs, by class. A link needs real records to point at.
-MAY_IDS = {"3": (), "4": ()}
+# The experiment of 19 May 2026: class 4 started at 10:41 with IDs 9-16, class 3 at 14:47 with IDs 1-8, 17, 18,
+# and all 18 finished. IDs 19 and 20 have no May run. Runs on other days were tests and stay out of the classes.
+MAY_DAY = "2026-05-19"
+MAY_PERIODS = {"3": ((MAY_DAY, MAY_DAY),), "4": ((MAY_DAY, MAY_DAY),)}
+MAY_CLASSES = {"3": [(1, 8), (17, 18)], "4": [(9, 16)]}
 
 
 class NotFresh(RuntimeError):
@@ -69,10 +70,10 @@ def study_session(grade, name, questions):
             "name": name, "school_year": SCHOOL_YEAR, "question_set": questions}
 
 
-def historical_rules(periods):
+def historical_rules():
     rules = []
-    for grade, ranges in (("3", GROUP_A), ("4", GROUP_B)):
-        for date_from, date_to in periods[grade]:
+    for grade, ranges in MAY_CLASSES.items():
+        for date_from, date_to in MAY_PERIODS[grade]:
             rules.extend({"id": secrets.token_hex(12), "grade": grade, "collection": "legacy",
                           "school_year": MAY_SCHOOL_YEAR, "date_from": date_from, "date_to": date_to,
                           "start": start, "end": end, "prefix": "", "width": 0} for start, end in ranges)
@@ -97,10 +98,8 @@ def fresh_problem(state, log_dir):
     return None
 
 
-def apply(state, log_dir, spazio=SPAZIO_QUESTIONS, orecchio=ORECCHIO_QUESTIONS, periods=None, may_ids=None):
+def apply(state, log_dir, spazio=SPAZIO_QUESTIONS, orecchio=ORECCHIO_QUESTIONS):
     """Every step goes through the dashboard's own validated writes."""
-    periods = MAY_PERIODS if periods is None else periods
-    may_ids = MAY_IDS if may_ids is None else may_ids
     problem = fresh_problem(state, log_dir)
     if problem:
         raise NotFresh(problem)
@@ -113,7 +112,7 @@ def apply(state, log_dir, spazio=SPAZIO_QUESTIONS, orecchio=ORECCHIO_QUESTIONS, 
                 {"grade": "5", "start": 9, "end": 16, "prefix": "", "width": 0}],
         sessions=[study_session("4", "4a spazio", question_set("spazio", spazio)),
                   study_session("5", "5a orecchio", question_set("orecchio", orecchio))],
-        historical_grades=historical_rules(periods))
+        historical_grades=historical_rules())
     state.save_settings(updated, current["revision"])
 
     def change(operation, **arguments):
@@ -130,11 +129,10 @@ def apply(state, log_dir, spazio=SPAZIO_QUESTIONS, orecchio=ORECCHIO_QUESTIONS, 
         db.executemany("DELETE FROM participants WHERE id=?", [(uid,) for uid in unused])
         revision = db.execute("SELECT MAX(revision) FROM settings").fetchone()[0]
         identities.audit(db, revision, "setup_removed_unused_ids", {"ids": unused})
-    change("enroll", ids=ids_of(GROUP_A), year=MAY_SCHOOL_YEAR, grade="3")
-    change("enroll", ids=ids_of(GROUP_B), year=MAY_SCHOOL_YEAR, grade="4")
-    for grade, ids in may_ids.items():
-        for uid in ids:
-            for date_from, date_to in periods[grade]:
+    for grade, ranges in MAY_CLASSES.items():
+        change("enroll", ids=ids_of(ranges), year=MAY_SCHOOL_YEAR, grade=grade)
+        for uid in ids_of(ranges):
+            for date_from, date_to in MAY_PERIODS[grade]:
                 change("link", source_id=uid, uid=uid, date_from=date_from, date_to=date_to, note=LINK_NOTE)
 
 
@@ -153,9 +151,7 @@ def report(state):
             classes.setdefault(member["grade"], []).append(uid)
         print(year + ": " + "; ".join(f"class {grade}: {len(ids)} children" for grade, ids in sorted(classes.items())))
     print(f"Classes classified for May: {len(settings['historical_grades'])} rules, "
-          f"{len(settings['participant_links'])} records linked to children.")
-    if not settings["historical_grades"]:
-        print("MAY IS NOT CLASSIFIED YET: its dates and IDs are still empty in this tool.")
+          f"{len(settings['participant_links'])} children linked to their May records.")
 
 
 def main():
