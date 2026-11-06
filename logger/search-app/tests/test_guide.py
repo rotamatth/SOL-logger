@@ -96,3 +96,13 @@ def test_the_guide_loads_nothing_from_elsewhere_and_has_no_inline_styles(app):
     page = client.get("/dashboard/guide").text
     assert "http://" not in page and "https://" not in page
     assert " style=" not in page and "<style" not in page and "<script>" not in page
+
+
+@pytest.mark.parametrize("path, status", [("/dashboard/guide", 200), ("/dashboard/trash", 200),
+                                          ("/dashboard/exports/unknown-scope", 404)])
+def test_pages_without_a_study_scope_survive_the_student_apps_empty_context(app, path, status):
+    # The student flow adds its own ``study_context`` to every template, None outside a run.
+    app.context_processor(lambda: {"study_context": None})
+    client = app.test_client()
+    login(client)
+    assert client.get(path).status_code == status
