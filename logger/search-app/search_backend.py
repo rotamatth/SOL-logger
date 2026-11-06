@@ -44,6 +44,8 @@ The vertex Ai or search agent has to be set up on google console.
 import os
 import json
 import logging
+from functools import cache
+
 import requests
 from spellchecker import SpellChecker
 
@@ -55,7 +57,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_AUTOCOMPLETE_QUERY_MODEL = "search-history"
 DEFAULT_SERP_AUTOCOMPLETE_HL = "it"
 DEFAULT_SERP_AUTOCOMPLETE_GL = "it"
-DEFAULT_SERP_AUTOCOMPLETE_CLIENT = "gws-wiz"  # SerpAPI client; "" disables, also "chrome"/"safari"/"gws-wiz-serp"
+DEFAULT_SERP_AUTOCOMPLETE_CLIENT = "gws-wiz"
+VERTEX_AUTOCOMPLETE_TIMEOUT_SECONDS = 0.75
+SERP_AUTOCOMPLETE_TIMEOUT_SECONDS = 2
 SERP_AUTOCOMPLETE_HL = os.getenv("SERP_AUTOCOMPLETE_HL", DEFAULT_SERP_AUTOCOMPLETE_HL)
 SERP_AUTOCOMPLETE_GL = os.getenv("SERP_AUTOCOMPLETE_GL", DEFAULT_SERP_AUTOCOMPLETE_GL)
 SERP_AUTOCOMPLETE_CLIENT = os.getenv("SERP_AUTOCOMPLETE_CLIENT", DEFAULT_SERP_AUTOCOMPLETE_CLIENT).strip()
@@ -73,7 +77,6 @@ def serp_autocomplete_params(query):
         "api_key": SERP_API_KEY,
         "hl": SERP_AUTOCOMPLETE_HL,
         "gl": SERP_AUTOCOMPLETE_GL,
-        "client": "gws-wiz" ## adding client so that autocomplete suggestions are similar to what a user would get if they used Google 
     }
     if SERP_AUTOCOMPLETE_CLIENT:
         params["client"] = SERP_AUTOCOMPLETE_CLIENT
@@ -135,6 +138,7 @@ def get_search_client(location):
     return discoveryengine.SearchServiceClient(client_options=client_options)
 
 
+@cache
 def get_completion_client(location):
     client_options = None
     if location and location != "global":
@@ -256,13 +260,9 @@ def vertex_autocomplete(query, config, max_suggestions=5):
         config[5] if len(config) > 5 else DEFAULT_AUTOCOMPLETE_QUERY_MODEL
     )
 
-    logger.debug("Autocomplete query model: %s", autocomplete_query_model)
-
     if not project or not data_store_id:
         logger.error("[Vertex Autocomplete ERROR] Missing project_number or data_store_id in config")
-        return [], 0
-
-    client = get_completion_client(location)
+        return []
 
     data_store_path = (
         f"projects/{project}/locations/{location}"
@@ -270,28 +270,19 @@ def vertex_autocomplete(query, config, max_suggestions=5):
     )
 
     try:
-        fallback_flag = 0
+        client = get_completion_client(location)
         request = discoveryengine.CompleteQueryRequest(
             data_store=data_store_path,
             query=query,
             query_model=autocomplete_query_model,
             include_tail_suggestions=True,
         )
-        response = client.complete_query(request)
-        suggestions = [s.suggestion for s in response.query_suggestions][:max_suggestions]
-        if (len(suggestions)==0):
-            logger.debug("No autocomplete suggestions from Vertex AI, trying SERP API")
-            fallback_flag = 1
-            suggestions = pyterrier_autocomplete(query, max_suggestions)
-            if (len(suggestions)==0):
-                logger.debug("No suggestions generated from SERP API either")
-        else:
-            logger.debug("Vertex AI returned %d autocomplete suggestions", len(suggestions))
-        return suggestions, fallback_flag
-    except Exception as e:
-        # HTTPError includes the complete request URL, including the query and API key.
-        logger.error("[Vertex Autocomplete ERROR] %s", type(e).__name__)
-        return [], 0
+        response = client.complete_query(request, retry=None, timeout=VERTEX_AUTOCOMPLETE_TIMEOUT_SECONDS)
+        return [s.suggestion for s in response.query_suggestions if s.suggestion.strip()][:max_suggestions]
+    except Exception as error:
+        # SDK failures can include the participant's query or credentials.
+        logger.error("[Vertex Autocomplete ERROR] %s", type(error).__name__)
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -322,26 +313,28 @@ def pyterrier_search(query, page, rpp, db_url="http://search_engine:7002"):
     return corrected_query, itemlist, len(itemlist), "pyspellchecker"
 
 
-def pyterrier_autocomplete(query, MAX_SUGGESTIONS=5):
-    # """Stub. When SEARCH_BACKEND=pyterrier, autocomplete is disabled. To enable,
-    # replace this function with a loader that prefix-matches against a curated
-    # suggestions file (e.g. data/autocomplete_suggestions.json) or against the
-    # PyTerrier lexicon."""
-    # return []
-    response = requests.get(
+def serp_autocomplete(query, max_suggestions=5):
+    if not SERP_API_KEY:
+        return []
+
+    try:
+        response = requests.get(
             "https://serpapi.com/search.json",
             params=serp_autocomplete_params(query),
-            timeout=5
+            timeout=SERP_AUTOCOMPLETE_TIMEOUT_SECONDS,
         )
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as error:
+        # HTTPError can include a URL with the query and API key.
+        logger.warning("[SerpAPI Autocomplete ERROR] %s", type(error).__name__)
+        return []
 
-    response.raise_for_status()
-    data = response.json()
-
-    SERP_API_suggestions = [
-        s["value"] for s in data.get("suggestions", [])
-    ][:MAX_SUGGESTIONS]
-
-    return SERP_API_suggestions
+    entries = data.get("suggestions") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return []
+    values = [entry.get("value") for entry in entries if isinstance(entry, dict)]
+    return [value for value in values if isinstance(value, str) and value.strip()][:max_suggestions]
 
 
 # ---------------------------------------------------------------------------
@@ -359,12 +352,16 @@ def search(query, page, rpp):
 
 
 def autocomplete(query):
+    """Return (suggestions, source), preserving the source labels in study logs."""
     if SEARCH_BACKEND == "vertex":
-        suggestions, fallback_flag = vertex_autocomplete(query, _vertex_config)
-        if fallback_flag==1:
-            return suggestions, "SERP_API"
-        return suggestions, "vertex"
-    return pyterrier_autocomplete(query), "pyterrier"
+        suggestions = vertex_autocomplete(query, _vertex_config)
+        if suggestions:
+            return suggestions, "vertex"
+        source = "SERP_API"
+    else:
+        source = "pyterrier"
+    suggestions = serp_autocomplete(query)
+    return suggestions, source if suggestions else "none"
 
 spell = SpellChecker(language='it')
 def spellcheck_query(cleaned_query):
