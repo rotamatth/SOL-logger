@@ -1,6 +1,4 @@
-"""Rejected session edits survive concurrent pagination, year and removal changes."""
-from datetime import date, timedelta
-
+"""Rejected session edits survive concurrent year, removal and other-tab changes."""
 import pytest
 
 from .test_enrollment_controls import Controls
@@ -9,27 +7,14 @@ from .test_research_dashboard import app, configure, csrf, login  # noqa: F401
 YEAR = "2026/2027"
 FUTURE = "2027/2028"
 SESSION = "grade-4-session-1"
-URL = f"/dashboard/settings?section=sessions&grade=4&year={YEAR}&page=2"
+URL = f"/dashboard/prepare?grade=4&year={YEAR}&session={SESSION}"
 NAME = 'Unsaved <class> & "visit"'
-
-
-def eleven_sessions(app):
-    configure(app)
-    state = app.extensions["research"]["state"]
-    settings = state.settings()
-    for number in range(4, 12):
-        settings["sessions"].append({
-            "id": f"grade-4-session-{number}", "grade": "4", "number": number,
-            "school_year": YEAR, "date": (date(2026, 11, 1) + timedelta(days=number)).isoformat(),
-        })
-    state.save_settings(settings, settings["revision"])
-    return state
 
 
 def concurrent_change(state, change):
     settings = state.settings()
     if change == "remove_other":
-        settings["sessions"][-1]["removed"] = True
+        next(item for item in settings["sessions"] if item["id"] == "grade-4-session-3")["removed"] = True
     else:
         target = next(item for item in settings["sessions"] if item["id"] == SESSION)
         if change == "move_edited":
@@ -39,51 +24,54 @@ def concurrent_change(state, change):
     state.save_settings(settings, settings["revision"])
 
 
-def session_form(response, action="save_session"):
+def session_form(response, action="save_details"):
     matches = []
     for form in Controls(response).forms:
         fields = {item["name"]: item.get("value", "") for item in form["controls"] if item.get("name")}
-        if fields.get("session_id") == SESSION and fields.get("action") == action:
+        if fields.get("action") == action and fields.get("session_id", SESSION) == SESSION:
             matches.append((form["attrs"], fields))
     assert len(matches) == 1, matches
     return matches[0]
 
 
-@pytest.mark.parametrize("change", ["remove_other", "move_edited", "remove_edited"])
-def test_stale_edit_keeps_fields_and_can_be_reapplied_after_review(app, change):
-    state = eleven_sessions(app)
+@pytest.mark.parametrize("change,message,link_text", [
+    ("remove_other", "changed in another tab or by another researcher", "Reload saved settings"),
+    ("move_edited", "This session was removed or moved", "Review saved session in a new tab"),
+    ("remove_edited", "This session was removed or moved", "Review saved session in a new tab"),
+])
+def test_stale_edit_keeps_fields_and_can_be_reapplied_after_review(app, change, message, link_text):
+    configure(app)
+    state = app.extensions["research"]["state"]
     client = app.test_client()
     login(client)
     page = client.get(URL)
     assert page.status_code == 200
-    _, fields = session_form(page)
+    attrs, fields = session_form(page)
     fields.update(name=NAME, date="2026-10-12")
     concurrent_change(state, change)
     latest = state.settings()
 
-    rejected = client.post(URL, data=fields)
+    rejected = client.post(attrs["action"], data=fields)
     assert rejected.status_code == 400
     attrs, retained = session_form(rejected)
     assert "data-unsaved" in attrs
     assert {key: retained[key] for key in ("name", "date", "revision")} == {
         key: fields[key] for key in ("name", "date", "revision")}
     assert "school_year" not in retained  # The year follows from the date.
-    assert "changed in another tab or by another researcher" in rejected.text
+    assert message in rejected.text
     assert state.settings() == latest
-    assert client.get(URL).status_code == 404  # Invalid GET pages still fail.
     assert client.post(attrs["action"], data=retained).status_code == 400
     assert state.settings() == latest  # A second click cannot bypass the revision check.
 
-    review = next(link for link in Controls(rejected).links
-                  if link["text"] == "Review saved session in a new tab")
-    assert review["target"] == "_blank" and "noopener" in review["rel"]
+    review = next(link for link in Controls(rejected).links if link["text"] == link_text)
     saved = client.get(review["href"])
     assert saved.status_code == 200
     if change == "remove_edited":
+        assert review["target"] == "_blank" and "noopener" in review["rel"]
         restore_attrs, restore_fields = session_form(saved, "restore_session")
         restored = client.post(restore_attrs["action"], data=restore_fields)
         assert restored.status_code == 302
-        saved = client.get(restored.location)
+        saved = client.get(URL)
     fresh_attrs, fresh = session_form(saved)
     assert fresh["revision"] != retained["revision"]
     assert fresh["name"] != NAME
@@ -97,23 +85,23 @@ def test_stale_edit_keeps_fields_and_can_be_reapplied_after_review(app, change):
     assert not target.get("removed")
 
 
-def test_stale_add_on_disappearing_page_keeps_new_session_fields(app):
-    state = eleven_sessions(app)
+def test_stale_create_keeps_the_new_session_fields(app):
+    configure(app)
+    state = app.extensions["research"]["state"]
     client = app.test_client()
     login(client)
-    page = client.get(URL)
+    page = client.get("/dashboard/sessions/new")
     revision = state.settings()["revision"]
     concurrent_change(state, "remove_other")
     latest = state.settings()
-    response = client.post(URL, data={
-        "action": "add_session", "grade": "4", "revision": revision, "csrf": csrf(page),
-        "date": "2026-12-01", "name": NAME,
+    response = client.post("/dashboard/sessions/new", data={
+        "grade": "5", "revision": revision, "csrf": csrf(page), "date": "2026-12-01", "name": NAME,
     })
     assert response.status_code == 400
-    fields = next(form for form in Controls(response).forms
-                  if any(item.get("value") == "add_session" for item in form["controls"]))
-    assert "data-unsaved" in fields["attrs"]
-    values = {item.get("name"): item.get("value") for item in fields["controls"]}
+    form = next(form for form in Controls(response).forms
+                if any(item.get("name") == "date" for item in form["controls"]))
+    assert "data-unsaved" in form["attrs"]
+    values = {item.get("name"): item.get("value") for item in form["controls"]}
     assert values["name"] == NAME and values["date"] == "2026-12-01"
     assert "school_year" not in values and values["revision"] == str(revision)
     assert state.settings() == latest

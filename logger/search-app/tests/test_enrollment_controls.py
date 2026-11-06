@@ -114,12 +114,12 @@ def test_global_preparation_link_returns_to_the_selected_session(app, url):
     login(client)
     response = client.get(url)
     assert response.status_code == 200
-    destination = link(response, "Prepare a session")
-    query = parse_qs(urlsplit(destination).query)
-    assert query["session"] == [SESSION]
-    assert query["grade"] == ["4"]
-    assert query["year"] == [YEAR]
+    destination = link(response, "Sessions")
+    assert parse_qs(urlsplit(destination).query)["year"] == [YEAR]
+    assert urlsplit(destination).fragment == SESSION
     assert client.get(destination).status_code == 200
+    back = parse_qs(urlsplit(link(response, "← Back to the session")).query)
+    assert back["session"] == [SESSION] and back["grade"] == ["4"] and back["year"] == [YEAR]
 
 
 @pytest.mark.parametrize("edit", [False, True])
@@ -155,7 +155,7 @@ def test_failed_existing_id_enrollment_keeps_the_operation_and_help(app):
     assert "Import children already in the study" in response.text
     assert "Existing IDs cannot be reused" not in response.text
     forms = [form for form in Controls(response).forms
-             if any(item.get("name") == "ids" for item in form["controls"])]
+             if any(item.get("name") == "ids" and item["tag"] == "textarea" for item in form["controls"])]
     assert len(forms) == 1
     operation = [item for item in forms[0]["controls"] if item.get("name") == "operation"]
     assert len(operation) == 1

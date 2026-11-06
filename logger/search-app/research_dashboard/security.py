@@ -10,6 +10,7 @@ from flask import g, jsonify, make_response, redirect, request
 from werkzeug.security import check_password_hash
 
 from .dashboard import COOKIE, EDITOR_COOKIE, PREFIX, is_dashboard_path, safe_research_next, wants_json
+from .guide_views import GUIDE_COOKIE
 from .state import identity
 
 CONTENT_SECURITY_POLICY = ("default-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self'; "
@@ -106,8 +107,8 @@ def register_security(dash):
 
     @bp.route("/login", methods=["GET", "POST"])
     def login():
-        destination = (safe_research_next(request.args.get("next") or request.form.get("next"))
-                       or dash.u("prepare_page"))
+        home = dash.u("sessions_page")
+        destination = safe_research_next(request.args.get("next") or request.form.get("next")) or home
         if g.research_auth and g.research_auth["authenticated"]:
             return redirect(destination)
         if request.method == "GET":
@@ -129,6 +130,9 @@ def register_security(dash):
         state.successful_attempt(attempt)
         state.revoke(g.research_cookie)
         g.research_new_token, g.research_auth = state.new_session(identity(g.research_hash), authenticated=True)
+        # The first sign-in in a browser opens the guide, unless a specific page was asked for.
+        if destination == home and not request.cookies.get(GUIDE_COOKIE):
+            return redirect(dash.u("guide_page"))
         return redirect(destination)
 
     @bp.get("/session")

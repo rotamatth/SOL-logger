@@ -48,11 +48,15 @@ exposes `register_*(dash)` and receives the shared `Dashboard` context
 | --- | --- |
 | `security.py` | Login/logout, research session, CSRF, response headers (CSP), error pages |
 | `template_context.py` | Values available in every template (translation, navigation context, question status) |
-| `preparation_views.py` | Session preparation (the start page) and the researcher-only student preview |
+| `session_views.py` | The session list (the start page), Create, remove and restore |
+| `preparation_views.py` | One session's page, the status words shared with the list, and the researcher-only student preview |
+| `live.py`, `live_views.py` | Live view of a session; reads attempts and original logs directly, writes nothing |
+| `task_stats.py` | Statistics from logged events, used by the index and the live view; no Flask dependencies |
+| `guide_views.py` | The guide for new researchers |
 | `question_views.py` | Question editor: Save draft / Approve / Discard, library reuse |
 | `editor_views.py`, `editor_recovery.py` | Private 8-hour recovery of unsaved editor text |
 | `enrollment_views.py` | Permanent participants, yearly enrollment, signed review/confirmation |
-| `settings_views.py` | School year, session administration, original ID ranges (one handler per action) |
+| `settings_views.py` | School year and original ID ranges (one handler per action) |
 | `history_data.py`, `history_views.py` | Data and history read models; overview, participant, run and log pages; trash |
 | `export_views.py` | ZIP downloads |
 
@@ -133,7 +137,9 @@ The old range editor exists for compatibility during initial setup. Once multipl
 years are recorded, it refuses range changes; use the permanent register instead.
 Unchanged range templates never overwrite individual enrollment edits.
 
-The bare `/dashboard` entry and login lead to `/dashboard/prepare`. Explicit
+The bare `/dashboard` entry and login lead to `/dashboard/sessions`, except that the first
+sign-in in a browser opens `/dashboard/guide`. `/dashboard/prepare` without a session redirects
+to the list, and `/dashboard/settings?section=sessions` redirects to Sessions. Explicit
 reporting links such as `/dashboard?collection=study&grade=4` retain the data view.
 Preparation uses `grade`, `year` and `session`; its question/enrollment links carry
 `prepare_session` to return to the same context. Enrollment review tokens bind that

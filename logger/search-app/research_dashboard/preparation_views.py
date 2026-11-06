@@ -1,16 +1,19 @@
-"""Session preparation UI composed from the existing study services."""
+"""One session's preparation page, and the status words shared with the session list."""
 from copy import deepcopy
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from flask import abort, redirect, request
 
-from .participants import GRADES, participant_sort_key, roster, school_year_for, valid_school_year
+from .participants import (GRADES, participant_sort_key, roster, school_year_for, valid_school_year,
+                           year_contains)
 from .question_versions import published_questions, working_questions
-from .settings_views import session_review_url
 from .state import SETTING_FIELDS, make_study_session, normalize_session_name
 from .study_config import assignment_for, question_set_problem, session_readiness
-from .year_controls import school_year_choices
+
+DETAIL_ERRORS = frozenset(("settings_changed", "invalid_date", "invalid_session_name", "session_year_mismatch",
+                           "session_year_has_records", "overlapping_dates", "session_limit",
+                           "prepare_session_changed", "invalid_sessions"))
 
 
 def preparation_session(settings, session_id):
@@ -43,25 +46,94 @@ def import_choices(settings, year, grade):
 
 def preparation_status(study_session, readiness, today):
     """Describe access timing separately from question/configuration readiness."""
+    complete = bool(readiness and readiness.get('complete'))
     if not study_session or not study_session.get('date') or not valid_school_year(study_session.get('school_year')):
         code = 'setup_incomplete'
     elif study_session['date'] < today:
         code = 'date_passed'
-    elif not (readiness and (readiness.get('complete') or readiness.get('ready', 0))):
-        # Nobody could start on the date yet: report missing setup, not the schedule.
-        code = 'setup_incomplete'
     elif study_session['date'] > today:
-        code = 'scheduled'
-    elif readiness.get('complete'):
+        # Published means confirmed and ready for its date: every child can start.
+        code = 'scheduled' if complete else 'setup_incomplete'
+    elif complete:
         code = 'available_today'
-    else:
+    elif readiness and readiness.get('ready', 0):
         code = 'partly_available_today'
-    complete = bool(readiness and readiness.get('complete'))
-    tone = ('success' if code == 'available_today'
-            else 'warning' if code in ('setup_incomplete', 'partly_available_today')
-            or (code == 'scheduled' and not complete) else 'neutral')
+    else:
+        code = 'setup_incomplete'
+    tone = ('success' if code in ('available_today', 'scheduled')
+            else 'warning' if code in ('setup_incomplete', 'partly_available_today') else 'neutral')
     return {'code': code, 'title': 'session_state_' + code,
             'hint': 'session_state_' + code + '_hint', 'tone': tone}
+
+
+def session_needs(study_session, readiness):
+    """What still stops children from starting: any of 'date', 'ids' and 'questions'."""
+    needs = []
+    study_date, year = study_session.get('date'), study_session.get('school_year')
+    if not study_date or not valid_school_year(year) or not year_contains(year, study_date):
+        needs.append('date')
+    if not readiness['count']:
+        needs.append('ids')
+    shared = study_session.get('question_set')
+    individual = study_session.get('participant_questions', {})
+    question_sets = [individual.get(person['id'], shared) for person in readiness['participants']] or [shared]
+    if any(question_set_problem(item) for item in question_sets):
+        needs.append('questions')
+    return needs
+
+
+def session_group(study_session, readiness, today):
+    """Where a session belongs in the session list: 'past', 'today', 'published' or 'draft'."""
+    study_date = study_session.get('date')
+    if not study_date or not valid_school_year(study_session.get('school_year')):
+        return 'draft'
+    if study_date < today:
+        return 'past'
+    if study_date == today:
+        return 'today' if readiness['ready'] else 'draft'
+    return 'published' if readiness['complete'] else 'draft'
+
+
+def is_placeholder(study_session):
+    """A numbered slot nobody has filled in yet: Create uses it instead of skipping its number."""
+    return not any(study_session.get(key) for key in (
+        'date', 'name', 'removed', 'question_set', 'question_draft',
+        'participant_questions', 'participant_question_drafts'))
+
+
+def zurich_today():
+    return datetime.now(ZoneInfo('Europe/Zurich')).date().isoformat()
+
+
+def session_review_url(dash, study_session, fallback_year=None):
+    """Where to see a session's saved state after someone else changed it: its page or the restore panel."""
+    year = study_session.get('school_year') or fallback_year
+    if study_session.get('removed'):
+        return dash.u('sessions_page', grade=study_session['grade'], year=year, removed='1',
+                      _anchor='removed-sessions')
+    return dash.u('prepare_page', grade=study_session['grade'], year=year, session=study_session['id'])
+
+
+def save_session_details(state, settings, grade, selected, name, study_date, revision):
+    """Save a session's name and date, creating it when none is selected, and return it."""
+    # The school year follows from the date (September–August); it is never typed.
+    session_year = school_year_for(study_date)
+    if not session_year:
+        raise ValueError('invalid_date')
+    updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
+    if not settings['current_school_year']:
+        # Initial enrollment and session setup must share one revision.
+        updated['current_school_year'] = session_year
+    target = (next(item for item in updated['sessions'] if item['id'] == selected['id']) if selected else
+              next((item for item in sorted(updated['sessions'], key=lambda item: item['number'])
+                    if item['grade'] == grade and is_placeholder(item)), None))
+    if target:
+        target.update(name=normalize_session_name(name), date=study_date, school_year=session_year)
+    else:
+        target = make_study_session(updated, grade, study_date, name, session_year)
+        updated['sessions'].append(target)
+    state.save_settings(updated, revision)
+    return target
 
 
 def register_preparation_routes(dash):
@@ -70,11 +142,11 @@ def register_preparation_routes(dash):
     @bp.route('/prepare', methods=['GET', 'POST'])
     def prepare_page():
         settings = state.settings()
-        grade = request.args.get('select_grade', request.args.get('grade', '4'))
+        grade = request.args.get('grade', '4')
         if grade not in GRADES:
             abort(404)
-        today = datetime.now(ZoneInfo('Europe/Zurich')).date().isoformat()
-        year = request.args.get('select_year', request.args.get('year', settings['current_school_year'] or school_year_for(today)))
+        today = zurich_today()
+        year = request.args.get('year', settings['current_school_year'] or school_year_for(today))
         if not valid_school_year(year):
             abort(404)
         # A session removed or moved to another class/year while this form was open:
@@ -86,18 +158,12 @@ def register_preparation_routes(dash):
                 rejected = known
         selected = None if rejected else preparation_session(settings, request.args.get('session'))
         if selected and (selected['grade'] != grade or selected.get('school_year') not in ('', year)):
-            if request.method == 'GET' and request.args.get('context_selection') == '1':
-                selected = None  # Switching class/year starts with that context's own sessions.
-            else:
-                abort(404)
-        sessions = [item for item in settings['sessions'] if item['grade'] == grade
-                    and not item.get('removed') and item.get('school_year') in ('', year)]
-        sessions.sort(key=lambda item: (item['date'] or '9999', item['number']))
-        creating = request.args.get('new') == '1' and selected is None and rejected is None
-        if not selected and sessions and not creating and not rejected:
-            upcoming = next((item for item in sessions if item['date'] and item['date'] >= today), None)
-            undated = next((item for item in sessions if not item['date']), None)
-            selected = upcoming or undated or sessions[-1]
+            abort(404)
+        if not selected and not rejected:
+            # The session list is where a session is chosen or created.
+            if request.args.get('new') == '1':
+                return redirect(u('create_session_page', grade=grade))
+            return redirect(u('sessions_page', grade=request.args.get('grade'), year=request.args.get('year')))
         error = None
         if request.method == 'POST':
             try:
@@ -108,28 +174,12 @@ def register_preparation_routes(dash):
                     raise ValueError('settings_changed')
                 if request.form.get('action') != 'save_details':
                     raise ValueError('invalid_settings')
-                name, study_date = request.form.get('name', ''), request.form.get('date', '')
-                # The school year follows from the date (September–August); it is never typed.
-                session_year = school_year_for(study_date)
-                if not session_year:
-                    raise ValueError('invalid_date')
-                updated = deepcopy({key: settings[key] for key in SETTING_FIELDS})
-                if not settings['current_school_year']:
-                    # Initial enrollment and session setup must share one revision.
-                    updated['current_school_year'] = session_year
-                if selected and not creating:
-                    target = next(item for item in updated['sessions'] if item['id'] == selected['id'])
-                    target.update(name=normalize_session_name(name), date=study_date, school_year=session_year)
-                else:
-                    target = make_study_session(updated, grade, study_date, name, session_year)
-                    updated['sessions'].append(target)
-                state.save_settings(updated, revision)
-                return redirect(u('prepare_page', grade=grade, year=session_year, session=target['id'],
+                target = save_session_details(state, settings, grade, selected, request.form.get('name', ''),
+                                              request.form.get('date', ''), revision)
+                return redirect(u('prepare_page', grade=grade, year=target['school_year'], session=target['id'],
                                   saved='1', _anchor='prepare-participants'))
             except (ValueError, KeyError) as exc:
-                allowed = {'settings_changed', 'invalid_date', 'invalid_session_name', 'session_year_mismatch',
-                           'session_year_has_records', 'overlapping_dates', 'session_limit', 'prepare_session_changed'}
-                error = str(exc) if str(exc) in allowed else 'invalid_settings'
+                error = str(exc) if str(exc) in DETAIL_ERRORS else 'invalid_settings'
         readiness = session_readiness(settings, selected) if selected else None
         working = working_questions(selected) if selected else None
         published = published_questions(selected) if selected else None
@@ -137,11 +187,11 @@ def register_preparation_routes(dash):
                              or published and question_set_problem(published) is not None))
         return page('prepare', settings=settings, study_context={'grade': grade, 'school_year': year,
                     'id': selected['id'] if selected else None},
-                    research_area='prepare', selected=selected, sessions=sessions, creating=creating,
-                    rejected=rejected, rejected_review_url=session_review_url(dash, settings, rejected) if rejected else None,
-                    school_years=school_year_choices(settings, year, school_year_for(today)),
+                    research_area='sessions', selected=selected,
+                    rejected=rejected, rejected_review_url=session_review_url(dash, rejected) if rejected else None,
                     readiness=readiness, error=error, today=today,
                     session_status=preparation_status(selected, readiness, today),
+                    session_needs=session_needs(selected, readiness) if selected else [],
                     working_questions=working, published_questions=published,
                     has_working_draft=pending_draft,
                     pending_individual_drafts=len(selected.get('participant_question_drafts', {})) if selected else 0,
@@ -179,7 +229,6 @@ def register_preparation_routes(dash):
         questions = question_set.get('questions', []) if question_set else []
         question = questions[number - 1] if len(questions) >= number else None
         return page('student_preview', settings=settings, study_session=study_session,
-                    study_context=study_session, research_area='prepare',
+                    study_context=study_session, research_area='sessions',
                     participant=participant, participant_ids=ids, mode=mode, number=number,
                     preview_question=question, preview_set=question_set, question_source=source)
-    dash.prepare_view = prepare_page

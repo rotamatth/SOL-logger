@@ -21,7 +21,7 @@ one only when nothing fits.
 
 `search-bar`, `autocomplete`, `serp`, `pagination`, `back-navigation`,
 `result-viewer`, `logging`, `session`, `task-flow`, `reward`, `styling`,
-`data`, `infra`, `docs`, `tests`
+`data`, `infra`, `docs`, `tests`, `dashboard`
 
 ## How to add an entry
 
@@ -64,6 +64,466 @@ Two rules that make this worth keeping:
 ---
 
 # Entries
+
+## 2026-11-06 — Run the deploy backup in a container
+
+**Commit:** pending · **Type:** fix · **Area:** infra, docs
+
+**Files**
+- `scripts/deploy.sh` — the backup step runs in a one-off container and hands the archive to the checkout's owner
+- `logger/docs/production_readiness.md` — the same command for manual backups; check out the new code before the first upgrade
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The container runs as root and writes logs, databases and `password.hash` private to root. `deploy.sh` ran the
+backup as the operator's own account, which cannot read them, so on a Linux server the first deployment stopped
+collection, failed with `PermissionError`, and rolled back to the old image. Docker Desktop on a Mac maps ownership
+to the signed-in user, and CI backs up as root, so neither showed this. Rehearsed on a real Linux filesystem with a
+non-root operator (Docker-in-Docker): first upgrade, redeploy during a class, failed release, recovery.
+
+**If something looks wrong after this, check**
+- Deploy fails at "Taking a consistent backup" → `docker compose run` output; the new image must contain `tools/backup_study.py`.
+- A backup archive owned by root → the `chown` in the same step, and who owns `logger/`.
+
+**Left alone**
+`backup_study.py` itself. A rollback during the first upgrade still starts the old image with `logs-v2` mounted (see
+`follow_up_checks.md`).
+
+## 2026-11-06 — Keep events a browser could not send when an ID is entered again
+
+**Commit:** pending · **Type:** fix · **Area:** logging, session
+
+**Files**
+- `logger/search-app/static/logger.js` — `setAsideUnsent` and `sendUnsentRuns`; `clearClientData` keeps what was set aside
+- `logger/search-app/tests/test_unsent_events_browser.py`, `tests/test_upload_client.py` — new tests
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Entering an ID cleared all browser storage, including events and a pending batch that had not reached the server. If
+uploads were failing when a run was left, those events were lost once anyone entered an ID on that tablet: 14 events in
+each rehearsal. They are now set aside and sent under their own run's ID, reusing the batch ID so a retry cannot write
+them twice. The same run's events go to its full log. Another child's go to that child's existing `_INCOMPLETE.log`
+recovery file. Sending is separate from `sendLogs`, so a refused old batch never holds up the current run.
+
+**If something looks wrong after this, check**
+- `solUnsentRuns` staying in localStorage → the server refused that batch; the browser console and `/log_session` responses.
+- An unexpected `_INCOMPLETE.log` → the run was left while uploads were failing; its events carry `recovered: true`.
+
+**Left alone**
+Server upload handling and log formats. A batch the server permanently refuses still blocks later uploads from the
+*current* run (see "same ID on two tablets" in `follow_up_checks.md`).
+
+## 2026-11-06 — Keep dashboard pages working beside the student flow
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/dashboard.py` — `page` always passes its own `study_context`
+- `logger/search-app/tests/test_guide.py` — new test
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The student flow in PR #23 adds `study_context` to every template, empty outside a run. Dashboard pages that set none
+inherited that empty value and crashed in `base.html`. With both in one app, the first sign-in landed on "Server
+Error" (the guide), and the trash page and dashboard error pages returned 500. Tests did not catch it because their
+test apps do not load both together.
+
+**If something looks wrong after this, check**
+- A dashboard page returning 500 only on the deployed app → `study_context` in `base.html`, and the context processors in `student_progress.py`.
+
+**Left alone**
+The student flow's own value and templates.
+
+## 2026-11-06 — Re-check dashboard v2 against the researcher feedback of 3 November
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, styling, docs, tests
+
+Matthias asked for v2 to be checked against the colleague's PDF and screen recording, and spotted that finding an
+ID still meant typing it. In the recording the colleague says they do not know which IDs belong to which class and
+asks for a list instead.
+
+**Files**
+- `search-app/research_dashboard/templates/research/enrollment.html`, `enrollment_views.py` — **Cerca un ID** is a
+  menu of every ID in the study with its class this school year, on **Modifica gli ID** and under Participants. The
+  school-year filter under Participants is a menu too. An ID that arrives in the URL and is not in the study stays
+  selected, so its message still shows.
+- `search-app/research_dashboard/templates/research/overview.html`, `static/editor.js`, `static/research.css` —
+  **Vai all'ID partecipante** in Data e storico is a menu of the IDs in the view.
+- `search-app/research_dashboard/templates/research/prepare.html`, `i18n.py` — brings back the subtitle "Stai
+  modificando…" that the colleague asked for and the first v2 commit had dropped.
+- `search-app/research_dashboard/templates/research/sessions_new.html`, `session_views.py` — **Crea** asks for name
+  and date first, then the class. No class is preselected unless the list was filtered to one.
+- `search-app/research_dashboard/session_views.py` — the list opens on the later of the saved current year and the
+  year of today's date, and a session dated today stays listed under any selected year.
+- `search-app/research_dashboard/static/sessions.css` — a draft in the list has the warning colour and triangle.
+- `search-app/research_dashboard/templates/research/base.html` — new version in the style links.
+- `search-app/research_dashboard/guide_i18n.py`, `static/guide/` — text and pictures follow the new form.
+- `search-app/tests/test_dashboard_feedback.py`, `test_participant_jump_browser.py`, `docs/research_dashboard.md`,
+  `docs/follow_up_checks.md`.
+
+**What changed for the participant**
+No visible change for children.
+
+**How it works**
+All three ID and year controls are native `select` elements using the same request parameters as before, so links
+and the messages saying where a hidden ID is work unchanged. Options come from `participant_registry`.
+
+**If something looks wrong after this, check**
+- An ID is missing from **Cerca un ID** → `participant_registry` in the settings.
+- An ID is missing from **Vai all'ID** → the class, year and session selected in that view.
+- Today's session is not listed → the class filter, or `date` on the session.
+
+**Left alone**
+The student app. The combined **Aggiungi o iscrivi ID** form, kept on purpose on 3 November: it is what the pop-up
+links fall back to without JavaScript. **Domande approvate** and **Approva domande** in the question editor, as
+decided for v2. Typing IDs when creating new ones, since those IDs do not exist yet.
+
+**Verified**
+A walk through every point of the PDF and recording in a real browser on the demo data, the full suite with browser
+tests, and the changed pages at 1280, 768 and 320 px in both languages. Not tested on a real iPad.
+
+A trial merge with PRs #21, #22, #23 and #26 found small clashes in `state.py`, `settings_views.py` and this file.
+With them, `test_a_real_student_run_reaches_the_live_view` must change: it uploads `TaskEnded` directly, which the
+progress code of #23 refuses outside the real steps. A real child through all three questions in a browser on that
+merge did reach the live view at every step.
+
+## 2026-11-05 — Rebuild the sign-in destination from the dashboard prefix
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, tests
+
+**Files**
+- `search-app/research_dashboard/dashboard.py` — `safe_research_next` returns a path built from `PREFIX` and the
+  parsed path and query, not the text it received.
+- `search-app/tools/capture_guide_screens.py` — the reason moves to its own line, with a bare `NOSONAR` on the
+  `Flask(__name__)` line, because SonarCloud did not honour the comment with text after it.
+- `search-app/tests/test_dashboard_redirects.py` — covers the rebuilt value.
+
+**What changed for the participant**
+No visible change. A destination with a leading space or a fragment now loses them; the dashboard's own links have
+neither.
+
+**How it works**
+SonarCloud's open redirect finding on PR #25 traces the input through `safe_research_next` as if unchanged. Returning
+a value built from the constant prefix makes the guarantee part of the function's result.
+
+**If something looks wrong after this, check**
+- A sign-in link loses its `#fragment` → this function. Dashboard pages do not use fragments in `next`.
+
+**Left alone**
+What the function refuses, which the previous entry describes.
+
+**Verified**
+See the pull request: the full server suite, Ruff, and a new test for the rebuilt value.
+
+## 2026-11-05 — Keep the sign-in redirect inside the dashboard
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, tests
+
+**Files**
+- `search-app/research_dashboard/dashboard.py` — `safe_research_next` also refuses dot segments, doubled
+  slashes and encoded backslashes in the path, encoded forms included.
+- `search-app/research_dashboard/security.py` — `login` compares the destination with the Sessions page to
+  decide whether the guide opens, instead of keeping a second variable.
+- `search-app/tools/capture_guide_screens.py` — the throwaway server gets a random password and secret key on
+  each run. Its `Flask(__name__)` line carries a `NOSONAR` comment, with the reason.
+- `search-app/tests/test_dashboard_redirects.py` — the new refusals, and a check that the query string is not
+  inspected.
+
+**What changed for the participant**
+No visible change. For researchers, a crafted sign-in link such as `/dashboard/../welcome` now opens the Sessions
+page instead of a page outside the dashboard. Normal links are unaffected.
+
+**How it works**
+A browser resolves `..`, including `%2e%2e`, before requesting a page, so a path that starts with `/dashboard/`
+could still end up elsewhere on the same site. No tested link reached another site, before or after this change.
+Found while checking SonarCloud's open redirect finding on PR #25, which also failed the quality gate on the tool's
+fixed password.
+
+**If something looks wrong after this, check**
+- A sign-in link lands on Sessions instead of the page asked for → `safe_research_next`; does its path contain `//`
+  or a dot segment?
+- A brand-new browser signing in with `next` set to exactly the Sessions page opens the guide. That is intended:
+  it is the same destination as no link at all.
+
+**Left alone**
+The rule that the first sign-in opens the guide, the login throttling and the session handling. The guide's
+pictures were not regenerated, because the tool's output does not depend on the password.
+
+**Verified**
+See the pull request: the redirect and guide tests, the full server suite, Ruff, and the tool run into a temporary
+folder.
+
+## 2026-11-05 — Document dashboard v2
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `docs/research_dashboard.md` — new section on Sessions, the live view, statistics and the guide; the
+  header, setup steps, session removal and Study settings follow the new layout.
+- `docs/dashboard_integration.md` — module table and entry routes.
+- `docs/local_ui_development.md` — the collection walkthrough uses the new pages. Also corrects a stale
+  line that said unfinished work is not uploaded periodically: it is, at least once a minute.
+- `docs/follow_up_checks.md` — new item: check the live view with a real class and the new controls on an iPad.
+
+**What changed for the participant**
+No visible change.
+
+**Left alone**
+Historical verification notes, which describe what was true when they were written.
+
+**Verified**
+Each changed statement was checked against the code. Documentation only: no tests were run for this commit.
+
+## 2026-11-05 — A guide for new researchers
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `search-app/research_dashboard/guide_views.py`, `guide_i18n.py`, `static/guide.css`,
+  `templates/research/guide.html` (new) — `/dashboard/guide`, in English and Italian.
+- `search-app/research_dashboard/static/guide/{en,it}/*.jpg` (new) — screenshots of demo data only.
+- `search-app/tools/capture_guide_screens.py` (new) — regenerates those pictures in a throwaway dashboard.
+- `search-app/research_dashboard/security.py` — the first sign-in in a browser opens the guide.
+- `search-app/research_dashboard/templates/research/base.html` — a Guide button next to Study settings.
+- `search-app/research_dashboard/task_stats.py`, `templates/research/task_stats.html` — a chart's last
+  value now sits on its column.
+- `search-app/research_dashboard/static/sessions.css` — the header utilities take their own row on phones.
+- `search-app/tests/test_guide.py`, `test_guide_browser.py` (new); first-login expectations updated.
+
+**What changed for the participant**
+No visible change.
+
+**What changed for researchers**
+The first sign-in in a browser opens an illustrated guide to the dashboard, with a way straight to
+Sessions. Afterwards the Guide button on every page brings it back.
+
+**How it works**
+A cookie on the dashboard path remembers that this browser has seen the guide. Sign-ins are shared,
+so this is per browser, not per person. A sign-in that was asked to go to a specific page goes there.
+
+**If something looks wrong after this, check**
+- A picture shows an old layout → run `python tools/capture_guide_screens.py` and commit the images.
+- The guide opens every time → the browser is not keeping the `sol_guide_seen` cookie.
+
+**Left alone**
+Sign-in rules and session lifetime. The pictures are public static files, like the other dashboard
+assets, because they contain demo data only.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). All pictures load in both
+languages at 1365, 768, 390 and 320 px with no sideways scrolling.
+
+## 2026-11-05 — Live view of a running session
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, logging, tests
+
+**Files**
+- `search-app/research_dashboard/live.py` (new) — reads started attempts and each attempt's `_FULL.log`.
+- `search-app/research_dashboard/live_views.py` (new) — `/dashboard/sessions/<id>/live` and `live.json`.
+- `search-app/research_dashboard/static/live.js` (new) — checks every 5 seconds and updates rows in place.
+- `search-app/research_dashboard/templates/research/session_live*.html` (new) — the page, its rows and totals.
+- `search-app/research_dashboard/state.py` — read-only `session_attempts`.
+- `search-app/research_dashboard/collection.py` — `safe_participant`, shared with `publish_metadata`.
+- `search-app/research_dashboard/dashboard.py` — the data route answers failures as JSON.
+- `search-app/research_dashboard/templates/research/{sessions,prepare}.html` — links to the live view on the day.
+- `search-app/research_dashboard/{stats_i18n,task_stats}.py`, `static/stats.css`, `templates/research/task_stats.html` — wording and layout.
+- `search-app/tests/test_live_view.py`, `test_live_view_browser.py` (new).
+
+**What changed for the participant**
+No visible change. The children's app, its uploads and its logs are untouched.
+
+**What changed for researchers**
+On the day of a session, Sessions and the session page link to a live view: class totals, one row
+per child (Not started, In progress, Completed, current question, questions finished, last save)
+and the class question by question. Opening a child shows the figures of each finished question;
+a question in progress only says since when.
+
+**How it works**
+Short polling, because the server has 8 request slots shared with the children and a push stream
+would hold one per viewer. The page checks every 5 seconds and stops while its tab is hidden. It
+reads files directly and never through the reporting index. Each worker re-reads a log only when
+its size or time changes. Nothing is written.
+
+**If something looks wrong after this, check**
+- A finished question does not appear → did `/log_session` accept `TaskEnded`? Then `_read_log`.
+- A child stays Not started → is there a row in `study_attempts` for that session?
+- A researcher stays signed in with the page open → expected while the tab is visible; the 8-hour limit applies.
+- Researcher pages slow during class → `session_progress`, and how many live pages are open.
+
+**Left alone**
+Issue #17 stays open: it asks for 1-2 second push built on Samuele's progress work (PR #23), which
+this does not do. `TaskEnded` is unchanged on that branch, so this keeps working after it merges;
+its question phases can then be added in `live.py`.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). One test goes through real
+admission and the real upload route. In a browser with a real student page on synthetic data, a
+finished question appeared within 5 seconds, and the figures matched the raw log by hand. Not
+tried on a real iPad or with a full class.
+
+## 2026-11-05 — Task statistics for each child, each question and across sessions
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests
+
+**Files**
+- `search-app/research_dashboard/task_stats.py` (new) — counts one task's events; class rows by
+  question; a child's totals by session; chart geometry; time formatting.
+- `search-app/research_dashboard/index.py` — stores the figures per file and per run; index version 3,
+  so already indexed files are read again once.
+- `search-app/research_dashboard/history_views.py`, `template_context.py` — pass them to the pages.
+- `search-app/research_dashboard/templates/research/task_stats.html` (new) — tables and charts, used by
+  `participant.html`, `overview.html` (when a session is selected) and `run.html`.
+- `search-app/research_dashboard/static/stats.css`, `stats_i18n.py` (new), `i18n.py`, `base.html`.
+- `search-app/tests/test_task_stats.py`, `test_task_stats_pages.py` (new).
+
+**What changed for the participant**
+No visible change. Nothing the children do is logged differently.
+
+**What changed for researchers**
+A child's page shows, for each question: time, logged events, searches, results opened, time on
+pages and difficulty signals, plus totals and small charts across sessions. A session in Data and
+history shows the class by question: how many finished, typical time with range, events, searches
+and results. A run's page shows the same figures for that run.
+
+**How it works**
+Time runs from the first `TaskStarted` to the first `TaskEnded`. Questions are grouped by what was
+asked, because order is shuffled per child. In class figures each child counts once per question,
+using their latest run that finished it. A count of 0 means none were logged; a dash means there
+was nothing to measure. Runs made only of recovered fragments are left out.
+
+**If something looks wrong after this, check**
+- A figure looks off → compare with the run's events, then `add_event` and `COUNTED_EVENTS`.
+- Time is a dash → the task has no `TaskStarted` or `TaskEnded`, or their timestamps can't be compared.
+- A question appears twice in the class table → its text differs between children (edited after approval).
+- The first page load after upgrading is slow → the index is reading every log again, once.
+
+**Left alone**
+Original logs and everything in exports: the figures are not added to manifests or metadata.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). Figures checked against
+synthetic logs by hand, including text ranks as the student app logs them. English and Italian
+at desktop and phone width.
+
+## 2026-11-05 — Deactivate several children at once
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, tests
+
+**Files**
+- `search-app/research_dashboard/participants.py` — `deactivate_participants`, one audit line per ID.
+- `search-app/research_dashboard/state.py`, `enrollment_views.py` — the `deactivate` operation,
+  using the same signed review step as the other participant changes.
+- `search-app/research_dashboard/templates/research/enrollment.html` — checkboxes on the list,
+  "Select all on this page", "Deactivate selected".
+- `search-app/research_dashboard/static/editor.js`, `workflow.css`, `workflow_i18n.py` — selection count, layout, wording.
+- `search-app/tests/test_bulk_deactivate.py`, `test_bulk_deactivate_browser.py` (new).
+
+**What changed for the participant**
+No visible change. A deactivated child cannot start new sessions, exactly as with one-at-a-time.
+
+**What changed for researchers**
+On the participant list (from Study settings, or Edit participant IDs on a session) they can tick
+children and deactivate them after one review. Reactivating is still one child at a time.
+
+**How it works**
+All selected IDs change in one transaction. If any ID is unknown or already inactive, or the
+settings changed since the review, nothing changes. Selection covers the visible page of up to 50.
+
+**If something looks wrong after this, check**
+- A child is missing from a session's IDs → status filter on the list, then "Recent participant changes".
+- The select-all box is missing → it needs JavaScript; single checkboxes work without it.
+
+**Left alone**
+Enrollments, participant keys, logs and started attempts. The single Edit enrollment form.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). Browser tests use synthetic
+data, with a mouse on desktop and at phone width without JavaScript. Not tried on a real iPad.
+
+## 2026-11-05 — Dashboard v2: session list, Create, and the Published status
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, session, styling, tests
+
+**Files**
+- `search-app/research_dashboard/session_views.py` (new) — `/dashboard/sessions` (the list, now
+  the start page, with remove and restore) and `/dashboard/sessions/new` (Create).
+- `search-app/research_dashboard/preparation_views.py` — `session_group`, `session_needs`,
+  `is_placeholder`, `save_session_details`; `preparation_status` no longer calls a partly
+  ready future session scheduled; `/prepare` without a session redirects to the list.
+- `search-app/research_dashboard/settings_views.py` — session administration removed; Study
+  settings keeps School year and Participants. `/settings?section=sessions` redirects.
+- `search-app/research_dashboard/templates/research/` — new `sessions.html`, `sessions_new.html`,
+  `sessions_tabs.html`, `session_needs.html`; `prepare.html` loses the year/class/session menus
+  and gains "Back to Sessions" and "Remove session"; `settings_sessions.html` and
+  `settings_session_form.html` deleted; links elsewhere point to the list.
+- `search-app/research_dashboard/{i18n,workflow_i18n}.py` — Published/Draft wording, unused keys removed.
+- `search-app/research_dashboard/static/` — new `sessions.css`; rules of the old menus and
+  session tab removed from `research.css`.
+- `search-app/tests/` — new `test_session_list.py`; tests of the old tab moved to the new routes.
+
+**What changed for the participant**
+No visible change. Who can start, and when, is decided exactly as before.
+
+**What changed for researchers**
+They land on a list grouped into Today, Published, Drafts, and collapsed Past and Removed. A
+session is Published when it has a future date, IDs and approved questions for every child;
+it is never set by hand. Drafts say what they still need, each linking to its step. Opening a
+session shows the same three steps as before, with a back link instead of menus.
+
+**How it works**
+The status is computed on each request from `session_readiness`; nothing new is stored. The
+list reads settings only, not the reporting index, so a cache failure cannot block it. Numbered
+slots nobody has filled in are hidden, and Create fills the lowest free one for that class, so
+a new study starts empty and its first session is Session 1.
+
+**If something looks wrong after this, check**
+- A session sits in the wrong group → `session_group`, then `session_readiness` for that session.
+- "Needs" names the wrong step → `session_needs`.
+- A session seems to be missing → the year filter, or `is_placeholder` (no date, name or questions).
+- An old bookmark lands in the wrong place → the redirects in `settings_page` and `prepare_page`.
+
+**Left alone**
+Student routes, admission (`scheduled_assignment`, `admit_attempt`), question approval and its
+"Approve" wording, enrollment, exports and stored settings. The old range editor keeps its URL.
+
+**Verified**
+Server and browser test suites pass (counts in the commit message). Checked in a browser on
+synthetic data in English and Italian at 1440, 390 and 320 px, with no sideways scrolling.
+
+## 2026-11-05 — Dashboard v2: two main sections, Study settings beside EN/IT
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling
+
+**Files**
+- `search-app/research_dashboard/templates/research/base.html` — the main navigation is
+  Sessions and Data and history; Study settings moved to the header utilities, before EN/IT.
+- `search-app/research_dashboard/static/research.css` — current-page style for the header
+  link; the rule for the old third navigation item is gone.
+- `search-app/research_dashboard/{preparation,question,enrollment}_views.py` — the area
+  behind the navigation highlight is now called `sessions`.
+- `search-app/tests/` — navigation tests follow the new labels.
+
+**What changed for the participant**
+No visible change. Researchers see two main sections instead of three.
+
+**How it works**
+Only navigation moved. "Sessions" still opens the preparation page; the session list
+follows in the next commit.
+
+**If something looks wrong after this, check**
+- No section highlighted in the header → the view's `research_area` value.
+
+**Left alone**
+All routes and pages, including `/dashboard/settings`, which still has its Sessions tab.
+
+**Verified**
+The server test suite passes. The narrow-width layout is reviewed with the session list.
 
 ## 2026-11-03 — Weekly Dependabot updates into matthias-dev
 

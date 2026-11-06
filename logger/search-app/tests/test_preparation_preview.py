@@ -44,12 +44,12 @@ def test_preview_requires_research_access_and_never_enters_a_student_route(app):
     assert 'name="user_id"' not in page.text
 
 
-def test_future_partial_readiness_is_scheduled_with_a_warning():
+def test_a_future_session_is_published_only_when_every_child_can_start():
     session = {'date': '2026-10-25', 'school_year': '2026/2027'}
     status = preparation_status(session, {'complete': False, 'ready': 5, 'count': 20}, '2026-10-20')
-    assert status['code'] == 'scheduled' and status['tone'] == 'warning'
+    assert status['code'] == 'setup_incomplete' and status['tone'] == 'warning'
     status = preparation_status(session, {'complete': True, 'ready': 20, 'count': 20}, '2026-10-20')
-    assert status['code'] == 'scheduled' and status['tone'] == 'neutral'
+    assert status['code'] == 'scheduled' and status['tone'] == 'success'
 
 
 def test_partial_readiness_does_not_claim_every_id_is_blocked():

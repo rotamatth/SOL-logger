@@ -68,7 +68,8 @@ study session. Filesystem sessions retain the application's existing expiry poli
 the search-entry route also keeps its existing 60-minute inactivity cutoff. This
 is not a permanent progress archive.
 
-On the server, from `logger/`, build and configure private credentials:
+On the server, first check out the release (`git fetch origin && git checkout <branch>`): the helper tools
+below arrive with it. Then, from `logger/`, build and configure private credentials:
 
 ```bash
 docker compose build search_app
@@ -104,10 +105,15 @@ Run from `logger/` on the server. Choose a new backup filename each time:
 
 ```bash
 docker compose stop search_app
-python3 search-app/tools/backup_study.py create backups/study-before-release.zip --root .
+docker compose run --rm --no-deps -T --volume "$PWD:/study" search_app sh -c \
+    'python tools/backup_study.py create /study/backups/study-before-release.zip --root /study && chown "$(stat -c %u:%g /study)" /study/backups/study-before-release.zip'
 python3 search-app/tools/backup_study.py verify backups/study-before-release.zip
 docker compose up -d --no-build --wait --wait-timeout 120 search_app
 ```
+
+The backup runs in a container because collected files are private to the container's user
+(root): an operator's own account cannot read them. On a Mac this does not show, since Docker
+Desktop maps file ownership to the signed-in user, so check permissions on Linux.
 
 The helper checks authoritative SQLite integrity, records SHA-256 checksums and
 sizes, preserves hidden journal files, and verifies every archived file. It rejects

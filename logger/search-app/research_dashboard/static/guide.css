@@ -1,0 +1,22 @@
+/* The guide for new researchers: a sticky caption beside each screenshot, stacked on narrow screens. */
+.guide-workspace { max-width:1152px; margin-inline:auto }
+.guide-bar { position:sticky; top:0; z-index:5; display:flex; justify-content:flex-end; margin:0 0 8px; padding:8px 0; background:var(--canvas) }
+.guide-intro { margin-bottom:32px }
+.guide-intro h1 { margin:0 0 10px }
+.guide-lead { max-width:62ch; margin:0 0 8px; font-size:18px; line-height:1.5 }
+.guide-group { display:grid; gap:36px; margin-bottom:44px }
+.guide-group > h2 { margin:0; padding-bottom:10px; border-bottom:1px solid var(--line); font-size:22px }
+.guide-step { display:grid; grid-template-columns:280px minmax(0,1fr); gap:32px; scroll-margin-top:72px }
+.guide-caption { align-self:start; position:sticky; top:72px; display:grid; gap:10px }
+.guide-caption p { margin:0 }
+.guide-step-title { display:flex; align-items:center; gap:10px }
+.guide-step-title h3 { margin:0; font-size:18px; line-height:1.25 }
+.guide-step-title .preparation-number { flex:none }
+.guide-step figure { margin:0; overflow:hidden; border:1px solid var(--line); border-radius:10px; background:var(--white) }
+.guide-step img { display:block; width:100%; max-width:100%; height:auto }
+.guide-closing { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:20px; border-top:1px solid var(--line) }
+.guide-closing p { margin:0 }
+@media(max-width:860px) {
+  .guide-step { grid-template-columns:minmax(0,1fr); gap:12px }
+  .guide-caption { position:static }
+}

@@ -72,7 +72,7 @@ def test_preparation_details_survive_a_move_to_another_school_year(app):
     rejected = client.post(details["attrs"]["action"], data={**fields_of(details), "name": NAME, "date": "2026-11-20"})
     assert rejected.status_code == 400 and NAME in rejected.text
     link = review_link(rejected, "Review saved session in a new tab")
-    assert "year=2027/2028" in link["href"] and f"edit={SESSION}" in link["href"]
+    assert "year=2027/2028" in link["href"] and f"session={SESSION}" in link["href"]
     assert app.extensions["research"]["state"].settings() == latest
 
 
@@ -122,26 +122,30 @@ def test_ids_typed_in_preparation_survive_session_removal_elsewhere(app):
     assert state.settings() == latest and "41" not in latest["participant_registry"]
 
 
-def test_after_a_stale_session_edit_other_forms_on_the_page_save_normally(app):
+def test_after_a_stale_restore_other_forms_on_the_page_save_normally(app):
     client = open_client(app)
-    url = f"/dashboard/settings?section=sessions&grade=4&year={YEAR}"
-    page = client.get(url)
-    first = form_with(page, "session_id", SESSION)
-    stale = fields_of(first)
     state = app.extensions["research"]["state"]
+    settings = state.settings()
+    for item in settings["sessions"]:
+        if item["id"] in (SESSION, "grade-4-session-2"):
+            item["removed"] = True
+    state.save_settings(settings, settings["revision"])
+    url = f"/dashboard/sessions?grade=4&year={YEAR}"
+    page = client.get(url)
+    first = next(form for form in Controls(page).forms
+                 if fields_of(form).get("action") == "restore_session" and fields_of(form)["session_id"] == SESSION)
+    stale = fields_of(first)
     settings = state.settings()
     next(item for item in settings["sessions"] if item["id"] == "grade-4-session-3")["name"] = "Saved elsewhere"
     state.save_settings(settings, settings["revision"])
     current = state.settings()["revision"]
 
-    rejected = client.post(first["attrs"]["action"], data={**stale, "name": NAME})
+    rejected = client.post(first["attrs"]["action"], data=stale)
     assert rejected.status_code == 400 and "changed in another tab or by another researcher" in rejected.text
-    forms = [form for form in Controls(rejected).forms
-             if fields_of(form).get("action") == "save_session"]
+    forms = [form for form in Controls(rejected).forms if fields_of(form).get("action") == "restore_session"]
     by_session = {fields_of(form)["session_id"]: form for form in forms}
     assert fields_of(by_session[SESSION])["revision"] == stale["revision"]  # the rejected form stays stale
     other = by_session["grade-4-session-2"]
     assert fields_of(other)["revision"] == str(current)
-    saved = client.post(other["attrs"]["action"], data={**fields_of(other), "name": "Second visit"})
-    assert saved.status_code == 302
-    assert next(item for item in state.settings()["sessions"] if item["id"] == "grade-4-session-2")["name"] == "Second visit"
+    assert client.post(other["attrs"]["action"], data=fields_of(other)).status_code == 302
+    assert not next(item for item in state.settings()["sessions"] if item["id"] == "grade-4-session-2")["removed"]

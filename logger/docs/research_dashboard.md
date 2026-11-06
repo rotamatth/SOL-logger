@@ -6,17 +6,73 @@ UI. It uses Flask/Jinja, with its own templates, styles, server-side authenticat
 CSRF tokens and storage. Student session resets and browser storage do not grant
 or reuse research access. The research pages never load the student logger.
 
-The header keeps the gold search mark and utility controls on the top row: the
-language switch, a separator, then **Log out**, which always asks "Do you really want
-to log out?" in a Yes/No pop-up first (and names any unsaved work it would discard;
-Esc answers No). The mark links back
-to **Prepare a session**. The second row centers **Prepare a session**, **Data and
-history** and **Study settings**. Pale-gold highlights follow the selected section and
-grade, with text labels for status. Warnings use their own orange-red colour and a
-triangle icon so they stand out from the yellow interface.
+The header keeps the gold search mark and utility controls on the top row: **Guide**,
+**Study settings**, the language switch, a separator, then **Log out**, which always asks
+"Do you really want to log out?" in a Yes/No pop-up first (and names any unsaved work it
+would discard; Esc answers No). The mark links back to **Sessions**. The second row
+centers the two main sections, **Sessions** and **Data and history**. Pale-gold
+highlights follow the selected section and grade, with text labels for status. Warnings
+use their own orange-red colour and a triangle icon so they stand out from the yellow
+interface.
 
 For remaining merge checks and the next V2 integration work, see
 [Merge and V2 readiness](merge_v2_readiness.md).
+
+## Sessions, live view, statistics and guide
+
+**Sessions** is where the dashboard opens. **View and manage** lists the sessions of a
+school year, optionally one class, grouped by status:
+
+| Group | Meaning |
+| --- | --- |
+| **Today** | The date is today and at least one child can start. Has a **Live** button. |
+| **Published** | Confirmed and ready: a future date, IDs and approved questions for every child. |
+| **Drafts** | Children cannot start yet. Each draft says what it needs, linking to that step. |
+| **Past sessions** | The date has passed. Collapsed. |
+| **Removed sessions** | Removed from the schedule, with **Restore session**. Collapsed. |
+
+The status is worked out on each request and is never set by hand. Approving the questions
+is usually the step that makes a session Published; the session itself never shows "Approved".
+Numbered slots nobody has filled in are not listed, and **Create** fills the lowest free one
+for that class. The list opens on the later of the saved current year and the year of today's
+date, and a session dated today stays listed whichever year is selected.
+
+**Create** asks for an optional name and the date, then the class, and opens the session's three
+steps. **Open** on a row shows the same steps, with **Remove session** at the bottom.
+
+The **live view** of today's session shows class totals, one row per child and the class
+question by question. It checks for changes every 5 seconds while its tab is visible, and rows
+update in place, so an open child and keyboard focus stay put. Opening a child shows the figures
+of each finished question; a question in progress only says since when. Logs reach the server
+when a child changes page and at least once a minute, so a child with no recent update may still
+be working. A visible live page keeps the researcher signed in; the 8-hour limit still applies.
+It says when it is reconnecting and when the researcher has been signed out.
+
+**Task statistics** come from the logged events:
+
+| Figure | How it is worked out |
+| --- | --- |
+| Time | From the first `TaskStarted` to the first `TaskEnded`. Time away is not subtracted. |
+| Logged events | Every event recorded for that question. |
+| Searches | `querySubmitted`, with `searchNoResults`, `choseAutoCompleteSuggestion` and `clickedDidYouMeanSuggestion` beside it. |
+| Results opened | `clickedResult`, with the average position from `rank`. |
+| Time on pages | The sum of `durationMs` in `webpageClosed`. |
+| Difficulty signals | `taskQuestionHelpClicked`, `searchError` and `webpageLoadFailed`. |
+
+A count of 0 means none were logged; a dash means there was nothing to measure. A child's page
+shows these per question and, with totals and small charts, across sessions. Choosing a session
+in **Data and history** shows the class by question, grouped by what was asked because the order
+is shuffled per child. In class figures each child counts once per question, using their latest
+run that finished it, and "typical" is the median. The figures are not added to exports.
+
+The **guide** at `/dashboard/guide` opens by itself on the first sign-in in a browser, unless
+the sign-in was on its way to a specific page, and the **Guide** button brings it back. Sign-ins
+are shared, so this is remembered per browser. After changing a page the guide shows, run
+`python tools/capture_guide_screens.py` from `search-app` (needs `requirements-browser-test.txt`)
+and commit the pictures. They show demo data only.
+
+On the participant list, **Deactivate selected** deactivates several children after one review, in
+one transaction. Reactivating is one child at a time with **Edit enrollment**.
 
 ## First deployment
 
@@ -52,11 +108,9 @@ For remaining merge checks and the next V2 integration work, see
    after 30 minutes without activity or 8 hours, researchers sign in again with the
    same password. Single sign-on (SWITCH edu-ID) or self-service recovery may come
    later; see `follow_up_checks.md`.
-4. Open `/dashboard`, log in, choose a UI language, and use **Prepare a session**.
-   Choose the school year and class, then open a session or choose **New session**.
-   The year/class/session menus show choices directly on the page; choosing one opens
-   it immediately. A line under the menus says which session you are editing. The
-   session list includes each saved name and date and scrolls for longer lists.
+4. Open `/dashboard`, log in and choose a UI language. In **Sessions**, open a session
+   from the list or use **Create**. A session's page shows its name and class, with a
+   link back to the list.
    Save its name and date in step 1. **The school year follows from the date**
    (September–August) and is never typed: a date in another school year files the
    session under that year and opens it there. A session with collected data cannot
@@ -92,9 +146,9 @@ For remaining merge checks and the next V2 integration work, see
    The library remains available without puzzle files. No old per-ID assignment is carried
    into V2 Session 1. Existing extra sessions and their history remain accessible.
    3rd Grade starts without any numbered sessions. Saved historical assignments
-   remain active, but their editing controls are currently hidden. **Study settings**
-   retains the full session history, removal controls, annual promotion and historical
-   links, up to 100 sessions per grade. **Data and history** opens the reporting view.
+   remain active, but their editing controls are currently hidden. **Sessions** retains
+   the full session history, up to 100 sessions per grade, and **Study settings** the
+   annual promotion and historical links. **Data and history** opens the reporting view.
 5. Verify a test run, its question/answer association and a task/participant ZIP
    before classroom collection. **Permanent participants** manages exact IDs, yearly
    enrollment and active/inactive status. The preparation page shows questions and
@@ -313,7 +367,7 @@ In **All participants**, **Download a full grade** offers the three grades. The
 entire-grade export uses grade at collection, so earlier 4th-grade records remain
 in the 4th-grade download even if a participant is now in 5th grade.
 
-Session history and settings can open a view scoped to a specific session or
+The session list can open a view scoped to a specific session or
 school year. A compact context strip identifies that scope and offers **Show full
 history**. Populated session views also retain **Download session**, covering all
 participants in that grade/session and displayed year. Switching grade navigation
@@ -354,16 +408,16 @@ When a participant's runs are shown, each run has a checkbox: tick the ones you 
 (for example the last two) and choose **Download selected runs** for one ZIP. The
 server accepts only runs of that participant that are not in the Trash.
 
-**New session** opens a form for the selected grade and date, with an optional custom name.
-Creation automatically assigns the next number for that grade and opens the new session in the dashboard.
+**Create** in Sessions asks for the class and date, with an optional custom name. It assigns the
+lowest free number for that class and opens the new session's steps.
 Each grade supports up to 100 sessions. Existing IDs, dates, participant ranges and
 logs are preserved; the initial 1–3 sessions remain available. Numbered study
 sessions are independent of the three tasks within each run.
 
 ### Removing an unused session
 
-Expand the session in Study settings, open **Remove session**, review its identity
-and confirm. Removal retains a tombstone (`removed: true`) in settings history,
+Open the session, expand **Remove session** at the bottom of its page and confirm.
+Removal retains a tombstone (`removed: true`) in settings history,
 reserving its number and ID and preserving its questions and participant exceptions.
 It hides the session from normal calendars and new student eligibility. Other
 sessions are never renumbered. **Removed sessions** provides restore, with a date
@@ -379,15 +433,11 @@ START wins and removal is blocked, including while a sidecar is still unpublishe
 #6 should extend this admission boundary when adding durable progress. Removing/cancelling a session with
 collected data is not provided by this unused-session control.
 
-**Study settings** shows one section at a time: **School year**, **Sessions** or
-**Participants**. School year is the entry view and applies to newly started runs.
-Sessions and Participants have compact grade navigation; links retain the selected
-grade and language. **New session** creates the next number for that
-grade and date; its optional name can be changed later without changing the number or
-which runs belong to that session. **Session history** shows ten sessions per page,
-newest first. Expand a session to edit its name or date with **Save session** or to open
-its dashboard results. Older pages keep all 100 sessions accessible. **Participants**
-opens a saved setup view with readiness counts and ten participants per page.
+**Study settings** shows one section at a time: **School year** or **Participants**.
+School year is the entry view and applies to newly started runs. Links retain the
+selected grade and language. A session's optional name can be changed later on its page
+without changing the number or which runs belong to that session. The older ID-range
+editor at `/dashboard/settings?section=participants` opens a saved setup view with readiness counts and ten participants per page.
 **Need tasks** filters IDs whose selected session configuration is incomplete.
 Choose **Edit setup** to edit only the selected grade's ID range; custom ID formatting
 is optional. **Review changes** validates the draft without saving and opens a review

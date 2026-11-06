@@ -58,6 +58,9 @@
         }
     }
 
+    // Events of an earlier run on this browser that never reached the server.
+    const UNSENT_RUNS_KEY = 'solUnsentRuns';
+
     function createClientSessionID() {
         return (typeof crypto !== 'undefined' && crypto.randomUUID)
             ? crypto.randomUUID()
@@ -87,6 +90,7 @@
                             && entry.uid
                             && entry.uid === currentUser;
                     });
+                    this.setAsideUnsent(storedSessionID, storedLogs.filter(entry => !logsToRestore.includes(entry)));
                     historyToRestore = [];
                 }
                 logsToRestore = logsToRestore.map(entry => ({
@@ -112,7 +116,9 @@
                 ? this.sessionID
                 : (createNewSessionID ? createClientSessionID() : null);
 
+            const unsentRuns = localStorage.getItem(UNSENT_RUNS_KEY);
             localStorage.clear();
+            if (unsentRuns) localStorage.setItem(UNSENT_RUNS_KEY, unsentRuns);
             if (typeof sessionStorage !== 'undefined') {
                 sessionStorage.clear();
             }
@@ -126,6 +132,50 @@
             }
         },
         
+        // A run can be left while uploads are failing. Its events are set aside rather than
+        // discarded, and sent later under that run's own ID (see sendUnsentRuns).
+        setAsideUnsent(sessionID, logs) {
+            try {
+                const pendingKey = `solPendingUpload:${sessionID}`;
+                const pending = JSON.parse(localStorage.getItem(pendingKey) || 'null');
+                const key = entry => `${entry.type}|${entry.timestamp}`;
+                const inPending = new Set(pending ? pending.logs.map(key) : []);
+                const rest = logs.filter(entry => entry && entry.uid && !inPending.has(key(entry)));
+                const batches = safeParseArray(localStorage.getItem(UNSENT_RUNS_KEY));
+                if (pending && pending.logs.some(entry => entry && entry.uid)) batches.push(pending);
+                if (rest.length) batches.push({session_id: sessionID, batch_id: createClientSessionID(), logs: rest});
+                if (batches.length) localStorage.setItem(UNSENT_RUNS_KEY, JSON.stringify(batches));
+                localStorage.removeItem(pendingKey);
+            } catch (error) {
+                console.warn('Could not set aside unsent events:', error);
+            }
+        },
+
+        // Separate from sendLogs: a refused old batch must never hold up the current run.
+        sendUnsentRuns() {
+            if (this.unsentInFlight) return this.unsentInFlight;
+            const send = async () => {
+                for (const batch of safeParseArray(localStorage.getItem(UNSENT_RUNS_KEY))) {
+                    const response = await fetch('/log_session', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(batch)
+                    });
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    if (data.status !== 'logged' || data.batch_id !== batch.batch_id) continue;
+                    const remaining = safeParseArray(localStorage.getItem(UNSENT_RUNS_KEY))
+                        .filter(item => item.batch_id !== batch.batch_id);
+                    if (remaining.length) localStorage.setItem(UNSENT_RUNS_KEY, JSON.stringify(remaining));
+                    else localStorage.removeItem(UNSENT_RUNS_KEY);
+                }
+            };
+            this.unsentInFlight = send()
+                .catch(error => console.warn('Unsent events will be retried:', error))
+                .finally(() => { this.unsentInFlight = null; });
+            return this.unsentInFlight;
+        },
+
         logEvent(type, details = {}) {
             if (typeof window !== 'undefined'
                 && window.taskEndLockout
@@ -402,6 +452,7 @@ if (idform) {
   idform.addEventListener("submit", (e) => {
     if (e.defaultPrevented) return;
     const uid = document.getElementById("id-box")?.value || "";
+    studyLogger.setAsideUnsent(studyLogger.sessionID, studyLogger.logs);
     studyLogger.clearClientData({ createNewSessionID: true });
     studyLogger.logEvent("idSubmitted", { uid });
   });
@@ -1103,6 +1154,7 @@ function syncLogsInBackground() {
     // Only events of the run the server issued to this page; never after the
     // end of a task or the experiment has cleared the client data.
     if (!window.SESSION_ID || studyLogger.sessionID !== window.SESSION_ID) return;
+    studyLogger.sendUnsentRuns();
     studyLogger.sendLogs().catch((error) => console.warn("Background upload will be retried:", error));
 }
 

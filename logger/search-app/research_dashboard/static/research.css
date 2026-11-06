@@ -156,11 +156,6 @@ a.header-logo:hover,a.header-logo:focus-visible {
   --section-soft:var(--selection)
 }
 
-.header-primary>[data-section="settings"] {
-  --section-ink:var(--settings);
-  --section-soft:var(--selection)
-}
-
 .header-primary>a:hover {
   color:var(--section-ink);
   background:var(--section-soft);
@@ -183,6 +178,12 @@ a.header-logo:hover,a.header-logo:focus-visible {
 
 .header-utilities>a,.header-utilities .languages a {
   color:var(--muted)
+}
+
+.header-utilities>a[aria-current="page"] {
+  color:var(--ink);
+  font-weight:700;
+  text-decoration:underline
 }
 
 .header-utilities>a,.header-utilities button {
@@ -982,102 +983,6 @@ legend {
 .history-grade-selector select {
   min-width:210px
 }
-.settings-new-session {
-  border:1px solid var(--line);
-  border-radius:10px;
-  margin:18px 0 26px;
-  background:#f9fbfb
-}
-.settings-new-session>summary {
-  display:flex;
-  align-items:center;
-  gap:10px;
-  color:var(--accent);
-  cursor:pointer;
-  font-weight:700;
-  padding:16px 18px
-}
-.settings-new-session>summary::-webkit-details-marker {
-  display:none
-}
-.settings-new-session>summary::marker {
-  content:""
-}
-.settings-new-session>summary::before {
-  content:"+";
-  font-size:20px;
-  line-height:1
-}
-.settings-new-session[open]>summary::before {
-  content:"−"
-}
-.settings-new-session-body {
-  padding:0 18px 20px
-}
-.settings-new-session-body>p {
-  margin:0 0 16px
-}
-.settings-history-heading {
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:16px;
-  margin-bottom:12px
-}
-.settings-history-heading h3 {
-  margin:0
-}
-.settings-session-list {
-  border:1px solid var(--line);
-  border-radius:10px;
-  overflow:hidden
-}
-.settings-session-item+.settings-session-item {
-  border-top:1px solid var(--line)
-}
-.settings-session-item>summary {
-  display:grid;
-  grid-template-columns:minmax(120px, 1fr) minmax(140px, 2fr) auto 16px;
-  align-items:center;
-  gap:16px;
-  padding:16px 18px;
-  cursor:pointer
-}
-.settings-session-item>summary::-webkit-details-marker {
-  display:none
-}
-.settings-session-item>summary::marker {
-  content:""
-}
-.settings-session-item>summary::after {
-  content:"⌄";
-  color:var(--accent);
-  font-size:20px;
-  line-height:1
-}
-.settings-session-item[open]>summary::after {
-  content:"⌃"
-}
-.settings-session-item>summary:hover {
-  background:#f9fbfb
-}
-.settings-session-name {
-  color:var(--ink);
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:12px
-}
-.settings-session-date { white-space:nowrap; }
-.settings-session-body {
-  border-top:1px solid var(--line);
-  background:#f9fbfb;
-  padding:18px;
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:16px
-}
 .settings-pagination {
   display:flex;
   align-items:center;
@@ -1423,14 +1328,6 @@ select {
     margin-left:0;
     width:100%
   }
-  .settings-session-item>summary {
-    grid-template-columns:1fr auto 16px;
-    gap:5px 12px
-  }
-  .settings-session-name {
-    grid-column:1 / 3;
-    grid-row:2
-  }
   .range-grid {
     grid-template-columns:1fr
   }
@@ -1529,10 +1426,6 @@ select {
   gap:18px;
   flex-wrap:wrap
 }
-.settings-count {
-  font-size:13px;
-  color:var(--muted)
-}
 .settings-year-card {
   max-width:700px;
   padding:30px
@@ -1564,13 +1457,6 @@ select {
 }
 .settings-next>span {
   width:100%
-}
-.settings-workspace .settings-new-session {
-  margin:18px 0 28px;
-  background:var(--white)
-}
-.settings-workspace .settings-session-list {
-  background:var(--white)
 }
 .settings-workspace .enrollment-stats {
   margin:20px 0;
@@ -2107,16 +1993,12 @@ select {
 .participant-jump[hidden] { display:none }
 .participant-jump label { margin-top:0 }
 .participant-jump-controls { display:flex; gap:8px; align-items:center }
-.participant-jump-controls input { min-width:0; flex:1; margin:0 }
+.participant-jump-controls select { min-width:0; flex:1; margin:0 }
 .participant-jump-controls button { flex:none }
 .participant-jump p { margin:6px 0 0 }
 .participant-jump-target { outline:2px solid #de9b34; outline-offset:-2px; background:var(--selection) }
 .dashboard-table-scroll:focus-visible { outline:3px solid #de9b34; outline-offset:3px }
 .participant-download-scope { margin-top:-12px; margin-bottom:20px }
-.settings-year-scope { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:flex-end; margin:20px 0 }
-.settings-year-scope label { margin:0 }
-.settings-year-scope select { display:block; margin-top:6px }
-.settings-year-scope p { flex-basis:100%; margin:0 }
 @media (min-width:601px) {
   .dashboard-table-scroll { max-height:clamp(300px,65vh,800px) }
   .dashboard-table-scroll thead th { position:sticky; top:0; z-index:1; box-shadow:0 1px var(--line) }
@@ -2423,23 +2305,17 @@ select {
 
 /* The preparation workspace keeps class, session, IDs and questions together. */
 .preparation-workspace,.question-workspace { max-width:1000px; margin:0 auto }
-.preparation-heading,.preparation-section-heading,.preparation-session-picker {
+.preparation-heading,.preparation-section-heading {
   display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap
 }
 .preparation-heading h1 { margin-bottom:8px }
 .preparation-heading p { margin:0 }
 .preparation-heading { margin-bottom:24px }
-.preparation-picker,.preparation-details,.preparation-session-picker form {
+.preparation-details {
   display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap
 }
-.preparation-picker { padding:16px; background:var(--white); border:1px solid var(--line); border-radius:12px; margin-bottom:16px }
-.preparation-picker label,.preparation-details label { margin:0 }
-.preparation-picker .preparation-field select { display:block; margin:6px 0 0 }
-.preparation-picker input,.preparation-picker select,.preparation-details input { display:block; margin:6px 0 0 }
-.preparation-picker input { width:170px }
-.preparation-session-picker { margin-bottom:16px }
-.preparation-session-picker select { max-width:480px }
-.preparation-session-picker form label { margin:0 0 10px }
+.preparation-details label { margin:0 }
+.preparation-details input { display:block; margin:6px 0 0 }
 .preparation-panel { padding:20px; margin:16px 0 }
 .preparation-panel h2 { font-size:20px; margin:0 0 16px }
 .preparation-section-heading h2 { margin-bottom:12px }
@@ -2457,7 +2333,6 @@ select {
 .preparation-readiness { margin-top:20px }
 .preparation-readiness .table-wrap { overflow-x:auto }
 .preparation-readiness table { width:100% }
-.preparation-administration { margin:24px 0; font-size:13px; color:var(--muted) }
 .preparation-context { margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--line) }
 .preparation-context p { margin:12px 0 }
 .preparation-steps,.settings-subtabs { display:flex; flex-wrap:wrap; gap:16px; margin:12px 0 }
@@ -2465,18 +2340,11 @@ select {
 .preparation-steps [aria-current],.settings-subtabs [aria-current] { font-weight:700; border-bottom:2px solid var(--accent) }
 @media(max-width:700px) {
   .preparation-heading { align-items:flex-start }
-  .preparation-picker .preparation-field,.preparation-details label { flex:1 1 150px }
-  .preparation-picker input,.preparation-picker select,.preparation-details input { width:100% }
-  .preparation-session-picker form { width:100% }
-  .preparation-session-picker select { max-width:100%; flex:1 1 160px }
+  .preparation-details label { flex:1 1 150px }
+  .preparation-details input { width:100% }
   .preparation-panel { padding:16px }
   .preparation-steps { gap:12px; font-size:13px }
 }
-
-.preparation-picker .preparation-field { min-width:0; max-width:100% }
-.preparation-picker select { max-width:100% }
-#preparation-session { max-width:320px }
-@media(max-width:700px) { #preparation-session { max-width:100% } }
 
 .enrollment-filter-panel { margin:20px 0 }
 .enrollment-filters { display:flex; align-items:flex-end; flex-wrap:wrap; gap:16px }
@@ -2485,14 +2353,6 @@ select {
 .enrollment-filters input,.enrollment-filters select { width:100%; margin:0 }
 .enrollment-filters .enrollment-filter-actions { display:flex; align-items:center; gap:16px; flex:0 1 auto; flex-wrap:wrap }
 .enrollment-filter-panel p { margin:12px 0 0 }
-
-/* In-page choices also work when a browser cannot open native select popups. */
-.preparation-year-field { flex:0 1 150px }
-.preparation-class-field { flex:1 1 160px }
-.preparation-current { margin:0 0 16px; color:var(--muted); font-size:14px }
-.preparation-current strong { color:var(--ink) }
-.preparation-session-field { flex:2 1 240px }
-.preparation-picker .picker-label { display:block; font-weight:650; font-size:13px; margin-bottom:6px }
 .preparation-menu { position:relative; min-width:0 }
 .preparation-menu summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; cursor:pointer; min-height:var(--control-height); padding:0 12px; border:1px solid #aebec2; border-radius:8px; background:var(--white) }
 .preparation-menu summary>span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
@@ -2507,7 +2367,6 @@ select {
 .preparation-menu-options button { display:block; width:100%; text-align:left; border:0; background:transparent; border-radius:4px; padding:10px 12px; white-space:normal; overflow-wrap:anywhere }
 .preparation-menu-options button:hover,.preparation-menu-options button:focus-visible { background:var(--selection) }
 .preparation-menu-options [aria-current] { background:var(--selection); font-weight:700 }
-.preparation-picker #preparation-session { max-width:none }
 .participant-question-table-wrap { overflow-x:auto; margin-top:12px }
 .participant-question-table { table-layout:fixed; min-width:540px }
 .participant-question-table th,.participant-question-table td { text-align:left; padding:12px; white-space:normal; overflow-wrap:anywhere }
@@ -2516,7 +2375,6 @@ select {
 .participant-question-table .badge { white-space:normal }
 .participant-question-table td:last-child a { display:inline-block; padding:4px 0 }
 @media(max-width:700px) {
-  .preparation-picker .preparation-year-field,.preparation-picker .preparation-class-field,.preparation-picker .preparation-session-field { flex-basis:100% }
   .preparation-menu-options { max-height:260px }
   /* Narrow menus wrap the whole session date instead of cutting it off. */
   .preparation-menu summary { padding-block:6px }
