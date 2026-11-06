@@ -42,3 +42,34 @@ def test_invalid_ack_does_not_discard_pending_upload():
         })().catch(error => { console.error(error); process.exitCode = 1; });
     ''')
     assert result.stdout.strip().endswith("preserved")
+
+
+def test_events_left_unsent_are_set_aside_and_sent_under_their_own_run():
+    result = run_logger_node_script('''
+        (async () => {
+            let next = 0;
+            crypto.randomUUID = () => `batch-${++next}`;
+            window.USER_ID = "7";
+            const run = studyLogger.sessionID;
+            studyLogger.logEvent("querySubmitted", {query: "first"});
+            global.fetch = async () => { throw new Error("offline"); };
+            try { await studyLogger.sendLogs(); } catch (_) {}
+            studyLogger.logEvent("querySubmitted", {query: "second"});
+            studyLogger.setAsideUnsent(studyLogger.sessionID, studyLogger.logs);
+            studyLogger.clearClientData({createNewSessionID: true});
+            const requests = [];
+            global.fetch = async (_url, options) => {
+                const batch = JSON.parse(options.body);
+                requests.push(batch);
+                return {ok: true, json: async () => ({status: "logged", batch_id: batch.batch_id})};
+            };
+            await studyLogger.sendUnsentRuns();
+            console.log(JSON.stringify({
+                runs: requests.map(batch => batch.session_id === run),
+                queries: requests.map(batch => batch.logs.map(entry => entry.query)),
+                left: localStorage.getItem("solUnsentRuns"),
+            }));
+        })().catch(error => { console.error(error); process.exitCode = 1; });
+    ''')
+    assert json.loads(result.stdout.strip().splitlines()[-1]) == {
+        "runs": [True, True], "queries": [["first"], ["second"]], "left": None}

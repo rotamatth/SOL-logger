@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Keep events a browser could not send when an ID is entered again
+
+**Commit:** pending · **Type:** fix · **Area:** logging, session
+
+**Files**
+- `logger/search-app/static/logger.js` — `setAsideUnsent` and `sendUnsentRuns`; `clearClientData` keeps what was set aside
+- `logger/search-app/tests/test_unsent_events_browser.py`, `tests/test_upload_client.py` — new tests
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Entering an ID cleared all browser storage, including events and a pending batch that had not reached the server. If
+uploads were failing when a run was left, those events were lost once anyone entered an ID on that tablet: 14 events in
+each rehearsal. They are now set aside and sent under their own run's ID, reusing the batch ID so a retry cannot write
+them twice. The same run's events go to its full log. Another child's go to that child's existing `_INCOMPLETE.log`
+recovery file. Sending is separate from `sendLogs`, so a refused old batch never holds up the current run.
+
+**If something looks wrong after this, check**
+- `solUnsentRuns` staying in localStorage → the server refused that batch; the browser console and `/log_session` responses.
+- An unexpected `_INCOMPLETE.log` → the run was left while uploads were failing; its events carry `recovered: true`.
+
+**Left alone**
+Server upload handling and log formats. A batch the server permanently refuses still blocks later uploads from the
+*current* run (see "same ID on two tablets" in `follow_up_checks.md`).
+
 ## 2026-11-06 — Keep dashboard pages working beside the student flow
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard
