@@ -89,6 +89,8 @@ class Dashboard:
 
     @staticmethod
     def page(name, **values):
+        # Student pages have their own value under this name, empty outside a run: never let it reach these templates.
+        values.setdefault("study_context", {})
         return render_template("research/" + name + ".html", **values)
 
     def problem(self, key, code):

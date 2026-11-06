@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Keep dashboard pages working beside the student flow
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/dashboard.py` — `page` always passes its own `study_context`
+- `logger/search-app/tests/test_guide.py` — new test
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The student flow in PR #23 adds `study_context` to every template, empty outside a run. Dashboard pages that set none
+inherited that empty value and crashed in `base.html`. With both in one app, the first sign-in landed on "Server
+Error" (the guide), and the trash page and dashboard error pages returned 500. Tests did not catch it because their
+test apps do not load both together.
+
+**If something looks wrong after this, check**
+- A dashboard page returning 500 only on the deployed app → `study_context` in `base.html`, and the context processors in `student_progress.py`.
+
+**Left alone**
+The student flow's own value and templates.
+
 ## 2026-11-06 — Re-check dashboard v2 against the researcher feedback of 3 November
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard, styling, docs, tests
