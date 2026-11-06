@@ -65,6 +65,35 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Set May's classes from the server's logs
+
+**Commit:** pending · **Type:** infra · **Area:** data, dashboard
+
+**Files**
+- `logger/search-app/tools/setup_session_2026_11_10.py` — May is 19 May 2026, class 3 with IDs 1-8, 17, 18 and class 4 with IDs 9-16
+- `logger/search-app/tests/test_setup_session_2026_11_10.py` — checks the shipped values, and that other days stay out
+- `logger/docs/follow_up_checks.md` — May is set, real search answered from a Mac; the server's own check and Diletta's questions remain
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The server's logs show two class starts on 19 May 2026: IDs 9-16 within 8 seconds at 10:41 and IDs 1-8, 17, 18 within 71 seconds at
+14:47. All 18 finished three questions, so no later run is a redo. Only that day is classified and linked to the children, so runs
+on other days stay out of the classes, also under a real ID. IDs 19 and 20 have no May run, so they are enrolled for this year only.
+The rule works by date, so a test on that same day counts with the class: ID 11 has one at 08:00.
+
+**If something looks wrong after this, check**
+- A May run without a class → it is not dated 19 May, or its name is not a numeric ID.
+- Class 4 of 2025/2026 shows 8 children → expected; 19 and 20 start this year.
+
+**Left alone**
+The May log files. Removing the fake runs from the server is a separate manual step.
+
+**Verified**
+The tool's tests on a real `State` and index, with runs on other days under real IDs. The dates, times and finished counts come
+from the server's real file list, read by Matthias; the log contents were not read here.
+
 ## 2026-11-06 — One-step setup of the 10 November session and May's classes
 
 **Commit:** pending · **Type:** infra · **Area:** data, dashboard

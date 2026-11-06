@@ -19,8 +19,7 @@ SPEC.loader.exec_module(setup)
 CLASS_4 = ["1", "2", "3", "4", "5", "6", "7", "8", "17", "18"]
 CLASS_5 = ["9", "10", "11", "12", "13", "14", "15", "16", "19", "20"]
 ORECCHIO = (("Uno", "Domanda uno?"), ("Due", "Domanda due?"), ("Tre", "Domanda tre?"))
-PERIODS = {"3": (("2026-05-20", "2026-05-20"),), "4": (("2026-05-21", "2026-05-22"),)}
-MAY_IDS = {"3": ("1", "17"), "4": ("9", "19")}
+MAY_CLASS_4 = ["9", "10", "11", "12", "13", "14", "15", "16"]
 DAY = date(2026, 11, 10)
 
 
@@ -28,7 +27,7 @@ DAY = date(2026, 11, 10)
 def ready(tmp_path):
     (tmp_path / "logs").mkdir()
     state = State(tmp_path / "state")
-    setup.apply(state, tmp_path / "logs", orecchio=ORECCHIO, periods=PERIODS, may_ids=MAY_IDS)
+    setup.apply(state, tmp_path / "logs", orecchio=ORECCHIO)
     return state, tmp_path
 
 
@@ -46,7 +45,7 @@ def test_may_holds_the_same_children_a_class_lower(ready):
     state, _ = ready
     classes = roster(state.settings(), "2025/2026")
     assert [uid for uid, grade in classes.items() if grade == "3"] == CLASS_4
-    assert [uid for uid, grade in classes.items() if grade == "4"] == CLASS_5
+    assert [uid for uid, grade in classes.items() if grade == "4"] == MAY_CLASS_4
 
 
 def test_only_the_two_real_sessions_exist_and_both_are_ready(ready):
@@ -80,7 +79,7 @@ def test_the_spazio_questions_are_last_years_in_clip_order(ready):
 def test_without_its_questions_class_5_stays_a_draft_that_keeps_its_theme(tmp_path):
     (tmp_path / "logs").mkdir()
     state = State(tmp_path / "state")
-    setup.apply(state, tmp_path / "logs", orecchio=(), periods=PERIODS, may_ids=MAY_IDS)
+    setup.apply(state, tmp_path / "logs", orecchio=())
     settings = state.settings()
     assert scheduled_assignment(settings, "9", DAY) is None
     assert scheduled_assignment(settings, "1", DAY) is not None
@@ -96,17 +95,18 @@ def test_may_records_join_their_class_and_child_and_test_names_stay_out(ready):
     state, root = ready
     legacy = root / "legacy"
     legacy.mkdir()
-    for uid, day in (("1", "2026-05-20"), ("9", "2026-05-21"), ("Utente1", "2026-05-20"), ("UserTestLog1", "2026-05-20"),
-                     ("1", "2026-05-11")):
+    for uid, day in (("1", "2026-05-19"), ("17", "2026-05-19"), ("9", "2026-05-19"), ("Utente1", "2026-05-18"),
+                     ("UserTestLog1", "2026-05-14"), ("1", "2026-05-18"), ("3", "2026-05-20"), ("12", "2026-10-09")):
         write_may_run(legacy, uid, day)
     before = {path.name: path.read_bytes() for path in legacy.iterdir()}
     index = Index(root / "state", {"v2": root / "logs", "legacy": legacy})
     index.refresh(force=True)
     runs = {(run["participant_id"], run["date"]): run for run in index.summaries(state.settings())}
-    one, nine = runs[("1", "2026-05-20")], runs[("9", "2026-05-21")]
-    assert (one["grade"], one["school_year"], one["study_participant_id"]) == ("3", "2025/2026", "1")
-    assert (nine["grade"], nine["school_year"], nine["study_participant_id"]) == ("4", "2025/2026", "9")
-    for key in (("Utente1", "2026-05-20"), ("UserTestLog1", "2026-05-20"), ("1", "2026-05-11")):
+    for uid, grade in (("1", "3"), ("17", "3"), ("9", "4")):
+        run = runs[(uid, "2026-05-19")]
+        assert (run["grade"], run["school_year"], run["study_participant_id"]) == (grade, "2025/2026", uid)
+    for key in (("Utente1", "2026-05-18"), ("UserTestLog1", "2026-05-14"), ("1", "2026-05-18"), ("3", "2026-05-20"),
+                ("12", "2026-10-09")):
         assert (runs[key]["grade"], runs[key]["study_participant_id"]) == (None, None)
     assert {path.name: path.read_bytes() for path in legacy.iterdir()} == before
 
