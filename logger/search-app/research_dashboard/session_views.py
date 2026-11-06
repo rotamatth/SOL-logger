@@ -24,6 +24,20 @@ def _in_view(study_session, year, grade):
             and (not year or study_session.get("school_year", "") in ("", year)))
 
 
+def historical_rows(settings, year, grade):
+    """Past experiments known only from their logs, such as May's. They have no session number."""
+    rows = {}
+    for rule in settings.get("historical_grades", []):
+        if (grade != "all" and rule["grade"] != grade) or (year and rule["school_year"] != year):
+            continue
+        key = (rule["grade"], rule["school_year"], rule["date_from"], rule["date_to"])
+        row = rows.setdefault(key, {"historical": True, "grade": rule["grade"], "school_year": rule["school_year"],
+                                    "date": rule["date_from"], "count": 0,
+                                    "session": {"date": rule["date_from"], "grade": rule["grade"], "number": 0}})
+        row["count"] += rule["end"] - rule["start"] + 1
+    return list(rows.values())
+
+
 def session_rows(settings, year, grade, today):
     """Sessions in view, grouped for the list. Empty numbered slots are not shown."""
     groups = {"today": [], "published": [], "draft": [], "past": []}
@@ -36,6 +50,8 @@ def session_rows(settings, year, grade, today):
         group = session_group(study_session, readiness, today)
         groups[group].append({"session": study_session, "readiness": readiness, "group": group,
                               "needs": session_needs(study_session, readiness)})
+    groups["past"].extend(historical_rows(settings, year, grade))
+
     def position(row):
         return row["session"].get("date") or "9999", row["session"]["grade"], row["session"]["number"]
     for group, rows in groups.items():

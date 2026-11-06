@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — List May's experiment in Sessions
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/session_views.py` — `historical_rows`
+- `logger/search-app/research_dashboard/templates/research/sessions.html`, `workflow_i18n.py` — the row and its wording
+- `logger/search-app/tests/test_session_history_rows.py` — new
+
+**What changed for the participant**
+No visible change. Researchers see "Esperimento 19 maggio" per class under Past sessions, linking to its data, instead of "No sessions yet" for 2025/2026.
+
+**How it works**
+The rows are read from the historical rules saved by the setup tool. They are not sessions: a May session would take a number and make Tuesday's class 4 Session 2.
+
+**If something looks wrong after this, check**
+- No row → `historical_grades` in settings, or the year filter.
+
+**Left alone**
+Session numbers, the settings, Data and history. A May run still says "Other saved runs" on a child's page.
+
+**Verified**
+Tests for the year, the class filter and the number of IDs, and a look at the page in the rehearsal.
+
 ## 2026-11-07 — Match the child pages to Diletta's Figma
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, session
