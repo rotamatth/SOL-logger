@@ -84,6 +84,7 @@ def test_confirmed_unknown_resumes_as_unknown_in_a_fresh_browser(student_site):
         resumed.select_option("#id-box", "1")
         resumed.click("#continue-btn")
         resumed.click("a#first-answer-search")
+        resumed.wait_for_url("**/search")
         show(resumed)
         dialog = resumed.locator("#search-first-answer-dialog")
         assert "Non lo so" in dialog.inner_text() and dialog.locator("textarea,input").count() == 0
