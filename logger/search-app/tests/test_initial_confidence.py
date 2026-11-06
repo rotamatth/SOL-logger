@@ -104,7 +104,7 @@ def test_version_four_upgrade_preserves_originals_pending_events_and_drafts(tmp_
         db.execute("PRAGMA user_version=4")
     pending = store.pending_events(key, aid)
     reopened, _ = make_store(tmp_path)
-    assert reopened.runtime_settings()["schema_version"] == 6
+    assert reopened.runtime_settings()["schema_version"] == 7
     snapshot = reopened.get_attempt(key, aid)
     assert snapshot["tasks"][0]["first_answer"]["text"] == "Old original"
     assert snapshot["tasks"][0]["first_answer"]["confidence"] is None

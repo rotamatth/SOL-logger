@@ -142,7 +142,7 @@ def test_version_three_backfills_all_original_events_in_question_order_once(tmp_
         db.execute("DROP TABLE IF EXISTS progress_events")
         db.execute("PRAGMA user_version=3")
     upgraded, _ = make_store(tmp_path)
-    assert upgraded.runtime_settings()["schema_version"] == 6
+    assert upgraded.runtime_settings()["schema_version"] == 7
     events = upgraded.pending_events(key, attempt_id)
     assert [event["payload"]["answer"] for event in events] == [
         "Before 1", "After 1", "Before 2", "After 2", "Before 3", "After 3"]

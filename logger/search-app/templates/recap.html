@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Le tue risposte</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='recap.css') }}">
+  <script>
+    window.SESSION_ID = {{ session.get('session_id')|tojson }};
+    window.USER_ID = {{ session.get('user_id')|tojson }};
+    window.STUDY_PROGRESS_CONTEXT = {{ study_context|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='logger.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='recap.js') }}" defer></script>
+</head>
+<body class="study-review-page">
+  <main id="recap" class="study-review" data-attempt-id="{{ attempt_id }}" data-csrf-token="{{ csrf_token }}"
+        data-draft-url="{{ url_for('recap_draft') }}" aria-labelledby="recap-heading">
+    <h1 id="recap-heading">Le tue risposte</h1>
+    <p class="review-intro">{{ 'La sessione è salvata. Puoi scaricare le tue risposte.' if finished else
+        'Rivedi le risposte delle sessioni completate e aggiorna quello che sai adesso.' }}</p>
+    <div class="recap-board">
+      <img class="recap-artwork" src="{{ url_for('static', filename=background) }}" alt="">
+      {% for number in range(1, 4) %}
+      {% set column = columns.get(number) %}
+      <section class="recap-column" aria-labelledby="recap-session-{{ number }}">
+        <h2 class="review-number" id="recap-session-{{ number }}">Sessione {{ number }}</h2>
+        {% if column %}
+        <div class="recap-navigation">
+          <button type="button" class="app-btn app-btn-outline" data-step="-1" disabled
+                  aria-label="Domanda precedente, sessione {{ number }}">←</button>
+          <span aria-live="polite" data-question-index>1 / {{ column.tasks|length }}</span>
+          <button type="button" class="app-btn app-btn-outline" data-step="1"
+                  aria-label="Domanda successiva, sessione {{ number }}">→</button>
+        </div>
+        {% for task in column.tasks %}
+        {% set final = latest_final(task) %}
+        {% set revision = final_revision(task) %}
+        {% set answer_revision = revision.revision if revision else 0 %}
+        {% set draft = task.recap_drafts.get('final-answer') %}
+        {% set stale = draft and draft.base_answer_revision is defined and draft.base_answer_revision != answer_revision %}
+        <article class="recap-question review-task" {% if not loop.first %}hidden{% endif %}>
+          <h3>Domanda {{ task.number }} · {{ task.snapshot.question }}</h3>
+          <div class="review-card review-before">
+            <h4>Cosa sapevi prima</h4>
+            <p>{{ 'Non lo so' if task.first_answer.outcome == 'unknown' else task.first_answer.text }}</p>
+            {% if task.first_answer.confidence %}
+            <p class="recap-confidence">Autovalutazione iniziale · {{ confidence_labels[task.first_answer.confidence] }}</p>
+            {% endif %}
+          </div>
+          <div class="review-card review-after">
+            <h4>Cosa sai adesso</h4>
+            {% if not finished %}
+            <label class="recap-label" for="answer-{{ number }}-{{ task.number }}">Risposta finale modificabile</label>
+            <textarea id="answer-{{ number }}-{{ task.number }}" rows="3"
+                      data-target="{{ column.attempt_id }}" data-number="{{ task.number }}"
+                      data-revision="{{ task.recap_draft_revisions.get('final-answer', 0) }}"
+                      data-answer-revision="{{ answer_revision }}" data-stale-draft="{{ 'true' if stale else 'false' }}">
+{{ draft.text if draft else final }}</textarea>
+            <output class="recap-draft-error" for="answer-{{ number }}-{{ task.number }}" aria-live="polite">{{
+              'La risposta salvata è cambiata. Controllala e aggiorna questa bozza prima di salvare.' if stale else ''
+            }}</output>
+            {% if draft and final != draft.text %}
+            <details>
+              <summary>Vedi la versione salvata</summary>
+              <p>{{ final }}</p>
+            </details>
+            {% endif %}
+            {% else %}
+            <p>{{ final }}</p>
+            {% endif %}
+            <details>
+              <summary>Vedi la risposta originale</summary>
+              <p>{{ task.final_answer.text }}</p>
+            </details>
+          </div>
+        </article>
+        {% endfor %}
+        {% else %}
+        <p class="recap-empty">Non ci sono risposte per questa sessione.</p>
+        {% endif %}
+      </section>
+      {% endfor %}
+    </div>
+    <p id="recap-status" class="recap-status" role="status"></p>
+    <div class="review-actions">
+      {% if finished %}
+      <a class="review-button" href="{{ url_for('recap_pdf') }}" download>Scarica PDF</a>
+      <button type="button" class="review-button" data-action="restart"
+              data-url="{{ url_for('recap_restart') }}">Ricomincia l’attività</button>
+      {% else %}
+      <button type="button" class="review-button" data-action="save"
+              data-url="{{ url_for('recap_save') }}">Salva modifiche</button>
+      <button type="button" class="review-button" data-action="finish"
+              data-url="{{ url_for('recap_finish') }}">
+        Salva sessione e {{ 'termina lo studio' if session_number == 3 else 'termina la sessione' }}
+      </button>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>
