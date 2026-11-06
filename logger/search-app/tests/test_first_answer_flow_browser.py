@@ -111,6 +111,14 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             page.wait_for_function("document.querySelector('.recap-artwork')?.naturalWidth > 0")
             assert page.locator(".recap-artwork").get_attribute("src").endswith("space-recap.webp")
             assert page.get_by_role("button", name="Ricomincia l’attività").count() == 0
+            first_editor = page.locator("#answer-2-1")
+            page.route("**/recap/draft", lambda route: route.fulfill(json={"revision": "invalid"}))
+            first_editor.fill("Bozza con conferma non valida")
+            page.get_by_text("Conferma della bozza non valida. Riprova.").wait_for()
+            assert first_editor.get_attribute("data-revision") == "0"
+            assert first_editor.input_value() == "Bozza con conferma non valida"
+            page.unroute("**/recap/draft")
+            first_editor.fill("Risposta finale 1")
             next_card = page.get_by_role("button", name="Domanda successiva, sessione 2")
             for index in range(1, 4):
                 assert page.get_by_text(f"Prima risposta {index}", exact=True).is_visible()

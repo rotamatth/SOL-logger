@@ -88,13 +88,17 @@
       if (conflict) throw new Error(error.textContent);
       const text = field.value;
       if (!forceSave && text === acknowledged) return;
+      const nextRevision = revision + 1;
       sent = text;
       buffer();
       pending = post(recap.dataset.draftUrl, {
         target_attempt_id: field.dataset.target, number: Number(field.dataset.number), text, revision,
         answer_revision: Number(field.dataset.answerRevision)
       }).then(result => {
-        revision = result.revision;
+        if (result?.revision !== nextRevision) {
+          throw new Error('Conferma della bozza non valida. Riprova.');
+        }
+        revision = nextRevision;
         acknowledged = text;
         forceSave = false;
         field.dataset.revision = String(revision);
