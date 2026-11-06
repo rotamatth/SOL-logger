@@ -65,6 +65,40 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Fit the tests to the combined release
+
+**Commit:** pending · **Type:** infra · **Area:** tests, task-flow, dashboard
+
+**Files**
+- `logger/search-app/tests/test_live_view.py` — the real-run test confirms a first answer and sends a complete final answer
+- `logger/search-app/tests/test_first_answer_flow_browser.py` — the expected recap picture now depends on the theme; waits for the search page
+- `logger/search-app/tests/test_search_first_answer_browser.py` — waits for the search page before tapping the button
+- `logger/search-app/tests/test_final_answer_draft_browser.py` — waits for the search page and the viewer before tapping
+
+**What changed for the participant**
+No visible change. Only tests changed.
+
+**How it works**
+The live view and recap tests passed on their own branches and failed only once dashboard v2, the question flow and the
+recap were merged together. #23 refuses a final answer without its attempt and question, and the server now logs the start of a
+task itself, so the live view test takes its times from the real run. It also checks that a finished question shows a
+time instead of "—". The recap test expected the space picture for both themes.
+
+The other two were intermittent: they tapped "La mia prima risposta" or "Scrivi la risposta" while the page was still
+loading, before the button's handler existed. They now wait for the page, as the other browser tests do.
+
+**If something looks wrong after this, check**
+- A live view showing "—" for time on the real flow → `started_at` and `ended_at` in `research_dashboard/task_stats.py`.
+
+**Left alone**
+A tap on those buttons while the page is still loading still does nothing, and a second tap works. Nothing is logged or
+lost and a saved draft stays, so the app was not changed days before a session.
+
+**Verified**
+Two throwaway tests confirmed the cause. With `logger.js` held back, an early tap did nothing and a tap after loading
+opened the dialog. In 40 runs of the draft flow, 9 first taps were lost with `openFeedbackModal is not defined`, and
+every second tap opened the box with the draft still there. Real iPads were not part of this.
+
 ## 2026-11-06 — Run the deploy backup in a container
 
 **Commit:** pending · **Type:** fix · **Area:** infra, docs

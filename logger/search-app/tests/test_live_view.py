@@ -1,5 +1,6 @@
 """The live view reports started attempts and finished questions from the original logs."""
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -223,13 +224,14 @@ def test_the_list_and_session_page_link_to_it_only_on_the_day(app, monkeypatch):
 
 
 def test_a_real_student_run_reaches_the_live_view(student_modules):
-    """Real admission and the real upload route, with no shortcut through the test helpers."""
+    """Real admission, first answer and upload route, with no shortcut through the test helpers."""
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
     from werkzeug.security import generate_password_hash
 
     from .enrollment_helpers import enroll_initial_roster, school_year
+    from .progress_helpers import confirm_first, final_event
     from .test_research_dashboard import PASSWORD
 
     module = student_modules()
@@ -247,7 +249,7 @@ def test_a_real_student_run_reaches_the_live_view(student_modules):
     assert "Not started" in rows(researcher)[1]["1"]["html"]
     assert student.post("/start", data={"user_id": "1"}).status_code == 302
     assert "In progress" in rows(researcher)[1]["1"]["html"]
-    assert student.get("/task").status_code == 200
+    confirm_first(student)
     with student.session_transaction() as active:
         sid = active["session_id"]
 
@@ -256,13 +258,14 @@ def test_a_real_student_run_reaches_the_live_view(student_modules):
         response = student.post("/log_session", json={"session_id": sid, "logs": logs})
         assert response.status_code == 200, response.data[:200]
 
-    upload({"type": "TaskStarted", "timestamp": "2026-11-05T09:00:00.000"},
-           {"type": "querySubmitted", "timestamp": "2026-11-05T09:00:30.000", "query": "synthetic"},
+    upload({"type": "querySubmitted", "timestamp": "2026-11-05T09:00:30.000", "query": "synthetic"},
            {"type": "clickedResult", "timestamp": "2026-11-05T09:01:00.000", "rank": "2"})
     html = rows(researcher)[1]["1"]["html"]
-    assert "0 / 3 finished" in html and "1 search<" in html and "since 09:00" in html
-    upload({"type": "TaskEnded", "timestamp": "2026-11-05T09:02:30.000", "answer": "Synthetic answer"})
+    assert "0 / 3 finished" in html and "1 search<" in html and "since " in html
+    upload(final_event(student, "Synthetic answer"))
     data, by_id = rows(researcher)
     html = by_id["1"]["html"]
-    assert "1 / 3 finished" in html and "2 min 30 s" in html and "average position 2" in html
+    assert "1 / 3 finished" in html and "average position 2" in html
+    # Start and end now come from the server's clock, so the time is real: it must show, not "—".
+    assert re.search(r'data-label="Time">\d+ (s|min)', html)
     assert 'data-label="Finished">1 / 20</td>' in data["questions"]

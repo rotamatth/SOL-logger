@@ -35,6 +35,7 @@ def resume(page, base):
     page.select_option("#id-box", "1")
     page.click("#continue-btn")
     page.click("a#first-answer-search")
+    page.wait_for_url("**/search")
     search(page, "api miele")
     open_box(page)
 
@@ -48,6 +49,7 @@ def test_final_draft_resumes_across_pages_and_a_fresh_browser_without_confirmati
     assert persisted(root) == (text, 1)
     page.click("#continue-search-btn")
     page.click("#abstract-link-1")
+    page.wait_for_url("**/webpage**")
     open_box(page)
     assert page.locator("#textarea_feedback").input_value() == text
     other = page.context.browser.new_context()

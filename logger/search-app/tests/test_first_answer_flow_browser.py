@@ -65,9 +65,11 @@ def test_failed_draft_save_survives_reload_and_can_retry(student_site):
     assert page.locator("button#first-answer-search").is_disabled()
 
 
-@pytest.mark.parametrize("student_site, clip_prefix", [("Spazio", "Spazio"), ("Corpo umano (orecchio)", "Orecchio")],
+@pytest.mark.parametrize("student_site, clip_prefix, artwork",
+                         [("Spazio", "Spazio", "space-recap.webp"),
+                          ("Corpo umano (orecchio)", "Orecchio", "ear-recap.webp")],
                          indirect=["student_site"])
-def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(student_site, clip_prefix):
+def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(student_site, clip_prefix, artwork):
     page, base, root = student_site
     page.set_viewport_size({"width": 768, "height": 1024})
     reduced_motion = clip_prefix == "Orecchio"
@@ -93,6 +95,7 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
         page.get_by_role("button", name="Conferma risposta", exact=True).click()
         page.locator("a#first-answer-search").wait_for()
         page.click("a#first-answer-search")
+        page.wait_for_url("**/search")
         search(page, "api miele")
         topic = page.evaluate("Number(window.TASK_NUMBER)")
         page.evaluate("sessionStorage.setItem('solFirstDraft:another-attempt:1', 'An unrelated draft')")
@@ -131,7 +134,7 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             page.get_by_role("link", name="Continua", exact=True).click()
             page.get_by_role("heading", name="Le tue risposte").wait_for()
             page.wait_for_function("document.querySelector('.recap-artwork')?.naturalWidth > 0")
-            assert page.locator(".recap-artwork").get_attribute("src").endswith("space-recap.webp")
+            assert page.locator(".recap-artwork").get_attribute("src").endswith(artwork)
             assert page.get_by_role("button", name="Ricomincia l’attività").count() == 0
             first_editor = page.locator("#answer-2-1")
             page.route("**/recap/draft", lambda route: route.fulfill(json={"revision": "invalid"}))
