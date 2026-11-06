@@ -65,6 +65,165 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Validate recap autosave acknowledgements
+
+- Advance the locally tracked draft revision only when the server confirms
+  the expected revision. Keep the draft available to retry after a malformed
+  acknowledgement.
+
+## 2026-11-06 — Preserve recap access across the browser handoff
+
+- Require the browser's completed third-question review before showing,
+  editing or downloading the recap. A fresh browser that selects the same
+  completed ID sees the completion message.
+- Align the connected-flow and enrollment tests with the new recap and
+  verify that the same browser can download the durable PDF from another worker.
+
+## 2026-11-05 — Add editable session recap and saved PDF
+
+**Type:** feature · **Area:** participant recap, persistence, logging
+
+- Show completed sessions in three independently navigable columns with the
+  original question order, saved initial confidence and final-answer revisions.
+- Commit edits from every card together and save the final PDF in the progress
+  database before exposing download and return to welcome.
+- Record recap edits and per-session finish in the durable outbox. See
+  [recap behavior and storage](editable_recap.md).
+
+## 2026-11-05 — Complete progress history contracts and retire puzzle rewards
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, reward, data, logging, tests
+
+**Files**
+- `search-app/study_progress.py`, `student_progress.py` — schema 6 recap drafts/revisions, repeat receipts, session lifecycle events and stale-page/start-failure recovery.
+- `search-app/search_app.py`, templates, `static/main.css` — remove the reward route, reveal controls and styles; retain task review and neutral completion/close events.
+- `search-app/static/puzzle_pieces/*`, `templates/reward.html` — remove obsolete reward media and page.
+- `search-app/research_dashboard/student_config.py`, `settings_views.py`, `study_config.py`, `i18n.py` — question sets no longer require reward assets; historical metadata remains readable.
+- Progress/history/retirement/logging tests, restart smoke and `issue6_handover.md` — acceptance coverage and API handover.
+
+**What changed for the participant**
+The three-question flow contains no reward page or puzzle. An old browser's completed questions still continue safely. Concurrent advancement and a transient TaskStarted save failure remain recoverable.
+
+**How it works**
+Recap edits are append-only records with original before/after text, timestamp and verified editing context. Revision counters remain monotonic after draft confirmation, rejecting delayed autosaves. The internal repeat API atomically retires the old attempt and copies its exact snapshot/order into a fresh run with an idempotent authorization receipt. These are storage contracts for the separate #9/#15 interfaces. Identical pre-upgrade first-answer retries keep their historical null confidence. Completion and explicit closure publish through the durable outbox before success/clear.
+
+**If something looks wrong after this, check**
+`recap_draft_revisions` when restoring inactive drafts, new technical/log IDs when integrating #15, and the once-only TaskStarted/session events in FULL/per-task logs. A missing asset must not block enrollment.
+
+**Left alone**
+Recap/PDF/save-session UI, researcher reset authorization UI, autocomplete, MP4 and layout/autosave-label changes. The existing illustrated read-only handoff is retained.
+
+**Verified**
+Full server suite: 722 tests passed; current focused history/confidence checks: 40 passed. The complete required Chromium suite passed 116 tests. Ruff and JavaScript syntax passed. New-process restart, offline backup/restore and restored-process verification passed with confidence preserved. Desktop/tablet screenshots were inspected. Independent review findings were reproduced and fixed; real iPad Safari and local Docker replacement were not tested locally.
+
+## 2026-11-05 — Collect the child's initial self-assessment from Figma
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/templates/first_answer.html`, `static/first-answer.js`, `static/first-answer.css`, `static/confidence/*.svg` — accessible assessment options and original Figma stars.
+- `search-app/tests/test_initial_confidence_browser.py` and browser setup helpers — visibility, reset, restore, unknown and responsive checks.
+
+**What changed for the participant**
+“Secondo te, quanto è giusta la tua risposta?” appears immediately when an answer contains text. The child selects “Poco giusta”, “Abbastanza giusta” or “Giustissima” before confirming. Clearing the text resets the selection. “Non lo so” retains its separate confirmation.
+
+**How it works**
+Native radios share the existing revisioned draft save and recovery buffer. Acknowledgements compare both text and assessment so a change made during a save cannot disappear.
+
+**If something looks wrong after this, check**
+The first-answer draft's confidence and browser recovery buffer, and loading of the two local star SVGs.
+
+**Left alone**
+Autosave labels, search/final-answer button layouts, recap/PDF, MP4 and researcher restart interfaces.
+
+**Verified**
+19 required Chromium first-answer/search/upload regressions passed. Assessment controls fit desktop, portrait/landscape tablet and 320px widths. Real iPad Safari is not available in this environment.
+
+## 2026-11-05 — Persist initial confidence with the first answer
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, data, logging, tests
+
+**Files**
+- `search-app/study_progress.py`, `search-app/student_progress.py` — schema 5 migration, validated confidence, revisioned drafts and canonical events.
+- `search-app/tests/test_initial_confidence.py` and first-answer/progress setup helpers — atomicity, retries, concurrency, upgrade and route contracts.
+
+**What changed for the participant**
+Typed first answers require a confidence assessment. Confirmed “Non lo so” records no confidence.
+
+**How it works**
+The integer confidence (1/2/3) is stored with the original answer, search phase and outbox event in one transaction. Drafts store text and confidence under the same revision. Old measurements remain null and existing outbox events are preserved.
+
+**If something looks wrong after this, check**
+The configured progress database's schema version and the `confidence` field in `OwnKnowledgeAnswerSubmitted`. Conflicting confidence on a retry must return 409.
+
+**Left alone**
+Final answers, recap/restart interfaces, autocomplete and deployment dependencies.
+
+**Verified**
+104 focused persistence/route/event tests passed before the UI increment; additional migration and browser checks passed with that increment.
+
+## 2026-11-05 — Add the illustrated participant review on tablets
+
+**Commit:** pending · **Type:** feature · **Area:** styling, task-flow, tests
+
+**Files**
+- `search-app/templates/study_handoff.html`, `search-app/static/study-review.css` —
+  clarify the comparison, stack answers on narrow screens, and align the three
+  questions side by side in the landscape recap.
+- `search-app/static/study-review.js` — remove the print action from the recap.
+- `search-app/static/images/review/` — the six task images and two recap images
+  from the Diagrammi page of Attività Lambertenghi 2026-2027, optimized for tablets.
+- `search-app/search_app.py` — select artwork from the saved theme and original
+  topic position so it follows the question when the display order changes.
+- `search-app/tests/test_first_answer_flow_browser.py` — cover the narrow comparison
+  and the landscape recap in the complete three-question flow.
+- `search-app/tests/test_connected_first_answer.py` — verify the artwork for both themes.
+
+## 2026-11-05 — Mark draft retries as intentional background saves
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `search-app/static/first-answer.js`, `search-app/static/final-answer-draft.js` —
+  explicitly discard the promise returned by the retry handler. The save function
+  handles failures and updates the retry message.
+
+## 2026-11-04 — Show the participant’s before-and-after answers
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, tests
+
+**Files**
+- `search-app/search_app.py`, `search-app/student_progress.py`, `search-app/study_progress.py` — route confirmed tasks
+  to a comparison page scoped to the active participant’s saved attempt.
+- `search-app/templates/study_handoff.html`,
+  `search-app/static/study-review.css`, `search-app/static/study-review.js` — show
+  the two answers after each task and a printable recap after the third task.
+- `search-app/tests/` — exercise the comparison, recap, and continuation after a lost
+  save acknowledgement in the real student app.
+
+**What changed for the participant**
+The first and final answers are shown together after each confirmation. The third
+comparison opens a recap with all three pairs and the browser’s print-to-PDF dialog.
+The comparison cards use temporary graphics while the original illustrations are exported.
+
+**How it works**
+The page reads the stored question snapshot and the answers confirmed in this browser session.
+The review grant is recorded in the same transaction as the final answer.
+Reopening a completed attempt by ID shows a confirmation without displaying the previous answers.
+Original answers and the existing completion events are kept in their existing stores.
+
+## 2026-11-04 — Update study progress to the shared integration branch
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `search-app/tests/test_student_security.py` — confirm the final answer before ending
+  the first task and confirm the first answer before opening the next search.
+
+**Verified**
+The iframe test reproduces the missing-answer conflict before the adjustment.
+All 19 student security tests pass with the corrected setup.
+
 ## 2026-11-03 — Weekly Dependabot updates into matthias-dev
 
 **Commit:** pending · **Type:** infra · **Area:** infra, docs
