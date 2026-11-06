@@ -110,10 +110,11 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
         assert video.get_attribute("src") == f"/static/videos/review/{clip_prefix}_{topic:02d}.mp4"
         video.wait_for(state="visible")
         page.wait_for_function("document.querySelector('.review-task video')?.videoWidth > 0")
-        assert video.evaluate("video => video.controls && video.muted && video.playsInline")
+        assert video.evaluate("video => !video.controls && video.muted && video.playsInline")
         if reduced_motion:
             assert video.evaluate("video => video.paused && video.currentTime === 0")
-            video.evaluate("video => video.play()")
+            page.get_by_role("button", name="Avvia animazione").click()
+        page.get_by_role("button", name="Avvia animazione").wait_for(state="detached")
         page.wait_for_function("document.querySelector('.review-task video')?.currentTime > 0")
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         if number == 1:
