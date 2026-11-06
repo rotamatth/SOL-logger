@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Run the deploy backup in a container
+
+**Commit:** pending · **Type:** fix · **Area:** infra, docs
+
+**Files**
+- `scripts/deploy.sh` — the backup step runs in a one-off container and hands the archive to the checkout's owner
+- `logger/docs/production_readiness.md` — the same command for manual backups; check out the new code before the first upgrade
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The container runs as root and writes logs, databases and `password.hash` private to root. `deploy.sh` ran the
+backup as the operator's own account, which cannot read them, so on a Linux server the first deployment stopped
+collection, failed with `PermissionError`, and rolled back to the old image. Docker Desktop on a Mac maps ownership
+to the signed-in user, and CI backs up as root, so neither showed this. Rehearsed on a real Linux filesystem with a
+non-root operator (Docker-in-Docker): first upgrade, redeploy during a class, failed release, recovery.
+
+**If something looks wrong after this, check**
+- Deploy fails at "Taking a consistent backup" → `docker compose run` output; the new image must contain `tools/backup_study.py`.
+- A backup archive owned by root → the `chown` in the same step, and who owns `logger/`.
+
+**Left alone**
+`backup_study.py` itself. A rollback during the first upgrade still starts the old image with `logs-v2` mounted (see
+`follow_up_checks.md`).
+
 ## 2026-11-06 — Keep events a browser could not send when an ID is entered again
 
 **Commit:** pending · **Type:** fix · **Area:** logging, session
