@@ -486,6 +486,7 @@ if (searchbox) {
 const querySuggestionsList = document.getElementById("query-suggestions");
 if(querySuggestionsList){
     querySuggestionsList.addEventListener("mouseover", (e) => {
+    if (querySuggestionsList.getAttribute("aria-busy") === "true") return;
     const suggestionElement = e.target.closest("li") || e.target.closest("option");
     if (!suggestionElement) return;
 
@@ -496,6 +497,7 @@ if(querySuggestionsList){
     });
     
     querySuggestionsList.addEventListener("pointerdown", (e) => {
+        if (querySuggestionsList.getAttribute("aria-busy") === "true") return;
         const suggestionElement = e.target.closest("li") || e.target.closest("option");
         if (!suggestionElement) return;
 

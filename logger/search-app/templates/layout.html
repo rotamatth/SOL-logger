@@ -87,7 +87,9 @@
             let debounceTimer;
             let activeIndex = -1;
             let autocompleteRequestSequence = 0;
+            let autocompleteRequest = null;
             let searchSubmitted = false;
+            const autocompleteDebounceMs = 200;
 
             function setAutocompleteContext(details = {}) {
                 const suggestions = Array.isArray(details.suggestions)
@@ -122,6 +124,22 @@
                 clearBtn.disabled = !hasValue;
             }
 
+            function cancelSuggestions() {
+                clearTimeout(debounceTimer);
+                autocompleteRequestSequence += 1;
+                autocompleteRequest?.abort();
+                autocompleteRequest = null;
+            }
+
+            function resetSuggestions(prefix) {
+                cancelSuggestions();
+                list.replaceChildren();
+                list.removeAttribute("aria-busy");
+                activeIndex = -1;
+                setAutocompleteContext({ prefix });
+                hideList();
+            }
+
             syncClearButton();
 
             if (clearBtn) {
@@ -130,12 +148,7 @@
                     if (!clearedQuery) return;
 
                     input.value = "";
-                    list.innerHTML = "";
-                    activeIndex = -1;
-                    autocompleteRequestSequence += 1;
-                    clearTimeout(debounceTimer);
-                    setAutocompleteContext({ prefix: "" });
-                    hideList();
+                    resetSuggestions("");
                     syncClearButton();
                     input.focus();
 
@@ -150,27 +163,32 @@
 
             input.addEventListener("input", () => {
                 const query = input.value.trim();
-                list.innerHTML = "";
-                activeIndex = -1;
                 syncClearButton();
-
                 if (query.length < 3) {
-                    autocompleteRequestSequence += 1;
-                    setAutocompleteContext({ prefix: query });
-                    hideList();
+                    resetSuggestions(query);
                     return;
                 }
+                cancelSuggestions();
+                activeIndex = -1;
+                setAutocompleteContext({ prefix: query });
+                list.setAttribute("aria-busy", "true");
+                for (const option of list.children) {
+                    option.setAttribute("aria-selected", "false");
+                    option.setAttribute("aria-disabled", "true");
+                }
 
-                clearTimeout(debounceTimer);
-
-                const requestId = autocompleteRequestSequence + 1;
-                autocompleteRequestSequence = requestId;
+                const requestId = autocompleteRequestSequence;
                 debounceTimer = setTimeout(() => {
                     fetchSuggestions(query, requestId);
-                }, 300);
+                }, autocompleteDebounceMs);
             });
 
             input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    resetSuggestions(input.value.trim());
+                    return;
+                }
+                if (list.getAttribute("aria-busy") === "true") return;
                 const items = list.querySelectorAll("li");
                 if (!items.length) return;
 
@@ -194,26 +212,26 @@
                     select(items[activeIndex].textContent);
                 }
 
-                if (e.key === "Escape") {
-                    hideList();
-                }
             });
 
             async function fetchSuggestions(query, requestId) {
+                const request = new AbortController();
+                autocompleteRequest = request;
                 try {
                     const response = await fetch(
-                        `/autocomplete?query=${encodeURIComponent(query)}`
+                        `/autocomplete?query=${encodeURIComponent(query)}`,
+                        { signal: request.signal }
                     );
 
                     if (requestId !== autocompleteRequestSequence) return;
-
                     if (!response.ok) {
-                        setAutocompleteContext({ prefix: query });
-                        hideList();
+                        resetSuggestions(query);
                         return;
                     }
 
                     const data = await response.json();
+                    if (requestId !== autocompleteRequestSequence) return;
+
                     const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
                     const source = data?.source || "none";
                     const queryModel = data?.query_model || data?.queryModel || null;
@@ -224,13 +242,12 @@
                         queryModel
                     });
 
-                    list.innerHTML = "";
-
                     if (suggestions.length === 0) {
-                        hideList();
+                        resetSuggestions(query);
                         return;
                     }
 
+                    const options = document.createDocumentFragment();
                     suggestions.forEach(value => {
                         const li = document.createElement("li");
                         li.textContent = value;
@@ -241,7 +258,7 @@
                             select(value);
                         });
 
-                        list.appendChild(li);
+                        options.appendChild(li);
                     });
 
                     if (window.studyLogger) {
@@ -253,14 +270,17 @@
                         });
                     }
 
+                    list.replaceChildren(options);
+                    list.removeAttribute("aria-busy");
                     showList();
 
                 } catch (err) {
                     if (requestId === autocompleteRequestSequence) {
-                        setAutocompleteContext({ prefix: query });
-                        hideList();
+                        resetSuggestions(query);
+                        console.error("Autocomplete error:", err);
                     }
-                    console.error("Autocomplete error:", err);
+                } finally {
+                    if (autocompleteRequest === request) autocompleteRequest = null;
                 }
             }
 
@@ -273,14 +293,14 @@
             // Picking a suggestion runs the search straight away, so the
             // participant never has to press "Cerca" a second time.
             function select(value) {
+                if (list.getAttribute("aria-busy") === "true") return;
                 input.value = value;
                 syncClearButton();
                 hideList();
 
                 // Drop any in-flight or pending suggestion request: the
                 // chosen value is final.
-                clearTimeout(debounceTimer);
-                autocompleteRequestSequence += 1;
+                cancelSuggestions();
 
                 submitSearch();
             }
@@ -312,7 +332,10 @@
 
             // Fires when the field is emptied without an "input" event,
             // e.g. Escape in a search field or a browser-restored value.
-            input.addEventListener("search", syncClearButton);
+            input.addEventListener("search", () => {
+                syncClearButton();
+                if (!input.value) resetSuggestions("");
+            });
 
             // Back-navigation can restore this page from the bfcache with its
             // JavaScript state intact, so release the submit guard.
