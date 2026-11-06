@@ -52,12 +52,16 @@ def test_completion_and_close_events_survive_reward_removal_and_publication_retr
     assert client.get("/thank_you").status_code == 200
     assert client.get("/thank_you").status_code == 200
     assert len([e for e in events(module) if e["type"] == "sessionCompleted"]) == 1
+    with client.session_transaction() as state:
+        auth = {"attempt_id": state["progress_id"], "csrf_token": state["progress_csrf"]}
+    payload = {**auth, "draft_revisions": {f"{auth['attempt_id']}:{n}": 0 for n in (1, 2, 3)}}
     with monkeypatch.context() as patch:
         patch.setattr(module.PROGRESS, "publish", lambda _: False)
-        assert client.get("/welcome?reset=1&finished=1").status_code == 503
+        assert client.post("/recap/finish", json=payload).status_code == 503
     with client.session_transaction() as state:
         assert state["session_id"] == sid
-    assert client.get("/welcome?reset=1&finished=1").status_code == 200
-    finished = [e for e in events(module) if e["type"] == "experimentFinished"]
+    assert client.post("/recap/finish", json=payload).status_code == 200
+    assert client.post("/recap/restart", json=auth).status_code == 200
+    finished = [e for e in events(module) if e["type"] == "studySessionFinished"]
     assert len(finished) == 1 and finished[0]["task_number"] == 3
     assert not [e for e in events(module) if e["type"] in ("rewardShown", "finalRewardRevealClicked", "finalRewardRevealCompleted")]

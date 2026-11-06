@@ -5,3 +5,4 @@ pyspellchecker
 Flask-Session
 google-cloud-discoveryengine
 gunicorn
+reportlab

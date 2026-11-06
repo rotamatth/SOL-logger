@@ -76,7 +76,9 @@ the saved log therefore grows while the task is still open.
 ### Completion
 
 - `sessionCompleted`: emitted once when the final completion handoff is opened.
-- `experimentFinished`: emitted on explicit activity closure; publication is durable before browser state is cleared.
+- `RecapAnswerEdited`: emitted for each committed final-answer revision, with before/after text and target session, attempt and task.
+- `studySessionFinished`: emitted once after saving the session with its PDF.
+- `experimentFinished`: emitted when saving the final session of the study.
 
 ### Errors
 
@@ -126,6 +128,8 @@ the saved log therefore grows while the task is still open.
 - `searchNoResults`
 - `searchResultGenerated`
 - `sessionCompleted`
+- `RecapAnswerEdited`
+- `studySessionFinished`
 - `taskQuestionHelpClicked`
 - `taskQuestionHelpClosed`
 - `webpageClosed`
@@ -214,11 +218,13 @@ closed instead, confirm `EndTaskDialogClosed`, `EndTaskConfirmationClosed`, and
 ### 9. Exercise completion logging
 
 Confirm all three final answers and continue through the question reviews.
-Opening the completion handoff writes `sessionCompleted` once; refreshing it
-does not duplicate the event. Closing the activity writes `experimentFinished`
-durably before clearing the browser session. If publication fails, the close
-remains retryable and the same outbox event is published once. No reward events
-or reveal controls remain. The recap/PDF/save-session interface belongs to #9.
+Opening the recap writes `sessionCompleted` once. Edit a final answer and move
+to another question before saving. The hidden answer should still generate one
+`RecapAnswerEdited` with its original target and the current editing session.
+Save the session and download the PDF. Expect one `studySessionFinished`, and
+`experimentFinished` only for session 3. Simulate a failed save and retry before
+using «Ricomincia l’attività». Confirm that the retry publishes each event once,
+then check that the participant returns to welcome.
 
 ### 10. Exercise search error logging
 

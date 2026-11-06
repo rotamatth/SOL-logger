@@ -30,6 +30,7 @@ from research_dashboard.runtime import configure_runtime
 from research_dashboard.study_config import scheduled_assignment
 from study_progress import init_progress, SubmissionConflict
 from student_progress import SessionUnavailable, StudentProgress
+from student_recap import StudentRecap
 
 app = Flask(__name__)
 
@@ -41,6 +42,8 @@ configure_runtime(app)
 app.config.update(
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
     SESSION_COOKIE_SAMESITE="Lax",
+    # A late read-only request must not recreate a browser session after recap exit.
+    SESSION_REFRESH_EACH_REQUEST=False,
 )
 
 app.config["SESSION_TYPE"] = "filesystem"   # or "redis"
@@ -115,6 +118,8 @@ app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
                            lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw))
+app.config["SOL_RECAP_BACKGROUND"] = os.getenv("SOL_RECAP_BACKGROUND")
+RECAP = StudentRecap(app, PROGRESS)
 
 
 @app.get('/health/ready')
@@ -364,10 +369,6 @@ def index():
 def welcome():
     """Splash page — SOL Search logo + Start button."""
     if request.args.get('reset') == '1':
-        progress = PROGRESS.current()
-        if (request.args.get('finished') == '1' and progress and progress['status'] == 'completed'
-                and not PROGRESS.session_event(progress, 'experimentFinished')):
-            return PROGRESS.unavailable()
         session.clear()
         return render_template("welcome.html", show_search=False)
     if current_phase() != 'pre_id':
@@ -1099,7 +1100,7 @@ def next_task():
 def thank_you():
     progress = PROGRESS.current()
     if progress:
-        if idle_session_expired():
+        if idle_session_expired(touch=False):
             return redirect(url_for('welcome'))
         if progress['status'] != 'completed':
             return PROGRESS.next_page()
@@ -1108,12 +1109,7 @@ def thank_you():
         reviews = PROGRESS.reviews(progress)
         if not all(reviews.values()):
             return redirect(url_for('task'))
-        if not PROGRESS.session_event(progress, 'sessionCompleted'):
-            return PROGRESS.unavailable()
-        tasks = [task for task in progress['tasks'] if task['number'] in reviews]
-        return render_template('study_handoff.html', review_tasks=tasks, review_only=False,
-                               illustration=review_illustration(progress) if tasks else None,
-                               partial_review=len(tasks) < len(progress['tasks']))
+        return RECAP.page(progress, review_illustration(progress))
     phase = current_phase()
     if phase != 'completed':
         return redirect(phase_redirect_url(phase))

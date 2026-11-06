@@ -65,6 +65,17 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-05 — Add editable session recap and saved PDF
+
+**Type:** feature · **Area:** participant recap, persistence, logging
+
+- Show completed sessions in three independently navigable columns with the
+  original question order, saved initial confidence and final-answer revisions.
+- Commit edits from every card together and save the final PDF in the progress
+  database before exposing download and return to welcome.
+- Record recap edits and per-session finish in the durable outbox. See
+  [recap behavior and storage](editable_recap.md).
+
 ## 2026-11-05 — Complete progress history contracts and retire puzzle rewards
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, reward, data, logging, tests
