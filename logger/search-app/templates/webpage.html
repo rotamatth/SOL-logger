@@ -2,11 +2,12 @@
 {% block title %}Web Page{% endblock %}
 {% block content %}
 
-<div class="app-page">
+<div class="app-page webpage-page">
   <div class="app-toolbar">
     <a href="{{ url_for('result', query=query, page=page) }}" id="viewer-back-btn" class="app-btn app-btn-back">
         &larr; Indietro
     </a>
+    {% include "search_first_answer.html" %}
     <button type="button"
             onclick="openFeedbackModal()"
             class="app-btn app-btn-warm"
