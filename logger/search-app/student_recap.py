@@ -84,7 +84,7 @@ class StudentRecap:
 
     def _current(self):
         attempt = self.progress.current()
-        if (attempt and attempt["status"] == "completed" and not self.progress.pending_review(attempt)
+        if (attempt and attempt["status"] == "completed" and self.progress.reviews(attempt).get(3)
                 and attempt["metadata"]["study_session_snapshot"]["date"] == datetime.now(ZONE).date().isoformat()
                 and not self.progress.expire_idle(touch=False)):
             return attempt
