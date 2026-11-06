@@ -15,6 +15,7 @@ import fcntl
 import uuid
 
 from .participants import resolve_identity, school_year_for
+from .permanent_test import is_test_log_name
 from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
 from .task_stats import add_event, merge_stats, new_stats, summarize
 
@@ -154,6 +155,8 @@ class Index:
                     continue
                 for path in entries:
                     if not (path.name.endswith(".log") or path.name.endswith(".run.json")):
+                        continue
+                    if collection == "v2" and is_test_log_name(path.name):
                         continue
                     key = identity(collection + "\0" + path.name)
                     seen.add(key)

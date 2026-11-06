@@ -20,8 +20,9 @@ class SessionUnavailable(ValueError):
 
 
 class StudentProgress:
-    def __init__(self, app, state, store, logs, prepare_upload, expire_idle):
+    def __init__(self, app, state, store, logs, prepare_upload, expire_idle, test_logs=None):
         self.app, self.state, self.store, self.logs = app, state, store, logs
+        self.test_logs = test_logs or logs
         self.prepare_upload = prepare_upload
         self.expire_idle = expire_idle
         app.add_url_rule("/first-answer", "first_answer", self.submit_first, methods=["POST"])
@@ -156,6 +157,7 @@ class StudentProgress:
         """An outbox ID is also the log receipt ID: lost acknowledgements cannot duplicate events."""
         metadata = attempt["metadata"]
         key = self.key(metadata)
+        logs = self.test_logs if metadata.get("is_test") else self.logs
         try:
             for event in self.store.pending_events(key, attempt["attempt_id"]):
                 original = event["payload"]["timestamp"]
@@ -163,7 +165,7 @@ class StudentProgress:
                 payload = {**event["payload"], "source": "server", "timestamp": timestamp,
                            "progress_timestamp": original}
                 number = payload["task_number"]
-                self.logs.accept(metadata["technical_session_id"], "progress:" + event["event_id"], payload,
+                logs.accept(metadata["technical_session_id"], "progress:" + event["event_id"], payload,
                     lambda p=payload, n=number: self.prepare_upload(
                         [p], metadata["participant_id"], metadata["technical_session_id"], metadata["log_id"],
                         p["actual_topic_number"], p["task_order"], n - 1))

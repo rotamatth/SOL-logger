@@ -16,6 +16,7 @@
   <script src="{{ url_for('static', filename='recap.js') }}" defer></script>
 </head>
 <body class="study-review-page">
+{% include "test_run_banner.html" %}
   <main id="recap" class="study-review" data-attempt-id="{{ attempt_id }}" data-csrf-token="{{ csrf_token }}"
         data-draft-url="{{ url_for('recap_draft') }}" aria-labelledby="recap-heading">
     <h1 id="recap-heading">Le tue risposte</h1>

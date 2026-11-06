@@ -375,18 +375,19 @@ class State:
         """Serialize eligibility and immutable attempt creation with settings edits."""
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
-            if row["revision"] != metadata["settings_revision_at_collection"]:
-                raise ValueError("settings_changed")
-            configuration = {**json.loads(row["body"]), **identities.projection(db)}
-            selected = scheduled_assignment(configuration, metadata["participant_id"])
-            if not selected or selected["session"]["id"] != metadata["study_session_at_collection"]:
-                raise ValueError("session_unavailable")
-            context = selected.get("enrollment")
-            if not context or any(metadata.get(key) != context[field] for key, field in (
-                    ("participant_key", "participant_key"), ("enrollment_id", "enrollment_id"),
-                    ("school_year_at_collection", "school_year"), ("grade_at_collection", "grade"))):
-                raise ValueError("invalid_enrollment")
+            if not metadata.get("is_test"):
+                row = db.execute("SELECT revision,body FROM settings ORDER BY revision DESC LIMIT 1").fetchone()
+                if row["revision"] != metadata["settings_revision_at_collection"]:
+                    raise ValueError("settings_changed")
+                configuration = {**json.loads(row["body"]), **identities.projection(db)}
+                selected = scheduled_assignment(configuration, metadata["participant_id"])
+                if not selected or selected["session"]["id"] != metadata["study_session_at_collection"]:
+                    raise ValueError("session_unavailable")
+                context = selected.get("enrollment")
+                if not context or any(metadata.get(key) != context[field] for key, field in (
+                        ("participant_key", "participant_key"), ("enrollment_id", "enrollment_id"),
+                        ("school_year_at_collection", "school_year"), ("grade_at_collection", "grade"))):
+                    raise ValueError("invalid_enrollment")
             db.execute("""INSERT INTO study_attempts
                        (technical_session_id,study_session_id,participant_id,metadata,published)
                        VALUES (?,?,?,?,0)""",
@@ -411,7 +412,7 @@ class State:
                               (participant_id,)).fetchall()
         for row in rows:
             metadata = json.loads(row[0])
-            if (metadata.get("progress_enabled") is True
+            if (metadata.get("progress_enabled") is True and not metadata.get("is_test")
                     and metadata.get("study_id_at_collection") == DEFAULT_STUDY_ID
                     and metadata.get("study_session_snapshot", {}).get("date") == study_date):
                 return metadata
@@ -423,6 +424,7 @@ class State:
             rows = db.execute("SELECT participant_id,metadata FROM study_attempts").fetchall()
         return {row["participant_id"] for row in rows
                 if (metadata := json.loads(row["metadata"])).get("progress_enabled") is True
+                and not metadata.get("is_test")
                 and metadata.get("study_id_at_collection") == DEFAULT_STUDY_ID
                 and metadata.get("study_session_snapshot", {}).get("date") == study_date}
 
