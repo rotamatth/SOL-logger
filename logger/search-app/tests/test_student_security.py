@@ -7,6 +7,7 @@ import re
 import pytest
 
 from .test_study_enrollment import schedule, student_modules  # noqa: F401 - pytest fixture
+from .progress_helpers import confirm_first, final_event
 
 HOSTILE_QUERY = '"><script>alert(1)</script> "luna"'
 
@@ -20,6 +21,7 @@ def searching_client(module, results=()):
     client = module.app.test_client()
     assert client.post("/start", data={"user_id": "1"}).status_code == 302
     assert client.get("/task").status_code == 200
+    confirm_first(client)
     assert client.get("/search").status_code == 200
     return client
 
@@ -163,10 +165,13 @@ def test_iframe_probe_fetches_only_links_shown_in_this_task(student_modules, mon
     assert client.get("/iframe_check?url=https://example.org/").get_json() == {"blocked": False, "reason": None}
     assert probed == ["https://example.org/"]
 
+    answer = final_event(client, "Risposta di prova")
+    assert client.post("/log_session", json={"session_id": answer["sessionID"], "logs": [answer]}).status_code == 200
     assert client.post("/end").status_code == 302
     assert client.get("/iframe_check?url=https://example.org/").get_json()["reason"] == "no-active-search"
     assert client.get("/next_task").status_code == 302
     assert client.get("/task").status_code == 200
+    confirm_first(client)
     assert client.get("/search").status_code == 200
     assert client.get("/iframe_check?url=https://example.org/").get_json()["reason"] == "not-a-search-result"
     assert probed == ["https://example.org/"]
