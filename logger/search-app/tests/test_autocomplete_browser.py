@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from .test_editor_browser import until
 from .test_student_navigation_browser import events, student_browser  # noqa: F401 - fixture
 
 
@@ -97,18 +98,46 @@ def test_new_input_cancels_the_previous_fetch(student_browser):
     assert events(page, "autocompleteSuggestionsShown") == []
 
 
-def test_editing_immediately_clears_old_suggestion_metadata(student_browser):
+def test_editing_keeps_the_previous_list_visible_until_its_replacement_arrives(student_browser):
     page = student_browser
+    held = []
     page.route("**/autocomplete?query=fasi", lambda route: route.fulfill(json=RESPONSE))
-    page.route("**/autocomplete?query=sole", lambda route: route.fulfill(json={"suggestions": []}))
+    page.route("**/autocomplete?query=sole", lambda route: held.append(route))
     page.fill("#search-box", "fasi")
     page.wait_for_selector("#query-suggestions li")
+    options = page.locator("#query-suggestions li")
     page.fill("#search-box", "sole")
 
-    context = page.evaluate("window.autocompleteContext")
-    assert (context["prefix"], context["suggestions"], context["source"], context["queryModel"]) == (
-        "sole", [], "none", None
-    )
+    try:
+        assert until(page, lambda: held)
+        assert options.all_text_contents() == SUGGESTIONS
+        assert options.first.is_visible()
+        assert page.locator("#query-suggestions").get_attribute("aria-busy") == "true"
+        assert options.first.get_attribute("aria-disabled") == "true"
+        assert page.locator("#search-box").get_attribute("aria-expanded") == "true"
+        context = page.evaluate("window.autocompleteContext")
+        assert (context["prefix"], context["suggestions"], context["source"], context["queryModel"]) == (
+            "sole", [], "none", None
+        )
+
+        page.press("#search-box", "ArrowDown")
+        assert options.first.get_attribute("aria-selected") == "false"
+        options.first.hover()
+        options.first.click(force=True)
+        assert page.input_value("#search-box") == "sole"
+        assert events(page, "hoverOverQuerySuggestions") == []
+        assert events(page, "choseAutoCompleteSuggestion") == []
+    finally:
+        if held:
+            held[0].fulfill(json={"suggestions": ["sole oggi"], "source": "vertex"})
+
+    page.wait_for_selector('#query-suggestions li:text-is("sole oggi")')
+    assert options.all_text_contents() == ["sole oggi"]
+    assert page.locator("#query-suggestions").get_attribute("aria-busy") is None
+    assert events(page, "autocompleteSuggestionsShown")[-1]["source"] == "vertex"
+
+    page.fill("#search-box", "so")
+    assert options.count() == 0
     assert page.locator("#search-box").get_attribute("aria-expanded") == "false"
 
 

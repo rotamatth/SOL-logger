@@ -65,6 +65,12 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Keep autocomplete suggestions visible while typing
+
+The existing list stays visible while a new prefix loads, then the current
+response replaces it in one update. Previous suggestions remain inactive
+while loading so they cannot be selected or logged for the new prefix.
+
 ## 2026-11-05 — Clear suggestion state if rendering fails
 
 **Commit:** pending · **Type:** fix · **Area:** autocomplete, logging, tests

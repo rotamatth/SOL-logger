@@ -133,7 +133,8 @@
 
             function resetSuggestions(prefix) {
                 cancelSuggestions();
-                list.innerHTML = "";
+                list.replaceChildren();
+                list.removeAttribute("aria-busy");
                 activeIndex = -1;
                 setAutocompleteContext({ prefix });
                 hideList();
@@ -162,10 +163,19 @@
 
             input.addEventListener("input", () => {
                 const query = input.value.trim();
-                resetSuggestions(query);
                 syncClearButton();
-
-                if (query.length < 3) return;
+                if (query.length < 3) {
+                    resetSuggestions(query);
+                    return;
+                }
+                cancelSuggestions();
+                activeIndex = -1;
+                setAutocompleteContext({ prefix: query });
+                list.setAttribute("aria-busy", "true");
+                for (const option of list.children) {
+                    option.setAttribute("aria-selected", "false");
+                    option.setAttribute("aria-disabled", "true");
+                }
 
                 const requestId = autocompleteRequestSequence;
                 debounceTimer = setTimeout(() => {
@@ -174,6 +184,11 @@
             });
 
             input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    resetSuggestions(input.value.trim());
+                    return;
+                }
+                if (list.getAttribute("aria-busy") === "true") return;
                 const items = list.querySelectorAll("li");
                 if (!items.length) return;
 
@@ -197,9 +212,6 @@
                     select(items[activeIndex].textContent);
                 }
 
-                if (e.key === "Escape") {
-                    hideList();
-                }
             });
 
             async function fetchSuggestions(query, requestId) {
@@ -211,7 +223,11 @@
                         { signal: request.signal }
                     );
 
-                    if (!response.ok || requestId !== autocompleteRequestSequence) return;
+                    if (requestId !== autocompleteRequestSequence) return;
+                    if (!response.ok) {
+                        resetSuggestions(query);
+                        return;
+                    }
 
                     const data = await response.json();
                     if (requestId !== autocompleteRequestSequence) return;
@@ -226,13 +242,12 @@
                         queryModel
                     });
 
-                    list.innerHTML = "";
-
                     if (suggestions.length === 0) {
-                        hideList();
+                        resetSuggestions(query);
                         return;
                     }
 
+                    const options = document.createDocumentFragment();
                     suggestions.forEach(value => {
                         const li = document.createElement("li");
                         li.textContent = value;
@@ -243,7 +258,7 @@
                             select(value);
                         });
 
-                        list.appendChild(li);
+                        options.appendChild(li);
                     });
 
                     if (window.studyLogger) {
@@ -255,6 +270,8 @@
                         });
                     }
 
+                    list.replaceChildren(options);
+                    list.removeAttribute("aria-busy");
                     showList();
 
                 } catch (err) {
@@ -276,6 +293,7 @@
             // Picking a suggestion runs the search straight away, so the
             // participant never has to press "Cerca" a second time.
             function select(value) {
+                if (list.getAttribute("aria-busy") === "true") return;
                 input.value = value;
                 syncClearButton();
                 hideList();
