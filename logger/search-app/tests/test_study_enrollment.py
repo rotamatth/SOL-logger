@@ -177,7 +177,7 @@ def test_three_questions_keep_original_answers_and_skip_reward_screens(student_m
     completion = client.get("/thank_you")
     assert completion.status_code == 200
     assert 'class="final-reward-media"' not in completion.text
-    assert 'Hai risposto alle tre domande' in completion.text
+    assert 'id="recap-heading">Le tue risposte' in completion.text
     response = client.post("/log_session", json={"session_id": sid, "logs": [
         {"type": "experimentFinished", "uid": "1", "sessionID": sid,
          "timestamp": datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]}]})

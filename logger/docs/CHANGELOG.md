@@ -549,6 +549,30 @@ setting. The recap uses its static theme image. If a clip looks wrong, compare
 the attempt's assigned theme and topic ID with the matching file in
 `static/videos/review/`. For draft recovery, use the inline error and retry
 control. [Desktop and tablet verification](desktop_interface.md)
+## 2026-11-06 — Validate recap autosave acknowledgements
+
+- Advance the locally tracked draft revision only when the server confirms
+  the expected revision. Keep the draft available to retry after a malformed
+  acknowledgement.
+
+## 2026-11-06 — Preserve recap access across the browser handoff
+
+- Require the browser's completed third-question review before showing,
+  editing or downloading the recap. A fresh browser that selects the same
+  completed ID sees the completion message.
+- Align the connected-flow and enrollment tests with the new recap and
+  verify that the same browser can download the durable PDF from another worker.
+
+## 2026-11-05 — Add editable session recap and saved PDF
+
+**Type:** feature · **Area:** participant recap, persistence, logging
+
+- Show completed sessions in three independently navigable columns with the
+  original question order, saved initial confidence and final-answer revisions.
+- Commit edits from every card together and save the final PDF in the progress
+  database before exposing download and return to welcome.
+- Record recap edits and per-session finish in the durable outbox. See
+  [recap behavior and storage](editable_recap.md).
 
 ## 2026-11-05 — Complete progress history contracts and retire puzzle rewards
 

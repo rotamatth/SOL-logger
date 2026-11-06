@@ -308,7 +308,7 @@ def test_three_question_flow_saves_originals_once_and_skips_rewards(module, them
         assert client.get("/next_task").status_code == 302
         assert client.get("/reward").status_code == 404
     complete = client.get("/task", follow_redirects=True)
-    assert "Hai risposto alle tre domande" in complete.text
+    assert 'id="recap-heading">Le tue risposte' in complete.text
     assert complete.text.count(f"/static/images/review/{artwork}-recap.webp") == 1
     assert all(f"Before {number}" in complete.text and f"After {number}" in complete.text for number in range(1, 4))
     own = events(module)
