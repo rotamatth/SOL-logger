@@ -65,6 +65,12 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Validate recap autosave acknowledgements
+
+- Advance the locally tracked draft revision only when the server confirms
+  the expected revision. Keep the draft available to retry after a malformed
+  acknowledgement.
+
 ## 2026-11-06 — Preserve recap access across the browser handoff
 
 - Require the browser's completed third-question review before showing,
