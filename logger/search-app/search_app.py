@@ -910,8 +910,11 @@ def _accept_other_session_batch(data, batch_session_id, logs, user_id):
     newer events. It is stored like events of a previous, unfinished participant.
     """
     try:
+        # Events logged before a run has its server ID, such as the choice of ID, say only whose they are.
         metadata = RESEARCH_STATE.attempt_metadata(batch_session_id)
-        store = TEST_LOG_STORE if metadata and metadata.get('is_test') else LOG_STORE
+        is_test = (metadata.get('is_test') if metadata else
+                   all(is_test_participant(entry.get('uid')) for entry in logs))
+        store = TEST_LOG_STORE if is_test else LOG_STORE
         receipt = store.accept(batch_session_id, data.get('batch_id'),
                                    {"session_id": batch_session_id, "logs": logs},
                                    lambda: _prepare_other_session_upload(logs, batch_session_id, user_id))
