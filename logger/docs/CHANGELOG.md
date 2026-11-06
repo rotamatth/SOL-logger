@@ -65,6 +65,39 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — One-step setup of the 10 November session and May's classes
+
+**Commit:** pending · **Type:** infra · **Area:** data, dashboard
+
+**Files**
+- `logger/search-app/tools/setup_session_2026_11_10.py` — new; prepares a fresh dashboard in one step, with `--dry-run`
+- `logger/search-app/tests/test_setup_session_2026_11_10.py` — new
+- `logger/docs/follow_up_checks.md` — what is still open before the class: real engines, May's dates, test IDs on the server
+
+**What changed for the participant**
+No visible change: the start page lists the real IDs once this has run.
+
+**How it works**
+On a fresh dashboard it creates Session 1 for class 4 (`spazio`, IDs 1-8, 17, 18) and class 5 (`orecchio`, IDs 9-16, 19, 20),
+removes the pre-filled IDs 21-40 and the empty sessions, enrolls the same children a class lower in 2025/2026, and adds
+historical rules and identity links for May's records. It writes through the dashboard's validated functions, apart from
+deleting the unused IDs. May's files are only read. The tool refuses when it finds a school year, a prepared session, a
+child's run, a link or a log, and changes nothing.
+
+May does not appear in the Sessions list. Session numbers run per class across years, so a May session for class 4 would make
+Tuesday its Session 2, which changes the recap and ends the study one session early.
+
+**If something looks wrong after this, check**
+- "Nothing changed" from the tool → it names what it found; look at that before anything else.
+- A May run without a class → its date is outside the tool's May periods, or its name is not a numeric ID.
+
+**Left alone**
+Default settings for other installs, the May log files, the dashboard's editors. Test names such as `UserTestLog1` and
+`Utente1` stay unclassified and remain under historical records.
+
+**Verified**
+16 tests on a real `State` and index, including that May's files stay byte-identical. Rehearsed on the production image.
+
 ## 2026-11-06 — Add permanent test IDs that stay out of the results
 
 **Commit:** pending · **Type:** feature · **Area:** session, task-flow, logging, dashboard
