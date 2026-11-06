@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Keep a test ID's unsent choice out of the real log folder
+
+**Commit:** pending · **Type:** fix · **Area:** logging
+
+**Files**
+- `logger/search-app/search_app.py` — a batch with no server run goes by whose events it holds
+- `logger/search-app/tests/test_permanent_test_experiment.py` — one more case
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The choice of ID is logged before a run has its server ID, and is sent by the next page that has the logger. The new introduction pages do not, so a tester who leaves a test run there
+keeps that event in the browser. It was then sent during the next child's run, and with no attempt to look up it went to the real folder. The dashboard ignored the file, so results were not affected. A batch with
+no attempt now goes to the test folder when every event in it belongs to a test ID.
+
+**If something looks wrong after this, check**
+- `TEST-` files in the top of `logs-v2` → a batch mixing a test ID and a child; the dashboard ignores them.
+
+**Left alone**
+Batches of a known attempt, and every batch of a child, which go where they did.
+
+**Verified**
+Found by the shared-tablet rehearsal on the production image; the new test covers both directions.
+
 ## 2026-11-07 — List May's experiment in Sessions
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard
