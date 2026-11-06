@@ -12,20 +12,22 @@ def test_jump_focuses_exact_id_without_filtering_or_changing_selection(live, lan
     page.goto(live.base + f'/dashboard?collection=study&grade=4&lang={language}')
     before = page.locator('tbody tr').count()
     page.locator('input[name=participant]').check()
-    page.fill('#participant-jump-id', '20')
+    # Every ID in the view is offered in the menu, so nothing has to be typed.
+    assert page.locator('#participant-jump-id option').count() == before + 1
+    page.select_option('#participant-jump-id', '20')
     page.locator('[data-participant-jump] button').click()
     link = page.locator('.participant-link[data-participant-id="20"]')
     assert link.evaluate('(node) => document.activeElement === node')
     assert page.locator('tbody tr').count() == before == 20
     assert page.locator('input[name=participant]').is_checked()
     assert page.locator('[data-jump-result]').inner_text().endswith('20 · 1 / 1')
-    page.fill('#participant-jump-id', '2')
+    page.select_option('#participant-jump-id', '2')
     page.locator('[data-participant-jump] button').click()
     assert page.locator('.participant-link[data-participant-id="2"]').evaluate('(node) => document.activeElement === node')
-    page.fill('#participant-jump-id', '02')
-    page.keyboard.press('Enter')
+    page.select_option('#participant-jump-id', '')
+    page.locator('[data-participant-jump] button').click()
     assert page.locator('#participant-jump-id').evaluate('(node) => document.activeElement === node')
-    assert '02' not in page.locator('[data-jump-result]').inner_text()
+    assert page.locator('.participant-jump-target').count() == 0
     assert page.locator('tbody tr').count() == before
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
 
@@ -37,7 +39,7 @@ def test_duplicate_id_jumps_cycle_through_separate_collections(live):
     page = live.login()
     page.goto(live.base + '/dashboard?collection=study&grade=all&lang=en')
     assert page.locator('.participant-link[data-participant-id="1"]').count() == 2
-    page.fill('#participant-jump-id', '1')
+    page.select_option('#participant-jump-id', '1')
     button = page.locator('[data-participant-jump] button')
     button.click()
     first = page.locator('.participant-jump-target .participant-link').get_attribute('href')

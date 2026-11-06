@@ -33,7 +33,8 @@ history of what was checked stays visible.
   time on a laptop. In the first real lesson: open it on the researcher's own device, check that
   finished questions appear within seconds with a full class, and watch server load (8 request
   slots are shared with the children). Also repeat on an iPad: the session list, the checkboxes
-  under Participants, opening a child in the live view, and the guide. Done when these hold.
+  under Participants, the ID menus (**Cerca un ID**, **Vai all'ID partecipante**), opening a child in
+  the live view, and the guide. Done when these hold.
 - [ ] **First V2 deploy rollback path.** If `scripts/deploy.sh` rolls back on the first
   V2 deployment, the old image starts with `logs-v2` mounted at `/app/logs` and would
   write old-format logs there. Watch the first deploy; if a rollback happens, stop and

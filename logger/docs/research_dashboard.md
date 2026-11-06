@@ -34,9 +34,10 @@ school year, optionally one class, grouped by status:
 The status is worked out on each request and is never set by hand. Approving the questions
 is usually the step that makes a session Published; the session itself never shows "Approved".
 Numbered slots nobody has filled in are not listed, and **Create** fills the lowest free one
-for that class.
+for that class. The list opens on the later of the saved current year and the year of today's
+date, and a session dated today stays listed whichever year is selected.
 
-**Create** asks for the class, an optional name and the date, then opens the session's three
+**Create** asks for an optional name and the date, then the class, and opens the session's three
 steps. **Open** on a row shows the same steps, with **Remove session** at the bottom.
 
 The **live view** of today's session shows class totals, one row per child and the class

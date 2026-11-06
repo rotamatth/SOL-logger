@@ -123,11 +123,11 @@
 
   var jump = document.querySelector('[data-participant-jump]');
   if (jump) {
-    var jumpInput = jump.querySelector('input');
+    var jumpInput = jump.querySelector('select');
     var jumpResult = jump.querySelector('[data-jump-result]');
     var lastJump = '', jumpIndex = -1;
     function jumpToId() {
-      var value = jumpInput.value.trim();
+      var value = jumpInput.value;
       var matches = Array.prototype.filter.call(document.querySelectorAll('.participant-link[data-participant-id]'), function (link) {
         return link.getAttribute('data-participant-id') === value;
       }).map(function (link) { return link.closest('tr'); });

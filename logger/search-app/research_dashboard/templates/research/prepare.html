@@ -4,7 +4,7 @@
 <div class="preparation-workspace">
   {% set shown = rejected or selected %}
   <a class="session-back" href="{{ u('sessions_page', year=shown.school_year or study_context.school_year, _anchor=shown.id) }}">&larr; {{ t('back_to_sessions') }}</a>
-  <div class="preparation-heading"><div><h1>{{ shown.name or (t('session') ~ ' ' ~ shown.number) }}</h1><p class="muted">{{ t('grade_' ~ study_context.grade) }} · {{ study_context.school_year }}{% if shown.name %} · {{ t('session') }} {{ shown.number }}{% endif %}</p></div></div>
+  <div class="preparation-heading"><div><h1>{{ shown.name or (t('session') ~ ' ' ~ shown.number) }}</h1><p class="muted">{% if selected %}{{ t('prepare_editing') }} <strong>{{ selected.name or (t('session') ~ ' ' ~ selected.number) }}</strong> · {% endif %}{{ t('grade_' ~ study_context.grade) }} · {{ study_context.school_year }}{% if shown.name %} · {{ t('session') }} {{ shown.number }}{% endif %}.{% if selected %} {{ t('prepare_editing_scope') }}{% endif %}</p></div></div>
   {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% if error == 'settings_changed' %}<a href="{{ u('prepare_page',grade=study_context.grade,year=study_context.school_year,session=shown.id) }}">{{ t('reload_saved_settings') }}</a>{% elif rejected_review_url %}<p><a class="button" href="{{ rejected_review_url }}" target="_blank" rel="noopener">{{ t('review_saved_session') }}</a></p>{% endif %}{% endif %}
   {% if request.args.get('saved') %}<p class="notice success" role="status">{{ t('session_saved') }}</p>{% endif %}
   {% if request.args.get('participants_saved') %}<p class="notice success" role="status">{{ t('participants_saved') }}</p>{% endif %}

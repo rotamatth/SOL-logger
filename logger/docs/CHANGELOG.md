@@ -65,6 +65,59 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-06 — Re-check dashboard v2 against the researcher feedback of 3 November
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, styling, docs, tests
+
+Matthias asked for v2 to be checked against the colleague's PDF and screen recording, and spotted that finding an
+ID still meant typing it. In the recording the colleague says they do not know which IDs belong to which class and
+asks for a list instead.
+
+**Files**
+- `search-app/research_dashboard/templates/research/enrollment.html`, `enrollment_views.py` — **Cerca un ID** is a
+  menu of every ID in the study with its class this school year, on **Modifica gli ID** and under Participants. The
+  school-year filter under Participants is a menu too. An ID that arrives in the URL and is not in the study stays
+  selected, so its message still shows.
+- `search-app/research_dashboard/templates/research/overview.html`, `static/editor.js`, `static/research.css` —
+  **Vai all'ID partecipante** in Data e storico is a menu of the IDs in the view.
+- `search-app/research_dashboard/templates/research/prepare.html`, `i18n.py` — brings back the subtitle "Stai
+  modificando…" that the colleague asked for and the first v2 commit had dropped.
+- `search-app/research_dashboard/templates/research/sessions_new.html`, `session_views.py` — **Crea** asks for name
+  and date first, then the class. No class is preselected unless the list was filtered to one.
+- `search-app/research_dashboard/session_views.py` — the list opens on the later of the saved current year and the
+  year of today's date, and a session dated today stays listed under any selected year.
+- `search-app/research_dashboard/static/sessions.css` — a draft in the list has the warning colour and triangle.
+- `search-app/research_dashboard/templates/research/base.html` — new version in the style links.
+- `search-app/research_dashboard/guide_i18n.py`, `static/guide/` — text and pictures follow the new form.
+- `search-app/tests/test_dashboard_feedback.py`, `test_participant_jump_browser.py`, `docs/research_dashboard.md`,
+  `docs/follow_up_checks.md`.
+
+**What changed for the participant**
+No visible change for children.
+
+**How it works**
+All three ID and year controls are native `select` elements using the same request parameters as before, so links
+and the messages saying where a hidden ID is work unchanged. Options come from `participant_registry`.
+
+**If something looks wrong after this, check**
+- An ID is missing from **Cerca un ID** → `participant_registry` in the settings.
+- An ID is missing from **Vai all'ID** → the class, year and session selected in that view.
+- Today's session is not listed → the class filter, or `date` on the session.
+
+**Left alone**
+The student app. The combined **Aggiungi o iscrivi ID** form, kept on purpose on 3 November: it is what the pop-up
+links fall back to without JavaScript. **Domande approvate** and **Approva domande** in the question editor, as
+decided for v2. Typing IDs when creating new ones, since those IDs do not exist yet.
+
+**Verified**
+A walk through every point of the PDF and recording in a real browser on the demo data, the full suite with browser
+tests, and the changed pages at 1280, 768 and 320 px in both languages. Not tested on a real iPad.
+
+A trial merge with PRs #21, #22, #23 and #26 found small clashes in `state.py`, `settings_views.py` and this file.
+With them, `test_a_real_student_run_reaches_the_live_view` must change: it uploads `TaskEnded` directly, which the
+progress code of #23 refuses outside the real steps. A real child through all three questions in a browser on that
+merge did reach the live view at every step.
+
 ## 2026-11-05 — Rebuild the sign-in destination from the dashboard prefix
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard, tests

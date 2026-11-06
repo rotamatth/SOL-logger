@@ -48,8 +48,7 @@
 
   {% if people %}<div class="participant-jump" data-participant-jump data-missing="{{ t('jump_id_missing') }}" data-participant-label="{{ t('participant') }}" hidden>
     <label for="participant-jump-id">{{ t('jump_to_id') }}</label>
-    <div class="participant-jump-controls"><input id="participant-jump-id" type="search" list="participant-jump-options" autocomplete="off" aria-describedby="participant-jump-hint"><button type="button">{{ t('jump_to_participant') }}</button></div>
-    <datalist id="participant-jump-options">{% for uid in people|map(attribute='id')|unique %}<option value="{{ uid }}">{% endfor %}</datalist>
+    <div class="participant-jump-controls"><select id="participant-jump-id" aria-describedby="participant-jump-hint"><option value="">{{ t('jump_choose_id') }}</option>{% for uid in people|map(attribute='id')|unique %}<option value="{{ uid }}">{{ uid }}</option>{% endfor %}</select><button type="button">{{ t('jump_to_participant') }}</button></div>
     <p id="participant-jump-hint" class="small muted">{{ t('jump_id_hint') }}</p>
     <p class="small" data-jump-result role="status" aria-live="polite"></p>
   </div>{% endif %}

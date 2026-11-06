@@ -22,10 +22,10 @@ GUIDE_TEXT = {
                            'L’elenco delle sessioni, raggruppate sotto Oggi, Pubblicate e Bozze.'),
 
     'guide_create_title': ('Create a session', 'Creare una sessione'),
-    'guide_create_text': ('Choose the class, give the session a name if you want one, and pick the date of the experiment. The school year follows from the date.',
-                          'Scegli la classe, dai un nome alla sessione se vuoi e scegli la data dell’esperimento. L’anno scolastico segue dalla data.'),
+    'guide_create_text': ('Give the session a name if you want one, pick the date of the experiment and choose the class. The school year follows from the date.',
+                          'Dai un nome alla sessione se vuoi, scegli la data dell’esperimento e poi la classe. L’anno scolastico segue dalla data.'),
     'guide_create_detail': ('Children can start a session only on its date.', 'I bambini possono iniziare una sessione solo nella sua data.'),
-    'guide_create_alt': ('The Create form, with class, name and experiment date.', 'Il modulo Crea, con classe, nome e data dell’esperimento.'),
+    'guide_create_alt': ('The Create form, with name, experiment date and class.', 'Il modulo Crea, con nome, data dell’esperimento e classe.'),
 
     'guide_ids_title': ('Check the children', 'Controllare i bambini'),
     'guide_ids_text': ('Every active child enrolled in the class takes part in each of its sessions, with no attendance to mark. You can import children from another class or create new IDs here.',

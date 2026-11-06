@@ -28,7 +28,9 @@ def session_rows(settings, year, grade, today):
     """Sessions in view, grouped for the list. Empty numbered slots are not shown."""
     groups = {"today": [], "published": [], "draft": [], "past": []}
     for study_session in settings["sessions"]:
-        if study_session.get("removed") or not _in_view(study_session, year, grade) or is_placeholder(study_session):
+        # Today's session is never hidden by the year filter: it is the one researchers need on the day.
+        in_view = _in_view(study_session, year if study_session.get("date") != today else "", grade)
+        if study_session.get("removed") or not in_view or is_placeholder(study_session):
             continue
         readiness = session_readiness(settings, study_session)
         group = session_group(study_session, readiness, today)
@@ -80,7 +82,8 @@ def register_session_routes(dash):
         settings = state.settings()
         today = zurich_today()
         grade = request.args.get("grade", "all")
-        year = request.args.get("year", settings["current_school_year"] or school_year_for(today))
+        # Sessions are filed by their date, so a saved current year that lags behind must not hide them.
+        year = request.args.get("year", max(settings["current_school_year"] or "", school_year_for(today)))
         if grade not in (*GRADES, "all") or year and not valid_school_year(year):
             abort(404)
         error = None
@@ -112,8 +115,9 @@ def register_session_routes(dash):
     @bp.route("/sessions/new", methods=["GET", "POST"])
     def create_session_page():
         settings = state.settings()
-        grade = request.form.get("grade", request.args.get("grade", "4"))
-        if request.method == "GET" and grade not in GRADES:
+        # No class is preselected unless the list was filtered to one: it is an explicit choice.
+        grade = request.form.get("grade", request.args.get("grade", ""))
+        if request.method == "GET" and grade and grade not in GRADES:
             abort(404)
         error = None
         if request.method == "POST":
