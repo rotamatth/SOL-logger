@@ -50,9 +50,17 @@ history of what was checked stays visible.
 - [ ] **Read-only check of the real server, before Monday's deploy.** The rehearsal assumed a non-root operator and
   rootful Docker: `id`, `docker info --format '{{.SecurityOptions}}'`, `git log -1 --oneline`, `ls -ln logger/logs | head -3`,
   `df -h .`, `python3 --version`, `docker compose version`. Done when these match, or the differences are understood.
-- [ ] **Repeat the rehearsal on the code actually released.** PRs #21, #22, #23, #26 and #27 were still moving on
-  2026-11-06. The class, crash, fault and deploy rehearsals covered their heads at `6ab59d8`, `9fdbfa5`, `6148635`,
-  `cf3b8b2` and `880435a`. Done when they pass on the final merge.
+- [ ] **Repeat the rehearsal on the code actually released.** #28 combines #22 (with #23), #26, #27 and dashboard v2; #21 is
+  not in it. The class, crash, fault and deploy rehearsals covered earlier heads. Done when they pass on the final merge.
+- [ ] **Real search on both engines.** On 2026-11-06 a real query from a Mac reached Google and was refused
+  (`IAM_PERMISSION_DENIED`) for that service account, on the spazio and on the `API_keys.json` engine. Give the service
+  account the server uses the Discovery Engine Viewer role on the engines' project, set the variables in
+  `production_readiness.md`, and run `tools/check_search_engines.py` on the server. Done when each theme returns results
+  from its own dataset.
+- [ ] **May's classes.** `tools/setup_session_2026_11_10.py` needs the real May dates and numeric IDs from the server's
+  `logs/`, and the three orecchio questions in clip order. Done when `--dry-run` reports both classes ready and May classified.
+- [ ] **Permanent test IDs on the server, Tuesday morning.** Run `TEST-spazio` and `TEST-orecchio` on an iPad with Brave before
+  the class, then check the logs reached `logs-v2/test-runs` and nothing changed in Data and history. Done when both hold.
 
 ## Setup that needs Matthias
 
