@@ -65,6 +65,34 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Re-encode the review animations on white
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, styling
+
+**Files**
+- `logger/search-app/static/videos/review/*.mp4` — the six clips cropped to their picture, on white, without their silent sound track
+- `logger/search-app/static/images/review/{ear,space}-{1,2,3}.webp` — stills, now the last frame of each clip
+- `logger/search-app/tools/prepare_review_media.py` — new; makes them from the supplied files
+
+**What changed for the participant**
+No black rectangle around the animation on tablets, and the picture is larger. Orecchio 02 and 03 follow the Figma: inside of the ear, then animals.
+
+**How it works**
+The supplied 4K clips have a black background, with each picture small and off-centre because it is a piece of the recap picture. A CSS filter hid
+the black on a computer and not on the iPad. The tool removes black joined to the frame or filling a large enclosed area, keeping outlines and pupils, and writes the
+clip on white, which is the colour of the page behind it. The `SOFT` setting handles the sound waves, which fade out over the black.
+
+**If something looks wrong after this, check**
+- A faint box around a clip → the white of the clip against the page: `lutyuv` in the tool.
+- The wrong picture for a question → `CLIPS` in the tool, then the question's box in the dashboard.
+- An old clip on a tablet → its browser cache: the pages load clips with `?v=child-pages-1`.
+
+**Left alone**
+The recap pictures, and which clip goes with which question slot in the code.
+
+**Verified**
+Frames of every clip at the start, during and at the end, by eye; browser tests play all six in Chromium. Not yet seen on a classroom tablet.
+
 ## 2026-11-06 — Keep the deploy script running after its backup
 
 **Commit:** pending · **Type:** fix · **Area:** infra
