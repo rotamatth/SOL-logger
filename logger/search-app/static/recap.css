@@ -1,0 +1,130 @@
+.recap-board {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  min-height: clamp(380px, 58vw, 680px);
+  gap: clamp(10px, 2vw, 26px);
+  padding: clamp(12px, 2vw, 26px);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #eaf4ff;
+}
+
+.recap-artwork {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recap-column {
+  min-width: 0;
+  text-align: center;
+}
+
+.recap-column h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.recap-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0;
+  color: #173354;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.recap-navigation button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 8px;
+}
+
+.recap-question {
+  background: rgb(244 249 255 / 96%);
+  text-align: start;
+}
+
+.recap-question h3 {
+  margin: 0 0 10px;
+  color: #153e6c;
+  font-size: 1.05rem;
+}
+
+.recap-question h4 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.recap-question .review-after,
+.recap-question details,
+.recap-question .recap-confidence {
+  margin-top: 10px;
+}
+
+.recap-confidence,
+.recap-label {
+  font-size: 0.875rem;
+}
+
+.recap-question textarea {
+  width: 100%;
+  min-height: 80px;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid #a2bde1;
+  border-radius: 8px;
+  color: #173354;
+  font: inherit;
+  resize: vertical;
+}
+
+.recap-question summary {
+  cursor: pointer;
+}
+
+.recap-empty {
+  margin: 12px 0 0;
+  padding: 16px;
+  border-radius: 12px;
+  color: #173354;
+  background: rgb(244 249 255 / 96%);
+}
+
+.recap-status {
+  text-align: center;
+}
+
+.recap-status[data-error] {
+  color: #a21f22;
+}
+
+.recap-draft-error {
+  display: block;
+  color: #fff3cd;
+  font-weight: 700;
+}
+
+#recap :focus-visible {
+  outline: 3px solid #2e68b2;
+  outline-offset: 3px;
+}
+
+#recap .review-after :focus-visible {
+  outline-color: #ffcb74;
+}
+
+@media (max-width: 640px) {
+  .recap-board {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+}

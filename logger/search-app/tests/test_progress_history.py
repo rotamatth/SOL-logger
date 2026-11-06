@@ -202,10 +202,11 @@ def test_schema_five_upgrade_preserves_confidence_and_existing_outbox(tmp_path):
     original = store.submit_first_answer(key, aid, 1, "Idea", confidence=3)
     pending = store.pending_events(key, aid)
     with sqlite3.connect(store.path) as db:
-        for table in ("progress_recap_drafts", "progress_answer_revisions", "progress_repeat_requests"):
+        for table in ("progress_recap_drafts", "progress_answer_revisions", "progress_repeat_requests",
+                      "progress_recap_exports"):
             db.execute(f"DROP TABLE {table}")
         db.execute("PRAGMA user_version=5")
     reopened, _ = make_store(tmp_path)
-    assert reopened.runtime_settings()["schema_version"] == 6
+    assert reopened.runtime_settings()["schema_version"] == 7
     assert reopened.get_attempt(key, aid)["tasks"][0]["first_answer"] == original
     assert reopened.pending_events(key, aid) == pending

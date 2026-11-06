@@ -30,6 +30,7 @@ DYNAMIC_LOG_EVENTS = {
 
 SERVER_LOG_EVENTS = {
     "OwnKnowledgeAnswerSubmitted", "TaskStarted", "TaskEnded", "sessionCompleted", "experimentFinished",
+    "RecapAnswerEdited", "studySessionFinished",
 }
 
 # Frozen pre-migration non-reward inventory: editing the walkthrough cannot

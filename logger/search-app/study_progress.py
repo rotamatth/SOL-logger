@@ -111,6 +111,7 @@ SCHEMA = (
         text TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision > 0),
         saved_at TEXT NOT NULL, editing_context TEXT NOT NULL,
         active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+        base_answer_revision INTEGER,
         PRIMARY KEY(attempt_id, question_number, answer_phase, editing_attempt_id),
         FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number)
     )""",
@@ -128,6 +129,10 @@ SCHEMA = (
         is_test INTEGER NOT NULL, request_id TEXT NOT NULL, payload TEXT NOT NULL,
         attempt_id TEXT NOT NULL REFERENCES progress_attempts(attempt_id),
         PRIMARY KEY(study_id, participant_id, study_session_id, is_test, request_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS progress_recap_exports (
+        attempt_id TEXT PRIMARY KEY REFERENCES progress_attempts(attempt_id),
+        finished_at TEXT NOT NULL, pdf BLOB NOT NULL
     )""",
 )
 
@@ -160,7 +165,7 @@ class ProgressStore:
             db.close()
         with self._transaction(write=True) as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1, 2, 3, 4, 5, 6):
+            if version not in (0, 1, 2, 3, 4, 5, 6, 7):
                 raise ValueError("Unsupported progress database schema version")
             for statement in SCHEMA:
                 db.execute(statement)
@@ -170,9 +175,12 @@ class ProgressStore:
                 if "confidence" not in columns:
                     db.execute(f"ALTER TABLE {table} ADD COLUMN confidence INTEGER "
                                "CHECK(confidence IS NULL OR confidence BETWEEN 1 AND 3)")
+            recap_columns = {row["name"] for row in db.execute("PRAGMA table_info(progress_recap_drafts)")}
+            if "base_answer_revision" not in recap_columns:
+                db.execute("ALTER TABLE progress_recap_drafts ADD COLUMN base_answer_revision INTEGER")
             if version < 4:
                 self._backfill_events(db)
-            db.execute("PRAGMA user_version=6")
+            db.execute("PRAGMA user_version=7")
 
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=self.timeout, isolation_level=None)
@@ -338,9 +346,24 @@ class ProgressStore:
         editor = self._find_attempt(db, editor_key, editing_context["attempt_id"])
         if editor["status"] == "retired":
             raise SubmissionConflict("The editing attempt is retired")
+        if write and self._recap_is_finished(db, editor["attempt_id"]):
+            raise SubmissionConflict("The editing session is finished")
         if json.loads(editor["metadata"]).get("technical_session_id") != editing_context["technical_session_id"]:
             raise ValueError("The editing technical run does not match the attempt")
         return _json(editing_context)
+
+    @staticmethod
+    def _recap_is_finished(db, attempt_id):
+        return db.execute("SELECT 1 FROM progress_recap_exports WHERE attempt_id=?", (attempt_id,)).fetchone() is not None
+
+    def recap_finished(self, attempt_id):
+        with self._transaction() as db:
+            return self._recap_is_finished(db, attempt_id)
+
+    def recap_pdf(self, attempt_id):
+        with self._transaction() as db:
+            row = db.execute("SELECT pdf FROM progress_recap_exports WHERE attempt_id=?", (attempt_id,)).fetchone()
+            return row["pdf"] if row else None
 
     @staticmethod
     def _check_recap_values(question_number, answer_phase, text, expected_revision):
@@ -350,24 +373,38 @@ class ProgressStore:
             raise ValueError("Invalid recap target, text or revision")
 
     def save_recap_draft(self, key, attempt_id, question_number, answer_phase, text, expected_revision,
-                         *, editing_context):
+                         *, editing_context, base_answer_revision=None):
         """Save a recap-edit draft separately from originals and confirmed revisions."""
         self._check_recap_values(question_number, answer_phase, text, expected_revision)
         with self._transaction(write=True) as db:
             context = self._recap_context(db, key, attempt_id, editing_context)
             scope = (attempt_id, question_number, answer_phase, editing_context["attempt_id"])
-            current = db.execute("""SELECT revision FROM progress_recap_drafts WHERE attempt_id = ?
+            if base_answer_revision is not None and (
+                    type(base_answer_revision) is not int
+                    or base_answer_revision != self._answer_revision(db, *scope[:3])):
+                raise DraftConflict("The final answer was revised before this draft could be saved")
+            current = db.execute("""SELECT revision, text, active, saved_at, base_answer_revision
+                FROM progress_recap_drafts WHERE attempt_id = ?
                 AND question_number = ? AND answer_phase = ? AND editing_attempt_id = ?""", scope).fetchone()
+            if (current and current["active"] and current["revision"] == expected_revision + 1
+                    and current["text"] == text and current["base_answer_revision"] == base_answer_revision):
+                return {"text": text, "revision": current["revision"], "saved_at": current["saved_at"],
+                        "editing_context": editing_context}
             if (current["revision"] if current else 0) != expected_revision:
                 raise DraftConflict("The recap draft changed")
             saved = {"text": text, "revision": expected_revision + 1, "saved_at": _now(),
                      "editing_context": editing_context}
-            db.execute("""INSERT INTO progress_recap_drafts VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            db.execute("""INSERT INTO progress_recap_drafts VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
                 ON CONFLICT(attempt_id, question_number, answer_phase, editing_attempt_id) DO UPDATE SET
                 text=excluded.text, revision=excluded.revision, saved_at=excluded.saved_at,
-                editing_context=excluded.editing_context, active=1""",
-                       (*scope, text, saved["revision"], saved["saved_at"], context))
+                editing_context=excluded.editing_context, active=1, base_answer_revision=excluded.base_answer_revision""",
+                       (*scope, text, saved["revision"], saved["saved_at"], context, base_answer_revision))
         return saved
+
+    @staticmethod
+    def _answer_revision(db, attempt_id, number, phase):
+        return db.execute("""SELECT COALESCE(MAX(revision), 0) FROM progress_answer_revisions
+            WHERE attempt_id=? AND question_number=? AND answer_phase=?""", (attempt_id, number, phase)).fetchone()[0]
 
     @staticmethod
     def _revision(row):
@@ -381,57 +418,167 @@ class ProgressStore:
             raise ValueError("A nonblank revision and stable request ID are required")
         with self._transaction(write=True) as db:
             context = self._recap_context(db, key, attempt_id, editing_context)
-            existing = db.execute("SELECT * FROM progress_answer_revisions WHERE attempt_id=? AND request_id=?",
-                                  (attempt_id, request_id)).fetchone()
-            if existing:
-                if (existing["question_number"] != question_number or existing["answer_phase"] != answer_phase
-                        or existing["after_text"] != text or existing["revision"] != expected_revision + 1
-                        or json.loads(existing["editing_context"]) != editing_context):
-                    raise SubmissionConflict("A confirmed revision request cannot be changed")
-                return self._revision(existing)
-            scope = (attempt_id, question_number, answer_phase)
-            latest = db.execute("""SELECT * FROM progress_answer_revisions WHERE attempt_id=?
-                AND question_number=? AND answer_phase=? ORDER BY revision DESC LIMIT 1""", scope).fetchone()
-            if (latest["revision"] if latest else 0) != expected_revision:
-                raise DraftConflict("The answer was revised by another editor")
-            table = "progress_first_answers" if answer_phase == "first-answer" else "progress_final_answers"
-            original = db.execute(f"SELECT text FROM {table} WHERE attempt_id=? AND question_number=?",
-                                  (attempt_id, question_number)).fetchone()
-            before = latest["after_text"] if latest else original["text"]
-            db.execute("INSERT INTO progress_answer_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       (*scope, expected_revision + 1, before, text, _now(), context, request_id))
-            # Keep a monotonic draft revision even after confirmation, including
-            # when the edit was confirmed before its first autosave arrived.
-            db.execute("""INSERT INTO progress_recap_drafts VALUES (?, ?, ?, ?, '', 1, ?, ?, 0)
-                ON CONFLICT(attempt_id, question_number, answer_phase, editing_attempt_id) DO UPDATE SET
-                text='', revision=progress_recap_drafts.revision+1, saved_at=excluded.saved_at,
-                editing_context=excluded.editing_context, active=0
-                WHERE progress_recap_drafts.active=0 OR progress_recap_drafts.text=?""",
-                       (*scope, editing_context["attempt_id"], _now(), context, text))
-            saved = db.execute("SELECT * FROM progress_answer_revisions WHERE attempt_id=? AND request_id=?",
-                               (attempt_id, request_id)).fetchone()
-            return self._revision(saved)
+            return self._append_revision(db, attempt_id, question_number, answer_phase, text, expected_revision,
+                                         request_id, editing_context, context)
+
+    def _append_revision(self, db, attempt_id, question_number, answer_phase, text, expected_revision,
+                         request_id, editing_context, context):
+        existing = db.execute("SELECT * FROM progress_answer_revisions WHERE attempt_id=? AND request_id=?",
+                              (attempt_id, request_id)).fetchone()
+        if existing:
+            if (existing["question_number"] != question_number or existing["answer_phase"] != answer_phase
+                    or existing["after_text"] != text or existing["revision"] != expected_revision + 1
+                    or json.loads(existing["editing_context"]) != editing_context):
+                raise SubmissionConflict("A confirmed revision request cannot be changed")
+            return self._revision(existing)
+        scope = (attempt_id, question_number, answer_phase)
+        latest = db.execute("""SELECT * FROM progress_answer_revisions WHERE attempt_id=?
+            AND question_number=? AND answer_phase=? ORDER BY revision DESC LIMIT 1""", scope).fetchone()
+        if (latest["revision"] if latest else 0) != expected_revision:
+            raise DraftConflict("The answer was revised by another editor")
+        table = "progress_first_answers" if answer_phase == "first-answer" else "progress_final_answers"
+        original = db.execute(f"SELECT text FROM {table} WHERE attempt_id=? AND question_number=?",
+                              (attempt_id, question_number)).fetchone()
+        before = latest["after_text"] if latest else original["text"]
+        db.execute("INSERT INTO progress_answer_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (*scope, expected_revision + 1, before, text, _now(), context, request_id))
+        # Keep a monotonic draft revision even after confirmation, including
+        # when the edit was confirmed before its first autosave arrived.
+        db.execute("""INSERT INTO progress_recap_drafts VALUES (?, ?, ?, ?, '', 1, ?, ?, 0, NULL)
+            ON CONFLICT(attempt_id, question_number, answer_phase, editing_attempt_id) DO UPDATE SET
+            text='', revision=progress_recap_drafts.revision+1, saved_at=excluded.saved_at,
+            editing_context=excluded.editing_context, active=0, base_answer_revision=NULL
+            WHERE progress_recap_drafts.active=0 OR progress_recap_drafts.text=?""",
+                   (*scope, editing_context["attempt_id"], _now(), context, text))
+        saved = db.execute("SELECT * FROM progress_answer_revisions WHERE attempt_id=? AND request_id=?",
+                           (attempt_id, request_id)).fetchone()
+        return self._revision(saved)
 
     def recap_state(self, key, attempt_id, *, editing_context):
         """Read originals, revision history and the current editing session's drafts."""
         with self._transaction() as db:
             self._recap_context(db, key, attempt_id, editing_context, write=False)
-            state = self._snapshot(db, self._find_attempt(db, key, attempt_id))
-            for task in state["tasks"]:
-                task.update(revisions=[], recap_drafts={}, recap_draft_revisions={})
-            for row in db.execute("SELECT * FROM progress_answer_revisions WHERE attempt_id=? ORDER BY rowid",
-                                  (attempt_id,)):
-                state["tasks"][row["question_number"] - 1]["revisions"].append(self._revision(row))
-            for row in db.execute("SELECT * FROM progress_recap_drafts WHERE attempt_id=? AND editing_attempt_id=?",
-                                  (attempt_id, editing_context["attempt_id"])):
-                task = state["tasks"][row["question_number"] - 1]
-                task["recap_draft_revisions"][row["answer_phase"]] = row["revision"]
-                if not row["active"]:
-                    continue
-                task["recap_drafts"][row["answer_phase"]] = {
-                    "text": row["text"], "revision": row["revision"], "saved_at": row["saved_at"],
-                    "editing_context": json.loads(row["editing_context"])}
-            return state
+            return self._recap_state(db, self._find_attempt(db, key, attempt_id), editing_context["attempt_id"])
+
+    def _recap_state(self, db, row, editing_attempt_id):
+        attempt_id = row["attempt_id"]
+        state = self._snapshot(db, row)
+        for task in state["tasks"]:
+            task.update(revisions=[], recap_drafts={}, recap_draft_revisions={})
+        for row in db.execute("SELECT * FROM progress_answer_revisions WHERE attempt_id=? ORDER BY rowid",
+                              (attempt_id,)):
+            state["tasks"][row["question_number"] - 1]["revisions"].append(self._revision(row))
+        for row in db.execute("SELECT * FROM progress_recap_drafts WHERE attempt_id=? AND editing_attempt_id=?",
+                              (attempt_id, editing_attempt_id)):
+            task = state["tasks"][row["question_number"] - 1]
+            task["recap_draft_revisions"][row["answer_phase"]] = row["revision"]
+            if not row["active"]:
+                continue
+            task["recap_drafts"][row["answer_phase"]] = {
+                "text": row["text"], "revision": row["revision"], "saved_at": row["saved_at"],
+                "editing_context": json.loads(row["editing_context"])}
+            if row["base_answer_revision"] is not None:
+                task["recap_drafts"][row["answer_phase"]]["base_answer_revision"] = row["base_answer_revision"]
+        return state
+
+    @staticmethod
+    def _recap_targets(db, editor):
+        session = json.loads(editor["metadata"])["study_session_snapshot"]
+        targets = {session["number"]: editor}
+        for row in db.execute("""SELECT * FROM progress_attempts WHERE study_id=? AND participant_id=?
+                AND is_test=? AND status='completed' ORDER BY rowid DESC""",
+                              (editor["study_id"], editor["participant_id"], editor["is_test"])):
+            past = json.loads(row["metadata"]).get("study_session_snapshot") or {}
+            number = past.get("number")
+            if (type(number) is int and 1 <= number < session["number"]
+                    and past.get("school_year") == session.get("school_year")
+                    and past.get("date", "") < session["date"]):
+                targets.setdefault(number, row)
+        return targets
+
+    def recap_columns(self, key, attempt_id):
+        with self._transaction() as db:
+            editor = self._find_attempt(db, key, attempt_id)
+            if editor["status"] != "completed":
+                raise SubmissionConflict("Complete all three questions before opening the recap")
+            return {number: self._recap_state(db, row, attempt_id)
+                    for number, row in self._recap_targets(db, editor).items()}
+
+    def commit_recap(self, key, attempt_id, expected_drafts, render_pdf=None):
+        """Commit every pending final-answer edit and, at finish, the immutable PDF and outbox."""
+        snapshot = self.recap_columns(key, attempt_id) if render_pdf is not None else None
+        if snapshot is not None and self.recap_finished(attempt_id):
+            return  # A lost acknowledgement can retry the existing receipt.
+        # Layout may take time for long answers. Hold no SQLite writer while rendering.
+        pdf = render_pdf(snapshot) if render_pdf is not None else None
+        with self._transaction(write=True) as db:
+            editor = self._find_attempt(db, key, attempt_id)
+            if editor["status"] != "completed":
+                raise SubmissionConflict("Complete all three questions before saving the recap")
+            if self._recap_is_finished(db, attempt_id):
+                if render_pdf is not None:
+                    return  # The PDF and events are already durable. Retry publication only.
+                raise SubmissionConflict("The session is already finished")
+            metadata = json.loads(editor["metadata"])
+            context = {"study_session_id": editor["study_session_id"], "attempt_id": attempt_id,
+                       "technical_session_id": metadata["technical_session_id"]}
+            if render_pdf is not None:
+                self._queue_recap_event(db, editor, "sessionCompleted", {})
+            targets = self._recap_targets(db, editor)
+            if snapshot is not None and snapshot != {n: self._recap_state(db, row, attempt_id)
+                                                      for n, row in targets.items()}:
+                raise DraftConflict("The recap changed while its PDF was being prepared")
+            rows = db.execute("""SELECT * FROM progress_recap_drafts
+                WHERE editing_attempt_id=? AND answer_phase='final-answer'""", (attempt_id,)).fetchall()
+            targets_by_id = {row["attempt_id"]: row for row in targets.values()}
+            pending = [row for row in rows if row["active"]]
+            if pending or render_pdf is not None:
+                self._check_recap_draft_revisions(targets_by_id, rows, expected_drafts)
+            for draft in pending:
+                target = targets_by_id.get(draft["attempt_id"])
+                if target is None:
+                    raise DraftConflict("A draft's target is no longer available")
+                self._commit_recap_draft(db, editor, target, draft, context)
+            if pdf is not None:
+                db.execute("INSERT INTO progress_recap_exports VALUES (?, ?, ?)", (attempt_id, _now(), pdf))
+                self._queue_recap_event(db, editor, "studySessionFinished", {})
+                if metadata["study_session_snapshot"]["number"] == 3:
+                    self._queue_recap_event(db, editor, "experimentFinished", {})
+
+    @staticmethod
+    def _check_recap_draft_revisions(targets, rows, expected):
+        revisions = {f"{row['attempt_id']}:{row['question_number']}": row["revision"] for row in rows}
+        current = {f"{target}:{number}": revisions.get(f"{target}:{number}", 0)
+                   for target in targets for number in (1, 2, 3)}
+        if current != expected:
+            raise DraftConflict("The recap drafts changed before confirmation")
+
+    def _commit_recap_draft(self, db, editor, target, draft, context):
+        number, text, attempt_id = draft["question_number"], draft["text"], target["attempt_id"]
+        if not text.strip():
+            raise ValueError("A final answer cannot be empty")
+        latest = db.execute("""SELECT revision, after_text FROM progress_answer_revisions
+            WHERE attempt_id=? AND question_number=? AND answer_phase='final-answer'
+            ORDER BY revision DESC LIMIT 1""", (attempt_id, number)).fetchone()
+        revision = latest["revision"] if latest else 0
+        if draft["base_answer_revision"] is not None and draft["base_answer_revision"] != revision:
+            raise DraftConflict("The final answer was revised before this draft could be confirmed")
+        before = latest["after_text"] if latest else db.execute("""SELECT text FROM progress_final_answers
+            WHERE attempt_id=? AND question_number=?""", (attempt_id, number)).fetchone()["text"]
+        if text == before:
+            db.execute("""UPDATE progress_recap_drafts SET active=0, revision=revision+1
+                WHERE attempt_id=? AND question_number=? AND answer_phase='final-answer' AND editing_attempt_id=?""",
+                       (attempt_id, number, editor["attempt_id"]))
+            return
+        request_id = f"recap:{editor['attempt_id']}:{number}:{draft['revision']}"
+        saved = self._append_revision(db, attempt_id, number, "final-answer", text,
+                                      revision, request_id, context, _json(context))
+        self._queue_recap_event(db, editor, "RecapAnswerEdited", {
+            "target_study_session_id": target["study_session_id"], "target_attempt_id": attempt_id,
+            "target_task_number": number, "answerPhase": "post-search",
+            "before_text": saved["before_text"], "after_text": saved["after_text"],
+            "edited_at": saved["edited_at"],
+        }, f":{attempt_id}:{request_id}")
 
     @staticmethod
     def _queue_answer_event(db, attempt, number, answer, event_type):
@@ -624,19 +771,24 @@ class ProgressStore:
             attempt = self._find_attempt(db, key, attempt_id)
             if attempt["status"] != "completed":
                 raise SubmissionConflict("Session events require all three confirmed final answers")
-            topics = [json.loads(row["snapshot"])["topic_id"] for row in db.execute(
-                "SELECT snapshot FROM progress_tasks WHERE attempt_id = ? ORDER BY number", (attempt_id,))]
-            timestamp = _now()
-            payload = {"event_id": uuid.uuid4().hex, "type": event_type, "timestamp": timestamp,
-                       "uid": key.participant_id, "study_id": key.study_id,
-                       "study_session_id": key.study_session_id, "attempt_id": attempt_id,
-                       "is_test": key.is_test, "task_number": 3, "actual_topic_number": topics[2],
-                       "task_order": topics, "totalTasks": 3}
-            db.execute("""INSERT INTO progress_events
-                (event_id, event_key, attempt_id, question_number, type, payload, created_at)
-                VALUES (?, ?, ?, 3, ?, ?, ?) ON CONFLICT(event_key) DO NOTHING""",
-                       (payload["event_id"], f"{attempt_id}:3:{event_type}", attempt_id,
-                        event_type, _json(payload), timestamp))
+            self._queue_recap_event(db, attempt, event_type, {})
+
+    @staticmethod
+    def _queue_recap_event(db, attempt, event_type, extra, event_suffix=""):
+        attempt_id = attempt["attempt_id"]
+        topics = [json.loads(row["snapshot"])["topic_id"] for row in db.execute(
+            "SELECT snapshot FROM progress_tasks WHERE attempt_id = ? ORDER BY number", (attempt_id,))]
+        timestamp = _now()
+        payload = {"event_id": uuid.uuid4().hex, "type": event_type, "timestamp": timestamp,
+                   "uid": attempt["participant_id"], "study_id": attempt["study_id"],
+                   "study_session_id": attempt["study_session_id"], "attempt_id": attempt_id,
+                   "is_test": bool(attempt["is_test"]), "task_number": 3, "actual_topic_number": topics[2],
+                   "task_order": topics, "totalTasks": 3, **extra}
+        db.execute("""INSERT INTO progress_events
+            (event_id, event_key, attempt_id, question_number, type, payload, created_at)
+            VALUES (?, ?, ?, 3, ?, ?, ?) ON CONFLICT(event_key) DO NOTHING""",
+                   (payload["event_id"], f"{attempt_id}:3:{event_type}{event_suffix}", attempt_id,
+                    event_type, _json(payload), timestamp))
 
     def review_state(self, attempt_id, browser_scope):
         with self._transaction() as db:
