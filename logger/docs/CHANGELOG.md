@@ -65,6 +65,338 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Document the fixes from the second iPad test
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/child_pages_2026-11.md` — fixes 15-18, the rehearsal, and what is left for Matthias
+- `logger/docs/child_pages_2026-11/` — before pictures from the iPad, after pictures from the real app
+- `logger/docs/follow_up_checks.md` — the check these fixes still need on a real device
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+Nothing in the app.
+
+**Left alone**
+Everything else.
+
+**Verified**
+The pictures were looked at, and show test IDs and test answers only.
+
+## 2026-11-07 — Log why a child could not start
+
+**Commit:** pending · **Type:** infra · **Area:** session
+
+**Files**
+- `logger/search-app/student_progress.py` — the start page's failure now writes its reason to the server's log
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+`start_route` answered "Salvataggio non disponibile" without recording why. It now logs the exception first.
+
+**If something looks wrong after this, check**
+- A child who gets that page at the start → `docker compose logs search_app | grep "Could not admit"`.
+
+**Left alone**
+The page itself, and the 2-second wait in `admission_lock`, because 20 starts in the same instant answered within 0.33 s.
+
+**Verified**
+The start tests. One rehearsal run out of six showed this page once, for a reason that was not recorded then.
+
+## 2026-11-07 — Send the child to the start page when the recap has passed the idle limit
+
+**Commit:** pending · **Type:** fix · **Area:** session, task-flow
+
+**Files**
+- `logger/search-app/static/recap.js` — a save the server no longer recognises reopens the page
+- `logger/search-app/tests/test_child_pages_browser.py`, `logger/search-app/tests/test_editable_recap.py` — the page reopens; past the limit the child reaches the start page, then the closing page
+
+**What changed for the participant**
+A recap left open for more than an hour no longer repeats "Salvataggio non disponibile. Riprova." for ever. The next tap or edit leads to the start page, as on every other page. Picking the number again shows "Hai risposto alle tre domande" and "Chiudi l'attività".
+
+**How it works**
+Past `STUDENT_IDLE_SECONDS` the recap's routes answer 404 and the session ends, and the script treated that as a failure to retry. It now reloads the page on a 4xx with no message of its own, and the server sends the child where they belong.
+
+**If something looks wrong after this, check**
+- A recap that reloads when tapped → which request answered 4xx, in the server's log.
+
+**Left alone**
+The 60 minutes, which Matthias chose. The rule that a returning browser never shows the recap again, which keeps one child's answers from the next. So recap changes not yet saved at that point are not kept: see `logger/docs/child_pages_2026-11.md`.
+
+**Verified**
+The limit passed on the production image with real IDs, for typing, "Salva modifiche", "Salva l'attività" and "Chiudi".
+
+## 2026-11-07 — Repeat a save after a dropped connection and hold connections open longer
+
+**Commit:** pending · **Type:** fix · **Area:** infra, task-flow
+
+**Files**
+- `logger/search-app/Dockerfile` — Gunicorn `--keep-alive 75`, up from its default of 2 seconds
+- `logger/search-app/static/try-again.js` — new: tries a failed request three more times, within about 4 seconds
+- `logger/search-app/static/recap.js`, `logger/search-app/static/first-answer.js`, `logger/search-app/static/final-answer-draft.js` — their saves use it, and show Italian if the connection stays down
+- `logger/search-app/templates/recap.html`, `logger/search-app/templates/first_answer.html`, `logger/search-app/templates/layout.html` — load it, with new cache versions
+- `logger/search-app/static/recap.css` — a little space between the answer box and its message, which the focus ring covered
+- `logger/search-app/tests/test_child_pages_browser.py`, `logger/search-app/tests/test_first_answer_ui.py` — a dropped request, a connection that stays down, and the extra script
+
+**What changed for the participant**
+"Load failed" no longer appears while editing an answer. A real loss of connection says "Connessione non disponibile. Il testo resta qui: riprova.", and the text stays.
+
+**How it works**
+Gunicorn closed an idle connection after 2 to 3 seconds. A tablet that sent a save on a connection just being closed got an immediate failure, which Safari words as "Load failed". A child typing slowly hits this often, more so over a VPN. WebKit closed idle connections itself after about 29 seconds in our measurement, so at 75 seconds the browser closes first and the race goes away. The repeat covers what is left. The server accepts a repeat of the same recap save.
+
+**If something looks wrong after this, check**
+- Many open connections on the server → `--keep-alive` in the `Dockerfile`. An idle connection holds no worker thread.
+- A rare "La bozza è cambiata" on a first or final answer → a repeat after a lost reply. The text stays, and "Conferma" still works.
+
+**Left alone**
+`/log_session`, which already keeps a batch until it is acknowledged, and what is saved and logged.
+
+**Verified**
+See "Load failed" in `logger/docs/child_pages_2026-11.md`: reproduced in WebKit on the production image, then repeated on the fix.
+
+## 2026-11-07 — Warn the child in Italian whatever the tablet's language
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `logger/search-app/templates/first_answer.html`, `logger/search-app/templates/start.html` — `novalidate`, so the browser no longer words these warnings itself
+- `logger/search-app/static/first-answer.js` — the warnings for no answer and no stars, in Italian
+- `logger/search-app/search_app.py`, `logger/search-app/templates/error.html`, `logger/search-app/templates/layout.html` — the 404, 500, search-failure and missing-questions pages, the start page's message and the tab title
+- `logger/search-app/tests/test_child_pages.py`, `logger/search-app/tests/test_child_pages_browser.py` — Italian on a browser set to English
+- `logger/search-app/tests/test_session_draft_visibility.py`, `logger/search-app/tests/test_study_enrollment.py` — they pinned the English half of the start page's message
+
+**What changed for the participant**
+Tapping "Conferma" without stars says "Scegli quanto è giusta la tua risposta." instead of the iPad's "Select one of these options". The same goes for the empty answer box, and the error pages are in Italian.
+
+**How it works**
+A `required` field makes the browser write its own warning in the device's language. The forms turn that off, and `first-answer.js` sets the text with `setCustomValidity` before asking the browser to show it, so the warning still appears in the same place.
+
+**If something looks wrong after this, check**
+- A form that goes through with no stars → the `submit` handler in `first-answer.js`. The server refuses it anyway, with its own Italian message.
+- The dashboard's 404 is now in Italian too, because the two share that page.
+
+**Left alone**
+`searchError` still logs `Connection Error`, so log analysis keeps its value. The dashboard's own pages.
+
+**Verified**
+A browser test set to English, on the production image, and the full suite. Matthias's iPad still has to confirm the warning, because the browser draws it.
+
+## 2026-11-07 — Drop the question prompt once the first answer is confirmed
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `logger/search-app/templates/first_answer.html` — "Pensi di sapere la risposta a questa domanda?" appears only while the form is open
+- `logger/search-app/tests/test_child_pages.py` — the prompt on the form, and not on the confirmed page
+
+**What changed for the participant**
+The page that shows the confirmed first answer no longer asks whether the child knows the answer. The question and the answer stay.
+
+**How it works**
+A condition on `first_answer` in the template.
+
+**If something looks wrong after this, check**
+- The prompt missing from the form → the condition in `first_answer.html`.
+
+**Left alone**
+What is saved and logged, and the same prompt's short form on the question's introduction.
+
+**Verified**
+A test on both states of the page, and on the production image.
+
+## 2026-11-07 — Document the child page fixes with before and after pictures
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/child_pages_2026-11.md` — each fix, the decisions, the awkward cases tried, and what was left for Matthias
+- `logger/docs/child_pages_2026-11/` — before and after pictures, with test IDs and test answers only
+- `logger/docs/follow_up_checks.md` — where the rehearsals stand
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The iPad pictures are cropped to the page, so the server's address and the device's status bar stay out of a public repository.
+
+**If something looks wrong after this, check**
+- A picture that no longer matches the page → the page changed after 7 November, and this record did not.
+
+**Left alone**
+All code.
+
+**Verified**
+Each picture opened and checked for real IDs or answers. The review pictures are named by the clip each one shows, since question order is random.
+
+## 2026-11-07 — Keep "Avvia animazione" off the answers
+
+**Commit:** pending · **Type:** fix · **Area:** styling
+
+**Files**
+- `logger/search-app/static/study-review.js` — the button joins the page's buttons, and is not offered for a clip that cannot load
+- `logger/search-app/static/study-review.css` — its old position removed
+- `logger/search-app/tests/test_child_pages_browser.py` — both cases
+
+**What changed for the participant**
+A tablet that blocks autoplay offers "Avvia animazione" beside "Prossima domanda", not on top of an answer card. A clip that cannot load leaves its still on screen, with no button that does nothing.
+
+**How it works**
+`play()` rejected with `video.error` set means the file failed, so nothing is offered. Any other rejection means the browser wants a tap.
+
+**If something looks wrong after this, check**
+- No animation and no button → the MP4's address and `video.error` in the browser.
+
+**Left alone**
+What is logged, and the normal case where the clip plays by itself.
+
+**Verified**
+Browser tests with `play()` refused and with the MP4 blocked.
+
+## 2026-11-07 — Back from an introduction no longer starts the question
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `logger/search-app/search_app.py` — pages a child should not be on send a question not begun to its introduction
+- `logger/search-app/tests/test_child_pages.py` — one more case
+
+**What changed for the participant**
+The introductions have no logger, so the browser's Back works there. It reached the start page, which sent the child on to `/task`: that skipped the
+introductions and logged `TaskStarted`. Back now returns to the introduction, and the question starts only when the child taps "Inizia".
+
+**How it works**
+`phase_redirect_url` uses `PROGRESS.entry_url` for a question without a first answer. A question already begun still resumes at its form.
+
+**If something looks wrong after this, check**
+- A child who cannot leave an introduction → `entry_url`, and whether `TaskStarted` was stored for that attempt.
+
+**Left alone**
+Old runs without a progress record go to `/task` as they did.
+
+**Verified**
+Reload, Back and Forward at each step in WebKit and Chromium on the production image: one `TaskStarted` and one `TaskEnded` per question.
+
+## 2026-11-07 — Keep a test ID's unsent choice out of the real log folder
+
+**Commit:** pending · **Type:** fix · **Area:** logging
+
+**Files**
+- `logger/search-app/search_app.py` — a batch with no server run goes by whose events it holds
+- `logger/search-app/tests/test_permanent_test_experiment.py` — one more case
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The choice of ID is logged before a run has its server ID, and is sent by the next page that has the logger. The new introduction pages do not, so a tester who leaves a test run there
+keeps that event in the browser. It was then sent during the next child's run, and with no attempt to look up it went to the real folder. The dashboard ignored the file, so results were not affected. A batch with
+no attempt now goes to the test folder when every event in it belongs to a test ID.
+
+**If something looks wrong after this, check**
+- `TEST-` files in the top of `logs-v2` → a batch mixing a test ID and a child; the dashboard ignores them.
+
+**Left alone**
+Batches of a known attempt, and every batch of a child, which go where they did.
+
+**Verified**
+Found by the shared-tablet rehearsal on the production image; the new test covers both directions.
+
+## 2026-11-07 — List May's experiment in Sessions
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/session_views.py` — `historical_rows`
+- `logger/search-app/research_dashboard/templates/research/sessions.html`, `workflow_i18n.py` — the row and its wording
+- `logger/search-app/tests/test_session_history_rows.py` — new
+
+**What changed for the participant**
+No visible change. Researchers see "Esperimento 19 maggio" per class under Past sessions, linking to its data, instead of "No sessions yet" for 2025/2026.
+
+**How it works**
+The rows are read from the historical rules saved by the setup tool. They are not sessions: a May session would take a number and make Tuesday's class 4 Session 2.
+
+**If something looks wrong after this, check**
+- No row → `historical_grades` in settings, or the year filter.
+
+**Left alone**
+Session numbers, the settings, Data and history. A May run still says "Other saved runs" on a child's page.
+
+**Verified**
+Tests for the year, the class filter and the number of IDs, and a look at the page in the rehearsal.
+
+## 2026-11-07 — Match the child pages to Diletta's Figma
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, session
+
+**Files**
+- `logger/search-app/templates/first_answer.html`, `static/first-answer.css`, `static/first-answer.js` — equal buttons, no search button until the answer is confirmed, saved answer as text, sizes that follow the screen height
+- `logger/search-app/templates/task_intro.html` — new; "Cominciamo!" and the question introduction
+- `logger/search-app/student_progress.py`, `study_progress.py` — `/task/intro`, `entry_url`, `task_started`, theme texts
+- `logger/search-app/templates/search_first_answer.html`, `static/main.css` — the first answer pop-up in the layout of the `?` pop-up; Nunito and Poppins
+- `logger/search-app/static/fonts/` — new; the Figma's fonts, served from here
+- `logger/search-app/templates/study_handoff.html`, `static/study-review.css`, `search_app.py` — the review page as the Figma's "Pieces Unlock"; `static/review-animation-key.svg` removed
+- `logger/search-app/templates/recap.html`, `static/recap.css` — the Figma's look over the same functions
+- `logger/search-app/static/test-run.css` — the test banner sits in the blue band
+- `logger/search-app/tests/test_child_pages.py`, `test_child_pages_browser.py` — new; other tests follow the new labels and steps
+- `logger/docs/desktop_interface.md`, `editable_recap.md`, `follow_up_checks.md`
+
+**What changed for the participant**
+See `logger/docs/child_pages_2026-11.md`. New steps: "Cominciamo!" at the start of a run and an introduction before each question. Pages fit shorter tablets.
+
+**How it works**
+`/start` and the next question lead to `/task/intro` while the question has no `TaskStarted`. `/task` is unchanged and logs `TaskStarted` when it shows the form, so the
+introductions log nothing and a question already begun resumes directly. Everything else is templates and styles. Pages load their styles with `?v=child-pages-1` so tablets do not keep old ones.
+
+**If something looks wrong after this, check**
+- A button below the screen on a tablet → the `vh` sizes in `first-answer.css` and `--stage` in `study-review.css`; `test_child_pages_browser.py` sets the sizes it guards.
+- A child repeating an introduction → `task_started` and `entry_url`.
+- Cards in the wrong place on an animation → the `.unlock--` rules and `REVIEW_ARROWS`.
+
+**Left alone**
+What is saved and logged, `/first-answer`, the confirmation step of issue #6, recap saving and the PDF, the search page's layout.
+Session 3's finish button no longer says "termina lo studio", but it still ends the study.
+
+**Verified**
+Full suite with browser tests. Every step measured at 1180 x 699, 1280 x 680, 1024 x 520 and 800 x 1100 in WebKit, and at 1280 x 680 in Chromium. Class, crash, fault and shared-tablet
+rehearsals on the production image. Not yet on a real classroom tablet.
+
+## 2026-11-07 — Re-encode the review animations on white
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, styling
+
+**Files**
+- `logger/search-app/static/videos/review/*.mp4` — the six clips cropped to their picture, on white, without their silent sound track
+- `logger/search-app/static/images/review/{ear,space}-{1,2,3}.webp` — stills, now the last frame of each clip
+- `logger/search-app/tools/prepare_review_media.py` — new; makes them from the supplied files
+
+**What changed for the participant**
+No black rectangle around the animation on tablets, and the picture is larger. Orecchio 02 and 03 follow the Figma: inside of the ear, then animals.
+
+**How it works**
+The supplied 4K clips have a black background, with each picture small and off-centre because it is a piece of the recap picture. A CSS filter hid
+the black on a computer and not on the iPad. The tool removes black joined to the frame or filling a large enclosed area, keeping outlines and pupils, and writes the
+clip on white, which is the colour of the page behind it. The `SOFT` setting handles the sound waves, which fade out over the black.
+
+**If something looks wrong after this, check**
+- A faint box around a clip → the white of the clip against the page: `lutyuv` in the tool.
+- The wrong picture for a question → `CLIPS` in the tool, then the question's box in the dashboard.
+- An old clip on a tablet → its browser cache: the pages load clips with `?v=child-pages-1`.
+
+**Left alone**
+The recap pictures, and which clip goes with which question slot in the code.
+
+**Verified**
+Frames of every clip at the start, during and at the end, by eye; browser tests play all six in Chromium. Not yet seen on a classroom tablet.
+
 ## 2026-11-06 — Keep the deploy script running after its backup
 
 **Commit:** pending · **Type:** fix · **Area:** infra

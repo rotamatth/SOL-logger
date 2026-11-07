@@ -13,8 +13,8 @@ def test_confidence_appears_immediately_resets_on_blank_and_is_required(student_
     assert assessment.is_hidden()
     page.fill("#first-answer-text", "L")
     assert assessment.is_visible()
-    page.get_by_role("button", name="Conferma risposta", exact=True).click()
-    assert page.locator("button#first-answer-search").is_disabled()
+    page.get_by_role("button", name="Conferma", exact=True).click()
+    assert page.locator("#first-answer-search").count() == 0
     page.get_by_role("radio", name="Giustissima", exact=True).check()
     page.fill("#first-answer-text", " \n ")
     assert assessment.is_hidden()
@@ -23,7 +23,7 @@ def test_confidence_appears_immediately_resets_on_blank_and_is_required(student_
     assert assessment.is_visible()
     assert page.locator('input[name="confidence"]:checked').count() == 0
     page.get_by_role("radio", name="Poco giusta", exact=True).check()
-    page.get_by_role("button", name="Conferma risposta", exact=True).click()
+    page.get_by_role("button", name="Conferma", exact=True).click()
     page.locator("a#first-answer-search").wait_for()
     submissions = types_of(saved(root, "1"), "OwnKnowledgeAnswerSubmitted")
     assert len(submissions) == 1 and submissions[0]["confidence"] == 1
@@ -41,7 +41,7 @@ def test_confidence_draft_resumes_in_fresh_browser_and_unknown_needs_no_assessme
         open_first(resumed, base)
         assert resumed.locator("#first-answer-text").input_value() == "Laika"
         assert resumed.get_by_role("radio", name="Abbastanza giusta", exact=True).is_checked()
-        assert resumed.locator("button#first-answer-search").is_disabled()
+        assert resumed.locator("#first-answer-search").count() == 0
         resumed.get_by_role("button", name="Non lo so", exact=True).click()
         resumed.get_by_role("button", name="Torna alla risposta").click()
         assert resumed.get_by_role("radio", name="Abbastanza giusta", exact=True).is_checked()

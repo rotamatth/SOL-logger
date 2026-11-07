@@ -15,16 +15,30 @@ from study_progress import AttemptKey, DraftConflict, SubmissionConflict
 ZONE = ZoneInfo("Europe/Zurich")
 
 
+# Shown once per run, by theme. Spazio is Diletta's text in the Figma; orecchio follows it.
+INTRO_TEXTS = {
+    "space": ("In classe state studiando le curiosità dell’universo.",
+              "Avete da poco incontrato il sistema solare, con i suoi pianeti e le sue stelle.",
+              "Ma ci sono ancora tante cose da imparare!"),
+    "ear": ("In classe state studiando le curiosità del corpo umano.",
+            "Avete da poco incontrato l’orecchio, con le sue parti e i suoni che ci fa sentire.",
+            "Ma ci sono ancora tante cose da imparare!"),
+}
+INTRO_DEFAULT = ("Ci sono tante cose da imparare!",)
+
+
 class SessionUnavailable(ValueError):
     """New answers require today's configured session."""
 
 
 class StudentProgress:
-    def __init__(self, app, state, store, logs, prepare_upload, expire_idle, test_logs=None):
+    def __init__(self, app, state, store, logs, prepare_upload, expire_idle, test_logs=None, theme_of=None):
         self.app, self.state, self.store, self.logs = app, state, store, logs
         self.test_logs = test_logs or logs
+        self.theme_of = theme_of or (lambda attempt: None)
         self.prepare_upload = prepare_upload
         self.expire_idle = expire_idle
+        app.add_url_rule("/task/intro", "task_intro", self.intro)
         app.add_url_rule("/first-answer", "first_answer", self.submit_first, methods=["POST"])
         app.add_url_rule("/first-answer/draft", "first_answer_draft", self.save_first_draft, methods=["POST"])
         app.add_url_rule("/final-answer/draft", "final_answer_draft", self.save_final_draft, methods=["POST"])
@@ -141,12 +155,39 @@ class StudentProgress:
                                                error_message="Riapri la sessione con il ricercatore."), 409
                     attempt = self.store.start_or_resume(key, metadata["tasks"], metadata)
                     self.restore(attempt)
-                    return redirect(url_for("task"))
+                    return redirect(self.entry_url(attempt))
             except (OSError, sqlite3.Error):
+                self.app.logger.exception("Could not admit a child at the start page")
                 session.clear()
                 session.update(previous)
                 return self.unavailable()
         return wrapped
+
+    def entry_url(self, attempt):
+        """A question not begun yet opens with its introduction. Anything else resumes where it was."""
+        number = attempt["question_number"]
+        if (attempt["status"] == "active" and not self.pending_review(attempt)
+                and not self.store.task_started(attempt["attempt_id"], number)):
+            return url_for("task_intro")
+        return url_for("task")
+
+    def intro(self):
+        """Cominciamo and the question's introduction. TaskStarted stays with the answer form in /task."""
+        attempt = self.current()
+        if attempt is None or self.expire_idle():
+            return redirect(url_for("welcome"))
+        if attempt["metadata"]["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat():
+            session.clear()
+            return redirect(url_for("welcome"))
+        number = session["task_position"] + 1
+        if (attempt["status"] != "active" or number != attempt["question_number"] or self.pending_review(attempt)
+                or self.store.task_started(attempt["attempt_id"], number)):
+            return redirect(url_for("task"))
+        if number == 1 and request.args.get("step") != "question":
+            return render_template("task_intro.html", next_url=url_for("task_intro", step="question"),
+                                   welcome_lines=INTRO_TEXTS.get(self.theme_of(attempt), INTRO_DEFAULT))
+        return render_template("task_intro.html", next_url=url_for("task"), task_number=number,
+                               topic=attempt["tasks"][number - 1]["snapshot"]["question"])
 
     @staticmethod
     def unavailable():
@@ -342,7 +383,7 @@ class StudentProgress:
                 return self.unavailable()
         self.publish(attempt)
         self.restore(attempt)
-        return redirect(url_for("thank_you" if attempt["status"] == "completed" else "task"))
+        return redirect(url_for("thank_you") if attempt["status"] == "completed" else self.entry_url(attempt))
 
     def prepare_logs(self, logs, fallback):
         """Persist final submissions, then route other events using their question context."""

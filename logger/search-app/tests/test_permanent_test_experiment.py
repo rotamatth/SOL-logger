@@ -152,6 +152,20 @@ def test_unsent_test_events_reaching_a_childs_browser_go_to_the_test_folder(stud
     assert indexed_participants(module) == {"1"}
 
 
+def test_a_test_event_without_a_server_run_goes_to_the_test_folder(student_modules, tmp_path):
+    """Leaving a test run at its introduction leaves the choice of ID unsent, under the browser's own ID."""
+    module = student_modules()
+    schedule(module)
+    client = begin(module, "1")
+    event = {"type": "idSubmitted", "uid": TEST_ID, "sessionID": "browser-made"}
+    assert client.post("/log_session", json={"session_id": "browser-made", "logs": [event]}).status_code == 200
+    assert f"{TEST_ID}_browser-made_INCOMPLETE.log" in in_test_folder(tmp_path)
+    assert not any("TEST" in name for name in real_files(tmp_path))
+    child = {"type": "idSubmitted", "uid": "1", "sessionID": "another"}
+    assert client.post("/log_session", json={"session_id": "another", "logs": [child]}).status_code == 200
+    assert "1_another_INCOMPLETE.log" in real_files(tmp_path)
+
+
 def test_unsent_child_events_reaching_a_test_browser_stay_with_the_child(student_modules, tmp_path):
     module = student_modules()
     schedule(module)

@@ -17,7 +17,7 @@ def test_original_first_answer_is_read_only_on_each_search_surface(module, path)
     fields = Fields(html)
     assert 'id="search-first-answer-btn"' in html
     assert 'id="search-first-answer-dialog"' in html
-    assert 'id="search-first-answer-text"' in html and "readonly" in html
+    assert 'id="search-first-answer-text"' in html and "<textarea" not in html.split('search-first-answer-dialog', 1)[1].split("</dialog>", 1)[0]
     assert escape(text) in html and '<script>alert("original")</script>' not in html
     # The answer must not be included in the common event context/global object.
     event_context = html.split("window.STUDY_PROGRESS_CONTEXT =", 1)[1].split(";", 1)[0]

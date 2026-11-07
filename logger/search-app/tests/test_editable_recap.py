@@ -141,7 +141,7 @@ def test_session_three_finishes_the_study_exactly_once(student_modules):
     module.RESEARCH_STATE.save_settings(settings, settings["revision"])
     client = begin(module)
     auth = complete_today(client)
-    assert "termina lo studio" in client.get("/thank_you").text
+    assert "Salva l’attività" in client.get("/thank_you").text
     for _ in range(2):
         assert commit(client, auth, "finish").status_code == 200
     for kind in ("sessionCompleted", "studySessionFinished", "experimentFinished"):
@@ -186,3 +186,18 @@ def test_finish_compares_snapshot_again_after_pdf_layout(recap, monkeypatch):
     assert client.get("/recap/pdf").status_code == 404
     assert "Changed while rendering" in client.get("/thank_you").text
     assert commit(client, auth, "finish").status_code == 200
+
+
+def test_past_the_idle_limit_the_recap_gives_way_to_the_start_page_and_a_closing_page(recap):
+    module, client, current, past, past_id, future_id, auth = recap
+    assert draft(client, auth, past_id, 1, "Scritto prima della pausa").status_code == 200
+    with client.session_transaction() as state:
+        state["last_active"] = (datetime.now() - timedelta(minutes=61)).isoformat()
+    assert draft(client, auth, past_id, 1, "Scritto dopo la pausa", 1).status_code == 404
+    assert client.get("/thank_you", follow_redirects=True).request.path == "/welcome"
+    # Whoever picks the number next must not see these answers: the run closes without the recap.
+    page = client.post("/start", data={"user_id": "1"}, follow_redirects=True)
+    assert page.request.path == "/thank_you" and "Hai risposto alle tre domande" in page.text
+    assert "Chiudi l’attività" in page.text and "Scritto prima della pausa" not in page.text
+    with client.session_transaction() as state:
+        assert state["progress_id"] == auth["attempt_id"]

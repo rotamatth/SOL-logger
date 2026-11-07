@@ -23,4 +23,4 @@ ENV SOL_APP_VERSION=${SOL_APP_VERSION}
 
 EXPOSE 7001
 
-CMD ["gunicorn", "-w", "2", "--threads", "4", "-b", "0.0.0.0:7001", "search_app:app"]
+CMD ["gunicorn", "-w", "2", "--threads", "4", "--keep-alive", "75", "-b", "0.0.0.0:7001", "search_app:app"]

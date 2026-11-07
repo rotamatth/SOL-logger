@@ -11,12 +11,23 @@
   }
 
   async function post(url, payload = {}) {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ attempt_id: attempt, csrf_token: recap.dataset.csrfToken, ...payload })
-    });
+    let response;
+    try {
+      response = await window.tryAgain(() => fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attempt_id: attempt, csrf_token: recap.dataset.csrfToken, ...payload })
+      }));
+    } catch (_) {
+      throw new Error('Connessione non disponibile. Il testo resta qui: riprova.');
+    }
     const data = await response.json().catch(() => ({}));
+    if (response.status < 500 && !response.ok && !data.error) {
+      // This page is out of date, usually after the idle limit. The server knows where the child belongs:
+      // after the limit that is the start page, as on every other page.
+      window.location.reload();
+      return new Promise(() => {});
+    }
     if (!response.ok) throw new Error(data.error || 'Salvataggio non disponibile. Riprova.');
     return data;
   }
@@ -144,8 +155,11 @@
     try {
       await Promise.all(drafts.map(flush => flush()));
       if (button.dataset.action !== 'save') {
-        if (!window.studyLogger) throw new Error('Salvataggio dei dati non disponibile. Riprova.');
-        await window.studyLogger.sendLogs();
+        try {
+          await window.tryAgain(() => window.studyLogger.sendLogs());
+        } catch (_) {
+          throw new Error('Salvataggio dei dati non disponibile. Riprova.');
+        }
       }
       const revisions = Object.fromEntries(editors.map(field => [
         `${field.dataset.target}:${field.dataset.number}`, Number(field.dataset.revision)
@@ -157,7 +171,7 @@
         window.location.reload();
       }
     } catch (error) {
-      updateStatus(error instanceof TypeError ? 'Connessione non disponibile. Riprova.' : error.message, true);
+      updateStatus(error.message, true);
       [...actions, ...editors].forEach(control => { control.disabled = false; });
     }
   }

@@ -4,15 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Prima risposta · Domanda {{ task_number }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css') }}">
-  <script src="{{ url_for('static', filename='first-answer.js') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='child-pages-1') }}">
+  <script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}" defer></script>
+  <script src="{{ url_for('static', filename='first-answer.js', v='child-pages-2') }}" defer></script>
 </head>
 <body class="first-answer-page">
 {% include "test_run_banner.html" %}
   <main class="first-answer-panel" aria-labelledby="first-answer-question">
     <span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>
-    <p class="first-answer-intro">Pensi di sapere la risposta a questa domanda?</p>
+    {% if not first_answer %}<p class="first-answer-intro">Pensi di sapere la risposta a questa domanda?</p>{% endif %}
     <h1 id="first-answer-question">{{ topic }}</h1>
 
     {% if error %}
@@ -20,18 +21,13 @@
     {% endif %}
 
     {% if first_answer %}
-    <section class="first-answer-content" aria-label="La mia prima risposta">
-      <p class="first-answer-label">La mia prima risposta</p>
-      {% if first_answer.outcome == 'unknown' %}
-      <p class="first-answer-saved-unknown">Non lo so</p>
-      {% else %}
-      <textarea class="first-answer-text" rows="5" readonly aria-label="La mia prima risposta">
-{{ first_answer.text }}</textarea>
-      {% endif %}
-      <p class="first-answer-hint" role="status">Prima risposta confermata. Ora puoi cercare informazioni.</p>
+    <section class="first-answer-saved" aria-label="La mia prima risposta">
+      <p class="first-answer-saved-label">La tua prima risposta è la seguente:</p>
+      <p class="first-answer-saved-text">{{ 'Non lo so' if first_answer.outcome == 'unknown' else first_answer.text }}</p>
     </section>
+    <p class="first-answer-hint first-answer-hint--center" role="status">Prima risposta confermata. Ora puoi cercare informazioni.</p>
     {% else %}
-    <form id="first-answer-form" class="first-answer-content" action="{{ submit_url }}" method="post">
+    <form id="first-answer-form" class="first-answer-content" action="{{ submit_url }}" method="post" novalidate>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="attempt_id" value="{{ attempt_id }}">
       <input type="hidden" name="question_number" value="{{ task_number }}">
@@ -42,9 +38,13 @@
                   {% if error %}aria-invalid="true"{% endif %}
                   placeholder="Scrivi qui la tua risposta">
 {{ draft_text }}</textarea>
-        <button id="first-answer-unknown" class="app-btn first-answer-outline" type="button"
-                aria-haspopup="dialog" aria-controls="first-answer-unknown-dialog">Non lo so</button>
+        <div class="first-answer-actions">
+          <button id="first-answer-unknown" class="app-btn first-answer-outline" type="button"
+                  aria-haspopup="dialog" aria-controls="first-answer-unknown-dialog">Non lo so</button>
+          <button id="first-answer-confirm" class="app-btn app-btn-primary" type="submit" name="outcome" value="answered">Conferma</button>
+        </div>
       </div>
+      <p id="first-answer-hint" class="first-answer-hint">Conferma la tua risposta per iniziare la ricerca.</p>
       <fieldset id="first-answer-confidence" class="first-answer-confidence"{% if not draft_text|trim %} hidden disabled{% endif %}>
         <legend>Secondo te, quanto è giusta la tua risposta?</legend>
         <div class="first-answer-confidence-options">
@@ -66,10 +66,6 @@
       {% if draft_url %}<output id="first-answer-draft-status" class="first-answer-hint" aria-live="polite"
           data-url="{{ draft_url }}" data-revision="{{ draft_revision }}"></output>
       <button id="first-answer-retry-draft" class="app-btn first-answer-outline" type="button" hidden>Riprova salvataggio</button>{% endif %}
-      <div class="first-answer-confirm-row">
-        <p id="first-answer-hint" class="first-answer-hint">Conferma la tua risposta per iniziare la ricerca.</p>
-        <button class="app-btn app-btn-primary" type="submit" name="outcome" value="answered">Conferma risposta</button>
-      </div>
     </form>
 
     <dialog id="first-answer-unknown-dialog" class="first-answer-dialog"
@@ -89,13 +85,11 @@
     </dialog>
     {% endif %}
 
+    {% if first_answer %}
     <div class="first-answer-search">
-      {% if first_answer %}
       <a id="first-answer-search" class="app-btn app-btn-primary" href="{{ search_url }}">Entra nel motore di ricerca</a>
-      {% else %}
-      <button id="first-answer-search" class="app-btn app-btn-primary" type="button" disabled>Entra nel motore di ricerca</button>
-      {% endif %}
     </div>
+    {% endif %}
   </main>
   {% if study_context %}
   <script>

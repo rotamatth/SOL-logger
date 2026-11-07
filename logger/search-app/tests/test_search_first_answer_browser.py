@@ -18,7 +18,7 @@ def enter(page, base, unknown=False):
     else:
         page.fill("#first-answer-text", ORIGINAL)
         page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
-        page.get_by_role("button", name="Conferma risposta", exact=True).click()
+        page.get_by_role("button", name="Conferma", exact=True).click()
     page.click("a#first-answer-search")
     page.wait_for_url("**/search")
 
@@ -34,7 +34,7 @@ def test_original_is_read_only_across_search_results_viewer_and_navigation(stude
     enter(page, base)
     show(page)
     original = page.locator("#search-first-answer-text")
-    assert original.input_value() == ORIGINAL and original.get_attribute("readonly") is not None
+    assert original.evaluate("element => element.textContent") == ORIGINAL
     page.get_by_role("button", name="Chiudi prima risposta").click()
     assert page.evaluate("document.activeElement.id") == "search-first-answer-btn"
 
@@ -43,7 +43,7 @@ def test_original_is_read_only_across_search_results_viewer_and_navigation(stude
     page.fill("#textarea_feedback", "Una bozza finale separata")
     page.click("#continue-search-btn")
     show(page)
-    assert page.locator("#search-first-answer-text").input_value() == ORIGINAL
+    assert page.locator("#search-first-answer-text").evaluate("element => element.textContent") == ORIGINAL
     page.keyboard.press("Escape")
     page.locator("#search-first-answer-dialog:not([open])").wait_for(state="attached")
     assert page.evaluate("document.activeElement.id") == "search-first-answer-btn"
@@ -58,7 +58,7 @@ def test_original_is_read_only_across_search_results_viewer_and_navigation(stude
     page.locator("#search-first-answer-dialog:not([open])").wait_for(state="attached")
     show(page)
     page.goto(base + "/search")
-    assert page.locator("#search-first-answer-text").input_value() == ORIGINAL
+    assert page.locator("#search-first-answer-text").evaluate("element => element.textContent") == ORIGINAL
     page.evaluate("() => window.studyLogger.sendLogs()")
 
     records = saved(root, "1")
