@@ -34,14 +34,20 @@
   document.getElementById('first-answer-cancel-unknown').addEventListener('click', () => {
     dialog.close();
   });
+  // The browser words its own warnings in the tablet's language, so the form turns them off and asks in Italian.
+  function ask(event, field, message) {
+    event.preventDefault();
+    field.setCustomValidity(message);
+    field.reportValidity();
+  }
   text.addEventListener('input', () => { text.setCustomValidity(''); updateAssessment(); });
-  options.forEach(option => option.addEventListener('change', showReadiness));
+  options.forEach(option => option.addEventListener('change', () => {
+    options[0].setCustomValidity('');
+    showReadiness();
+  }));
   form.addEventListener('submit', (event) => {
-    if (!text.value.trim()) {
-      event.preventDefault();
-      text.setCustomValidity('Scrivi una risposta oppure scegli “Non lo so”.');
-      text.reportValidity();
-    }
+    if (!text.value.trim()) ask(event, text, 'Scrivi una risposta oppure scegli “Non lo so”.');
+    else if (confidence() === null) ask(event, options[0], 'Scegli quanto è giusta la tua risposta.');
   });
 
   const status = document.getElementById('first-answer-draft-status');

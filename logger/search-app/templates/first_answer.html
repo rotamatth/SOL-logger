@@ -26,7 +26,7 @@
     </section>
     <p class="first-answer-hint first-answer-hint--center" role="status">Prima risposta confermata. Ora puoi cercare informazioni.</p>
     {% else %}
-    <form id="first-answer-form" class="first-answer-content" action="{{ submit_url }}" method="post">
+    <form id="first-answer-form" class="first-answer-content" action="{{ submit_url }}" method="post" novalidate>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="attempt_id" value="{{ attempt_id }}">
       <input type="hidden" name="question_number" value="{{ task_number }}">

@@ -146,3 +146,9 @@ def test_the_confirmed_answer_no_longer_asks_whether_the_child_knows_it(site):
     page = client.get("/task").text
     assert prompt not in page and "La tua prima risposta è la seguente:" in page
 
+
+def test_the_error_pages_speak_italian(site):
+    client = site.app.test_client()
+    page = client.get("/non-esiste")
+    assert page.status_code == 404
+    assert "Pagina non trovata" in page.text and "Page Not Found" not in page.text
