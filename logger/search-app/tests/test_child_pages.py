@@ -136,3 +136,13 @@ def test_the_fonts_are_served_from_here(site):
         assert response.status_code == 200 and len(response.data) > 1000
         response.close()
     assert "fonts.googleapis" not in css
+
+
+def test_the_confirmed_answer_no_longer_asks_whether_the_child_knows_it(site):
+    client = begin(site)
+    prompt = "Pensi di sapere la risposta a questa domanda?"
+    assert prompt in client.get("/task").text
+    assert first(client, "Prima risposta").status_code == 303
+    page = client.get("/task").text
+    assert prompt not in page and "La tua prima risposta è la seguente:" in page
+

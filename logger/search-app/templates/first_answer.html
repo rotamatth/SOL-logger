@@ -12,7 +12,7 @@
 {% include "test_run_banner.html" %}
   <main class="first-answer-panel" aria-labelledby="first-answer-question">
     <span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>
-    <p class="first-answer-intro">Pensi di sapere la risposta a questa domanda?</p>
+    {% if not first_answer %}<p class="first-answer-intro">Pensi di sapere la risposta a questa domanda?</p>{% endif %}
     <h1 id="first-answer-question">{{ topic }}</h1>
 
     {% if error %}
