@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Drop the question prompt once the first answer is confirmed
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `logger/search-app/templates/first_answer.html` — "Pensi di sapere la risposta a questa domanda?" appears only while the form is open
+- `logger/search-app/tests/test_child_pages.py` — the prompt on the form, and not on the confirmed page
+
+**What changed for the participant**
+The page that shows the confirmed first answer no longer asks whether the child knows the answer. The question and the answer stay.
+
+**How it works**
+A condition on `first_answer` in the template.
+
+**If something looks wrong after this, check**
+- The prompt missing from the form → the condition in `first_answer.html`.
+
+**Left alone**
+What is saved and logged, and the same prompt's short form on the question's introduction.
+
+**Verified**
+A test on both states of the page, and on the production image.
+
 ## 2026-11-07 — Document the child page fixes with before and after pictures
 
 **Commit:** pending · **Type:** content · **Area:** docs
