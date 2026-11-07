@@ -51,7 +51,8 @@ history of what was checked stays visible.
   rootful Docker: `id`, `docker info --format '{{.SecurityOptions}}'`, `git log -1 --oneline`, `ls -ln logger/logs | head -3`,
   `df -h .`, `python3 --version`, `docker compose version`. Done when these match, or the differences are understood.
 - [ ] **Repeat the rehearsal on the code actually released.** #28 combines #22 (with #23), #26, #27 and dashboard v2; #21 is
-  not in it. The class, crash, fault and deploy rehearsals covered earlier heads. Done when they pass on the final merge.
+  not in it. _2026-11-07: class, shared tablets, crash, faults and researcher changes passed on the head of `child-pages-2026-11-10`, which adds the
+  child pages to #28, and upgrading from the deployed `85f9781` kept a run under way and the server's setup._ Done when they pass on the final merge.
 - [ ] **Real search on both engines, on the server.** _2026-11-06: with the Discovery Engine Viewer role, a real query from a Mac
   returned results from each engine on its own topic. Vertex gave no suggestions for either, so autocomplete relies on the
   SerpAPI fallback._ Set the variables in `production_readiness.md` on the server and run `tools/check_search_engines.py`, then type

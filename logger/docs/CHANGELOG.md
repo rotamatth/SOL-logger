@@ -65,9 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Document the child page fixes with before and after pictures
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/child_pages_2026-11.md` — each fix, the decisions, the awkward cases tried, and what was left for Matthias
+- `logger/docs/child_pages_2026-11/` — before and after pictures, with test IDs and test answers only
+- `logger/docs/follow_up_checks.md` — where the rehearsals stand
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The iPad pictures are cropped to the page, so the server's address and the device's status bar stay out of a public repository.
+
+**If something looks wrong after this, check**
+- A picture that no longer matches the page → the page changed after 7 November, and this record did not.
+
+**Left alone**
+All code.
+
+**Verified**
+Each picture opened and checked for real IDs or answers. The review pictures are named by the clip each one shows, since question order is random.
+
 ## 2026-11-07 — Keep "Avvia animazione" off the answers
 
-**Commit:** pending · **Type:** fix · **Area:** child interface
+**Commit:** pending · **Type:** fix · **Area:** styling
 
 **Files**
 - `logger/search-app/static/study-review.js` — the button joins the page's buttons, and is not offered for a clip that cannot load
@@ -91,7 +115,7 @@ Browser tests with `play()` refused and with the MP4 blocked.
 
 ## 2026-11-07 — Back from an introduction no longer starts the question
 
-**Commit:** pending · **Type:** fix · **Area:** study flow
+**Commit:** pending · **Type:** fix · **Area:** task-flow
 
 **Files**
 - `logger/search-app/search_app.py` — pages a child should not be on send a question not begun to its introduction
