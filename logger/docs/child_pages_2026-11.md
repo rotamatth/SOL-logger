@@ -202,6 +202,39 @@ On the production image with stand-in search, not on a real tablet: Tuesday with
 **One of the six Tuesday runs went differently:** 18 of 20 finished, still with no log damage. ID 19 got "Salvataggio non disponibile" at the start page, and ID 1 saved its activity but the robot's "Chiudi" did not move on. The reason was not recorded, because that run kept only a summary. It did not recur in the other five.
 Four of those were a direct comparison, two runs with the server's connection setting at 75 seconds and two at 2 seconds. All four finished 20 of 20, so the setting shows no sign of causing it. A burst of 20 children tapping "Continua" in the same instant, twice, answered everyone within 0.33 s. The start page now writes the reason to the server's log if it ever fails again. It says "riprova", and a new try works.
 
+## Independent review, 7 November
+
+Codex checked fixes 15-18 on `cece042`, without changing the code. Its report is `codex_investigation_2026-11-07_findings.md`, if Matthias keeps it in the repository; its evidence is on Matthias's Mac. Its run ended before the final write-up, so the report still says "verification is still running". It answered all seven questions. It found no damage to saved logs or answers. Fixes 19-22 come from it.
+
+### 19. Recap buttons that did nothing when tapped early
+
+![After, while the page opens](child_pages_2026-11/after-recap-buttons-waiting.jpg)
+
+The picture was taken with the script blocked, because the state lasts only a moment.
+
+**Was:** "Salva modifiche", "Salva l'attività" and "Chiudi" looked ready before their script had started, so an early tap was lost. In rehearsals 4 to 9 of 20 children needed a second "Chiudi" tap.
+**Now:** the buttons look faded and cannot be tapped until they work. The second tap fell to 0 of 20 in both Tuesday runs, measured by the corrected robot.
+
+### 20. A false "La bozza è cambiata"
+
+**Was:** if the reply to a first or final answer draft was lost, the repeat was refused as an old revision. The child read that the draft had changed, and further draft saves stopped. "Conferma" still worked. The automatic repeat of fix 17 made this easier to reach.
+**Now:** the server accepts the exact same save again. Other text, other stars and older revisions are still refused.
+
+### 21. The last English labels
+
+The tab on the results page said "Cerca - Search Results". It now says "Cerca - Risultati". The pagination label, the thumbnail's text and the viewer's title are in Italian too.
+
+### 22. Stopping the server
+
+**Was:** at `--keep-alive 75`, a browser connection open during a stop led to a hard kill (exit 137) after about 3.3 seconds. Without such a connection the server stopped cleanly. No data was at risk in the crash rehearsals, but a clean stop is better before the deploy's backup.
+**Now:** `--graceful-timeout 2`: the server exits by itself (exit 0) in 2.4 seconds, measured on the production image with one idle connection.
+
+### What the review changed in the findings above
+
+- **ID 19's error.** The start page gives up after 2 seconds waiting for its lock (`TimeoutError: Admission busy`). Codex reproduced this for 2 of 20 children under much heavier load, with the server, 24 browsers, exports and PDFs on one Mac, and a retry worked. This is the leading explanation for ID 19, not a proven one. The 2 seconds stay as they are: the disk here is fast, and 20 starts with nothing else running answered within 0.33 s.
+- **Fix 17's connection setting.** Full-page forms failed 1 to 2% of the time at the old 2 seconds and 0 of 400 at 75 seconds, in a small test app. The cause on the iPad is still not proven.
+- **The rehearsal robot.** It could count a child as finished when the recap failed, and could report a second tap when a page was only slow to load. Both are corrected for the Tuesday runs from fix 19 on. Earlier "finished" counts are weaker than they looked, although the last comparison run was checked by hand: all 20 had their finishing event.
+
 ## Awkward use, tried on the production image
 
 Each of these ran on the real pages in a browser, in WebKit, Chromium or both, with test IDs unless noted.
@@ -226,9 +259,13 @@ Each of these ran on the real pages in a browser, in WebKit, Chromium or both, w
 These change nothing in the logs. Each was left because it is a decision, or a change to a page that works, so close to the class.
 
 - **A recap past the 60-minute limit.** Changes not saved by then are not kept, and the run gets no PDF. Keeping a child on the recap through a long break would need an exception to the limit or to the rule that hides the recap from a returning browser, so that a next child could see or change the answers. That is a flow decision. See fix 18.
+- **The start page's error under load.** A child who gets "Salvataggio non disponibile" can try again, and that worked each time. Automatic retrying would change what the child sees. The server's log now gives the reason, so look there first if it happens.
+- **A request that never finishes.** The recap's buttons stay disabled until the browser gives up on it. Reloading the page should clear it. Adding deadlines is a bigger change than this close to the class allows.
+- **Events left in the browser.** A child who returns past the idle limit reaches a closing page that uploads nothing. On the real flow, tried on the production image, that left one `idSubmitted`, and the next child on that tablet recovered it into a side log. Events queued while offline would wait the same way.
+- **Two tabs on one tablet.** If a second tab ends the session, "Chiudi" keeps saying "Salvataggio dei dati non disponibile" until the page is reloaded. Children use one tab.
+- **Text typed before the page's script has started** is treated as already saved, and is lost unless the child types more. It is a narrow window, and untested. The simple fix could log edits that never happened, so it needs care.
 - **Diletta's questions on the child pages.** Test IDs have their own fixed questions, and real IDs open only on the session's day, so she cannot see her own questions as a child before Tuesday. She can read them in the dashboard and check the clips through `TEST-orecchio`, whose three questions follow the same box order.
 - **The orecchio recap.** The first column covers the child in the picture, as the wider columns did before. It may need looking at on a real screen.
-- **"Chiudi" tapped at once.** A tap before the page's script has started does nothing, and a second tap works. In the rehearsals 4 to 9 of 20 children needed it, tapping within a second under load, with either connection setting. Nothing is lost, including when it is never tapped.
 - **Emoji in the PDF** print as a black square. The pages and the log keep them.
 - **Old external scripts on the search page** raise a browser error, `Cannot read properties of undefined (reading 'fn')`, which stopped nothing in any rehearsal. Removing them is a change to a page that works.
 
