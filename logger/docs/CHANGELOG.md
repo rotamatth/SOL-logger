@@ -65,6 +65,28 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Fit the lost-draft test to the accepted repeat
+
+**Commit:** pending · **Type:** fix · **Area:** tests
+
+**Files**
+- `logger/search-app/tests/test_final_answer_draft_browser.py` — after a lost reply the draft is repeated by itself, with no button and no message
+
+**What changed for the participant**
+No visible change: the test catches up with "Accept a repeat of a draft save whose reply was lost".
+
+**How it works**
+The test expected the old false conflict: a retry button, then "ricarica". What it protects stays: the saved text is not replaced, the revision stays 1, and a reload shows the same text.
+
+**If something looks wrong after this, check**
+Nothing in the app.
+
+**Left alone**
+The app.
+
+**Verified**
+This test and the full suite.
+
 ## 2026-11-07 — Document the independent review and its fixes
 
 **Commit:** pending · **Type:** content · **Area:** docs

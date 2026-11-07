@@ -246,11 +246,14 @@ def test_lost_draft_ack_recovers_the_durable_text_without_replacing_it(student_s
             route.continue_()
 
     page.route("**/final-answer/draft", lose)
-    page.fill("#textarea_feedback", "Salvata senza conferma di rete")
-    page.locator("#final-answer-draft-retry:not([hidden])").wait_for()
+    # The saved draft is repeated by itself, and the server accepts the same save without writing it twice.
+    with page.expect_response("**/final-answer/draft", timeout=15000) as repeated:
+        page.fill("#textarea_feedback", "Salvata senza conferma di rete")
+    assert lost and repeated.value.ok
+    wait_saved(page)
+    assert page.locator("#final-answer-draft-retry").is_hidden()
+    assert page.locator("#final-answer-draft-status").inner_text() == ""
     assert persisted(root) == ("Salvata senza conferma di rete", 1)
-    page.click("#final-answer-draft-retry")
-    page.locator("#final-answer-draft-status").filter(has_text="ricarica").wait_for()
     page.reload()
     open_box(page)
     wait_saved(page)
