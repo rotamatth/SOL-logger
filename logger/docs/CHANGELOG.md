@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Document the independent review and its fixes
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/child_pages_2026-11.md` — fixes 19-22, what the review changed, and what is left for Matthias
+- `logger/docs/child_pages_2026-11/after-recap-buttons-waiting.jpg` — the buttons while the page opens
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+Nothing in the app.
+
+**Left alone**
+Everything else.
+
+**Verified**
+The picture was looked at, and shows a test ID and test answers only.
+
 ## 2026-11-07 — Let the server stop cleanly with a browser connection open
 
 **Commit:** pending · **Type:** infra · **Area:** infra
