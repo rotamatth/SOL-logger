@@ -86,7 +86,7 @@ def test_question_answer_and_error_are_escaped_without_legacy_reward_scripts():
     page = Page(html)
     assert "&lt;/textarea&gt;&lt;script&gt;" in html
     assert attack not in html
-    assert all("first-answer.js" in a.get("src", "") for a in page.find("script"))
+    assert all("first-answer.js" in a.get("src", "") or "try-again.js" in a.get("src", "") for a in page.find("script"))
     assert "reward" not in html.lower()
 
 

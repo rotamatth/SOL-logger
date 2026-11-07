@@ -78,10 +78,10 @@
     dirty = false;
     saving = true;
     try {
-      const response = await fetch(status.dataset.url, {
+      const response = await window.tryAgain(() => fetch(status.dataset.url, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({...scope, text: value, confidence: selected, revision})
-      });
+      }));
       if (!response.ok) throw new Error(response.status === 409
         ? 'La bozza è cambiata. Il testo resta qui: ricarica la pagina per recuperarlo.'
         : 'Bozza non salvata. Il testo resta qui: riprova.');
@@ -102,7 +102,7 @@
       dirty = true;
       blocked = true;
       buffer();
-      status.textContent = error.message || 'Bozza non salvata. Riprova.';
+      status.textContent = error.constructor === Error ? error.message : 'Connessione non disponibile. Il testo resta qui: riprova.';
       retry.hidden = false;
     } finally {
       saving = false;

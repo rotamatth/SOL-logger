@@ -654,7 +654,8 @@
     </script>
     <script src="{{ url_for('static', filename='logger.js') }}"></script>
     <script src="{{ url_for('static', filename='interface.js') }}?v=20261022"></script>
-    {% if final_answer_draft %}<script src="{{ url_for('static', filename='final-answer-draft.js') }}"></script>{% endif %}
+    {% if final_answer_draft %}<script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}"></script>
+    <script src="{{ url_for('static', filename='final-answer-draft.js', v='child-pages-2') }}"></script>{% endif %}
 
     <script>
     (function () {
