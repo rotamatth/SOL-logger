@@ -251,7 +251,9 @@ def phase_redirect_url(phase=None):
     if phase == 'pre_id':
         return url_for('welcome')
     if phase == 'task_intro':
-        return url_for('task')
+        # The browser's Back reaches here from the introductions, which must not start the question.
+        progress = PROGRESS.current()
+        return PROGRESS.entry_url(progress) if progress else url_for('task')
     if phase == 'searching':
         return url_for('search_page')
     if phase == 'question_complete':

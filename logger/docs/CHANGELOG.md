@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Back from an introduction no longer starts the question
+
+**Commit:** pending · **Type:** fix · **Area:** study flow
+
+**Files**
+- `logger/search-app/search_app.py` — pages a child should not be on send a question not begun to its introduction
+- `logger/search-app/tests/test_child_pages.py` — one more case
+
+**What changed for the participant**
+The introductions have no logger, so the browser's Back works there. It reached the start page, which sent the child on to `/task`: that skipped the
+introductions and logged `TaskStarted`. Back now returns to the introduction, and the question starts only when the child taps "Inizia".
+
+**How it works**
+`phase_redirect_url` uses `PROGRESS.entry_url` for a question without a first answer. A question already begun still resumes at its form.
+
+**If something looks wrong after this, check**
+- A child who cannot leave an introduction → `entry_url`, and whether `TaskStarted` was stored for that attempt.
+
+**Left alone**
+Old runs without a progress record go to `/task` as they did.
+
+**Verified**
+Reload, Back and Forward at each step in WebKit and Chromium on the production image: one `TaskStarted` and one `TaskEnded` per question.
+
 ## 2026-11-07 — Keep a test ID's unsent choice out of the real log folder
 
 **Commit:** pending · **Type:** fix · **Area:** logging

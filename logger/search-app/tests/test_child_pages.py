@@ -81,6 +81,17 @@ def test_the_next_question_has_its_introduction_but_no_second_cominciamo(site):
     assert "Cominciamo!" not in page.text and "#2" in page.text and "Prova a rispondere" in page.text
 
 
+def test_back_from_an_introduction_does_not_start_the_question(site):
+    client = site.app.test_client()
+    client.post("/start", data={"user_id": "1"})
+    back = client.get("/start")
+    assert back.status_code == 302 and back.location.endswith("/task/intro")
+    assert not task_started(site, client, 1)
+    client.get("/task")
+    assert task_started(site, client, 1)
+    assert client.get("/start").location.endswith("/task")
+
+
 def test_the_introductions_need_a_run_and_expire_like_every_page(site):
     assert site.app.test_client().get("/task/intro").location.endswith("/welcome")
 
