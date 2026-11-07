@@ -143,6 +143,65 @@ the historical rules and are not sessions: a real May session would make Tuesday
 **Was:** on a tablet that blocks autoplay, the button sat on top of an answer card. It also appeared for a clip that could not load, where it did nothing.
 **Now:** it sits beside "Prossima domanda", and only when a tap can help. A clip that cannot load leaves its still on screen.
 
+## Second iPad test, 7 November
+
+Matthias ran a test ID through the deployed pages on the iPad. "Before" pictures come from that iPad, cropped to the page. "After" pictures
+come from the real app at 1280 x 680 with a test ID. Two differ: the Italian warning is drawn by the browser and comes from Chromium, and the pictures of fix 18 are at 1180 x 699 with a real ID, whose closing page shows no number.
+
+### 15. Warnings in English
+
+![Before](child_pages_2026-11/before-warning-english.jpg) ![After](child_pages_2026-11/after-warning-italian.jpg)
+
+**Was:** tapping "Conferma" without stars showed "Select one of these options".
+**Cause:** for a required field the browser writes its own warning, in the tablet's language. The earlier tests ran on a computer and read only whether the form was refused.
+**Now:** the forms turn the browser's warning off. The page asks for the same thing in the same place, in Italian: "Scegli quanto è giusta la tua risposta." and
+"Scrivi una risposta oppure scegli “Non lo so”.". The number on the start page uses its existing "Seleziona un numero".
+The error pages a child could reach, the start page's message and the tab title were in English too, and are now in Italian. `searchError` still logs `Connection Error`, so log analysis keeps its value.
+
+### 16. The question above the confirmed answer
+
+![Before](child_pages_2026-11/before-saved-prompt.jpg) ![After](child_pages_2026-11/after-saved-no-prompt.jpg)
+
+**Was:** the page with the confirmed answer still asked "Pensi di sapere la risposta a questa domanda?".
+**Now:** that line appears only while the form is open.
+
+### 17. "Load failed" while editing the recap
+
+![Before](child_pages_2026-11/before-recap-load-failed.jpg) ![After](child_pages_2026-11/after-recap-saved-draft.jpg)
+
+**Was:** editing "Cosa sai adesso" showed "Load failed" under the answer. That is the browser's own wording for a request that never got a reply, and the page printed it as it was.
+**Likely cause:** the server closed an idle connection after 2 to 3 seconds, Gunicorn's default. A tablet that sends a save just as that happens gets an immediate failure. The server keeps no access log, so what happened on the iPad at 12:58 cannot be confirmed. A dropped VPN would look the same, and the fix covers it too.
+**Reproduced** in WebKit on the production image, with 40 ms added each way as a VPN does, typing one letter every 2 to 3 seconds:
+
+| Version | Saves | Failed requests | Shown to the child |
+| --- | --- | --- | --- |
+| Before | 150 | at least 9 | 9, "Load failed" |
+| Repeats only, server still at 2 seconds | 150 | 7 | 0 |
+| Repeats and the server at 75 seconds, as released | 150 | 0 | 0 |
+
+**Now:** the server holds an idle connection for 75 seconds. WebKit closed idle connections itself after about 29 seconds when measured, so the browser closes first. A failed save is repeated up to three times within about 4 seconds, on the recap and on the drafts of the first and final answers. The server accepts a repeat of the same recap save.
+If the connection stays down, the child reads "Connessione non disponibile. Il testo resta qui: riprova." and the text stays. "Salva modifiche" tries again.
+
+![With no connection](child_pages_2026-11/after-recap-no-connection.jpg)
+
+### 18. The recap stuck after a long pause
+
+![Before](child_pages_2026-11/before-recap-blocked.jpg) ![After, at the start page](child_pages_2026-11/after-limit-start.jpg) ![After, once the number is picked](child_pages_2026-11/after-limit-back.jpg)
+
+**Was:** after more than 60 minutes on the recap, every save and "Salva l'attività" answered "Salvataggio non disponibile. Riprova.", for ever. The iPad pictures of fixes 17 and 18 are 64 minutes apart.
+**Cause:** the 60-minute limit ends the session. Past it the recap's routes answer 404, and the page treated that as a failure to retry. Reproduced on the production image with the clock moved on: the same message, from the same 404.
+**Now:** the page reopens, and the server sends the child to the start page as on every other page. Picking the number shows "Hai risposto alle tre domande" and "Chiudi l'attività".
+Tried with real IDs for typing, "Salva modifiche", "Salva l'attività" and "Chiudi". A test ID past the limit starts a new run instead, because test runs repeat freely.
+**Unchanged:** the 60 minutes, and the rule that a returning browser never shows the recap again, which keeps one child's answers from the next child on that tablet.
+**What this means:** the answers of each question were already saved. A recap change made past the limit is not kept, and that run gets no PDF and no `studySessionFinished` unless "Salva l'attività" came first. See "Noticed and left for Matthias".
+
+### Rehearsal on these fixes
+
+On the production image with stand-in search, not on a real tablet: Tuesday with 20 children and test IDs, one tablet shared by both classes, every server process killed during a class (back in 2.1 s), 9 faults and researcher changes during class, all with no log damage.
+
+**One of the six Tuesday runs went differently:** 18 of 20 finished, still with no log damage. ID 19 got "Salvataggio non disponibile" at the start page, and ID 1 saved its activity but the robot's "Chiudi" did not move on. The reason was not recorded, because that run kept only a summary. It did not recur in the other five.
+Four of those were a direct comparison, two runs with the server's connection setting at 75 seconds and two at 2 seconds. All four finished 20 of 20, so the setting shows no sign of causing it. A burst of 20 children tapping "Continua" in the same instant, twice, answered everyone within 0.33 s. The start page now writes the reason to the server's log if it ever fails again. It says "riprova", and a new try works.
+
 ## Awkward use, tried on the production image
 
 Each of these ran on the real pages in a browser, in WebKit, Chromium or both, with test IDs unless noted.
@@ -166,9 +225,10 @@ Each of these ran on the real pages in a browser, in WebKit, Chromium or both, w
 
 These change nothing in the logs. Each was left because it is a decision, or a change to a page that works, so close to the class.
 
+- **A recap past the 60-minute limit.** Changes not saved by then are not kept, and the run gets no PDF. Keeping a child on the recap through a long break would need an exception to the limit or to the rule that hides the recap from a returning browser, so that a next child could see or change the answers. That is a flow decision. See fix 18.
 - **Diletta's questions on the child pages.** Test IDs have their own fixed questions, and real IDs open only on the session's day, so she cannot see her own questions as a child before Tuesday. She can read them in the dashboard and check the clips through `TEST-orecchio`, whose three questions follow the same box order.
 - **The orecchio recap.** The first column covers the child in the picture, as the wider columns did before. It may need looking at on a real screen.
-- **"Chiudi" tapped at once.** A tap before the page's script has started does nothing, and a second tap works. In the rehearsal 4 of 20 children needed it, tapping within a second under load. Nothing is lost, including when it is never tapped.
+- **"Chiudi" tapped at once.** A tap before the page's script has started does nothing, and a second tap works. In the rehearsals 4 to 9 of 20 children needed it, tapping within a second under load, with either connection setting. Nothing is lost, including when it is never tapped.
 - **Emoji in the PDF** print as a black square. The pages and the log keep them.
 - **Old external scripts on the search page** raise a browser error, `Cannot read properties of undefined (reading 'fn')`, which stopped nothing in any rehearsal. Removing them is a change to a page that works.
 
@@ -181,4 +241,5 @@ What is saved and logged, the search, the question order, the session rules, the
 - **Logo:** replace `static/images/Logo.png`.
 - **Theme texts:** `INTRO_TEXTS` in `student_progress.py`.
 - **Where the cards sit on an animation:** the `.unlock--` rules in `static/study-review.css`, and `REVIEW_ARROWS` in `search_app.py`.
-- **After changing a page's CSS or a clip:** raise `child-pages-1` where the pages load it, or tablets may keep the old file.
+- **After changing a page's CSS, script or clip:** raise its `child-pages-N` where the pages load it, or tablets may keep the old file.
+- **How long an idle connection stays open:** `--keep-alive` in `logger/search-app/Dockerfile`.
