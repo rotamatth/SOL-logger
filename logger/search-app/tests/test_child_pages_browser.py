@@ -53,6 +53,53 @@ def test_every_step_of_a_question_fits_a_short_tablet(student_site, size):
         assert page.locator(card).is_visible()
 
 
+def reach_review(page, base):
+    open_first(page, base)
+    page.fill("#first-answer-text", "Laika")
+    page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
+    page.get_by_role("button", name="Conferma", exact=True).click()
+    page.locator("a#first-answer-search").wait_for()
+    page.click("a#first-answer-search")
+    page.wait_for_url("**/search")
+    search(page, "api miele")
+    page.click("#end-task-btn")
+    page.fill("#textarea_feedback", "Una cagnolina russa")
+    page.click("#feedback-btn")
+    page.click("#yes-end-btn")
+    page.wait_for_url("**/task-review/1")
+    page.locator("a.review-button").wait_for()
+
+
+def overlap(page, first, second):
+    a, b = page.locator(first).bounding_box(), page.locator(second).bounding_box()
+    return not (a["x"] + a["width"] <= b["x"] or b["x"] + b["width"] <= a["x"]
+                or a["y"] + a["height"] <= b["y"] or b["y"] + b["height"] <= a["y"])
+
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_a_tablet_that_blocks_autoplay_offers_a_button_clear_of_the_answers(student_site):
+    page, base, _ = student_site
+    page.add_init_script("HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('', 'NotAllowedError'))")
+    reach_review(page, base)
+    start = page.get_by_role("button", name="Avvia animazione")
+    start.wait_for()
+    assert page.locator(".review-actions .review-animation-start").count() == 1
+    assert not overlap(page, ".review-animation-start", ".review-after")
+    assert not overlap(page, ".review-animation-start", ".review-before")
+    assert page.locator(".review-animation").get_attribute("poster")
+
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_a_clip_that_cannot_load_leaves_its_still_and_no_dead_button(student_site):
+    page, base, _ = student_site
+    page.route("**/*.mp4*", lambda route: route.abort())
+    reach_review(page, base)
+    page.wait_for_function("document.querySelector('.review-animation').error !== null")
+    page.wait_for_timeout(200)
+    assert page.get_by_role("button", name="Avvia animazione").count() == 0
+    assert page.locator("a.review-button").is_visible()
+
+
 def test_a_mistaken_non_lo_so_has_two_equal_buttons(student_site):
     page, base, _ = student_site
     open_first(page, base)

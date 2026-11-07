@@ -165,13 +165,6 @@
   }
 }
 
-.review-animation-start {
-  position: absolute;
-  bottom: 0;
-  left: 8px;
-  z-index: 3;
-}
-
 .review-actions {
   display: flex;
   flex-wrap: wrap;

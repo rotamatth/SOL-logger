@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Keep "Avvia animazione" off the answers
+
+**Commit:** pending · **Type:** fix · **Area:** child interface
+
+**Files**
+- `logger/search-app/static/study-review.js` — the button joins the page's buttons, and is not offered for a clip that cannot load
+- `logger/search-app/static/study-review.css` — its old position removed
+- `logger/search-app/tests/test_child_pages_browser.py` — both cases
+
+**What changed for the participant**
+A tablet that blocks autoplay offers "Avvia animazione" beside "Prossima domanda", not on top of an answer card. A clip that cannot load leaves its still on screen, with no button that does nothing.
+
+**How it works**
+`play()` rejected with `video.error` set means the file failed, so nothing is offered. Any other rejection means the browser wants a tap.
+
+**If something looks wrong after this, check**
+- No animation and no button → the MP4's address and `video.error` in the browser.
+
+**Left alone**
+What is logged, and the normal case where the clip plays by itself.
+
+**Verified**
+Browser tests with `play()` refused and with the MP4 blocked.
+
 ## 2026-11-07 — Back from an introduction no longer starts the question
 
 **Commit:** pending · **Type:** fix · **Area:** study flow
