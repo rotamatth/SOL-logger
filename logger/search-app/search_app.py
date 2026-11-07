@@ -613,7 +613,7 @@ def result():
         session["query_correction_source"] = query_correction_source
         cache_query_results([], 0, message)
         record_view(query, 1)
-        return render_template(SEARCH_URL, title="Search Results",
+        return render_template(SEARCH_URL, title="Risultati",
                                search_results=[], query=query,
                                raw_query=raw_query,
                                corrected_query=corrected_query, query_correction_source=query_correction_source, page=page,
@@ -679,7 +679,7 @@ def result():
     record_view(query, page)
     start = (page - 1) * rpp
     end = start + rpp
-    return render_template(SEARCH_URL, title="Search Results",
+    return render_template(SEARCH_URL, title="Risultati",
                            search_results=all_results[start:end],
                            query=query, raw_query=raw_query,
                            corrected_query=corrected_query,
