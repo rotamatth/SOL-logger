@@ -65,6 +65,34 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Repeat a save after a dropped connection and hold connections open longer
+
+**Commit:** pending · **Type:** fix · **Area:** infra, task-flow
+
+**Files**
+- `logger/search-app/Dockerfile` — Gunicorn `--keep-alive 75`, up from its default of 2 seconds
+- `logger/search-app/static/try-again.js` — new: tries a failed request three more times, within about 4 seconds
+- `logger/search-app/static/recap.js`, `logger/search-app/static/first-answer.js`, `logger/search-app/static/final-answer-draft.js` — their saves use it, and show Italian if the connection stays down
+- `logger/search-app/templates/recap.html`, `logger/search-app/templates/first_answer.html`, `logger/search-app/templates/layout.html` — load it, with new cache versions
+- `logger/search-app/static/recap.css` — a little space between the answer box and its message, which the focus ring covered
+- `logger/search-app/tests/test_child_pages_browser.py`, `logger/search-app/tests/test_first_answer_ui.py` — a dropped request, a connection that stays down, and the extra script
+
+**What changed for the participant**
+"Load failed" no longer appears while editing an answer. A real loss of connection says "Connessione non disponibile. Il testo resta qui: riprova.", and the text stays.
+
+**How it works**
+Gunicorn closed an idle connection after 2 to 3 seconds. A tablet that sent a save on a connection just being closed got an immediate failure, which Safari words as "Load failed". A child typing slowly hits this often, more so over a VPN. WebKit closed idle connections itself after about 29 seconds in our measurement, so at 75 seconds the browser closes first and the race goes away. The repeat covers what is left. The server accepts a repeat of the same recap save.
+
+**If something looks wrong after this, check**
+- Many open connections on the server → `--keep-alive` in the `Dockerfile`. An idle connection holds no worker thread.
+- A rare "La bozza è cambiata" on a first or final answer → a repeat after a lost reply. The text stays, and "Conferma" still works.
+
+**Left alone**
+`/log_session`, which already keeps a batch until it is acknowledged, and what is saved and logged.
+
+**Verified**
+See "Load failed" in `logger/docs/child_pages_2026-11.md`: reproduced in WebKit on the production image, then repeated on the fix.
+
 ## 2026-11-07 — Warn the child in Italian whatever the tablet's language
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow

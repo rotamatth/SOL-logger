@@ -186,6 +186,10 @@
   font-weight: 700;
 }
 
+.recap-draft-error:not(:empty) {
+  margin-top: 6px;
+}
+
 #recap :focus-visible {
   outline: 3px solid #2e68b2;
   outline-offset: 3px;

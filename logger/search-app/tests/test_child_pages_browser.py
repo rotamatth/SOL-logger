@@ -136,3 +136,66 @@ def test_an_english_tablet_still_warns_in_italian(student_site):
     confirm.click()
     page.locator("a#first-answer-search").wait_for()
 
+
+def reach_recap(page, base):
+    reach_review(page, base)
+    for number in (2, 3):
+        page.click("a.review-button")
+        through_intro(page)
+        page.fill("#first-answer-text", "Laika")
+        page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
+        page.get_by_role("button", name="Conferma", exact=True).click()
+        page.locator("a#first-answer-search").wait_for()
+        page.click("a#first-answer-search")
+        page.wait_for_url("**/search")
+        search(page, "api miele")
+        page.click("#end-task-btn")
+        page.fill("#textarea_feedback", "Una cagnolina russa")
+        page.click("#feedback-btn")
+        page.click("#yes-end-btn")
+        page.wait_for_url(f"**/task-review/{number}")
+        page.locator("a.review-button").wait_for()
+    page.click("a.review-button")
+    page.get_by_role("button", name="Salva l’attività").wait_for()
+
+
+def editor_message(page):
+    return page.locator("textarea[data-target]").first.evaluate("field => field.nextElementSibling.textContent")
+
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_a_dropped_connection_on_the_recap_is_repeated_without_troubling_the_child(student_site):
+    page, base, _ = student_site
+    reach_recap(page, base)
+    drops = []
+
+    def drop_once(route):
+        if not drops:
+            drops.append(route.request.url)
+            route.abort("connectionreset")
+        else:
+            route.continue_()
+
+    page.route("**/recap/draft", drop_once)
+    with page.expect_response("**/recap/draft") as saved:
+        page.locator("textarea[data-target]").first.fill("Una cagnetta di nome Laika")
+    assert saved.value.ok and drops
+    page.wait_for_timeout(100)
+    assert editor_message(page) == ""
+
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_a_connection_that_stays_down_is_explained_in_italian_and_keeps_the_text(student_site):
+    page, base, _ = student_site
+    reach_recap(page, base)
+    page.route("**/recap/draft", lambda route: route.abort("connectionreset"))
+    field = page.locator("textarea[data-target]").first
+    field.fill("Una cagnetta di nome Laika")
+    page.wait_for_function("document.querySelector('textarea[data-target]').nextElementSibling.textContent !== ''", timeout=15000)
+    assert editor_message(page) == "Connessione non disponibile. Il testo resta qui: riprova."
+    assert field.input_value() == "Una cagnetta di nome Laika"
+    page.unroute("**/recap/draft")
+    with page.expect_response("**/recap/draft") as saved:
+        page.get_by_role("button", name="Salva modifiche").click()
+    assert saved.value.ok
+
