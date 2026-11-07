@@ -190,7 +190,7 @@ If the connection stays down, the child reads "Connessione non disponibile. Il t
 
 **Was:** after more than 60 minutes on the recap, every save and "Salva l'attività" answered "Salvataggio non disponibile. Riprova.", for ever. The iPad pictures of fixes 17 and 18 are 64 minutes apart.
 **Cause:** the 60-minute limit ends the session. Past it the recap's routes answer 404, and the page treated that as a failure to retry. Reproduced on the production image with the clock moved on: the same message, from the same 404.
-**Now:** the page reopens, and the server sends the child to the start page as on every other page. Picking the number shows "Hai risposto alle tre domande" and "Chiudi l'attività".
+**Now:** the page reopens, once, and the server sends the child to the start page as on every other page. Picking the number shows "Hai risposto alle tre domande" and "Chiudi l'attività".
 Tried with real IDs for typing, "Salva modifiche", "Salva l'attività" and "Chiudi". A test ID past the limit starts a new run instead, because test runs repeat freely.
 **Unchanged:** the 60 minutes, and the rule that a returning browser never shows the recap again, which keeps one child's answers from the next child on that tablet.
 **What this means:** the answers of each question were already saved. A recap change made past the limit is not kept, and that run gets no PDF and no `studySessionFinished` unless "Salva l'attività" came first. See "Noticed and left for Matthias".

@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Reopen a refused recap only once
+
+**Commit:** pending · **Type:** fix · **Area:** session, task-flow
+
+**Files**
+- `logger/search-app/static/recap.js` — the reload on a refused save happens at most once in 30 seconds
+- `logger/search-app/templates/recap.html` — new cache version
+- `logger/search-app/tests/test_child_pages_browser.py` — a save that stays refused
+
+**What changed for the participant**
+No change in the normal case, including past the idle limit. If a save stayed refused while the page itself still opened, the page would have kept reloading. It now reloads once and then says "Salvataggio non disponibile. Riprova."
+
+**How it works**
+Text buffered on the tablet is sent again when the page opens, so a refusal could lead to another reload. `reopen()` keeps the time of its last reload in `sessionStorage`.
+
+**If something looks wrong after this, check**
+- A recap that answers "Salvataggio non disponibile" without reloading → the request's status, and `solRecapReopened` in the browser's storage.
+
+**Left alone**
+The idle limit and where the child goes past it.
+
+**Verified**
+CI found the repeat: its slower machine ran the test's refused save a second time. A browser test now keeps a save refused and checks there is no second reload.
+
 ## 2026-11-07 — Document the fixes from the second iPad test
 
 **Commit:** pending · **Type:** content · **Area:** docs
