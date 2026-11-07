@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Send the child to the start page when the recap has passed the idle limit
+
+**Commit:** pending · **Type:** fix · **Area:** session, task-flow
+
+**Files**
+- `logger/search-app/static/recap.js` — a save the server no longer recognises reopens the page
+- `logger/search-app/tests/test_child_pages_browser.py`, `logger/search-app/tests/test_editable_recap.py` — the page reopens; past the limit the child reaches the start page, then the closing page
+
+**What changed for the participant**
+A recap left open for more than an hour no longer repeats "Salvataggio non disponibile. Riprova." for ever. The next tap or edit leads to the start page, as on every other page. Picking the number again shows "Hai risposto alle tre domande" and "Chiudi l'attività".
+
+**How it works**
+Past `STUDENT_IDLE_SECONDS` the recap's routes answer 404 and the session ends, and the script treated that as a failure to retry. It now reloads the page on a 4xx with no message of its own, and the server sends the child where they belong.
+
+**If something looks wrong after this, check**
+- A recap that reloads when tapped → which request answered 4xx, in the server's log.
+
+**Left alone**
+The 60 minutes, which Matthias chose. The rule that a returning browser never shows the recap again, which keeps one child's answers from the next. So recap changes not yet saved at that point are not kept: see `logger/docs/child_pages_2026-11.md`.
+
+**Verified**
+The limit passed on the production image with real IDs, for typing, "Salva modifiche", "Salva l'attività" and "Chiudi".
+
 ## 2026-11-07 — Repeat a save after a dropped connection and hold connections open longer
 
 **Commit:** pending · **Type:** fix · **Area:** infra, task-flow

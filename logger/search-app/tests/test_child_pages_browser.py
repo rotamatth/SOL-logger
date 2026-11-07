@@ -199,3 +199,14 @@ def test_a_connection_that_stays_down_is_explained_in_italian_and_keeps_the_text
         page.get_by_role("button", name="Salva modifiche").click()
     assert saved.value.ok
 
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_a_recap_the_server_no_longer_recognises_is_reopened(student_site):
+    page, base, _ = student_site
+    reach_recap(page, base)
+    page.route("**/recap/draft", lambda route: route.fulfill(status=404, content_type="text/html", body="<p>Pagina non trovata</p>"))
+    with page.expect_navigation():
+        page.locator("textarea[data-target]").first.fill("Una cagnetta di nome Laika")
+    page.unroute("**/recap/draft")
+    assert page.url.endswith("/thank_you")
+    assert page.locator("textarea[data-target]").first.input_value() == "Una cagnetta di nome Laika"

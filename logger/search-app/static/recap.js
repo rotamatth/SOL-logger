@@ -22,6 +22,12 @@
       throw new Error('Connessione non disponibile. Il testo resta qui: riprova.');
     }
     const data = await response.json().catch(() => ({}));
+    if (response.status < 500 && !response.ok && !data.error) {
+      // This page is out of date, usually after the idle limit. The server knows where the child belongs:
+      // after the limit that is the start page, as on every other page.
+      window.location.reload();
+      return new Promise(() => {});
+    }
     if (!response.ok) throw new Error(data.error || 'Salvataggio non disponibile. Riprova.');
     return data;
   }
