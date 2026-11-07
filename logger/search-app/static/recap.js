@@ -10,6 +10,21 @@
     status.toggleAttribute('data-error', error);
   }
 
+  // This page is out of date, usually after the idle limit. The server knows where the child belongs:
+  // after the limit that is the start page, as on every other page. Text buffered on the tablet is sent again
+  // when the page opens, so a request that stays refused must not reload the page for ever.
+  function reopen() {
+    const key = `solRecapReopened:${attempt}`;
+    try {
+      if (Date.now() - Number(sessionStorage.getItem(key)) < 30000) return false;
+      sessionStorage.setItem(key, String(Date.now()));
+    } catch (_) {
+      // Without storage no text is buffered, so nothing is sent when the page opens.
+    }
+    window.location.reload();
+    return true;
+  }
+
   async function post(url, payload = {}) {
     let response;
     try {
@@ -22,10 +37,7 @@
       throw new Error('Connessione non disponibile. Il testo resta qui: riprova.');
     }
     const data = await response.json().catch(() => ({}));
-    if (response.status < 500 && !response.ok && !data.error) {
-      // This page is out of date, usually after the idle limit. The server knows where the child belongs:
-      // after the limit that is the start page, as on every other page.
-      window.location.reload();
+    if (response.status < 500 && !response.ok && !data.error && reopen()) {
       return new Promise(() => {});
     }
     if (!response.ok) throw new Error(data.error || 'Salvataggio non disponibile. Riprova.');

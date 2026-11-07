@@ -207,6 +207,13 @@ def test_a_recap_the_server_no_longer_recognises_is_reopened(student_site):
     page.route("**/recap/draft", lambda route: route.fulfill(status=404, content_type="text/html", body="<p>Pagina non trovata</p>"))
     with page.expect_navigation():
         page.locator("textarea[data-target]").first.fill("Una cagnetta di nome Laika")
-    page.unroute("**/recap/draft")
     assert page.url.endswith("/thank_you")
+    assert page.locator("textarea[data-target]").first.input_value() == "Una cagnetta di nome Laika"
+    # The text is sent again as the page opens. Refused again, the page stays and says so.
+    reloads = []
+    page.on("framenavigated", lambda frame: reloads.append(frame.url))
+    page.wait_for_function("document.querySelector('textarea[data-target]').nextElementSibling.textContent !== ''", timeout=15000)
+    page.wait_for_timeout(1000)
+    assert editor_message(page) == "Salvataggio non disponibile. Riprova."
+    assert reloads == []
     assert page.locator("textarea[data-target]").first.input_value() == "Una cagnetta di nome Laika"
