@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Translate the last English labels on the search pages
+
+**Commit:** pending · **Type:** fix · **Area:** serp, result-viewer
+
+**Files**
+- `logger/search-app/search_app.py` — the results page's tab title
+- `logger/search-app/templates/search.html`, `logger/search-app/templates/webpage.html` — pagination label, thumbnail text and viewer title
+- `logger/search-app/tests/test_child_pages.py` — none of them left on the results page
+
+**What changed for the participant**
+The tab says "Cerca - Risultati". The other three are read by screen readers, or shown if a thumbnail fails to load.
+
+**How it works**
+Text only. Nothing in the scripts or the logs reads these labels.
+
+**If something looks wrong after this, check**
+Nothing expected.
+
+**Left alone**
+The browser's own messages, which follow the device's language.
+
+**Verified**
+A test on the results page, and a search for each string in the scripts.
+
 ## 2026-11-07 — Accept a repeat of a draft save whose reply was lost
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, data

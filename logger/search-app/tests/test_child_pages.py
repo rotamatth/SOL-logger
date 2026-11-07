@@ -152,3 +152,12 @@ def test_the_error_pages_speak_italian(site):
     page = client.get("/non-esiste")
     assert page.status_code == 404
     assert "Pagina non trovata" in page.text and "Page Not Found" not in page.text
+
+
+def test_the_search_results_page_has_no_english_labels(student_modules):
+    from .test_student_security import searching_client
+    client = searching_client(student_modules(), results=[{
+        "docid": "1", "title": "Luna", "snippet": "Fasi", "link": "https://example.org/a", "displayed_link": "example.org"}])
+    page = client.post("/result", data={"query": "luna"}).get_data(as_text=True)
+    assert "<title>Cerca - Risultati</title>" in page
+    assert "Search Results" not in page and "Page navigation" not in page and "Result thumbnail" not in page
