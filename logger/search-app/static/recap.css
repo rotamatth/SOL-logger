@@ -190,6 +190,11 @@
   margin-top: 6px;
 }
 
+.review-button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
 #recap :focus-visible {
   outline: 3px solid #2e68b2;
   outline-offset: 3px;
