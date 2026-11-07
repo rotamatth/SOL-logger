@@ -65,6 +65,28 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Let the server stop cleanly with a browser connection open
+
+**Commit:** pending · **Type:** infra · **Area:** infra
+
+**Files**
+- `logger/search-app/Dockerfile` — Gunicorn `--graceful-timeout 2`
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+With `--keep-alive 75`, Gunicorn waits at stop for any open idle connection. On the production image a browser connection open during the stop led to a hard kill (exit 137) after about 3.3 seconds. At 2 seconds the server exits by itself, with exit 0, in 2.4 seconds. The independent review pointed this out.
+
+**If something looks wrong after this, check**
+- A request cut off during a deploy → it had 2 seconds to finish. Deploy with no class running, as always.
+
+**Left alone**
+The keep-alive of 75 seconds.
+
+**Verified**
+Measured on the production image with one idle connection, at the default, 5 and 2 seconds.
+
 ## 2026-11-07 — Translate the last English labels on the search pages
 
 **Commit:** pending · **Type:** fix · **Area:** serp, result-viewer
