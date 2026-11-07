@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Warn the child in Italian whatever the tablet's language
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow
+
+**Files**
+- `logger/search-app/templates/first_answer.html`, `logger/search-app/templates/start.html` — `novalidate`, so the browser no longer words these warnings itself
+- `logger/search-app/static/first-answer.js` — the warnings for no answer and no stars, in Italian
+- `logger/search-app/search_app.py`, `logger/search-app/templates/error.html`, `logger/search-app/templates/layout.html` — the 404, 500, search-failure and missing-questions pages, the start page's message and the tab title
+- `logger/search-app/tests/test_child_pages.py`, `logger/search-app/tests/test_child_pages_browser.py` — Italian on a browser set to English
+- `logger/search-app/tests/test_session_draft_visibility.py`, `logger/search-app/tests/test_study_enrollment.py` — they pinned the English half of the start page's message
+
+**What changed for the participant**
+Tapping "Conferma" without stars says "Scegli quanto è giusta la tua risposta." instead of the iPad's "Select one of these options". The same goes for the empty answer box, and the error pages are in Italian.
+
+**How it works**
+A `required` field makes the browser write its own warning in the device's language. The forms turn that off, and `first-answer.js` sets the text with `setCustomValidity` before asking the browser to show it, so the warning still appears in the same place.
+
+**If something looks wrong after this, check**
+- A form that goes through with no stars → the `submit` handler in `first-answer.js`. The server refuses it anyway, with its own Italian message.
+- The dashboard's 404 is now in Italian too, because the two share that page.
+
+**Left alone**
+`searchError` still logs `Connection Error`, so log analysis keeps its value. The dashboard's own pages.
+
+**Verified**
+A browser test set to English, on the production image, and the full suite. Matthias's iPad still has to confirm the warning, because the browser draws it.
+
 ## 2026-11-07 — Drop the question prompt once the first answer is confirmed
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow

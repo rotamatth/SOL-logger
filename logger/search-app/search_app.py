@@ -304,7 +304,7 @@ HOME_URL = "home.html"
 
 def render_task_config_error(message):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Task Configuration Error",
+                           error_title="Sessione non configurata",
                            error_message=message), 500
 
 def get_user_config(user_id):
@@ -314,7 +314,7 @@ def get_user_config(user_id):
         user = assignment['topics'] if assignment else None
     if not user:
         raise TaskConfigError(
-            f"No complete student task assignment found for user '{user_id}'."
+            f"Mancano le domande per il numero {user_id}. Chiedi al ricercatore."
         )
     return user
 
@@ -425,7 +425,7 @@ def start_page():
                     session.clear()
                     session.update(previous_session)
                 return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                       start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
+                                       start_error="La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
             session.clear()
             session['user_id'] = user_id
             session['task_config'] = deepcopy(assignment['topics'])
@@ -655,9 +655,9 @@ def result():
             if ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING:
                 return render_no_results("Modalità test: nessun risultato disponibile, ma puoi comunque scrivere una risposta.", query_correction_source=query_correction_source)
             return render_template(ERROR_URL, show_search=False,
-                                   error_title="Connection Error",
-                                   error_message="Could not connect to the search engine. Please try again later.",
-                                   is_search_engine_error=True), 503
+                                   error_title="Ricerca non disponibile",
+                                   error_message="Il motore di ricerca non risponde. Riprova tra poco.",
+                                   is_search_engine_error=True, search_error_log="Connection Error"), 503
 
         all_results = [normalize_result(r) for r in raw_results]
         session["search_results"] = all_results
@@ -1181,14 +1181,14 @@ def thank_you():
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Page Not Found",
-                           error_message="The page you are looking for does not exist."), 404
+                           error_title="Pagina non trovata",
+                           error_message="Questa pagina non esiste."), 404
 
 @app.errorhandler(500)
 def internal_error(e):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Server Error",
-                           error_message="Something went wrong on our end. Please try again."), 500
+                           error_title="Errore",
+                           error_message="Qualcosa non ha funzionato. Riprova o chiedi al ricercatore."), 500
 
 if __name__ == '__main__':
     debug = os.getenv("FLASK_DEBUG", "0") == "1"

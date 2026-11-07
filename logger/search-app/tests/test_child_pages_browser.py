@@ -110,3 +110,29 @@ def test_a_mistaken_non_lo_so_has_two_equal_buttons(student_site):
     back = page.get_by_role("button", name="Torna alla risposta").bounding_box()
     sure = page.get_by_role("button", name="Confermo: non lo so").bounding_box()
     assert back["width"] == sure["width"] and back["height"] == sure["height"] and back["y"] == sure["y"]
+
+
+def warning(page, field):
+    return page.locator(field).first.evaluate("element => element.validationMessage")
+
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_an_english_tablet_still_warns_in_italian(student_site):
+    page, base, _ = student_site
+    page.goto(base + "/start")
+    page.click("#continue-btn")
+    assert page.locator("#error-message").inner_text() == "Seleziona un numero"
+    open_first(page, base)
+    confirm = page.get_by_role("button", name="Conferma", exact=True)
+    confirm.click()
+    assert warning(page, "#first-answer-text") == "Scrivi una risposta oppure scegli “Non lo so”."
+    page.fill("#first-answer-text", "Laika")
+    assert warning(page, "#first-answer-text") == ""
+    confirm.click()
+    assert warning(page, "input[name=confidence]") == "Scegli quanto è giusta la tua risposta."
+    assert page.locator("#first-answer-form").count() == 1
+    page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
+    assert warning(page, "input[name=confidence]") == ""
+    confirm.click()
+    page.locator("a#first-answer-search").wait_for()
+
