@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Document the fixes from the second iPad test
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/child_pages_2026-11.md` — fixes 15-18, the rehearsal, and what is left for Matthias
+- `logger/docs/child_pages_2026-11/` — before pictures from the iPad, after pictures from the real app
+- `logger/docs/follow_up_checks.md` — the check these fixes still need on a real device
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+Nothing in the app.
+
+**Left alone**
+Everything else.
+
+**Verified**
+The pictures were looked at, and show test IDs and test answers only.
+
 ## 2026-11-07 — Log why a child could not start
 
 **Commit:** pending · **Type:** infra · **Area:** session
@@ -85,7 +109,7 @@ No visible change.
 The page itself, and the 2-second wait in `admission_lock`, because 20 starts in the same instant answered within 0.33 s.
 
 **Verified**
-The start tests. One rehearsal run out of seven showed this page once, for a reason that was not recorded then.
+The start tests. One rehearsal run out of six showed this page once, for a reason that was not recorded then.
 
 ## 2026-11-07 — Send the child to the start page when the recap has passed the idle limit
 
