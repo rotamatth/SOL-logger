@@ -708,9 +708,16 @@ class ProgressStore:
                     WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone():
                 raise SubmissionConflict("The final answer is already submitted")
             draft_key = (attempt_id, question_number, phase)
-            current = db.execute("""SELECT revision FROM progress_drafts
+            current = db.execute("""SELECT revision, text, confidence, saved_at FROM progress_drafts
                 WHERE attempt_id = ? AND question_number = ? AND phase = ?""", draft_key).fetchone()
             revision = current["revision"] if current else 0
+            if (current and revision == expected_revision + 1 and current["text"] == text
+                    and (phase != "first-answer" or current["confidence"] == confidence)):
+                # The same save again, because its reply was lost.
+                repeat = {"text": text, "revision": revision, "saved_at": current["saved_at"]}
+                if phase == "first-answer":
+                    repeat["confidence"] = confidence
+                return repeat
             if revision != expected_revision:
                 raise DraftConflict("Draft changed; reload the saved revision before retrying")
             saved = {"text": text, "revision": revision + 1, "saved_at": _now()}

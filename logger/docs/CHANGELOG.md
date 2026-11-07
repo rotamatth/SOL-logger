@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Accept a repeat of a draft save whose reply was lost
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, data
+
+**Files**
+- `logger/search-app/study_progress.py` — `save_draft` answers an exact repeat of the save that made the current revision
+- `logger/search-app/tests/test_study_progress.py`, `logger/search-app/tests/test_child_pages_browser.py` — the repeat, other text, other stars, an older revision, and a lost reply in a browser
+
+**What changed for the participant**
+After a lost reply on a first or final answer draft, the child no longer reads a false "La bozza è cambiata", and saving of the draft carries on.
+
+**How it works**
+The saved draft had reached the server, so the repeat looked like an old revision and got a 409, which stopped further draft saves. The automatic repeat in `try-again.js` made this easier to reach. The same rule already applied to recap drafts: same text at the next revision is the same save. For a first answer the stars must match too.
+
+**If something looks wrong after this, check**
+- A draft that overwrites newer text → this condition in `save_draft`. Different text, other stars and older revisions are still refused.
+
+**Left alone**
+Confirmed answers, which were never affected, and what is logged.
+
+**Verified**
+Store tests for each case and a browser test that lets the server save the draft and then drops the reply.
+
 ## 2026-11-07 — Keep the recap's buttons disabled until they work
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, styling
