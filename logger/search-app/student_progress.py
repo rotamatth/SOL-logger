@@ -157,6 +157,7 @@ class StudentProgress:
                     self.restore(attempt)
                     return redirect(self.entry_url(attempt))
             except (OSError, sqlite3.Error):
+                self.app.logger.exception("Could not admit a child at the start page")
                 session.clear()
                 session.update(previous)
                 return self.unavailable()
