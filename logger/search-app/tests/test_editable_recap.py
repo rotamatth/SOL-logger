@@ -201,3 +201,10 @@ def test_past_the_idle_limit_the_recap_gives_way_to_the_start_page_and_a_closing
     assert "Chiudi l’attività" in page.text and "Scritto prima della pausa" not in page.text
     with client.session_transaction() as state:
         assert state["progress_id"] == auth["attempt_id"]
+
+
+def test_the_recap_buttons_arrive_disabled_until_the_script_enables_them(recap):
+    module, client, current, past, past_id, future_id, auth = recap
+    page = client.get("/thank_you").text
+    for action in ("save", "finish"):
+        assert re.search(rf'<button[^>]*data-action="{action}"[^>]*\bdisabled\b', page)

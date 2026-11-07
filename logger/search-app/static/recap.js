@@ -188,5 +188,9 @@
     }
   }
 
-  actions.forEach(button => button.addEventListener('click', () => { void run(button); }));
+  // The buttons arrive disabled, so a tap before this script has started is not silently lost.
+  actions.forEach(button => {
+    button.addEventListener('click', () => { void run(button); });
+    button.disabled = false;
+  });
 })();

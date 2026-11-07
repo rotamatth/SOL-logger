@@ -217,3 +217,23 @@ def test_a_recap_the_server_no_longer_recognises_is_reopened(student_site):
     assert editor_message(page) == "Salvataggio non disponibile. Riprova."
     assert reloads == []
     assert page.locator("textarea[data-target]").first.input_value() == "Una cagnetta di nome Laika"
+
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_the_recap_buttons_wait_for_their_script(student_site):
+    page, base, _ = student_site
+    reach_recap(page, base)
+    held = []
+    page.route("**/recap.js*", lambda route: held.append(route))
+    page.reload(wait_until="commit")
+    button = page.get_by_role("button", name="Salva modifiche")
+    button.wait_for()
+    assert button.is_disabled() and page.get_by_role("button", name="Salva l’attività").is_disabled()
+    page.wait_for_timeout(200)
+    held[0].continue_()
+    page.wait_for_function("!document.querySelector('[data-action=save]').disabled")
+    page.unroute("**/recap.js*")
+    with page.expect_response("**/recap/save-changes") as saved:
+        button.click()
+    assert saved.value.ok
+

@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Keep the recap's buttons disabled until they work
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, styling
+
+**Files**
+- `logger/search-app/templates/recap.html` — "Salva modifiche", "Salva l'attività" and "Chiudi" arrive disabled, with new cache versions
+- `logger/search-app/static/recap.js` — enables them once their handlers are attached
+- `logger/search-app/static/recap.css` — a disabled button looks faded
+- `logger/search-app/tests/test_child_pages_browser.py`, `logger/search-app/tests/test_editable_recap.py` — with the script held back, the buttons wait for it
+
+**What changed for the participant**
+The recap's buttons look faded for a moment when the page opens. A tap in that moment no longer does nothing without a sign.
+
+**How it works**
+The buttons were enabled before the deferred scripts had attached their handlers, so an early tap was lost. Rehearsal robots needed a second "Chiudi" tap for 4 to 9 children of 20. The independent review confirmed the cause.
+
+**If something looks wrong after this, check**
+- Buttons that stay faded → `recap.js` or a script before it did not load: the browser's console and network log.
+
+**Left alone**
+What each button does, and what is saved and logged.
+
+**Verified**
+A browser test holds `recap.js` back and checks the buttons, and the rehearsals on the production image.
+
 ## 2026-11-07 — Reopen a refused recap only once
 
 **Commit:** pending · **Type:** fix · **Area:** session, task-flow

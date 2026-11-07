@@ -6,7 +6,7 @@
   <title>Le tue risposte</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='child-pages-1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='recap.css', v='child-pages-2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='recap.css', v='child-pages-3') }}">
   <script>
     window.SESSION_ID = {{ session.get('session_id')|tojson }};
     window.USER_ID = {{ session.get('user_id')|tojson }};
@@ -14,7 +14,7 @@
   </script>
   <script src="{{ url_for('static', filename='logger.js') }}" defer></script>
   <script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}" defer></script>
-  <script src="{{ url_for('static', filename='recap.js', v='child-pages-3') }}" defer></script>
+  <script src="{{ url_for('static', filename='recap.js', v='child-pages-4') }}" defer></script>
 </head>
 <body class="study-review-page">
 {% include "test_run_banner.html" %}
@@ -92,12 +92,12 @@
       {% if finished %}
       <a class="review-button review-button--outline" href="{{ url_for('recap_pdf') }}" download>Scarica PDF</a>
       <button type="button" class="review-button" data-action="restart"
-              data-url="{{ url_for('recap_restart') }}">Chiudi</button>
+              data-url="{{ url_for('recap_restart') }}" disabled>Chiudi</button>
       {% else %}
       <button type="button" class="review-button review-button--outline" data-action="save"
-              data-url="{{ url_for('recap_save') }}">Salva modifiche</button>
+              data-url="{{ url_for('recap_save') }}" disabled>Salva modifiche</button>
       <button type="button" class="review-button review-button--warm" data-action="finish"
-              data-url="{{ url_for('recap_finish') }}">Salva l’attività</button>
+              data-url="{{ url_for('recap_finish') }}" disabled>Salva l’attività</button>
       {% endif %}
     </div>
   </main>
