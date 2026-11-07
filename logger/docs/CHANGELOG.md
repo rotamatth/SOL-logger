@@ -65,6 +65,28 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-07 — Log why a child could not start
+
+**Commit:** pending · **Type:** infra · **Area:** session
+
+**Files**
+- `logger/search-app/student_progress.py` — the start page's failure now writes its reason to the server's log
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+`start_route` answered "Salvataggio non disponibile" without recording why. It now logs the exception first.
+
+**If something looks wrong after this, check**
+- A child who gets that page at the start → `docker compose logs search_app | grep "Could not admit"`.
+
+**Left alone**
+The page itself, and the 2-second wait in `admission_lock`, because 20 starts in the same instant answered within 0.33 s.
+
+**Verified**
+The start tests. One rehearsal run out of seven showed this page once, for a reason that was not recorded then.
+
 ## 2026-11-07 — Send the child to the start page when the recap has passed the idle limit
 
 **Commit:** pending · **Type:** fix · **Area:** session, task-flow
