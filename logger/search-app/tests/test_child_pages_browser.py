@@ -237,3 +237,25 @@ def test_the_recap_buttons_wait_for_their_script(student_site):
         button.click()
     assert saved.value.ok
 
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_a_lost_reply_to_a_draft_is_no_conflict(student_site):
+    page, base, _ = student_site
+    open_first(page, base)
+    url = page.locator("#first-answer-draft-status").get_attribute("data-url")
+    lost = []
+
+    def lose_the_first_reply(route):
+        if lost:
+            route.continue_()
+        else:
+            lost.append(route.fetch().status)
+            route.abort("connectionreset")
+
+    page.route(f"**{url}", lose_the_first_reply)
+    with page.expect_response(f"**{url}", timeout=15000) as repeated:
+        page.fill("#first-answer-text", "Laika")
+    assert lost == [200] and repeated.value.ok
+    page.wait_for_timeout(200)
+    assert page.locator("#first-answer-draft-status").inner_text() == ""
+    assert page.locator("#first-answer-retry-draft").is_hidden()
