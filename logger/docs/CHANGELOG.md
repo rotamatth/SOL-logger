@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Name May's questions by their topic in the dashboard
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/legacy_topics.py` — new: the topic names of a legacy run, from `data/user_topics.csv`
+- `logger/search-app/research_dashboard/index.py` — `classify` adds `topic_name` to a task that has a topic number but no question
+- `logger/search-app/research_dashboard/templates/research/task_stats.html` — a question's label falls back to the topic name before the number
+- `logger/search-app/tests/test_dashboard_answers.py`
+
+**What changed for the participant**
+No visible change for the children. In the dashboard, May's runs read "1. Bandiera India simbolo" instead of "1. 3" (Diletta's dashboard point 1).
+
+**How it works**
+The first app's logs record only the topic number. Its topics came from `data/user_topics.csv`, one row per ID, so the dashboard looks the name up there by ID and number when it shows the page. The file last changed on 19 May 2026, so only legacy runs from that day on get a name.
+
+**If something looks wrong after this, check**
+- A wrong name → the ID's row in `data/user_topics.csv`, and whether the run is from 19 May 2026 or later.
+- A number instead of a name → the run is not in the legacy collection, is older, or its ID has no row.
+
+**Left alone**
+The index and the logs, this year's runs (their logs name the question), exports.
+
+**Verified**
+Tests for a May run and an older one.
+
 ## 2026-11-08 — Give both pop-ups the same round close button
 
 **Commit:** pending · **Type:** fix · **Area:** styling, serp
