@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Prima risposta · Domanda {{ task_number }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='child-pages-1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='child-pages-2') }}">
   <script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}" defer></script>
   <script src="{{ url_for('static', filename='first-answer.js', v='child-pages-2') }}" defer></script>
 </head>
@@ -13,7 +13,6 @@
 {% include "test_run_banner.html" %}
   <main class="first-answer-panel" aria-labelledby="first-answer-question">
     <span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>
-    {% if not first_answer %}<p class="first-answer-intro">Pensi di sapere la risposta a questa domanda?</p>{% endif %}
     <h1 id="first-answer-question">{{ topic }}</h1>
 
     {% if error %}
@@ -22,10 +21,9 @@
 
     {% if first_answer %}
     <section class="first-answer-saved" aria-label="La mia prima risposta">
-      <p class="first-answer-saved-label">La tua prima risposta è la seguente:</p>
+      <p class="first-answer-saved-label">La tua prima risposta è:</p>
       <p class="first-answer-saved-text">{{ 'Non lo so' if first_answer.outcome == 'unknown' else first_answer.text }}</p>
     </section>
-    <p class="first-answer-hint first-answer-hint--center" role="status">Prima risposta confermata. Ora puoi cercare informazioni.</p>
     {% else %}
     <form id="first-answer-form" class="first-answer-content" action="{{ submit_url }}" method="post" novalidate>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -34,7 +32,7 @@
       <label class="first-answer-label" for="first-answer-text">Secondo te, qual è la risposta?</label>
       <div class="first-answer-row">
         <textarea id="first-answer-text" class="first-answer-text" name="text" rows="5" required
-                  aria-describedby="first-answer-hint{% if error %} first-answer-error{% endif %}"
+                  {% if error %}aria-describedby="first-answer-error"{% endif %}
                   {% if error %}aria-invalid="true"{% endif %}
                   placeholder="Scrivi qui la tua risposta">
 {{ draft_text }}</textarea>
@@ -44,7 +42,6 @@
           <button id="first-answer-confirm" class="app-btn app-btn-primary" type="submit" name="outcome" value="answered">Conferma</button>
         </div>
       </div>
-      <p id="first-answer-hint" class="first-answer-hint">Conferma la tua risposta per iniziare la ricerca.</p>
       <fieldset id="first-answer-confidence" class="first-answer-confidence"{% if not draft_text|trim %} hidden disabled{% endif %}>
         <legend>Secondo te, quanto è giusta la tua risposta?</legend>
         <div class="first-answer-confidence-options">

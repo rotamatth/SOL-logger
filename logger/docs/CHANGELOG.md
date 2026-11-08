@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Clear the answer page of small hints and repeated words
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, styling
+
+**Files**
+- `logger/search-app/templates/first_answer.html` — without "Pensi di sapere la risposta a questa domanda?", "Conferma la tua risposta per iniziare la ricerca." and "Prima risposta confermata. Ora puoi cercare informazioni."; "La tua prima risposta è:"
+- `logger/search-app/templates/search_first_answer.html` — "La tua prima risposta è:" in the "La mia prima risposta" pop-up
+- `logger/search-app/static/first-answer.css` — the two rules nothing uses now
+- `logger/search-app/templates/task_intro.html` — loads `first-answer.css` as `child-pages-2`
+- `logger/search-app/tests/test_child_pages.py`
+
+**What changed for the participant**
+Diletta's low-priority points. The answer page no longer repeats the question the introduction just asked, and shows no small grey hints, which distracted the children. "La tua prima risposta è la seguente:" became "La tua prima risposta è:" on the answer page and in the search page's pop-up. A message about a failed save still appears, only when it happens.
+
+**How it works**
+Text only. The answer box points `aria-describedby` at the error when there is one, and at nothing otherwise.
+
+**If something looks wrong after this, check**
+- A failed draft save with no message → `#first-answer-draft-status`, which this change left alone.
+
+**Left alone**
+The "?" pop-up's "La domanda a cui devi rispondere è la seguente:", the draft status line and its messages, the confidence stars, the logs.
+
+**Verified**
+Child-page tests and the first-answer browser tests.
+
 ## 2026-11-08 — Show today's questions on the whole picture at the end
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, session

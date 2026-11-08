@@ -103,7 +103,7 @@ def test_the_search_button_appears_only_after_the_answer_is_confirmed(site):
     assert first(client, "Un'idea").status_code == 303
     saved = client.get("/task").text
     assert '<a id="first-answer-search"' in saved and "<textarea" not in saved
-    assert "La tua prima risposta è la seguente:" in saved
+    assert "La tua prima risposta è:" in saved and "la seguente" not in saved
 
 
 def test_the_review_page_is_the_figmas_with_the_right_clip_and_still(site):
@@ -138,13 +138,15 @@ def test_the_fonts_are_served_from_here(site):
     assert "fonts.googleapis" not in css
 
 
-def test_the_confirmed_answer_no_longer_asks_whether_the_child_knows_it(site):
+def test_the_answer_page_does_not_repeat_the_introductions_question_or_show_small_hints(site):
     client = begin(site)
-    prompt = "Pensi di sapere la risposta a questa domanda?"
-    assert prompt in client.get("/task").text
+    form = client.get("/task").text
+    # The introduction before it already asks "Pensi di sapere la risposta?".
+    assert "Pensi di sapere la risposta a questa domanda?" not in form
+    assert "Conferma la tua risposta per iniziare la ricerca." not in form and 'aria-describedby="first-answer-hint' not in form
     assert first(client, "Prima risposta").status_code == 303
     page = client.get("/task").text
-    assert prompt not in page and "La tua prima risposta è la seguente:" in page
+    assert "La tua prima risposta è:" in page and "Prima risposta confermata." not in page
 
 
 def test_the_error_pages_speak_italian(site):
