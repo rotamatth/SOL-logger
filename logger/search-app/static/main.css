@@ -853,15 +853,34 @@ a:hover {
   position: absolute;
   top: 14px;
   right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 0;
   border-radius: 50%;
   background: transparent;
-  color: var(--text-muted);
-  font-size: 2rem;
+  line-height: 1;
   cursor: pointer;
+  touch-action: manipulation;
+}
+
+/*
+ * Both pop-ups close with the same round button. The ring is drawn by the button itself: on a tablet the
+ * browser's own focus ring appeared on one pop-up only, and only while the button had focus.
+ */
+#task-help-modal .close,
+.search-first-answer-close {
+  border: 3px solid #a4c8fb;
+  color: #9ca3af;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+#task-help-modal .close:focus:not(:focus-visible),
+.search-first-answer-close:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .search-first-answer-value {
@@ -878,8 +897,10 @@ a:hover {
 
 /* A dialog focuses its close button on opening: on touch screens that is no reason for a ring. */
 @media (hover: none) {
+  #task-help-modal .close:focus-visible,
   .search-first-answer-close:focus-visible {
     outline: none;
+    box-shadow: none;
   }
 }
 
