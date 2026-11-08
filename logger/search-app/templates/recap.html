@@ -6,7 +6,7 @@
   <title>Le tue risposte</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='child-pages-2') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='recap.css', v='child-pages-4') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='recap.css', v='child-pages-5') }}">
   <script>
     window.SESSION_ID = {{ session.get('session_id')|tojson }};
     window.USER_ID = {{ session.get('user_id')|tojson }};
@@ -32,8 +32,10 @@
       <svg class="recap-arrows" viewBox="0 0 1000 667" aria-hidden="true">
         {% for task in tasks %}{% set arrow = arrows[task.slot] %}
         <g class="recap-arrow">
-          <path d="{{ arrow.line }}" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="6 6" vector-effect="non-scaling-stroke"/>
-          <path d="{{ arrow.tip }}" fill="none" stroke="#111" stroke-width="2" vector-effect="non-scaling-stroke"/>
+          <path class="recap-arrow-halo" d="{{ arrow.line }}" vector-effect="non-scaling-stroke"/>
+          <path class="recap-arrow-halo" d="{{ arrow.tip }}" vector-effect="non-scaling-stroke"/>
+          <path class="recap-arrow-line" d="{{ arrow.line }}" stroke-dasharray="6 6" vector-effect="non-scaling-stroke"/>
+          <path class="recap-arrow-line" d="{{ arrow.tip }}" vector-effect="non-scaling-stroke"/>
           <g transform="translate({{ arrow.x }} {{ arrow.y }})">
             <circle r="17" fill="#4285f4"/>
             <circle cx="-2.5" cy="-2.5" r="7" fill="none" stroke="#fff" stroke-width="3"/>

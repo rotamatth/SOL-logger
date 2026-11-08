@@ -182,8 +182,12 @@ def test_the_recap_fits_a_short_tablet_even_with_long_answers(student_site, size
         cards = page.locator(".recap-piece .review-card")
         assert cards.count() == 6
         boxes = [cards.nth(index).bounding_box() for index in range(6)]
+        picture = page.locator(".recap-picture").bounding_box()
         for index, box in enumerate(boxes):
-            assert box["x"] >= 0 and box["x"] + box["width"] <= size[0], f"card {index} leaves the screen"
+            # Every card stays inside the picture.
+            assert (picture["x"] <= box["x"] and box["x"] + box["width"] <= picture["x"] + picture["width"]
+                    and picture["y"] <= box["y"] and box["y"] + box["height"] <= picture["y"] + picture["height"] + 1), \
+                f"card {index} leaves the picture"
             for other in boxes[index + 1:]:
                 assert (box["x"] + box["width"] <= other["x"] or other["x"] + other["width"] <= box["x"]
                         or box["y"] + box["height"] <= other["y"] or other["y"] + other["height"] <= box["y"]), "cards overlap"

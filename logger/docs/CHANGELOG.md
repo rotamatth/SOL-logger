@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Keep the recap's cards inside the picture and its lines visible
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, styling
+
+**Files**
+- `logger/search-app/static/recap.css` — cards 23% wide, all positions inside the picture; a band of the opposite colour under each dashed line; `recap.css` as `child-pages-5`
+- `logger/search-app/student_recap.py` — the arrows and magnifiers moved inside with the cards
+- `logger/search-app/templates/recap.html` — each line drawn over its band
+- `logger/search-app/tests/test_child_pages.py`, `test_child_pages_browser.py`
+
+**What changed for the participant**
+Matthias saw on the iPad that some cards and magnifiers stuck out of the picture, as in the Figma. They are now all inside it. The dashed lines were black and disappeared on dark parts: on orecchio they are dark with a light edge, on spazio white with a dark edge, as the Figma draws them.
+
+**How it works**
+Positions only. The cards still sit on their question's part of the picture, numbered by the order the child met the questions, as Diletta asked.
+
+**If something looks wrong after this, check**
+- Two cards touching → the `.recap-piece--` rules in `recap.css`; spazio's middle and right cards share little room.
+
+**Left alone**
+The numbering, what the recap saves and logs.
+
+**Verified**
+The recap's browser test at 1180 x 699, 1280 x 680 and 1024 x 520 with long answers, now also checking that every card stays inside the picture; pictures of both themes.
+
 ## 2026-11-08 — Put Cerca right after the search bar
 
 **Commit:** pending · **Type:** fix · **Area:** search-bar, styling

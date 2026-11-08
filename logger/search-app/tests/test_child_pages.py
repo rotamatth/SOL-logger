@@ -187,6 +187,8 @@ def test_the_recap_shows_todays_three_questions_on_the_whole_picture(site):
         assert f"unlock--ear-{slot}" in client.get(f"/task-review/{number}").text
         assert f'id="recap-question-{number}" title="Today question' in page and f">Domanda {number}</h2>" in page
     assert page.count('class="recap-arrow"') == 3 and "/static/images/review/ear-recap.webp" in page
+    # Each dashed line has a band of the opposite colour under it, so it shows on light and dark parts.
+    assert page.count('class="recap-arrow-halo"') == 6 and page.count('class="recap-arrow-line"') == 6
     assert page.count('class="recap-confidence"') == 3 and page.count("Today original") == 3
     assert "Sessione" not in page and "<textarea" not in page and "Vedi l’originale" not in page
     assert 'data-action="finish"' in page and 'data-action="save"' not in page and "Scarica PDF" not in page

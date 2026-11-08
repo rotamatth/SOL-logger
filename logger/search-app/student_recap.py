@@ -31,14 +31,15 @@ def _arrow(start, bend_in, magnifier, bend_out, end):
             "tip": f"M{point(left)} L{point(end)} L{point(right)}", "x": magnifier[0], "y": magnifier[1]}
 
 
-# Where Diletta's Figma draws each question's arrow, by theme and by the question's part of the picture.
+# Each question's arrow as in Diletta's Figma, by theme and by the question's part of the picture,
+# moved inside the picture with the cards.
 RECAP_ARROWS = {
-    "space": {"1": _arrow((35, 236), (18, 300), (37, 354), (50, 420), (80, 452)),
-              "2": _arrow((668, 238), (670, 290), (643, 323), (600, 370), (562, 392)),
-              "3": _arrow((964, 300), (975, 345), (964, 391), (950, 440), (928, 478))},
-    "ear": {"1": _arrow((-25, 236), (-55, 290), (-32, 340), (-10, 410), (22, 452)),
+    "space": {"1": _arrow((40, 236), (22, 300), (40, 354), (52, 420), (82, 452)),
+              "2": _arrow((640, 238), (652, 290), (643, 323), (600, 370), (562, 392)),
+              "3": _arrow((955, 300), (972, 345), (958, 391), (948, 440), (925, 478))},
+    "ear": {"1": _arrow((40, 236), (20, 290), (38, 340), (48, 410), (78, 452)),
             "2": _arrow((471, 242), (468, 290), (484, 329), (500, 365), (525, 393)),
-            "3": _arrow((878, 150), (1000, 170), (1029, 332), (1050, 470), (958, 532))},
+            "3": _arrow((880, 150), (975, 165), (958, 332), (945, 440), (925, 520))},
 }
 SAVE_ERROR = "Salvataggio non disponibile. Riprova."
 CONFLICT_ERROR = "Le risposte sono cambiate in un'altra scheda. Riapri il riepilogo prima di riprovare."
