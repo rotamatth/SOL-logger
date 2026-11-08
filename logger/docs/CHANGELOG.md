@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Give the answer cards the subtitle's size on every page
+
+**Commit:** pending · **Type:** fix · **Area:** styling, task-flow
+
+**Files**
+- `logger/search-app/static/study-review.css` — `--review-card-size`, the subtitle's size, for every "Cosa sapevi prima" and "Cosa sai adesso" card; after each question the cards are 34% of the picture's width instead of 31%
+- `logger/search-app/templates/study_handoff.html` — loads `study-review.css` as `child-pages-2`
+
+**What changed for the participant**
+After each question the two answer cards are a little bigger, with text the size of the line under the title ("Andate avanti per scoprire…"). Diletta found them hard to read on a tablet. The final recap uses the same size (next entry).
+
+**How it works**
+One size, defined on `.study-review`, which both the page after each question and the recap read.
+
+**If something looks wrong after this, check**
+- A card covering more of the animation → only the width changed; the positions are the `.unlock--` rules in `study-review.css`.
+- The old size on a tablet → the page still loads `study-review.css` as `child-pages-1`.
+
+**Left alone**
+Card positions, clips, the arrow, the texts, the logs.
+
+**Verified**
+Child-page tests, and the browser tests at 1180 x 699, 1280 x 680 and 1024 x 520.
+
 ## 2026-11-07 — Fit the lost-draft test to the accepted repeat
 
 **Commit:** pending · **Type:** fix · **Area:** tests

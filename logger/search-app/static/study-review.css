@@ -3,6 +3,8 @@
 }
 
 .study-review {
+  /* The answer cards use the subtitle's size on every page that shows them, so a tablet can read them. */
+  --review-card-size: clamp(0.98rem, 2.6vh, 1.1rem);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -24,7 +26,7 @@
 
 .study-review > p {
   margin: 0;
-  font-size: clamp(0.98rem, 2.6vh, 1.1rem);
+  font-size: var(--review-card-size);
   text-align: center;
 }
 
@@ -64,21 +66,25 @@
   height: 100%;
 }
 
+.review-card {
+  padding: 0.5em 0.8em 0.6em;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  font-size: var(--review-card-size);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
 .unlock .review-card {
   position: absolute;
   z-index: 2;
-  width: 31%;
-  padding: 0.5em 0.8em;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
-  font-size: clamp(12.5px, calc(var(--stage) / 28), 15.5px);
-  line-height: 1.28;
+  width: 34%;
 }
 
 .review-card h3 {
-  margin: 0 0 2px;
+  margin: 0 0 3px;
   color: inherit;
-  font-size: 0.95em;
+  font-size: 1em;
   font-weight: 800;
 }
 
@@ -161,7 +167,6 @@
     position: static;
     width: auto;
     margin-bottom: 8px;
-    font-size: 15px;
   }
 }
 
