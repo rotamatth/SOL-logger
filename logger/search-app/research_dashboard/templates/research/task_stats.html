@@ -7,7 +7,11 @@
   <tbody>
   {% for number, task in run.task_stats | dictsort %}
     <tr>
-      <th scope="row"><span class="stats-question">{{ number }}. {{ task.question or task.topic_name or task.topic or '—' }}</span>{% if not task.finished %} <span class="badge incomplete">{{ t('incomplete') }}</span>{% endif %}</th>
+      <th scope="row"><span class="stats-question">{{ number }}. {{ task.question or task.topic_name or task.topic or '—' }}</span>{% if not task.finished %} <span class="badge incomplete">{{ t('incomplete') }}</span>{% endif %}
+        {% if task.first_answer or task.final_answer %}<dl class="stats-answers">
+          {% if task.first_answer %}<div><dt>{{ t('stats_first_answer') }}</dt><dd>{{ t('stats_answer_unknown') if task.first_answer.unknown else task.first_answer.text }}{% if task.first_answer.confidence %} <span class="stats-confidence" title="{{ t('stats_confidence') }}: {{ task.first_answer.confidence }}/3">{{ '★' * task.first_answer.confidence }}{{ '☆' * (3 - task.first_answer.confidence) }}</span>{% endif %}</dd></div>{% endif %}
+          {% if task.final_answer %}<div><dt>{{ t('stats_final_answer') }}</dt><dd>{{ task.final_answer }}</dd></div>{% endif %}
+        </dl>{% endif %}</th>
       <td data-label="{{ t('stats_time') }}">{{ duration(task.seconds) }}</td>
       <td data-label="{{ t('stats_events') }}">{{ dash(task.events) }}</td>
       <td data-label="{{ t('stats_searches') }}">{{ dash(task.searches) }}{{ count_notes([(task.no_results, 'stats_no_results'), (task.suggestions, 'stats_suggestions')]) }}</td>

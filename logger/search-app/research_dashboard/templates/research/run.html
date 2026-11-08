@@ -8,6 +8,7 @@
   <div class="record-actions">
     <a class="button" href="#events">{{ t('visualize_logs') }}</a>
     {% if not task %}<a class="button" href="{{ u('export', scope='run', collection=run.collection, run=run.id) }}">{{ icons.download() }} {{ t('download_run') }}</a>{% endif %}
+    {% if has_recap_pdf %}<a class="button" href="{{ u('run_recap_pdf', key=run.id) }}">{{ icons.download() }} {{ t('download_recap_pdf') }}</a>{% endif %}
   </div>
 </div>
 {% if run.task_stats and not task %}<section class="panel stats-panel" aria-labelledby="run-stats-heading"><h2 id="run-stats-heading">{{ t('stats_by_question') }}</h2>{{ task_table(run) }}</section>{% endif %}

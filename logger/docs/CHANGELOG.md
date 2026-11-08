@@ -65,6 +65,35 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Show each question's answers and the kept recap PDF in the dashboard
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/index.py` — reads `OwnKnowledgeAnswerSubmitted` and the attempt ID of answer events; each task's figures carry `first_answer` and `final_answer`, each run its `attempt_ids`; index version 4, so the logs are read again once
+- `logger/search-app/research_dashboard/templates/research/task_stats.html` — under each question: "Before searching" with the child's stars, and "After searching"
+- `logger/search-app/research_dashboard/recap_pdfs.py` — new: a run's recap PDF, read from the children's progress database, read-only
+- `logger/search-app/research_dashboard/history_views.py` — `/dashboard/runs/<key>/recap.pdf`, and which runs have one
+- `logger/search-app/research_dashboard/templates/research/run.html`, `participant.html` — the download link where a PDF exists
+- `logger/search-app/research_dashboard/stats_i18n.py`, `i18n.py`, `static/stats.css`, `templates/research/base.html` — labels in both languages, styles, `stats.css` as `dashboard-v2-20261108`
+- `logger/search-app/tests/test_dashboard_answers.py`
+
+**What changed for the participant**
+No visible change for the children. On a participant's page each question shows the child's answer before and after searching, with the child's own rating as stars, or "Non lo so" (Diletta's dashboard point 2). Where the child saved the activity, the run page and the participant page offer "Scarica il riepilogo finale del bambino (PDF)": the PDF the server made at "Salva l'attività", now that the tablet no longer downloads it.
+
+**How it works**
+The answers come from the logs, `OwnKnowledgeAnswerSubmitted` and `TaskEnded`. Both carry the attempt ID, which is how a run finds its PDF in `progress_recap_exports`; logs naming two attempts get no PDF. The dashboard opens that database read-only. The first refresh after the deploy reads every log again, once.
+
+**If something looks wrong after this, check**
+- No answers under the questions → the run's logs have no `OwnKnowledgeAnswerSubmitted` (May's runs have none), or the reporting index was not read again (its `PRAGMA user_version` should be 4).
+- No PDF link → `progress_recap_exports` has no row for the run's attempt, the run's logs name no attempt or two, or `SOL_PROGRESS_DB_PATH` is not set where the dashboard runs.
+
+**Left alone**
+The logs, exports and their manifest, the children's app, the live view.
+
+**Verified**
+Tests: the answers in both languages and as plain text, a version-3 index read again, the PDF with and without a sign-in, a run without a PDF, logs naming two attempts, no children's database.
+
 ## 2026-11-08 — Name May's questions by their topic in the dashboard
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard

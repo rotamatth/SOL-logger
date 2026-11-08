@@ -260,6 +260,7 @@ TEXT = {
     "download_log": ("Download log", "Scarica log"),
     "download_task": ("Download task ZIP", "Scarica ZIP del compito"),
     "download_run": ("Download run ZIP", "Scarica ZIP dell'esecuzione"),
+    "download_recap_pdf": ("Download the child's final recap (PDF)", "Scarica il riepilogo finale del bambino (PDF)"),
     "all_sessions": ("All sessions", "Tutte le sessioni"),
     "sessions": ("Sessions", "Sessioni"),
     "session_history": ("Session history", "Storico sessioni"),
