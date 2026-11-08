@@ -7,6 +7,7 @@ from flask import abort, jsonify, redirect, request, send_file
 from .exports import SourceSnapshotError, capture_log
 from .history_data import collect_participants, collection_runs, display_session, has_logs, scoped_people
 from .participants import GRADES, valid_school_year
+from .legacy_topics import legacy_question
 from .recap_pdfs import recap_pdf, run_attempt, saved_attempts
 from .session_views import historical_rows
 from .state import DEFAULT_STUDY_ID
@@ -201,7 +202,9 @@ def register_history_routes(dash):
         sources.sort(key=lambda f: (f["kind"] != "full", f["position"] or "", f["name"]))
         return dash.page("run", run=run, task=task, page_number=number, events=events, total=total,
                          sources=sources, tasks=[v for k, v in run["tasks"].items() if task is None or k == task],
-                         has_recap_pdf=bool(saved_attempts([run_attempt(run)])), research_area="history")
+                         has_recap_pdf=bool(saved_attempts([run_attempt(run)])), research_area="history",
+                         legacy_questions={number: legacy_question(run, item["topics"][0]) for number, item
+                                           in run["tasks"].items() if not item["questions"] and len(item["topics"]) == 1})
 
     @bp.get("/runs/<key>/recap.pdf")
     def run_recap_pdf(key):

@@ -1,4 +1,5 @@
 """Diletta's dashboard points of November 2026: named questions, the answers with them, and the recap PDF."""
+import html
 import json
 import sqlite3
 from pathlib import Path
@@ -138,3 +139,14 @@ def test_without_the_childrens_database_there_is_no_link(app):
     key = write_answered_run(app)
     assert "recap.pdf" not in client.get(f"/dashboard/runs/{key}").text
     assert client.get(f"/dashboard/runs/{key}/recap.pdf").status_code == 404
+
+
+def test_mays_run_page_shows_each_question_from_the_first_apps_file(app):
+    client = signed_in(app)
+    key, _, _ = write_run(app, uid="10", collection="legacy", metadata=False, date="2026-05-19")
+    older, _, _ = write_run(app, uid="10", collection="legacy", metadata=False, date="2026-05-12", suffix="b")
+    page = html.unescape(client.get(f"/dashboard/runs/{key}?lang=it").text)
+    # Presented task 1 was topic 3 for ID 10: the galaxies.
+    assert "Altre galassie" in page and "Quali sono i nomi di altre 3 galassie oltre la nostra?" in page
+    assert "Non registrata nel log" in page and "Non viene sostituito" not in page
+    assert "Non viene sostituito" in html.unescape(client.get(f"/dashboard/runs/{older}?lang=it").text)
