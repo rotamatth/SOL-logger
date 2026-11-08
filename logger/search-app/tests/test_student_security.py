@@ -7,6 +7,7 @@ import re
 import pytest
 
 from .test_study_enrollment import schedule, student_modules  # noqa: F401 - pytest fixture
+from .progress_helpers import confirm_first, final_event
 
 HOSTILE_QUERY = '"><script>alert(1)</script> "luna"'
 
@@ -14,12 +15,13 @@ HOSTILE_QUERY = '"><script>alert(1)</script> "luna"'
 def searching_client(module, results=()):
     """A participant who started today's session and opened the search page."""
     schedule(module)
-    module.search_backend.search = lambda query, page, rpp: (query, [dict(r) for r in results], len(results), "none")
-    module.search_backend.autocomplete = lambda query: (["should not be called"], "test")
+    module.search_backend.search = lambda query, page, rpp, theme=None: (query, [dict(r) for r in results], len(results), "none")
+    module.search_backend.autocomplete = lambda query, theme=None: (["should not be called"], "test")
     module.search_backend.autocomplete_query_model = lambda: None
     client = module.app.test_client()
     assert client.post("/start", data={"user_id": "1"}).status_code == 302
     assert client.get("/task").status_code == 200
+    confirm_first(client)
     assert client.get("/search").status_code == 200
     return client
 
@@ -163,10 +165,13 @@ def test_iframe_probe_fetches_only_links_shown_in_this_task(student_modules, mon
     assert client.get("/iframe_check?url=https://example.org/").get_json() == {"blocked": False, "reason": None}
     assert probed == ["https://example.org/"]
 
+    answer = final_event(client, "Risposta di prova")
+    assert client.post("/log_session", json={"session_id": answer["sessionID"], "logs": [answer]}).status_code == 200
     assert client.post("/end").status_code == 302
     assert client.get("/iframe_check?url=https://example.org/").get_json()["reason"] == "no-active-search"
     assert client.get("/next_task").status_code == 302
     assert client.get("/task").status_code == 200
+    confirm_first(client)
     assert client.get("/search").status_code == 200
     assert client.get("/iframe_check?url=https://example.org/").get_json()["reason"] == "not-a-search-result"
     assert probed == ["https://example.org/"]
@@ -197,14 +202,20 @@ def test_every_result_link_survives_the_trip_to_the_probe(student_modules, monke
 def test_autocomplete_is_only_for_participants_in_a_session(student_modules):
     module = student_modules()
     calls = []
-    module.search_backend.autocomplete = lambda query: calls.append(query) or (["luna piena"], "vertex")
+    module.search_backend.autocomplete = lambda query, theme=None: calls.append(query) or (["luna piena"], "vertex")
     module.search_backend.autocomplete_query_model = lambda: "search-history"
     anonymous = module.app.test_client()
     assert anonymous.get("/autocomplete?query=luna").get_json()["suggestions"] == []
     assert calls == []
     client = searching_client(module)
-    module.search_backend.autocomplete = lambda query: calls.append(query) or (["luna piena"], "vertex")
-    assert client.get("/autocomplete?query=luna").get_json()["suggestions"] == ["luna piena"]
+    module.search_backend.autocomplete = lambda query, theme=None: calls.append(query) or (["luna piena"], "vertex")
+    module.search_backend.autocomplete_query_model = lambda: "search-history"
+    assert client.get("/autocomplete", query_string={"query": "  lu  "}).get_json() == {
+        "suggestions": [], "source": "none", "query_model": None,
+    }
+    assert client.get("/autocomplete", query_string={"query": "  luna  "}).get_json() == {
+        "suggestions": ["luna piena"], "source": "vertex", "query_model": "search-history",
+    }
     assert calls == ["luna"]
 
 
@@ -214,7 +225,7 @@ def test_autocomplete_failure_keeps_its_fallback_without_logging_private_text(st
     query = "synthetic private autocomplete query"
     credential = "synthetic-provider-key"
 
-    def broken_autocomplete(value):
+    def broken_autocomplete(value, theme=None):
         raise RuntimeError(f"Provider failed for {value} with credential {credential}")
 
     module.search_backend.autocomplete = broken_autocomplete
@@ -295,7 +306,7 @@ class FakeVertex:
     def search(self, request):
         return self.response
 
-    def complete_query(self, request):
+    def complete_query(self, request, **options):
         return self.response
 
 
@@ -310,9 +321,9 @@ def test_search_backend_logs_never_contain_queries_or_suggestions(monkeypatch, c
         query_suggestions=[suggestion]))
     with caplog.at_level(logging.DEBUG, logger="search_backend"):
         corrected, results, total, source = search_backend.vertex_search(secret, 1, 10, config)
-        suggestions, fallback = search_backend.vertex_autocomplete(secret, config)
+        suggestions = search_backend.vertex_autocomplete(secret, config)
     assert (corrected, results, total, source) == (secret + " corretta", [], 0, "vertex")
-    assert (suggestions, fallback) == ([secret + " suggerita"], 0)
+    assert suggestions == [secret + " suggerita"]
     assert caplog.records and secret not in caplog.text
 
 
@@ -328,4 +339,4 @@ def test_unconfigured_or_failing_vertex_search_raises_for_the_error_page(monkeyp
     monkeypatch.setattr(search_backend, "get_search_client", lambda location: Broken())
     with pytest.raises(RuntimeError):
         search_backend.vertex_search("luna", 1, 10, ("p", "global", "e", "s", "it"))
-    assert search_backend.vertex_autocomplete("luna", ("", "global", "", "", "it")) == ([], 0)
+    assert search_backend.vertex_autocomplete("luna", ("", "global", "", "", "it")) == []

@@ -497,6 +497,25 @@ work that needs the actual experiment's details. The grade, session and download
 controls are dropdowns so they can accept more choices without adding more tabs
 or header buttons.
 
+## Permanent test IDs
+
+`TEST-spazio` and `TEST-orecchio` close the list on the children's start page. Each is an
+experiment with one participant, itself, for developers to try the whole app on the real
+server: it searches its theme's engine and plays its theme's animations. It works on any day
+and needs no session, class or enrollment. Every start is a new attempt; **Ricomincia** in the
+red PROVA banner leaves the current one. Test pages show that banner, so a wrong choice on a
+child's tablet is noticed at once. A double tap on the start page still gives one attempt.
+
+The questions are fixed in `research_dashboard/permanent_test.py`, not in the dashboard.
+Test runs stay out of the results by where they are written: all their files go to
+`logs-v2/test-runs`, with their own receipt journal, and the dashboard scans only the top of
+`logs-v2`. They do not appear in Data and history, the live view, exports, session numbers or
+any child's recap. Unsent test events that reach a child's browser go to the test folder, and a
+child's unsent events that reach a test browser stay with the child. To read them on the server:
+
+    docker compose exec search_app ls -la /app/logs/test-runs
+    docker compose cp search_app:/app/logs/test-runs ./test-runs-copy
+
 ## Historical grade and school-year setup
 
 Historical assignment editing is temporarily unavailable in Study settings. Rules
@@ -659,6 +678,14 @@ revocation; those flags contain timestamps only, never form text. A successful
 sign-out notifies other editors and invalidates their recovery claims.
 
 
+
+## Initial self-assessment (#6)
+
+For each question, typing a nonblank first answer immediately shows “Secondo te, quanto è giusta la tua risposta?” with “Poco giusta”, “Abbastanza giusta” and “Giustissima”. There is no default. A typed answer requires a choice to confirm; clearing the text clears the choice. Confirmed “Non lo so” needs no assessment.
+
+SQLite stores confidence as 1, 2 or 3 alongside the original first answer, or null for confirmed unknown and historical answers collected before this field existed. First-answer drafts save text and confidence together under the same revision and resume across browsers/workers. Search remains locked until confirmation. The canonical `OwnKnowledgeAnswerSubmitted` event includes `confidence`, `outcome`, `answerPhase: pre-search` and the existing attempt/session/task context. Identical retries do not duplicate the answer/event; a different confidence conflicts. Database upgrades do not infer historical confidence or rewrite previously queued/published events.
+
+The current progress schema is 6. It also provides internal storage for recap drafts/revisions and source-snapshot repeats, with the UI and authorization controls left to #9/#15. Reward assets no longer affect question-set eligibility. See [Issue #6 handover](issue6_handover.md) for the API contracts and acceptance boundaries.
 
 ## Session question contract for progress saving (#6)
 

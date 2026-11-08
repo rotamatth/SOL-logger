@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Error{% endblock %}
+{% block title %}Errore{% endblock %}
 {% block content %}
 <div class="app-page">
   <section class="app-panel error-panel">
@@ -16,7 +16,7 @@
     const params = new URLSearchParams(window.location.search);
     studyLogger.logEvent("searchError", {
       query: params.get("query") || "",
-      error: {{ (error_title or 'Search error')|tojson }}
+      error: {{ (search_error_log or error_title or 'Search error')|tojson }}
     });
   }
 </script>

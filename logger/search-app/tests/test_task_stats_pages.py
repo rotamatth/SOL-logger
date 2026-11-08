@@ -65,7 +65,7 @@ def test_an_unfinished_question_is_marked_and_has_no_time(app):
     write_detailed_run(app, "1", finished=1)
     page = client.get(f"/dashboard/participants/study/{identity('1')}")
     assert page.text.count('badge incomplete">Incomplete / in progress') >= 2
-    assert '<td data-label="Time">—</td>' in page.text
+    assert '<dt>Time</dt><dd>—</dd>' in page.text
 
 
 def test_the_class_table_groups_shuffled_questions_across_children(app):

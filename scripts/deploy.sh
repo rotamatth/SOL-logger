@@ -107,9 +107,11 @@ fi
 backup="backups/study-$(date +%Y%m%d-%H%M%S).zip"
 # Collected files are private to the container's user, so the backup runs in a container too.
 # The archive then belongs to whoever owns this directory, like the rest of the checkout.
+# This script arrives on standard input, so the container must not read it: it would swallow
+# every line below and the release would never start.
 docker compose run --rm --no-deps -T --volume "$PWD:/study" search_app sh -c \
     'python tools/backup_study.py create "/study/$0" --root /study && chown "$(stat -c %u:%g /study)" "/study/$0"' \
-    "$backup"
+    "$backup" </dev/null
 
 echo "==> Starting release and waiting for collection readiness"
 docker compose up -d --no-build --wait --wait-timeout 120 search_app

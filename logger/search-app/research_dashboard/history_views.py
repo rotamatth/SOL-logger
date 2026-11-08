@@ -1,9 +1,15 @@
 """Data and history: grade overview, participant pages, runs, logs and the trash."""
+from io import BytesIO
+import re
+
 from flask import abort, jsonify, redirect, request, send_file
 
 from .exports import SourceSnapshotError, capture_log
 from .history_data import collect_participants, collection_runs, display_session, has_logs, scoped_people
 from .participants import GRADES, valid_school_year
+from .legacy_topics import legacy_question
+from .recap_pdfs import recap_pdf, run_attempt, saved_attempts
+from .session_views import historical_rows
 from .state import DEFAULT_STUDY_ID
 from .study_config import session_readiness
 from .task_stats import question_rows, session_rows, trend_charts
@@ -91,7 +97,10 @@ def register_history_routes(dash):
             expected = (session_readiness(settings, selected_session_configuration)["count"]
                         if selected_session_configuration else None)
             question_stats = question_rows([run for run in scoped_runs if _in_session(run, selected_session)], expected)
+        historical_experiments = [row for row in historical_rows(settings, selected_year, grade)
+                                  if row.get("experiment")] if collection == "study" and not selected_session else []
         return dash.page("overview", people=people, grade=grade, collection=collection, question_stats=question_stats,
+                         historical_experiments=historical_experiments,
                          study_context=study_context, research_area="history",
                          history_sessions=[card["session"] for card in session_cards],
                          unidentified=unidentified if grade in ("all", "unassigned", "legacy") else [],
@@ -147,7 +156,10 @@ def register_history_routes(dash):
         grade = grade_filter or (selected_session_group["grade"] if selected_session_group else
                                  next(iter(person["grades"])) if len(person["grades"]) == 1 else "all")
         trend = session_rows(person["runs"])
+        saved = saved_attempts(run_attempt(run) for run in person["runs"])
+        recap_pdf_runs = {run["id"] for run in person["runs"] if run_attempt(run) in saved}
         return dash.page("participant", person=person, groups=groups, display_groups=display_groups,
+                         recap_pdf_runs=recap_pdf_runs,
                          trend=trend, trend_view=trend_charts(trend) if len(trend) > 1 else None,
                          collection=collection, grade=grade,
                          selected_session=selected_session, selected_year=year_filter, grade_filter=grade_filter,
@@ -190,7 +202,23 @@ def register_history_routes(dash):
         sources.sort(key=lambda f: (f["kind"] != "full", f["position"] or "", f["name"]))
         return dash.page("run", run=run, task=task, page_number=number, events=events, total=total,
                          sources=sources, tasks=[v for k, v in run["tasks"].items() if task is None or k == task],
-                         research_area="history")
+                         has_recap_pdf=bool(saved_attempts([run_attempt(run)])), research_area="history",
+                         legacy_questions={number: legacy_question(run, item["topics"][0]) for number, item
+                                           in run["tasks"].items() if not item["questions"] and len(item["topics"]) == 1})
+
+    @bp.get("/runs/<key>/recap.pdf")
+    def run_recap_pdf(key):
+        """The PDF of the final recap that the server kept when the child saved the activity."""
+        run = visible_run(key)
+        pdf = recap_pdf(run_attempt(run))
+        if pdf is None:
+            abort(404)
+        name = "-".join(part for part in ("riepilogo", re.sub(r"[^A-Za-z0-9_-]", "", run["participant_id"] or ""),
+                                          run["date"] or "") if part)
+        response = send_file(BytesIO(pdf), mimetype="application/pdf", as_attachment=True,
+                             download_name=f"{name}.pdf", max_age=0)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
 
     @bp.get("/runs/<key>/logs/<source_id>/view")
     def visualize_log(key, source_id):

@@ -236,7 +236,7 @@ def test_future_session_stays_closed_and_today_draft_never_blocks_approved_quest
     assert "Future session question 1?" in researcher.get(SESSION_OVERVIEW).text
     student = module.app.test_client()
     response = student.post("/start", data={"user_id": "1"})
-    assert response.status_code == 400 and "Session not available" in response.text
+    assert response.status_code == 400 and "La sessione non è disponibile" in response.text
     assert "Future session question" not in response.text
     assert not metadata_files(tmp_path)
 

@@ -2,11 +2,12 @@
 {% block title %}Web Page{% endblock %}
 {% block content %}
 
-<div class="app-page">
+<div class="app-page webpage-page">
   <div class="app-toolbar">
     <a href="{{ url_for('result', query=query, page=page) }}" id="viewer-back-btn" class="app-btn app-btn-back">
         &larr; Indietro
     </a>
+    {% include "search_first_answer.html" %}
     <button type="button"
             onclick="openFeedbackModal()"
             class="app-btn app-btn-warm"
@@ -20,7 +21,7 @@
         id="webpage-frame"
         src="{{ url }}"
         sandbox="allow-same-origin allow-scripts allow-forms"
-        title="Web page viewer">
+        title="Pagina web">
     </iframe>
     <div class="sol-loader is-pending" id="iframe-loader" aria-live="polite">
       <div class="sol-loader__spinner" aria-hidden="true"></div>

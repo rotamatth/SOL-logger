@@ -95,7 +95,7 @@ def question_set_problem(question_set):
 def question_set_topics(question_set):
     """Adapt question content to the existing student task renderer.
 
-    Reward assets are optional; empty values select the plain completion flow.
+    Legacy media fields are retained as snapshot metadata, never used for access.
     The positional keys do not replace the stable IDs in the question snapshot.
     """
     topics = {f"{number}_{field}": "" for number in range(1, 4)
