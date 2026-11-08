@@ -6,7 +6,7 @@
 <article class="session-row">
   <div class="session-row-title">
     <a href="{{ u('overview', collection='study', grade=row.grade, school_year=row.school_year) }}">{{ t('historical_session_name').format(date=(row.date[8:10]|int)|string ~ ' ' ~ t('month_names').split()[month - 1]) }}</a>
-    <span class="small muted">{{ t('grade_' ~ row.grade) }} · {{ row.date }}</span>
+    <span class="small muted">{{ t('grade_' ~ row.grade) }} · {{ row.date }}{% if row.experiment and row.experiment.theme %} · {{ t('experiment_theme') }}: {{ row.experiment.theme }}{% endif %}</span>
   </div>
   <span class="session-row-count">{{ row.count }} {{ 'ID' if row.count == 1 else t('ids_short') }}</span>
   <div class="session-row-status"></div>

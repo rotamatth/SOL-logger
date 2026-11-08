@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Show the theme and questions of May's experiment in the dashboard
+
+**Commit:** pending · **Type:** content · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/legacy_topics.py` — each ID's three topics and questions from `data/user_topics.csv`; `experiment_questions` gives the theme and questions all of a class's IDs had; the two themes of 19 May 2026, India and Spazio
+- `logger/search-app/research_dashboard/session_views.py` — a one-day past experiment's row carries its IDs and, when they all had the same questions, its theme and questions
+- `logger/search-app/research_dashboard/history_views.py`, `templates/research/overview.html` — on a class's data page for that year, a panel with the experiment's theme and three questions
+- `logger/search-app/research_dashboard/templates/research/sessions.html` — the theme next to "Esperimento 19 maggio"
+- `logger/search-app/research_dashboard/workflow_i18n.py` — "Tema" and the panel's note, in both languages
+- `logger/search-app/tests/test_session_history_rows.py`
+
+**What changed for the participant**
+No visible change for the children. In the dashboard, "Esperimento 19 maggio" shows its theme per class: India for the 3rd class (IDs 1-8, 17, 18), Spazio for the 4th (IDs 9-16), with the questions this year's 4th class has again. The class's data page for 2025/2026 lists the three questions.
+
+**How it works**
+May's app read each ID's questions from `data/user_topics.csv`; the dashboard reads the same file when it shows the page. A class gets a theme and questions only when all its IDs had the same three. Nothing is saved in the settings.
+
+**If something looks wrong after this, check**
+- No theme or questions → the class's IDs have different rows in `data/user_topics.csv`, the experiment is older than 19 May 2026, or it spans more than one day.
+
+**Left alone**
+May's classes in the settings, the logs, exports, the sessions of this year.
+
+**Verified**
+Tests for both classes, another year, and a class whose IDs had different questions.
+
 ## 2026-11-08 — Show each question's answers and the kept recap PDF in the dashboard
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard

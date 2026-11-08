@@ -10,24 +10,46 @@ from pathlib import Path
 
 TOPICS_FILE = Path(__file__).resolve().parents[1] / "data" / "user_topics.csv"
 VALID_FROM = "2026-05-19"
+# The two question sets of 19 May 2026: the 3rd class had India; the 4th class had space, with the questions
+# this year's 4th class has again.
+THEMES = {("Fiume sacro India", "Bandiera India simbolo", "Animali India"): "India",
+          ("Sistema solare Giove", "Primo animale nello spazio", "Altre galassie"): "Spazio"}
 
 
 @lru_cache(maxsize=1)
-def _topics():
+def _questions():
+    """Each ID's three (topic, question) pairs, in the order of the file's columns."""
     try:
         with TOPICS_FILE.open(newline="", encoding="utf-8") as handle:
-            return {row["uid"].strip(): {str(number): (row.get(f"topic{number}_keyword") or "").strip()
-                                         for number in (1, 2, 3)}
+            return {row["uid"].strip(): tuple(((row.get(f"topic{number}_keyword") or "").strip(),
+                                               (row.get(f"topic{number}_question") or "").strip())
+                                              for number in (1, 2, 3))
                     for row in csv.DictReader(handle) if row.get("uid")}
     except (OSError, csv.Error, KeyError, UnicodeError):
         return {}
 
 
+def _dated(date):
+    return isinstance(date, str) and date >= VALID_FROM
+
+
 def topic_name(run, topic):
     """The name of a topic of a legacy run from May's experiment on, or None."""
-    if run.get("collection") != "legacy" or not isinstance(run.get("date"), str) or run["date"] < VALID_FROM:
+    if run.get("collection") != "legacy" or not _dated(run.get("date")) or str(topic) not in ("1", "2", "3"):
         return None
-    return _topics().get(str(run.get("participant_id")), {}).get(str(topic)) or None
+    questions = _questions().get(str(run.get("participant_id")))
+    return questions[int(topic) - 1][0] or None if questions else None
+
+
+def experiment_questions(uids, date):
+    """The theme and the three questions that all these IDs had in a past experiment, or None if they differ."""
+    questions = _questions()
+    sets = {questions.get(uid) for uid in uids}
+    if not uids or not _dated(date) or len(sets) != 1 or None in sets:
+        return None
+    pairs = sets.pop()
+    return {"theme": THEMES.get(tuple(topic for topic, _ in pairs)),
+            "questions": [{"topic": topic, "question": question} for topic, question in pairs]}
 
 
 def named_task_stats(run):
