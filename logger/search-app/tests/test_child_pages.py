@@ -149,6 +149,12 @@ def test_the_answer_page_does_not_repeat_the_introductions_question_or_show_smal
     assert "La tua prima risposta è:" in page and "Prima risposta confermata." not in page
 
 
+def test_both_pop_ups_close_with_the_same_ring_that_needs_no_focus():
+    css = (STATIC / "main.css").read_text()
+    shared = re.search(r"#task-help-modal \.close,\s*\.search-first-answer-close \{([^}]*)\}", css)
+    assert shared and "border: 3px solid" in shared[1]
+
+
 def test_the_error_pages_speak_italian(site):
     client = site.app.test_client()
     page = client.get("/non-esiste")

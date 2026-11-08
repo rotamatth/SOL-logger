@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Give both pop-ups the same round close button
+
+**Commit:** pending · **Type:** fix · **Area:** styling, serp
+
+**Files**
+- `logger/search-app/static/main.css` — one rule for the ✕ of the "?" pop-up and of "La mia prima risposta": a 3 px light-blue ring drawn by the button, and no browser focus ring after a tap or on a touch screen
+- `logger/search-app/templates/first_answer.html`, `task_intro.html`, `study_handoff.html`, `layout.html` — load `main.css` as `child-pages-2`
+- `logger/search-app/tests/test_child_pages.py`
+
+**What changed for the participant**
+The ✕ of "La mia prima risposta" is in a circle, like the "?" pop-up's. On the iPad the circle of the "?" pop-up was the browser's focus ring, there only while the button had focus. Both buttons now draw the same ring themselves.
+
+**How it works**
+CSS only. A keyboard user on a computer still sees the dark focus ring.
+
+**If something looks wrong after this, check**
+- Two rings around a ✕ → the focus rules for `.search-first-answer-close` and `#task-help-modal .close` in `main.css`.
+
+**Left alone**
+What the buttons do, Escape, where focus returns, `firstAnswerOpened` and `firstAnswerClosed`.
+
+**Verified**
+Child-page tests, the pop-up browser tests, and pictures in WebKit.
+
 ## 2026-11-08 — Clear the answer page of small hints and repeated words
 
 **Commit:** pending · **Type:** content · **Area:** task-flow, styling
