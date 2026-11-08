@@ -1,4 +1,4 @@
-// Run with Playwright CLI against tests/ui_fixture.py; see docs/desktop_interface.md.
+// Run with Playwright CLI against tests/ui_fixture.py.
 async page => {
     page.setDefaultTimeout(3000);
     const origin = new URL(page.url()).origin;

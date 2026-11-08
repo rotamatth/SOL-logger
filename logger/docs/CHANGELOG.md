@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Keep working notes, screenshots and experiments out of the repository
+
+**Commit:** pending · **Type:** infra · **Area:** docs
+
+**Files**
+- Removed, and kept locally in `~/Desktop/IDSIA/SOL-logger-local-docs` with the same paths (107 files):
+  - `logger/docs/`: `codex_handoff.md`, `issue6_handover.md`, `issue13_handover.md`, `merge_review_2026-10-23.md`, `merge_v2_readiness.md`, `dashboard_review_2026-10-22.md`, `desktop_interface.md`, `desktop_interface_test_results.md`, `editable_recap.md`, `child_pages_2026-11.md` and its 60 pictures, `follow_up_checks.md`
+  - `docs/superpowers/` (one plan), `output/playwright/` (23 screenshots), `experiments/` (March 2026 analysis notebooks, CSVs and developer test logs)
+- `logger/README.md`, `logger/docs/dashboard_integration.md`, `logger/docs/research_dashboard.md`, `.github/dependabot.yml`, `logger/search-app/tests/desktop_keyboard.js` — no links to the removed files
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+The server's checkout no longer carries working notes, screenshots or old experiments. Nothing in the app, its image or the deploy script read them. The changelog, the READMEs and the operating and developer guides stay. Git's history still holds the removed files, and the PR descriptions keep their pictures, which link to fixed commits.
+
+**If something looks wrong after this, check**
+- A broken link in a document → it pointed to one of the files above; the local copy has it.
+
+**Left alone**
+The app, the tests, the changelog, `production_readiness.md`, `research_dashboard.md`, `dashboard_integration.md`, `local_ui_development.md`, `manual_logging_walkthrough.md`, `research_diagram_contract.md`.
+
+**Verified**
+The 107 local copies are byte-identical to the removed files; no remaining file links to them; no test reads them.
+
 ## 2026-11-08 — Document Diletta's feedback and the iPad check of 8 November
 
 **Commit:** pending · **Type:** content · **Area:** docs
