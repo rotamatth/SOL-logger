@@ -490,11 +490,10 @@ a:hover {
   box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.14);
 }
 
-/* Empty input: keep the button's space reserved so the row never reflows. */
+/* Empty input: no ✕ and no space for it, so "Cerca" sits right after the bar. Once the child types, the ✕
+   takes its place and the bar gives it the room: the row keeps its width and stays centred. */
 .search-clear-btn.is-hidden {
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 
 #submit-box {
