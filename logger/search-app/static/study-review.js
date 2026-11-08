@@ -13,9 +13,9 @@ if (animation) {
     function offerPlayback() {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "review-button review-animation-start";
+        button.className = "review-button review-button--outline review-animation-start";
         button.textContent = "Avvia animazione";
-        animation.after(button);
+        document.querySelector(".review-actions").prepend(button);
         button.addEventListener("click", async () => {
             try {
                 await animation.play();
@@ -29,6 +29,9 @@ if (animation) {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         offerPlayback();
     } else {
-        void animation.play().catch(offerPlayback);
+        // A clip that cannot load leaves its still on screen, and a button would do nothing.
+        void animation.play().catch(() => {
+            if (!animation.error) offerPlayback();
+        });
     }
 }

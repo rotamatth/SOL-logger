@@ -14,6 +14,12 @@
     assessment.hidden = blank;
     assessment.disabled = blank;
     if (blank) options.forEach(option => { option.checked = false; });
+    showReadiness();
+  }
+  // Conferma stays tappable, so a child who taps early is told what is missing.
+  function showReadiness() {
+    document.getElementById('first-answer-confirm').classList.toggle('is-waiting', !text.value.trim() || confidence() === null);
+    document.getElementById('first-answer-unknown').classList.toggle('is-waiting', Boolean(text.value.trim()));
   }
   function restore(value) {
     text.value = value.text;
@@ -28,13 +34,20 @@
   document.getElementById('first-answer-cancel-unknown').addEventListener('click', () => {
     dialog.close();
   });
+  // The browser words its own warnings in the tablet's language, so the form turns them off and asks in Italian.
+  function ask(event, field, message) {
+    event.preventDefault();
+    field.setCustomValidity(message);
+    field.reportValidity();
+  }
   text.addEventListener('input', () => { text.setCustomValidity(''); updateAssessment(); });
+  options.forEach(option => option.addEventListener('change', () => {
+    options[0].setCustomValidity('');
+    showReadiness();
+  }));
   form.addEventListener('submit', (event) => {
-    if (!text.value.trim()) {
-      event.preventDefault();
-      text.setCustomValidity('Scrivi una risposta oppure scegli “Non lo so”.');
-      text.reportValidity();
-    }
+    if (!text.value.trim()) ask(event, text, 'Scrivi una risposta oppure scegli “Non lo so”.');
+    else if (confidence() === null) ask(event, options[0], 'Scegli quanto è giusta la tua risposta.');
   });
 
   const status = document.getElementById('first-answer-draft-status');
@@ -65,10 +78,10 @@
     dirty = false;
     saving = true;
     try {
-      const response = await fetch(status.dataset.url, {
+      const response = await window.tryAgain(() => fetch(status.dataset.url, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({...scope, text: value, confidence: selected, revision})
-      });
+      }));
       if (!response.ok) throw new Error(response.status === 409
         ? 'La bozza è cambiata. Il testo resta qui: ricarica la pagina per recuperarlo.'
         : 'Bozza non salvata. Il testo resta qui: riprova.');
@@ -89,7 +102,7 @@
       dirty = true;
       blocked = true;
       buffer();
-      status.textContent = error.message || 'Bozza non salvata. Riprova.';
+      status.textContent = error.constructor === Error ? error.message : 'Connessione non disponibile. Il testo resta qui: riprova.';
       retry.hidden = false;
     } finally {
       saving = false;

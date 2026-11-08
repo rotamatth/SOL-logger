@@ -8,6 +8,10 @@ Figma artwork. Other themes use a neutral placeholder. Set
 `SOL_RECAP_BACKGROUND` to a file relative to `search-app/static` to override
 the artwork for an installation.
 
+Since November 2026 the page has the Figma's look over these same functions: see
+`child_pages_2026-11.md`. The button that finishes is "Salva l'attività" in every session,
+and "Chiudi" replaces "Ricomincia l'attività".
+
 The arrows change questions within a column. Participants can edit final
 answers and expand the original in each card. The recap autosaves each draft
 separately. **Salva modifiche** commits all drafts, including hidden cards.

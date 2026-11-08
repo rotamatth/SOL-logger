@@ -51,7 +51,8 @@ history of what was checked stays visible.
   rootful Docker: `id`, `docker info --format '{{.SecurityOptions}}'`, `git log -1 --oneline`, `ls -ln logger/logs | head -3`,
   `df -h .`, `python3 --version`, `docker compose version`. Done when these match, or the differences are understood.
 - [ ] **Repeat the rehearsal on the code actually released.** #28 combines #22 (with #23), #26, #27 and dashboard v2; #21 is
-  not in it. The class, crash, fault and deploy rehearsals covered earlier heads. Done when they pass on the final merge.
+  not in it. _2026-11-07: class, shared tablets, crash, faults and researcher changes passed on the head of `child-pages-2026-11-10`, which adds the
+  child pages to #28, and upgrading from the deployed `85f9781` kept a run under way and the server's setup._ Done when they pass on the final merge.
 - [ ] **Real search on both engines, on the server.** _2026-11-06: with the Discovery Engine Viewer role, a real query from a Mac
   returned results from each engine on its own topic. Vertex gave no suggestions for either, so autocomplete relies on the
   SerpAPI fallback._ Set the variables in `production_readiness.md` on the server and run `tools/check_search_engines.py`, then type
@@ -60,6 +61,12 @@ history of what was checked stays visible.
   `Orecchio_01`. Keep the theme `orecchio`, which the setup pre-fills. Done when `5a orecchio` shows Published.
 - [x] **Fake May logs on the server.** _2026-11-06, Matthias: `UserTestLog*`, `Utente*` and 11 numeric test runs removed through a
   container, with safety copies in the home folder. `logs/` holds 73 files: the 18 class runs of 19 May and the registry._
+- [ ] **Warnings and saves on a real device, 7 November fixes.** On an iPad or tablet set to English: "Conferma" without stars warns in Italian; editing the recap at a slow pace shows no message; a recap left for over 60 minutes leads to the start page. The warning is drawn by the browser, so only a real device confirms it. See `child_pages_2026-11.md`, fixes 15-18. Done when these hold.
+- [ ] **A real classroom tablet.** The tablets are not iPads and their screens are shorter (Matthias, 2026-11-06); model and browser are unknown.
+  On one of them, run a test ID through a whole question and the recap: everything fits, the animation plays without a box around it, buttons respond.
+  Done when these hold.
+- [ ] **Diletta's check of the child pages.** The orecchio text of "Cominciamo!", which was written for her to review, and each clip against its question.
+  See `child_pages_2026-11.md`. Done when she has seen them.
 - [ ] **Permanent test IDs on the server, Tuesday morning.** Run `TEST-spazio` and `TEST-orecchio` on an iPad with Brave before
   the class, then check the logs reached `logs-v2/test-runs` and nothing changed in Data and history. Done when both hold.
 

@@ -121,7 +121,7 @@ app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
                            lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw),
-                           test_logs=TEST_LOG_STORE)
+                           test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt))
 app.config["SOL_RECAP_BACKGROUND"] = os.getenv("SOL_RECAP_BACKGROUND")
 RECAP = StudentRecap(app, PROGRESS)
 
@@ -251,7 +251,9 @@ def phase_redirect_url(phase=None):
     if phase == 'pre_id':
         return url_for('welcome')
     if phase == 'task_intro':
-        return url_for('task')
+        # The browser's Back reaches here from the introductions, which must not start the question.
+        progress = PROGRESS.current()
+        return PROGRESS.entry_url(progress) if progress else url_for('task')
     if phase == 'searching':
         return url_for('search_page')
     if phase == 'question_complete':
@@ -302,7 +304,7 @@ HOME_URL = "home.html"
 
 def render_task_config_error(message):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Task Configuration Error",
+                           error_title="Sessione non configurata",
                            error_message=message), 500
 
 def get_user_config(user_id):
@@ -312,7 +314,7 @@ def get_user_config(user_id):
         user = assignment['topics'] if assignment else None
     if not user:
         raise TaskConfigError(
-            f"No complete student task assignment found for user '{user_id}'."
+            f"Mancano le domande per il numero {user_id}. Chiedi al ricercatore."
         )
     return user
 
@@ -423,7 +425,7 @@ def start_page():
                     session.clear()
                     session.update(previous_session)
                 return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                       start_error="Session not available. La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
+                                       start_error="La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
             session.clear()
             session['user_id'] = user_id
             session['task_config'] = deepcopy(assignment['topics'])
@@ -611,7 +613,7 @@ def result():
         session["query_correction_source"] = query_correction_source
         cache_query_results([], 0, message)
         record_view(query, 1)
-        return render_template(SEARCH_URL, title="Search Results",
+        return render_template(SEARCH_URL, title="Risultati",
                                search_results=[], query=query,
                                raw_query=raw_query,
                                corrected_query=corrected_query, query_correction_source=query_correction_source, page=page,
@@ -653,9 +655,9 @@ def result():
             if ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING:
                 return render_no_results("Modalità test: nessun risultato disponibile, ma puoi comunque scrivere una risposta.", query_correction_source=query_correction_source)
             return render_template(ERROR_URL, show_search=False,
-                                   error_title="Connection Error",
-                                   error_message="Could not connect to the search engine. Please try again later.",
-                                   is_search_engine_error=True), 503
+                                   error_title="Ricerca non disponibile",
+                                   error_message="Il motore di ricerca non risponde. Riprova tra poco.",
+                                   is_search_engine_error=True, search_error_log="Connection Error"), 503
 
         all_results = [normalize_result(r) for r in raw_results]
         session["search_results"] = all_results
@@ -677,7 +679,7 @@ def result():
     record_view(query, page)
     start = (page - 1) * rpp
     end = start + rpp
-    return render_template(SEARCH_URL, title="Search Results",
+    return render_template(SEARCH_URL, title="Risultati",
                            search_results=all_results[start:end],
                            query=query, raw_query=raw_query,
                            corrected_query=corrected_query,
@@ -910,8 +912,11 @@ def _accept_other_session_batch(data, batch_session_id, logs, user_id):
     newer events. It is stored like events of a previous, unfinished participant.
     """
     try:
+        # Events logged before a run has its server ID, such as the choice of ID, say only whose they are.
         metadata = RESEARCH_STATE.attempt_metadata(batch_session_id)
-        store = TEST_LOG_STORE if metadata and metadata.get('is_test') else LOG_STORE
+        is_test = (metadata.get('is_test') if metadata else
+                   all(is_test_participant(entry.get('uid')) for entry in logs))
+        store = TEST_LOG_STORE if is_test else LOG_STORE
         receipt = store.accept(batch_session_id, data.get('batch_id'),
                                    {"session_id": batch_session_id, "logs": logs},
                                    lambda: _prepare_other_session_upload(logs, batch_session_id, user_id))
@@ -1064,6 +1069,14 @@ REVIEW_ARTWORK_THEMES = {
 }
 
 
+# The dashed arrow from the first answer to the final one, on the review page's 760 x 420 stage.
+_ARROW_LEFT = {"line": "M110 100 C 20 195, 124 318, 205 372", "tip": "M193 373 L205 372 L199 361", "x": 93, "y": 251}
+_ARROW_RIGHT = {"line": "M610 112 C 700 200, 680 330, 604 362", "tip": "M615 351 L604 362 L619 365", "x": 669, "y": 258}
+_ARROW_FAR_LEFT = {"line": "M165 100 C 80 190, 90 320, 168 360", "tip": "M156 362 L168 360 L161 349", "x": 105, "y": 249}
+REVIEW_ARROWS = {'space-1': _ARROW_LEFT, 'ear-1': _ARROW_LEFT, 'space-2': _ARROW_RIGHT, 'ear-2': _ARROW_RIGHT,
+                 'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT}
+
+
 def known_theme(*labels):
     for label in labels:
         if isinstance(label, str):
@@ -1100,13 +1113,14 @@ def task_review(number):
     task = progress['tasks'][number - 1]
     theme = review_artwork_theme(progress)
     topic = str(task['snapshot']['topic_id'])
-    animation = poster = None
+    animation = poster = piece = None
     if theme and topic in ('1', '2', '3'):
         prefix = 'Spazio' if theme == 'space' else 'Orecchio'
         animation = f'videos/review/{prefix}_0{topic}.mp4'
         poster = f'images/review/{theme}-{topic}.webp'
+        piece = f'{theme}-{topic}'
     return render_template('study_handoff.html', review_tasks=[task], review_only=True,
-                           animation=animation, poster=poster,
+                           animation=animation, poster=poster, piece=piece, arrow=REVIEW_ARROWS.get(piece),
                            is_last=number == len(progress['tasks']))
 
 
@@ -1152,7 +1166,7 @@ def thank_you():
             return redirect(url_for('task'))
         if not reviews.get(3):
             return render_template('study_handoff.html', review_tasks=[], review_only=False)
-        return RECAP.page(progress, review_illustration(progress))
+        return RECAP.page(progress, review_illustration(progress), review_artwork_theme(progress))
     phase = current_phase()
     if phase != 'completed':
         return redirect(phase_redirect_url(phase))
@@ -1167,14 +1181,14 @@ def thank_you():
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Page Not Found",
-                           error_message="The page you are looking for does not exist."), 404
+                           error_title="Pagina non trovata",
+                           error_message="Questa pagina non esiste."), 404
 
 @app.errorhandler(500)
 def internal_error(e):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Server Error",
-                           error_message="Something went wrong on our end. Please try again."), 500
+                           error_title="Errore",
+                           error_message="Qualcosa non ha funzionato. Riprova o chiedi al ricercatore."), 500
 
 if __name__ == '__main__':
     debug = os.getenv("FLASK_DEBUG", "0") == "1"

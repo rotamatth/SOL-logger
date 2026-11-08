@@ -4,14 +4,20 @@
         data-outcome="{{ search_first_answer.outcome }}">La mia prima risposta</button>
 <dialog id="search-first-answer-dialog" class="search-first-answer-dialog" aria-labelledby="search-first-answer-title">
   <button type="button" id="search-first-answer-close" class="search-first-answer-close"
-          aria-label="Chiudi prima risposta" autofocus>&times;</button>
-  <h2 id="search-first-answer-title">La mia prima risposta</h2>
+          aria-label="Chiudi prima risposta">&times;</button>
+  <div class="task-help-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18h6"/>
+      <path d="M10 22h4"/>
+      <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/>
+    </svg>
+  </div>
+  {# The pop-up opens with focus on its title, not on the ✕: a tablet drew its focus ring around the ✕. #}
+  <h2 id="search-first-answer-title" class="task-help-label" tabindex="-1" autofocus>La tua prima risposta è:</h2>
   {% if search_first_answer.outcome == 'unknown' %}
-  <p>Non lo so</p>
+  <p class="search-first-answer-value">Non lo so</p>
   {% else %}
-  <textarea id="search-first-answer-text" class="search-first-answer-text" rows="5" readonly
-            aria-label="La mia prima risposta">
-{{ search_first_answer.text }}</textarea>
+  <p id="search-first-answer-text" class="search-first-answer-value">{{ search_first_answer.text }}</p>
   {% endif %}
 </dialog>
 {% endif %}
