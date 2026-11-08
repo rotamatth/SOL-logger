@@ -73,4 +73,4 @@
   .stats-table td.live-task-note { display:block }
   .stats-table td.live-task-note::before { content:none }
 }
-.stats-recap-pdf { margin:6px 0 0; font-size:13px }
+.stats-recap-pdf { margin:10px 0 0 }

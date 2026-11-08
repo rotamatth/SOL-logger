@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Make the recap PDF on a participant's page a download button
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, styling
+
+**Files**
+- `logger/search-app/research_dashboard/templates/research/participant.html` — the link is a compact button with the download icon, as on the run page
+- `logger/search-app/research_dashboard/static/stats.css`, `templates/research/base.html` — its spacing; `stats.css` as `dashboard-v2-20261108c`
+
+**What changed for the participant**
+No visible change for the children. Under a child's question cards, "Scarica il riepilogo finale del bambino (PDF)" read as plain grey text; it is now a button.
+
+**How it works**
+Template and CSS only; the address and the PDF are the same.
+
+**If something looks wrong after this, check**
+Nothing beyond the button's look.
+
+**Left alone**
+The download itself, the run page's button.
+
+**Verified**
+Dashboard tests and a picture of the page.
+
 ## 2026-11-08 — Show a child's statistics as one card per question
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard, styling
