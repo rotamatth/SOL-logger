@@ -97,6 +97,7 @@
     {% for run in group.runs if run.task_stats and not run.recovery_only %}
     {% if group.runs | length > 1 %}<h3>{{ t('run') }} {{ loop.index }}{% if run.started_at %} · <span class="muted small">{{ run.started_at }}</span>{% endif %}</h3>{% endif %}
     {{ task_table(run) }}
+    {% if run.id in recap_pdf_runs %}<p class="stats-recap-pdf"><a href="{{ u('run_recap_pdf', key=run.id) }}">{{ t('download_recap_pdf') }}</a></p>{% endif %}
     {% else %}<p class="muted">{{ t('stats_nothing_yet') }}</p>{% endfor %}
   </details>
   {% endfor %}
