@@ -494,13 +494,15 @@ def _task_figures(canonical, tasks):
             for source in canonical:
                 if number in source.get("task_stats", {}):
                     stats = merge_stats(stats, source["task_stats"][number])
-            first = next((a for a in task["first_answers"] if isinstance(a.get("value"), str)), None)
+            # "Non lo so" is logged with no text at all: its outcome says what the child chose.
+            first = next((a for a in task["first_answers"]
+                          if isinstance(a.get("value"), str) or a.get("outcome") == "unknown"), None)
             final = next((a["value"] for a in task["answers"] if a["present"] and isinstance(a["value"], str)), None)
             figures[number] = {**summarize(stats), "finished": task["status"] == "completed",
                                "topic": task["topics"][0] if task["topics"] else None,
                                "question": task["questions"][0] if task["questions"] else None,
                                "first_answer": first and {
-                                   "text": first["value"], "unknown": first.get("outcome") == "unknown",
+                                   "text": first["value"] or "", "unknown": first.get("outcome") == "unknown",
                                    "confidence": first["confidence"] if first.get("confidence") in (1, 2, 3) else None},
                                "final_answer": final}
     return figures

@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Show "Non lo so" as the first answer in the dashboard
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/index.py` — a first answer with outcome `unknown` counts even though its `answer` is `null`
+- `logger/search-app/tests/test_dashboard_answers.py` — the synthetic "Non lo so" is logged as the app logs it, with `answer: null`
+
+**What changed for the participant**
+No visible change for the children. In the rehearsal on the production image, a child who chose "Non lo so" had no "Prima della ricerca" for that question in the dashboard. It now reads "Non lo so".
+
+**How it works**
+`OwnKnowledgeAnswerSubmitted` for "Non lo so" carries `answer: null` and `outcome: "unknown"`; the dashboard only accepted text. The answers are picked when the runs are rebuilt from the indexed files, so the logs do not have to be read again.
+
+**If something looks wrong after this, check**
+- A missing first answer → the run's `OwnKnowledgeAnswerSubmitted` events and `_task_figures` in `index.py`.
+
+**Left alone**
+The logs, the index version, everything else on the page.
+
+**Verified**
+The test fails without the fix and passes with it.
+
 ## 2026-11-08 — Make the recap PDF on a participant's page a download button
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard, styling

@@ -18,7 +18,7 @@ def write_answered_run(app, uid="1", attempt="attempt-1", suffix="a", answers=No
     study_session = next(item for item in settings["sessions"] if item["id"] == SESSION)
     stem, technical, order = f"{uid}_{DATE}_09-00-00_{suffix}", f"technical-{uid}-{suffix}", ("3", "1", "2")
     answers = answers or [("Andromeda", "answered", 2, "Andromeda e il Triangolo"),
-                          ("", "unknown", None, "Io, Europa, Ganimede e Callisto"),
+                          (None, "unknown", None, "Io, Europa, Ganimede e Callisto"),
                           ("Un cane", "answered", 3, "Laika")]
     full = []
     for number, (topic, (first, outcome, confidence, final)) in enumerate(zip(order, answers, strict=True), 1):
