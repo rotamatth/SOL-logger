@@ -27,6 +27,8 @@ def show(page):
     assert page.locator("#search-first-answer-btn").count() == 1
     page.get_by_role("button", name="La mia prima risposta", exact=True).click()
     page.locator("#search-first-answer-dialog[open]").wait_for()
+    # The pop-up opens on its title, so no focus ring is drawn around the ✕ on a tablet.
+    assert page.evaluate("document.activeElement.id") == "search-first-answer-title"
 
 
 def test_original_is_read_only_across_search_results_viewer_and_navigation(student_site):
