@@ -125,8 +125,8 @@
             input.setAttribute("aria-controls", list.id);
 
             // The clear button sits outside the input, between it and "Cerca".
-            // It only shows while there is something to clear, but keeps its
-            // slot in the row so the layout never shifts.
+            // It only shows while there is something to clear; the input then
+            // gives it room, so the row keeps its width and stays centred.
             function syncClearButton() {
                 if (!clearBtn) return;
                 const hasValue = input.value.length > 0;

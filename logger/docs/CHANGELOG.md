@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Put Cerca right after the search bar
+
+**Commit:** pending · **Type:** fix · **Area:** search-bar, styling
+
+**Files**
+- `logger/search-app/static/main.css` — the hidden ✕ takes no space (`display: none` instead of `visibility: hidden`)
+- `logger/search-app/templates/layout.html` — the comment of `syncClearButton`
+- `logger/search-app/tests/test_search_bar_browser.py` — new
+
+**What changed for the participant**
+"Cerca" sits right after the search bar, instead of after an empty space kept for the ✕. Once the child types, the ✕ appears between the bar and "Cerca"; the bar gives it the room, so the row keeps its width and stays centred.
+
+**How it works**
+CSS only. The script that shows and hides the ✕ is unchanged.
+
+**If something looks wrong after this, check**
+- The row jumping when the child types → `.search-field` and `#search-box` in `main.css`: the bar must be the part that flexes.
+
+**Left alone**
+Autocomplete, `queryCleared`, the results page's search row beyond this rule.
+
+**Verified**
+A new browser test: "Cerca" next to the bar, the ✕ only with text, between the bar and "Cerca", the row centred and as wide before and after typing.
+
 ## 2026-11-08 — Open the first answer's pop-up on its title, not on the close button
 
 **Commit:** pending · **Type:** fix · **Area:** serp, styling
