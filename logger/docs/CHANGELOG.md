@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Show a child's statistics as one card per question
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, styling
+
+**Files**
+- `logger/search-app/research_dashboard/templates/research/task_stats.html` — `task_table` draws one card per question instead of a wide table
+- `logger/search-app/research_dashboard/static/stats.css` — the cards; `stats.css` as `dashboard-v2-20261108b`
+- `logger/search-app/research_dashboard/templates/research/base.html` — the new version of `stats.css`
+- `logger/search-app/tests/test_task_stats_pages.py`, `test_dashboard_answers.py`
+
+**What changed for the participant**
+No visible change for the children. On a participant's page and a run's page, "Statistiche per domanda" was one wide table with the answers squeezed into the first column and small notes under the numbers; Matthias found it chaotic. Each question is now a card: the question, the answers before and after the search side by side, then one labelled value per figure.
+
+**How it works**
+Template and CSS only, with the same figures as before.
+
+**If something looks wrong after this, check**
+- A figure missing from a card → `task_table` in `task_stats.html`.
+
+**Left alone**
+The class table ("La classe, domanda per domanda"), the sessions table and charts, the live view, the figures themselves.
+
+**Verified**
+Dashboard tests; pictures of a child with answers and of a May child.
+
 ## 2026-11-08 — Show May's question on its run page
 
 **Commit:** pending · **Type:** content · **Area:** dashboard

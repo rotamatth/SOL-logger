@@ -55,7 +55,7 @@ def test_older_legacy_runs_keep_the_topic_number_because_the_file_may_have_chang
     client = signed_in(app)
     write_run(app, uid="10", collection="legacy", metadata=False, date="2026-05-12")
     page = client.get(f"/dashboard/participants/legacy/{identity('10')}").text
-    assert '<span class="stats-question">1. 3</span>' in page and "Altre galassie" not in page
+    assert '<h4 class="stats-question">1. 3</h4>' in page and "Altre galassie" not in page
 
 
 def test_each_question_shows_the_childs_two_answers(app):

@@ -2,26 +2,31 @@
 {% macro dash(value) %}{{ '—' if value is none else value }}{% endmacro %}
 
 {% macro task_table(run) %}
-<div class="stats-table-wrap"><table class="stats-table">
-  <thead><tr><th scope="col">{{ t('stats_question') }}</th><th scope="col">{{ t('stats_time') }}</th><th scope="col">{{ t('stats_events') }}</th><th scope="col">{{ t('stats_searches') }}</th><th scope="col">{{ t('stats_results') }}</th><th scope="col">{{ t('stats_pages') }}</th><th scope="col">{{ t('stats_difficulty') }}</th></tr></thead>
-  <tbody>
+{# One card per question: the question, the child's two answers side by side, then the figures, one value each. #}
+<div class="question-cards">
   {% for number, task in run.task_stats | dictsort %}
-    <tr>
-      <th scope="row"><span class="stats-question">{{ number }}. {{ task.question or task.topic_name or task.topic or '—' }}</span>{% if not task.finished %} <span class="badge incomplete">{{ t('incomplete') }}</span>{% endif %}
-        {% if task.first_answer or task.final_answer %}<dl class="stats-answers">
-          {% if task.first_answer %}<div><dt>{{ t('stats_first_answer') }}</dt><dd>{{ t('stats_answer_unknown') if task.first_answer.unknown else task.first_answer.text }}{% if task.first_answer.confidence %} <span class="stats-confidence" title="{{ t('stats_confidence') }}: {{ task.first_answer.confidence }}/3">{{ '★' * task.first_answer.confidence }}{{ '☆' * (3 - task.first_answer.confidence) }}</span>{% endif %}</dd></div>{% endif %}
-          {% if task.final_answer %}<div><dt>{{ t('stats_final_answer') }}</dt><dd>{{ task.final_answer }}</dd></div>{% endif %}
-        </dl>{% endif %}</th>
-      <td data-label="{{ t('stats_time') }}">{{ duration(task.seconds) }}</td>
-      <td data-label="{{ t('stats_events') }}">{{ dash(task.events) }}</td>
-      <td data-label="{{ t('stats_searches') }}">{{ dash(task.searches) }}{{ count_notes([(task.no_results, 'stats_no_results'), (task.suggestions, 'stats_suggestions')]) }}</td>
-      <td data-label="{{ t('stats_results') }}">{{ dash(task.results_opened) }}{% if task.mean_rank is not none %}<small class="muted">{{ t('stats_mean_rank') }} {{ task.mean_rank }}</small>{% endif %}</td>
-      <td data-label="{{ t('stats_pages') }}">{{ duration(task.page_seconds) }}</td>
-      <td data-label="{{ t('stats_difficulty') }}">{% if task.events is none %}—{% elif task.help_opened or task.search_errors or task.pages_failed %}{{ count_notes([(task.help_opened, 'stats_help'), (task.search_errors, 'stats_errors'), (task.pages_failed, 'stats_failed_pages')]) }}{% else %}{{ t('stats_none') }}{% endif %}</td>
-    </tr>
+  <article class="question-card">
+    <div class="question-card-head">
+      <h4 class="stats-question">{{ number }}. {{ task.question or task.topic_name or task.topic or '—' }}</h4>
+      {% if not task.finished %}<span class="badge incomplete">{{ t('incomplete') }}</span>{% endif %}
+    </div>
+    {% if task.first_answer or task.final_answer %}
+    <dl class="question-card-answers">
+      {% if task.first_answer %}<div><dt>{{ t('stats_first_answer') }}</dt><dd>{{ t('stats_answer_unknown') if task.first_answer.unknown else task.first_answer.text }}{% if task.first_answer.confidence %} <span class="stats-confidence" title="{{ t('stats_confidence') }}: {{ task.first_answer.confidence }}/3">{{ '★' * task.first_answer.confidence }}{{ '☆' * (3 - task.first_answer.confidence) }}</span>{% endif %}</dd></div>{% endif %}
+      {% if task.final_answer %}<div><dt>{{ t('stats_final_answer') }}</dt><dd>{{ task.final_answer }}</dd></div>{% endif %}
+    </dl>
+    {% endif %}
+    <dl class="question-card-figures">
+      <div><dt>{{ t('stats_time') }}</dt><dd>{{ duration(task.seconds) }}</dd></div>
+      <div><dt>{{ t('stats_searches') }}</dt><dd>{{ dash(task.searches) }}{{ count_notes([(task.no_results, 'stats_no_results'), (task.suggestions, 'stats_suggestions')]) }}</dd></div>
+      <div><dt>{{ t('stats_results') }}</dt><dd>{{ dash(task.results_opened) }}{% if task.mean_rank is not none %}<small class="muted">{{ t('stats_mean_rank') }} {{ task.mean_rank }}</small>{% endif %}</dd></div>
+      <div><dt>{{ t('stats_pages') }}</dt><dd>{{ duration(task.page_seconds) }}</dd></div>
+      <div><dt>{{ t('stats_difficulty') }}</dt><dd>{% if task.events is none %}—{% elif task.help_opened or task.search_errors or task.pages_failed %}{{ count_notes([(task.help_opened, 'stats_help'), (task.search_errors, 'stats_errors'), (task.pages_failed, 'stats_failed_pages')]) }}{% else %}{{ t('stats_none') }}{% endif %}</dd></div>
+      <div><dt>{{ t('stats_events') }}</dt><dd>{{ dash(task.events) }}</dd></div>
+    </dl>
+  </article>
   {% endfor %}
-  </tbody>
-</table></div>
+</div>
 {% endmacro %}
 
 {% macro question_table(rows) %}
