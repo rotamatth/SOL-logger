@@ -14,6 +14,7 @@ import time
 import fcntl
 import uuid
 
+from .legacy_topics import named_task_stats
 from .participants import resolve_identity, school_year_for
 from .permanent_test import is_test_log_name
 from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
@@ -538,7 +539,8 @@ def classify(run, settings):
         if enrolled and not school_year and grade == enrolled["grade"]:
             school_year, year_source = dated_year, "enrollment"
     study_session = _study_session_for_run(run, settings, study_id, grade, issues)
-    return {**run, "started_at": started_at, "study_id": study_id, "grade": grade, "study_session": study_session,
+    return {**run, "task_stats": named_task_stats(run),
+            "started_at": started_at, "study_id": study_id, "grade": grade, "study_session": study_session,
             "school_year": school_year, "grade_source": source,
             "study_participant_id": canonical["id"] if canonical else None,
             "enrollment_id": run.get("enrollment_id") or (enrolled["id"] if enrolled else None),

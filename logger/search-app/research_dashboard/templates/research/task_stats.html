@@ -7,7 +7,7 @@
   <tbody>
   {% for number, task in run.task_stats | dictsort %}
     <tr>
-      <th scope="row"><span class="stats-question">{{ number }}. {{ task.question or task.topic or '—' }}</span>{% if not task.finished %} <span class="badge incomplete">{{ t('incomplete') }}</span>{% endif %}</th>
+      <th scope="row"><span class="stats-question">{{ number }}. {{ task.question or task.topic_name or task.topic or '—' }}</span>{% if not task.finished %} <span class="badge incomplete">{{ t('incomplete') }}</span>{% endif %}</th>
       <td data-label="{{ t('stats_time') }}">{{ duration(task.seconds) }}</td>
       <td data-label="{{ t('stats_events') }}">{{ dash(task.events) }}</td>
       <td data-label="{{ t('stats_searches') }}">{{ dash(task.searches) }}{{ count_notes([(task.no_results, 'stats_no_results'), (task.suggestions, 'stats_suggestions')]) }}</td>
