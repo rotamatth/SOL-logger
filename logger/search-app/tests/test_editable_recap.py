@@ -1,4 +1,10 @@
-"""Participant recap preserves originals and saves a durable, retryable PDF."""
+"""Participant recap preserves originals and saves a durable, retryable PDF that stays on the server.
+
+The recap shows today's three questions only and edits nothing. The server still accepts and checks
+recap drafts, so these tests post them directly, as an older recap page could have.
+"""
+import html
+import json
 import sqlite3
 import re
 from datetime import datetime, timedelta
@@ -59,9 +65,14 @@ def draft(client, auth, target, number, text, revision=0):
 
 
 def draft_revisions(client):
-    fields = re.findall(r'data-target="([^"]+)" data-number="(\d+)"\s+data-revision="(\d+)"',
-                        client.get("/thank_you").text)
-    return {f"{target}:{number}": int(revision) for target, number, revision in fields}
+    """What the page sends when the child taps "Salva l'attività": the draft revisions it was given."""
+    found = re.search(r'data-draft-revisions="([^"]*)"', client.get("/thank_you").text)
+    return json.loads(html.unescape(found[1]))
+
+
+def saved_draft(module, key, attempt_id, session_number, question):
+    task = module.PROGRESS.store.recap_columns(key, attempt_id)[session_number]["tasks"][question - 1]
+    return task["recap_drafts"].get("final-answer", {}).get("text")
 
 
 def commit(client, auth, action, revisions=None):
@@ -74,8 +85,11 @@ def test_recap_scope_hidden_drafts_revisions_and_originals(recap):
     module, client, current, past, past_id, future_id, auth = recap
     page = client.get("/thank_you")
     assert page.status_code == 200
-    assert page.text.index("Past question 3") < page.text.index("Past question 1")
-    assert "Future question" not in page.text and "Sessione 3" in page.text
+    # Only today's questions, with nothing to edit; the past session is still covered by the saved revisions.
+    assert "Past question" not in page.text and "Future question" not in page.text and "Sessione" not in page.text
+    assert "<textarea" not in page.text and "Salva modifiche" not in page.text and "Tocca per modificare" not in page.text
+    assert set(draft_revisions(client)) == {f"{attempt}:{number}" for attempt in (auth["attempt_id"], past_id)
+                                            for number in (1, 2, 3)}
     assert draft(client, auth, future_id, 1, "Illicit edit").status_code == 409
     assert draft(client, {**auth, "csrf_token": "bad"}, past_id, 1, "Illicit edit").status_code == 403
     assert draft(client, auth, past_id, 1, "Un'idea rivista").status_code == 200
@@ -94,8 +108,7 @@ def test_recap_scope_hidden_drafts_revisions_and_originals(recap):
 
 
 def test_pdf_failure_rolls_back_edits_and_finished_events(recap, monkeypatch, student_modules):
-    module, client, _, _, past_id, _, auth = recap
-    assert client.get("/recap/pdf").status_code == 404
+    module, client, current, past, past_id, _, auth = recap
     assert draft(client, auth, past_id, 1, "Keep this draft").status_code == 200
     revisions = draft_revisions(client)
 
@@ -105,28 +118,26 @@ def test_pdf_failure_rolls_back_edits_and_finished_events(recap, monkeypatch, st
     with monkeypatch.context() as patch:
         patch.setattr(module.RECAP, "render_pdf", fail)
         assert commit(client, auth, "finish", revisions).status_code == 503
-    assert "Keep this draft" in client.get("/thank_you").text
+    assert saved_draft(module, current, auth["attempt_id"], 1, 1) == "Keep this draft"
     assert not [event for event in events(module) if event["type"] in ("RecapAnswerEdited", "studySessionFinished")]
+    assert module.PROGRESS.store.recap_pdf(auth["attempt_id"]) is None
     assert commit(client, auth, "finish", revisions).status_code == 200
-    pdf = client.get("/recap/pdf")
-    assert pdf.status_code == 200 and pdf.data.startswith(b"%PDF-")
-    assert "attachment" in pdf.headers["Content-Disposition"]
+    pdf = module.PROGRESS.store.recap_pdf(auth["attempt_id"])
+    assert pdf.startswith(b"%PDF-")
+    # The server keeps the PDF; the tablet gets no copy of it.
+    finished = client.get("/thank_you").text
+    assert "La sessione è salvata." in finished and "Scarica PDF" not in finished and "/recap/pdf" not in finished
+    assert client.get("/recap/pdf").status_code == 404
     assert commit(client, auth, "finish", revisions).status_code == 200
-    assert client.get("/recap/pdf").data == pdf.data
+    assert module.PROGRESS.store.recap_pdf(auth["attempt_id"]) == pdf
     worker = student_modules()
-    same_browser = worker.app.test_client()
-    cookie_name = module.app.config["SESSION_COOKIE_NAME"]
-    same_browser.set_cookie(cookie_name, client.get_cookie(cookie_name).value)
-    assert same_browser.get("/recap/pdf").data == pdf.data
     assert draft(client, auth, past_id, 1, "Late draft", 2).status_code == 409
     assert client.post("/recap/restart", json=auth).status_code == 200
-    assert client.get("/recap/pdf").status_code == 404
     types = [event["type"] for event in events(module)]
     assert types.count("studySessionFinished") == 1 and "experimentFinished" not in types
     resumed = begin(worker)
     assert context(resumed)["attempt_id"] == auth["attempt_id"]
     assert "Keep this draft" not in resumed.get("/thank_you").text
-    assert resumed.get("/recap/pdf").status_code == 404
     with resumed.session_transaction() as state:
         fresh_auth = {**auth, "csrf_token": state["progress_csrf"]}
     assert resumed.post("/recap/finish", json=fresh_auth).status_code == 404
@@ -141,7 +152,7 @@ def test_session_three_finishes_the_study_exactly_once(student_modules):
     module.RESEARCH_STATE.save_settings(settings, settings["revision"])
     client = begin(module)
     auth = complete_today(client)
-    assert "termina lo studio" in client.get("/thank_you").text
+    assert "Salva l’attività" in client.get("/thank_you").text
     for _ in range(2):
         assert commit(client, auth, "finish").status_code == 200
     for kind in ("sessionCompleted", "studySessionFinished", "experimentFinished"):
@@ -165,7 +176,7 @@ def test_an_old_tab_cannot_commit_an_unseen_draft_or_overwrite_a_revision(recap)
     revisions = draft_revisions(client)
     assert draft(client, auth, past_id, 1, "Edit in the other tab").status_code == 200
     assert commit(client, auth, "finish", revisions).status_code == 409
-    assert client.get("/recap/pdf").status_code == 404
+    assert recap[0].PROGRESS.store.recap_pdf(auth["attempt_id"]) is None
     assert commit(client, auth, "save-changes").status_code == 200
     assert draft(client, auth, past_id, 1, "Edit based on original", 2).status_code == 409
 
@@ -183,6 +194,30 @@ def test_finish_compares_snapshot_again_after_pdf_layout(recap, monkeypatch):
     with monkeypatch.context() as patch:
         patch.setattr(module.RECAP, "render_pdf", render_during_edit)
         assert commit(client, auth, "finish", revisions).status_code == 409
-    assert client.get("/recap/pdf").status_code == 404
-    assert "Changed while rendering" in client.get("/thank_you").text
+    assert module.PROGRESS.store.recap_pdf(auth["attempt_id"]) is None
+    assert saved_draft(module, recap[2], auth["attempt_id"], 1, 3) == "Changed while rendering"
     assert commit(client, auth, "finish").status_code == 200
+
+
+def test_past_the_idle_limit_the_recap_gives_way_to_the_start_page_and_a_closing_page(recap):
+    module, client, current, past, past_id, future_id, auth = recap
+    assert draft(client, auth, past_id, 1, "Scritto prima della pausa").status_code == 200
+    with client.session_transaction() as state:
+        state["last_active"] = (datetime.now() - timedelta(minutes=61)).isoformat()
+    assert draft(client, auth, past_id, 1, "Scritto dopo la pausa", 1).status_code == 404
+    assert client.get("/thank_you", follow_redirects=True).request.path == "/welcome"
+    # Whoever picks the number next must not see these answers: the run closes without the recap.
+    page = client.post("/start", data={"user_id": "1"}, follow_redirects=True)
+    assert page.request.path == "/thank_you" and "Hai risposto alle tre domande" in page.text
+    assert "Chiudi l’attività" in page.text and "Scritto prima della pausa" not in page.text
+    with client.session_transaction() as state:
+        assert state["progress_id"] == auth["attempt_id"]
+
+
+def test_the_recap_buttons_arrive_disabled_until_the_script_enables_them(recap):
+    module, client, current, past, past_id, future_id, auth = recap
+    page = client.get("/thank_you").text
+    assert re.search(r'<button[^>]*data-action="finish"[^>]*\bdisabled\b', page)
+    assert 'data-action="save"' not in page
+    assert commit(client, auth, "finish").status_code == 200
+    assert re.search(r'<button[^>]*data-action="restart"[^>]*\bdisabled\b', client.get("/thank_you").text)

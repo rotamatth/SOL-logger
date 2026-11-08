@@ -290,3 +290,28 @@ def test_sqlite_backup_restores_snapshots_and_drafts(tmp_path):
         source.backup(target)
     restored = ProgressStore(backup_path)
     assert restored.get_attempt(key, attempt_id) == expected
+
+
+@pytest.mark.parametrize("phase", ["first-answer", "final-answer"])
+def test_a_draft_repeated_after_a_lost_reply_is_acknowledged_once(tmp_path, phase):
+    from study_progress import DraftConflict
+    store, key = make_store(tmp_path)
+    attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
+    options = {"confidence": 2} if phase == "first-answer" else {}
+    saved = store.save_draft(key, attempt_id, 1, phase, "Laika", 0, **options)
+    assert store.save_draft(key, attempt_id, 1, phase, "Laika", 0, **options) == saved
+    with pytest.raises(DraftConflict):
+        store.save_draft(key, attempt_id, 1, phase, "Altro testo", 0, **options)
+    newer = store.save_draft(key, attempt_id, 1, phase, "Laika, una cagnetta", 1, **options)
+    assert newer["revision"] == 2
+    with pytest.raises(DraftConflict):
+        store.save_draft(key, attempt_id, 1, phase, "Laika", 0, **options)
+
+
+def test_a_first_answer_draft_with_other_stars_is_no_repeat(tmp_path):
+    from study_progress import DraftConflict
+    store, key = make_store(tmp_path)
+    attempt_id = store.start_or_resume(key, QUESTIONS)["attempt_id"]
+    store.save_draft(key, attempt_id, 1, "first-answer", "Laika", 0, confidence=2)
+    with pytest.raises(DraftConflict):
+        store.save_draft(key, attempt_id, 1, "first-answer", "Laika", 0, confidence=3)

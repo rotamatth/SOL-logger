@@ -41,6 +41,13 @@
     {% with configured_session=selected_session_configuration %}{% include 'research/session_question_preview.html' %}{% endwith %}
   </section>{% endif %}
 
+  {% for row in historical_experiments %}{% set month = row.date[5:7]|int %}<section class="panel session-configuration historical-experiment">
+    <h2>{{ t('historical_session_name').format(date=(row.date[8:10]|int)|string ~ ' ' ~ t('month_names').split()[month - 1]) }}</h2>
+    <p class="small muted">{{ t('grade_' ~ row.grade) }} · {{ row.date }} · {{ row.count }} {{ 'ID' if row.count == 1 else t('ids_short') }}{% if row.experiment.theme %} · {{ t('experiment_theme') }}: <strong>{{ row.experiment.theme }}</strong>{% endif %}</p>
+    <ol class="saved-question-list">{% for item in row.experiment.questions %}<li><strong>{{ item.topic }}</strong><p>{{ item.question }}</p></li>{% endfor %}</ol>
+    <p class="small muted">{{ t('historical_questions_hint') }}</p>
+  </section>{% endfor %}
+
   {% if question_stats is not none %}<section class="panel stats-panel" aria-labelledby="class-stats-heading">
     <h2 id="class-stats-heading">{{ t('stats_class_heading') }}</h2>
     {% if question_stats %}<p class="small muted">{{ t('stats_class_hint') }}</p>{{ question_table(question_stats) }}{% else %}<p class="muted">{{ t('stats_nothing_yet') }}</p>{% endif %}

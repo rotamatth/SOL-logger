@@ -1,4 +1,4 @@
-"""Participant recap routes, plus the downloadable snapshot of a finished session."""
+"""Participant recap routes, plus the PDF snapshot of a finished session that the server keeps."""
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -6,7 +6,7 @@ import secrets
 import sqlite3
 from xml.sax.saxutils import escape
 
-from flask import abort, jsonify, render_template, request, send_file, session, url_for
+from flask import abort, jsonify, render_template, request, session, url_for
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
@@ -17,6 +17,30 @@ from study_progress import AttemptNotFound, DraftConflict, SubmissionConflict
 
 CONFIDENCE_LABELS = {1: "Poco giusta", 2: "Abbastanza giusta", 3: "Giustissima"}
 RECAP_PLACEHOLDER = "images/review/recap-placeholder.svg"
+
+
+def _arrow(start, bend_in, magnifier, bend_out, end):
+    """The dashed line from a first answer to its final one, through the magnifier, on the 1000 x 667 recap picture."""
+    (ex, ey), (cx, cy) = end, bend_out
+    length = ((ex - cx) ** 2 + (ey - cy) ** 2) ** 0.5
+    ux, uy = (ex - cx) / length, (ey - cy) / length
+    left = (round(ex - 13 * ux - 7 * uy), round(ey - 13 * uy + 7 * ux))
+    right = (round(ex - 13 * ux + 7 * uy), round(ey - 13 * uy - 7 * ux))
+    point = "{0[0]} {0[1]}".format
+    return {"line": f"M{point(start)} Q{point(bend_in)} {point(magnifier)} Q{point(bend_out)} {point(end)}",
+            "tip": f"M{point(left)} L{point(end)} L{point(right)}", "x": magnifier[0], "y": magnifier[1]}
+
+
+# Each question's arrow as in Diletta's Figma, by theme and by the question's part of the picture,
+# moved inside the picture with the cards.
+RECAP_ARROWS = {
+    "space": {"1": _arrow((40, 236), (22, 300), (40, 354), (52, 420), (82, 452)),
+              "2": _arrow((640, 238), (652, 290), (643, 323), (600, 370), (562, 392)),
+              "3": _arrow((955, 300), (972, 345), (958, 391), (948, 440), (925, 478))},
+    "ear": {"1": _arrow((40, 236), (20, 290), (38, 340), (48, 410), (78, 452)),
+            "2": _arrow((471, 242), (468, 290), (484, 329), (500, 365), (525, 393)),
+            "3": _arrow((880, 150), (975, 165), (958, 332), (945, 440), (925, 520))},
+}
 SAVE_ERROR = "Salvataggio non disponibile. Riprova."
 CONFLICT_ERROR = "Le risposte sono cambiate in un'altra scheda. Riapri il riepilogo prima di riprovare."
 
@@ -79,7 +103,6 @@ class StudentRecap:
         app.add_url_rule("/recap/draft", "recap_draft", self.draft, methods=["POST"])
         app.add_url_rule("/recap/save-changes", "recap_save", self.save, methods=["POST"])
         app.add_url_rule("/recap/finish", "recap_finish", self.finish, methods=["POST"])
-        app.add_url_rule("/recap/pdf", "recap_pdf", self.pdf)
         app.add_url_rule("/recap/restart", "recap_restart", self.restart, methods=["POST"])
 
     def _current(self):
@@ -112,14 +135,32 @@ class StudentRecap:
         full = (root / path).resolve()
         return full.relative_to(root).as_posix() if full.is_relative_to(root) and full.is_file() else RECAP_PLACEHOLDER
 
-    def page(self, attempt, illustration):
+    @staticmethod
+    def _piece(task):
+        """One question of today's session as the recap shows it. A draft left by an older recap still wins."""
+        first = task["first_answer"]
+        draft = task["recap_drafts"].get("final-answer")
+        return {"number": task["number"], "slot": str(task["snapshot"].get("topic_id")),
+                "question": task["snapshot"].get("question", ""),
+                "first": "Non lo so" if first["outcome"] == "unknown" else first["text"],
+                "confidence": first.get("confidence"), "final": draft["text"] if draft else latest_final(task)}
+
+    def page(self, attempt, illustration, theme=None):
         if not self.progress.session_event(attempt, "sessionCompleted"):
             return self.progress.unavailable()
         key = self.progress.key(attempt["metadata"])
         columns = self.store.recap_columns(key, attempt["attempt_id"])
-        return render_template("recap.html", columns=columns, latest_final=latest_final, final_revision=final_revision,
-                               confidence_labels=CONFIDENCE_LABELS, background=self._background(illustration),
-                               session_number=attempt["metadata"]["study_session_snapshot"]["number"],
+        session_number = attempt["metadata"]["study_session_snapshot"]["number"]
+        tasks = [self._piece(task) for task in columns[session_number]["tasks"]]
+        # The cards sit on the part of the picture that belongs to each question, so every part needs exactly one.
+        if theme not in RECAP_ARROWS or sorted(task["slot"] for task in tasks) != ["1", "2", "3"]:
+            theme = None
+        # Saving confirms the drafts of every session it could change, as when the recap could still edit them.
+        draft_revisions = {f"{column['attempt_id']}:{task['number']}": task["recap_draft_revisions"].get("final-answer", 0)
+                           for column in columns.values() for task in column["tasks"]}
+        return render_template("recap.html", tasks=sorted(tasks, key=lambda task: task["slot"]), theme=theme,
+                               arrows=RECAP_ARROWS.get(theme, {}), confidence_labels=CONFIDENCE_LABELS,
+                               background=self._background(illustration), draft_revisions=draft_revisions,
                                finished=self.store.recap_finished(attempt["attempt_id"]),
                                csrf_token=session["progress_csrf"], attempt_id=attempt["attempt_id"])
 
@@ -173,18 +214,6 @@ class StudentRecap:
 
     def finish(self):
         return self._commit(finish=True)
-
-    def pdf(self):
-        attempt = self._current()
-        pdf = self.store.recap_pdf(attempt["attempt_id"])
-        if pdf is None:
-            abort(404)
-        if not self.progress.publish(attempt):
-            return self.progress.unavailable()
-        response = send_file(BytesIO(pdf), mimetype="application/pdf", as_attachment=True,
-                             download_name="sol-riepilogo.pdf", max_age=0)
-        response.headers["Cache-Control"] = "private, no-store"
-        return response
 
     def restart(self):
         attempt, _ = self._posted()

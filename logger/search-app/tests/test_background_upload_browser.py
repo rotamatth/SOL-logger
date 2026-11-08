@@ -16,6 +16,7 @@ from werkzeug.serving import make_server
 
 from .test_editor_browser import REQUIRE_BROWSER_TESTS, playwright_api, until
 from .test_study_enrollment import question_set, schedule
+from .progress_helpers import through_intro
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 RESULTS = [{"docid": f"doc-{n}", "title": f"Synthetic result {n}", "snippet": f"Synthetic snippet {n}.",
@@ -69,10 +70,10 @@ def start(page, base, uid):
     page.goto(base + "/start")
     page.select_option("#id-box", uid)
     page.click("#continue-btn")
-    page.wait_for_url("**/task")
+    through_intro(page)
     page.fill("#first-answer-text", "Idea iniziale prima della ricerca")
     page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
-    page.get_by_role("button", name="Conferma risposta", exact=True).click()
+    page.get_by_role("button", name="Conferma", exact=True).click()
     page.locator("a#first-answer-search").wait_for()
     page.click("a#first-answer-search")
     page.wait_for_url("**/search*")

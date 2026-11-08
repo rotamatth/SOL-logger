@@ -79,7 +79,7 @@ def test_fresh_roster_has_no_legacy_assignment_or_future_question_disclosure(stu
     assert 'value="21"' in page.text
     response = client.post("/start", data={"user_id": "1"})
     assert response.status_code == 400
-    assert "Session not available" in response.text
+    assert "La sessione non è disponibile" in response.text
     assert not metadata_files(tmp_path)
 
     schedule(module)
@@ -104,7 +104,7 @@ def test_unapproved_or_incomplete_today_questions_reject_start(student_modules, 
     schedule(module, shared=draft)
     response = module.app.test_client().post("/start", data={"user_id": "1"})
     assert response.status_code == 400
-    assert "Session not available" in response.text
+    assert "La sessione non è disponibile" in response.text
     assert not metadata_files(tmp_path)
 
 

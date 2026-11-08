@@ -14,6 +14,7 @@ import time
 import fcntl
 import uuid
 
+from .legacy_topics import named_task_stats
 from .participants import resolve_identity, school_year_for
 from .permanent_test import is_test_log_name
 from .state import DEFAULT_STUDY_ID, GRADES, MAX_STUDY_SESSIONS, historical_grade, identity, roster, valid_school_year
@@ -99,11 +100,12 @@ class Index:
                         error = sqlite3.DatabaseError("Corrupt reporting cache")
                         error.sqlite_errorcode = sqlite3.SQLITE_CORRUPT
                         raise error
-                    if db.execute("PRAGMA user_version").fetchone()[0] < 3:
-                        # Version 3 adds task statistics: indexed files must be read again.
+                    if db.execute("PRAGMA user_version").fetchone()[0] < 4:
+                        # Version 3 added task statistics, version 4 the first answers and attempt IDs:
+                        # indexed files must be read again.
                         for table in ("scan", "files", "events", "runs"):
                             db.execute(f"DELETE FROM {table}")
-                        db.execute("PRAGMA user_version=3")
+                        db.execute("PRAGMA user_version=4")
                     db.commit()
                     self.path.chmod(0o600)
                     self._initialized = True
@@ -190,7 +192,7 @@ class Index:
     def _parse(self, db, collection, name, key):
         stem, kind, position = file_identity(name)
         info = {"id": key, "name": name, "stem": stem, "kind": kind, "position": position,
-                "collection": collection, "issues": [], "uids": [], "session_ids": [],
+                "collection": collection, "issues": [], "uids": [], "session_ids": [], "attempt_ids": [],
                 "dates": [], "tasks": {}, "task_stats": {}, "event_count": 0, "signature_sum": 0,
                 "finished": False, "size": 0, "mtime": 0, "metadata": {}}
         try:
@@ -210,7 +212,7 @@ class Index:
                     info["metadata"] = meta
                     return info
                 digest = sha256()
-                uids, sessions, dates = set(), set(), set()
+                uids, sessions, dates, attempts = set(), set(), set(), set()
                 line_number = 0
                 while f.tell() < s.st_size:
                     offset = f.tell()
@@ -248,13 +250,18 @@ class Index:
                         sid = event.get("sessionID")
                         if isinstance(sid, str):
                             sessions.add(sid)
+                        # Answer events name their attempt, which is how a run finds its recap PDF.
+                        attempt = event.get("attempt_id")
+                        if isinstance(attempt, str):
+                            attempts.add(attempt)
                         event_date = date_of(event.get("timestamp"))
                         if event_date:
                             dates.add(event_date)
                         task_value = event.get("task_number")
                         task = str(task_value) if isinstance(task_value, (str, int)) else position
                         if task is not None:
-                            t = info["tasks"].setdefault(task, {"topics": [], "questions": [], "answers": [], "events": 0})
+                            t = info["tasks"].setdefault(task, {"topics": [], "questions": [], "answers": [],
+                                                                "first_answers": [], "events": 0})
                             t["events"] += 1
                             add_event(info["task_stats"].setdefault(task, new_stats()), event)
                             topic = event.get("actual_topic_number")
@@ -265,6 +272,9 @@ class Index:
                                 question = event.get("question")
                             if isinstance(question, str) and question not in t["questions"]:
                                 t["questions"].append(question)
+                            if event.get("type") == "OwnKnowledgeAnswerSubmitted":
+                                t["first_answers"].append({"value": event.get("answer"), "outcome": event.get("outcome"),
+                                                           "confidence": event.get("confidence")})
                             if event.get("type") == "TaskEnded":
                                 t["answers"].append({"present": "answer" in event,
                                                      "value": event.get("answer"),
@@ -279,7 +289,8 @@ class Index:
                             info["issues"].append(f"{code}:line={line_number}")
                     db.execute("INSERT INTO events VALUES (?, ?, ?, ?, ?, ?)",
                                (key, line_number, offset, length, task, int(valid)))
-                info.update(uids=sorted(uids), session_ids=sorted(sessions), dates=sorted(dates), sha256=digest.hexdigest())
+                info.update(uids=sorted(uids), session_ids=sorted(sessions), dates=sorted(dates),
+                            attempt_ids=sorted(attempts), sha256=digest.hexdigest())
                 end = os.fstat(f.fileno())
                 if (end.st_size, end.st_mtime_ns) != (s.st_size, s.st_mtime_ns):
                     info["issues"].append("changed_during_indexing")
@@ -338,6 +349,7 @@ class Index:
                    "log_id_source": "metadata" if meta.get("log_id") else "filename" if filename_log_id else None,
                    "started_at": meta.get("started_at"),
                    "assignment_source": meta.get("assignment_source"),
+                   "attempt_ids": sorted({a for f in canonical for a in f.get("attempt_ids", [])}),
                    "task_stats": _task_figures(canonical, tasks)}
         # Missing predates session recording; explicit null records that no session
         # was selected. Preserve the distinction when rebuilding the file index.
@@ -434,7 +446,8 @@ def _study_session_for_run(run, settings, study_id, grade, issues):
 
 def _merge_tasks(canonical, meta, issues):
     """Combine per-task events, answers, topics and questions of the canonical logs."""
-    tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "events": 0} for n in (1, 2, 3)}
+    tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "first_answers": [], "events": 0}
+             for n in (1, 2, 3)}
     for f in canonical:
         for number, task in f["tasks"].items():
             if number not in tasks:
@@ -443,6 +456,7 @@ def _merge_tasks(canonical, meta, issues):
             dest = tasks[number]
             dest["events"] += task["events"]
             dest["answers"].extend(task["answers"])
+            dest["first_answers"].extend(task.get("first_answers", []))
             for field in ("topics", "questions"):
                 dest[field] = list(dict.fromkeys(dest[field] + task[field]))
     # The run snapshot records what was presented even when no event mentions it.
@@ -480,9 +494,17 @@ def _task_figures(canonical, tasks):
             for source in canonical:
                 if number in source.get("task_stats", {}):
                     stats = merge_stats(stats, source["task_stats"][number])
+            # "Non lo so" is logged with no text at all: its outcome says what the child chose.
+            first = next((a for a in task["first_answers"]
+                          if isinstance(a.get("value"), str) or a.get("outcome") == "unknown"), None)
+            final = next((a["value"] for a in task["answers"] if a["present"] and isinstance(a["value"], str)), None)
             figures[number] = {**summarize(stats), "finished": task["status"] == "completed",
                                "topic": task["topics"][0] if task["topics"] else None,
-                               "question": task["questions"][0] if task["questions"] else None}
+                               "question": task["questions"][0] if task["questions"] else None,
+                               "first_answer": first and {
+                                   "text": first["value"] or "", "unknown": first.get("outcome") == "unknown",
+                                   "confidence": first["confidence"] if first.get("confidence") in (1, 2, 3) else None},
+                               "final_answer": final}
     return figures
 
 
@@ -538,7 +560,8 @@ def classify(run, settings):
         if enrolled and not school_year and grade == enrolled["grade"]:
             school_year, year_source = dated_year, "enrollment"
     study_session = _study_session_for_run(run, settings, study_id, grade, issues)
-    return {**run, "started_at": started_at, "study_id": study_id, "grade": grade, "study_session": study_session,
+    return {**run, "task_stats": named_task_stats(run),
+            "started_at": started_at, "study_id": study_id, "grade": grade, "study_session": study_session,
             "school_year": school_year, "grade_source": source,
             "study_participant_id": canonical["id"] if canonical else None,
             "enrollment_id": run.get("enrollment_id") or (enrolled["id"] if enrolled else None),

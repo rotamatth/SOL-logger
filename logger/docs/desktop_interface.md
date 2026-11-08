@@ -20,12 +20,13 @@ labels on narrow screens. The primary action opens the existing irreversible
 confirmation. The secondary action resumes search and keeps the draft.
 [Figma answer dialog](https://www.figma.com/design/RHTHZ6gW4n1FK8VBw5T7St/Attivit%C3%A0-Lambertenghi-2026-2027?node-id=11-3603)
 
-Each post-search review shows the supplied Spazio or Orecchio MP4 for the
-question's position in the assigned set, even when the student sees the
-questions in a different order. The clip plays once, muted and inline. It has
-pause and replay controls. With reduced motion, the poster stays visible until
-the student starts the clip. Both answer cards are readable during playback.
-The final recap uses the theme's static artwork.
+Each post-search review shows the Spazio or Orecchio clip for the question's
+position in the assigned set, even when the student sees the questions in a
+different order. The clip plays once, muted and inline, with the two answer cards
+on it, as in the Figma's "Pieces Unlock". With reduced motion, the still stays
+visible until the student starts the clip. The final recap uses the theme's
+static artwork. See `child_pages_2026-11.md` for how these pages were matched to
+the Figma in November 2026, and why.
 
 The Playwright student fixture drives the app against temporary SQLite and log
 storage with synthetic search results. Browser assertions cover both themes

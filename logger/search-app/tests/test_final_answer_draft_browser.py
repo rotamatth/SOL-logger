@@ -5,6 +5,7 @@ import pytest
 
 from .test_background_upload_browser import student_site, start, search, saved, types_of, until  # noqa: F401
 from .test_first_answer_flow_browser import wait_for_draft_ack
+from .progress_helpers import through_intro
 
 
 def open_box(page):
@@ -195,6 +196,7 @@ def test_pending_final_intent_wins_over_older_sqlite_draft_and_retries_once(stud
         page.click("#yes-end-btn")
     review.wait_for()
     page.get_by_role("link", name="Prossima domanda").click()
+    through_intro(page)
     page.wait_for_function("document.querySelector('.first-answer-number')?.textContent === '#2'")
     assert [event["answer"] for event in types_of(saved(root, "1"), "TaskEnded")] == ["Finale confermata da conservare"]
     assert persisted(root) == ("Bozza precedente", 1) and persisted(root, 2) is None
@@ -244,11 +246,14 @@ def test_lost_draft_ack_recovers_the_durable_text_without_replacing_it(student_s
             route.continue_()
 
     page.route("**/final-answer/draft", lose)
-    page.fill("#textarea_feedback", "Salvata senza conferma di rete")
-    page.locator("#final-answer-draft-retry:not([hidden])").wait_for()
+    # The saved draft is repeated by itself, and the server accepts the same save without writing it twice.
+    with page.expect_response("**/final-answer/draft", timeout=15000) as repeated:
+        page.fill("#textarea_feedback", "Salvata senza conferma di rete")
+    assert lost and repeated.value.ok
+    wait_saved(page)
+    assert page.locator("#final-answer-draft-retry").is_hidden()
+    assert page.locator("#final-answer-draft-status").inner_text() == ""
     assert persisted(root) == ("Salvata senza conferma di rete", 1)
-    page.click("#final-answer-draft-retry")
-    page.locator("#final-answer-draft-status").filter(has_text="ricarica").wait_for()
     page.reload()
     open_box(page)
     wait_saved(page)
