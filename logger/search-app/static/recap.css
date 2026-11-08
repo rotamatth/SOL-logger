@@ -9,166 +9,188 @@
   border: 0;
 }
 
-/* The whole picture stays in view, as in the Figma: narrow columns with the cards on top of it. */
-.recap-board {
+/*
+ * Today's whole picture, as in Diletta's Figma: an orange label over each question's part of it, and the
+ * question's two answers on top. Every position is a share of the picture, so the cards stay where the
+ * Figma has them at any size. The picture keeps its 1600 x 1067 proportions and fits the screen's height,
+ * with room at the sides for the cards that stick out of it.
+ */
+.recap-stage {
+  --recap-chrome: 146px;
+  --board-w: min(calc((100vh - var(--recap-chrome)) * 1.4995), calc((100vw - 28px - 6vw) / 1.1), 1060px);
+  --board-h: calc(var(--board-w) / 1.4995);
   position: relative;
-  isolation: isolate;
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: repeat(3, minmax(0, 262px));
-  justify-content: space-between;
-  align-items: start;
-  width: min(100%, 1060px);
-  min-height: 400px;
-  margin: 0 auto;
-  padding: clamp(8px, 1.6vh, 12px) clamp(12px, 3.5vw, 40px);
-  border: 1px solid #111;
-  border-radius: 6px;
+  flex: 0 0 auto;
+  width: var(--board-w);
+  aspect-ratio: 1600 / 1067;
+  margin: clamp(2px, 1vh, 10px) auto 0;
+  font-size: var(--review-card-size);
+}
+
+@supports (height: 1dvh) {
+  .recap-stage {
+    --board-w: min(calc((100dvh - var(--recap-chrome)) * 1.4995), calc((100vw - 28px - 6vw) / 1.1), 1060px);
+  }
+}
+
+.recap--finished .recap-stage {
+  --recap-chrome: 174px;
+}
+
+.recap-picture {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #111;
+  border-radius: 4px;
   overflow: hidden;
   background: #eaf4ff;
 }
 
 .recap-artwork {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.recap-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-  max-height: 100%;
+.recap-arrows {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.recap-column h2 {
-  margin: 0 0 6px;
+.recap-piece .review-number,
+.recap-piece .review-card {
+  position: absolute;
+  z-index: 2;
 }
 
 .review-number {
-  display: inline-block;
-  padding: 3px 14px;
+  margin: 0;
+  padding: 0.12em 0.95em;
+  border: 2px solid #8a5a12;
   border-radius: 999px;
   background: var(--sol-yellow);
-  color: #38250a;
-  font-size: 0.95rem;
+  color: #111;
+  font-size: 1em;
   font-weight: 800;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
-.recap-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 0 0 6px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  color: #173354;
-  background: rgb(255 255 255 / 92%);
-  font-size: 0.95rem;
-  font-weight: 700;
+.recap-piece .review-number {
+  top: 1.8%;
 }
 
-.recap-navigation button {
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  min-height: 38px;
-  padding: 0;
+/*
+ * A card is at most 28% (first answer) or 29% (final answer) of the picture's height, so it never reaches
+ * a magnifier or the other card. A longer answer scrolls inside its card, cut at a whole line where the
+ * browser can round.
+ */
+.recap-piece .review-card {
+  --card-share: 0.28;
+  width: 24%;
+  min-height: 18%;
 }
 
-.recap-question {
-  width: 100%;
-  overflow: auto;
-  text-align: start;
+.recap-piece .review-after {
+  --card-share: 0.29;
 }
 
-.recap-question h3 {
-  margin: 0 0 6px;
-  padding: 5px 10px;
-  border-radius: 10px;
-  background: rgb(255 255 255 / 92%);
-  color: #153e6c;
-  font-size: 0.9rem;
-  font-weight: 800;
-  line-height: 1.25;
+.recap-piece .review-card p {
+  max-height: calc(var(--board-h) * var(--card-share) - 2.4em - 3px);
+  max-height: round(down, calc(var(--board-h) * var(--card-share) - 2.4em - 3px), 1.3em);
 }
 
-.recap-question .review-card {
-  margin-bottom: 6px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 0.92rem;
-  line-height: 1.28;
+/* On a short or narrow screen the cards are small: a slimmer edge and title keep the title on one line. */
+@media (max-height: 600px), (max-width: 820px) {
+  .recap-piece .review-card {
+    padding-inline: 0.55em;
+  }
+
+  .recap-piece .review-card h3 {
+    font-size: 0.86em;
+  }
 }
 
-.recap-question h4 {
-  margin: 0 0 2px;
-  color: inherit;
-  font-size: 0.88rem;
-  font-weight: 800;
-}
-
-.recap-question .review-before h4 {
-  color: var(--sol-blue-dark);
-}
-
-.recap-question details {
-  margin-top: 4px;
-  font-size: 0.82rem;
-}
-
+/* The child's own rating of the first answer, on the card's top edge so it takes no line of text. */
 .recap-confidence {
-  margin: 2px 0 0;
+  position: absolute;
+  top: -0.7em;
+  right: 0.7em;
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 2px 6px;
+  border: 1.5px solid var(--sol-blue);
+  border-radius: 999px;
+  background: #fff;
   line-height: 0;
 }
 
 .recap-confidence img {
-  width: 15px;
+  width: 0.95em;
   height: auto;
-  margin-right: 2px;
 }
 
-.recap-label {
-  display: block;
-  margin: 3px 0 2px;
-  font-size: 0.78rem;
-  opacity: 0.95;
+/* Where each label and card sits, by theme and by the question's part of the picture. */
+.recap-piece--space-1 .review-number, .recap-piece--ear-1 .review-number { left: 2%; }
+.recap-piece--space-2 .review-number, .recap-piece--ear-2 .review-number { left: 35.7%; }
+.recap-piece--space-3 .review-number, .recap-piece--ear-3 .review-number { left: 69.4%; }
+
+.recap-piece--space-1 .review-before { left: -4%; top: 16.2%; }
+.recap-piece--space-1 .review-after { left: 2%; top: 69%; }
+.recap-piece--space-2 .review-before { left: 55.5%; top: 16.2%; }
+.recap-piece--space-2 .review-after { left: 46.7%; top: 60.6%; }
+.recap-piece--space-3 .review-before { right: -4.1%; top: 26.2%; }
+.recap-piece--space-3 .review-after { right: 1.8%; bottom: 8.3%; }
+
+.recap-piece--ear-1 .review-before { left: -4.1%; top: 16.2%; }
+.recap-piece--ear-1 .review-after { left: -4.1%; top: 69%; }
+.recap-piece--ear-2 .review-before { left: 32.1%; top: 18%; }
+.recap-piece--ear-2 .review-after { left: 47.8%; top: 60.7%; }
+.recap-piece--ear-3 .review-before { left: 65.5%; top: 9.6%; }
+.recap-piece--ear-3 .review-after { right: -2.4%; bottom: 1.5%; }
+
+/* A theme without its own picture: the three questions side by side over the picture. */
+.recap-stage--plain {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 2%;
+  padding: 2%;
 }
 
-.recap-question textarea {
+.recap-stage--plain .recap-piece {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.recap-stage--plain .recap-piece .review-number,
+.recap-stage--plain .recap-piece .review-card {
+  position: relative;
   width: 100%;
-  min-height: 52px;
-  padding: 4px 8px;
-  border: 1px dashed rgb(255 255 255 / 80%);
-  border-radius: 8px;
-  background: rgb(255 255 255 / 16%);
-  color: #fff;
-  font: inherit;
-  resize: none;
+  min-height: 0;
 }
 
-.recap-question summary {
-  cursor: pointer;
-  text-decoration: underline;
+.recap-stage--plain .recap-piece .review-card p {
+  max-height: 6.5em;
 }
 
-.recap-empty {
-  margin: 0;
-  padding: 3px 12px;
-  border-radius: 999px;
-  color: #334155;
-  background: rgb(255 255 255 / 60%);
-  font-size: 0.85rem;
-  font-weight: 700;
+.recap-stage--plain .recap-piece .review-number {
+  width: auto;
 }
 
 .recap-status {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   text-align: center;
 }
 
@@ -178,16 +200,6 @@
 
 .recap-status[data-error] {
   color: #a21f22;
-}
-
-.recap-draft-error {
-  display: block;
-  color: #fff3cd;
-  font-weight: 700;
-}
-
-.recap-draft-error:not(:empty) {
-  margin-top: 6px;
 }
 
 .review-button:disabled {
@@ -200,13 +212,50 @@
   outline-offset: 3px;
 }
 
-#recap .review-after :focus-visible {
-  outline-color: #ffcb74;
-}
+/* Too narrow for cards on the picture: the picture first, then each question's answers. */
+@media (max-width: 620px) {
+  .recap-stage,
+  .recap-stage--plain {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    aspect-ratio: auto;
+    padding: 0;
+  }
 
-@media (max-width: 720px) {
-  .recap-board {
-    grid-template-columns: minmax(0, 1fr);
+  .recap-picture {
+    position: relative;
+    aspect-ratio: 1600 / 1067;
+  }
+
+  .recap-arrows {
+    display: none;
+  }
+
+  .recap-piece,
+  .recap-stage--plain .recap-piece {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .recap-piece .review-number,
+  .recap-piece .review-card,
+  .recap-stage .recap-piece .review-before,
+  .recap-stage .recap-piece .review-after {
+    position: relative;
+    inset: auto;
+    width: 100%;
     min-height: 0;
+  }
+
+  .recap-piece .review-card p {
+    max-height: 6.5em;
+  }
+
+  .recap-piece .review-number {
+    width: auto;
   }
 }

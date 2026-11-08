@@ -53,9 +53,9 @@ def test_every_step_of_a_question_fits_a_short_tablet(student_site, size):
         assert page.locator(card).is_visible()
 
 
-def reach_review(page, base):
+def reach_review(page, base, first="Laika", final="Una cagnolina russa"):
     open_first(page, base)
-    page.fill("#first-answer-text", "Laika")
+    page.fill("#first-answer-text", first)
     page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
     page.get_by_role("button", name="Conferma", exact=True).click()
     page.locator("a#first-answer-search").wait_for()
@@ -63,7 +63,7 @@ def reach_review(page, base):
     page.wait_for_url("**/search")
     search(page, "api miele")
     page.click("#end-task-btn")
-    page.fill("#textarea_feedback", "Una cagnolina russa")
+    page.fill("#textarea_feedback", final)
     page.click("#feedback-btn")
     page.click("#yes-end-btn")
     page.wait_for_url("**/task-review/1")
@@ -137,12 +137,12 @@ def test_an_english_tablet_still_warns_in_italian(student_site):
     page.locator("a#first-answer-search").wait_for()
 
 
-def reach_recap(page, base):
-    reach_review(page, base)
+def reach_recap(page, base, first="Laika", final="Una cagnolina russa"):
+    reach_review(page, base, first, final)
     for number in (2, 3):
         page.click("a.review-button")
         through_intro(page)
-        page.fill("#first-answer-text", "Laika")
+        page.fill("#first-answer-text", first)
         page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
         page.get_by_role("button", name="Conferma", exact=True).click()
         page.locator("a#first-answer-search").wait_for()
@@ -150,17 +150,49 @@ def reach_recap(page, base):
         page.wait_for_url("**/search")
         search(page, "api miele")
         page.click("#end-task-btn")
-        page.fill("#textarea_feedback", "Una cagnolina russa")
+        page.fill("#textarea_feedback", final)
         page.click("#feedback-btn")
         page.click("#yes-end-btn")
         page.wait_for_url(f"**/task-review/{number}")
         page.locator("a.review-button").wait_for()
     page.click("a.review-button")
     page.get_by_role("button", name="Salva l’attività").wait_for()
+    page.wait_for_function("!document.querySelector('[data-action=finish]').disabled")
 
 
-def editor_message(page):
-    return page.locator("textarea[data-target]").first.evaluate("field => field.nextElementSibling.textContent")
+def recap_message(page):
+    return page.locator("#recap-status").inner_text()
+
+
+LONG = ("Il suono entra nell'orecchio e fa vibrare il timpano, poi gli ossicini portano la vibrazione fino alla "
+        "coclea, che manda il segnale al cervello attraverso il nervo acustico. ") * 4
+
+
+@pytest.mark.parametrize("student_site", ["Orecchio"], indirect=True)
+@pytest.mark.parametrize("size", SIZES)
+def test_the_recap_fits_a_short_tablet_even_with_long_answers(student_site, size):
+    page, base, _ = student_site
+    page.set_viewport_size({"width": size[0], "height": size[1]})
+    reach_recap(page, base, LONG[:160], LONG)
+    for button in ("finish", "restart"):
+        page.wait_for_function(f"!document.querySelector('[data-action={button}]')?.disabled")
+        page.wait_for_function("[...document.images].every(image => image.complete)")
+        fits(page, f"[data-action={button}]")
+        assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+        cards = page.locator(".recap-piece .review-card")
+        assert cards.count() == 6
+        boxes = [cards.nth(index).bounding_box() for index in range(6)]
+        for index, box in enumerate(boxes):
+            assert box["x"] >= 0 and box["x"] + box["width"] <= size[0], f"card {index} leaves the screen"
+            for other in boxes[index + 1:]:
+                assert (box["x"] + box["width"] <= other["x"] or other["x"] + other["width"] <= box["x"]
+                        or box["y"] + box["height"] <= other["y"] or other["y"] + other["height"] <= box["y"]), "cards overlap"
+        # A long answer scrolls inside its card, which keeps its place on the picture.
+        answer = page.locator(".recap-piece .review-after p").first
+        assert answer.evaluate("p => p.scrollHeight > p.clientHeight && getComputedStyle(p).overflowY === 'auto'")
+        if button == "finish":
+            page.get_by_role("button", name="Salva l’attività").click()
+            page.get_by_text("La sessione è salvata.").wait_for()
 
 
 @pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
@@ -176,47 +208,48 @@ def test_a_dropped_connection_on_the_recap_is_repeated_without_troubling_the_chi
         else:
             route.continue_()
 
-    page.route("**/recap/draft", drop_once)
-    with page.expect_response("**/recap/draft") as saved:
-        page.locator("textarea[data-target]").first.fill("Una cagnetta di nome Laika")
+    page.route("**/recap/finish", drop_once)
+    with page.expect_response("**/recap/finish") as saved:
+        page.get_by_role("button", name="Salva l’attività").click()
     assert saved.value.ok and drops
-    page.wait_for_timeout(100)
-    assert editor_message(page) == ""
+    page.get_by_text("La sessione è salvata.").wait_for()
+    assert recap_message(page) == ""
 
 
 @pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
-def test_a_connection_that_stays_down_is_explained_in_italian_and_keeps_the_text(student_site):
+def test_a_connection_that_stays_down_is_explained_in_italian(student_site):
     page, base, _ = student_site
     reach_recap(page, base)
-    page.route("**/recap/draft", lambda route: route.abort("connectionreset"))
-    field = page.locator("textarea[data-target]").first
-    field.fill("Una cagnetta di nome Laika")
-    page.wait_for_function("document.querySelector('textarea[data-target]').nextElementSibling.textContent !== ''", timeout=15000)
-    assert editor_message(page) == "Connessione non disponibile. Il testo resta qui: riprova."
-    assert field.input_value() == "Una cagnetta di nome Laika"
-    page.unroute("**/recap/draft")
-    with page.expect_response("**/recap/draft") as saved:
-        page.get_by_role("button", name="Salva modifiche").click()
+    page.route("**/recap/finish", lambda route: route.abort("connectionreset"))
+    finish = page.get_by_role("button", name="Salva l’attività")
+    finish.click()
+    page.wait_for_function("document.querySelector('#recap-status[data-error]')", timeout=15000)
+    assert recap_message(page) == "Connessione non disponibile. Riprova."
+    assert finish.is_enabled() and page.get_by_text("Una cagnolina russa").first.is_visible()
+    page.unroute("**/recap/finish")
+    with page.expect_response("**/recap/finish") as saved:
+        finish.click()
     assert saved.value.ok
+    page.get_by_text("La sessione è salvata.").wait_for()
 
 
 @pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
 def test_a_recap_the_server_no_longer_recognises_is_reopened(student_site):
     page, base, _ = student_site
     reach_recap(page, base)
-    page.route("**/recap/draft", lambda route: route.fulfill(status=404, content_type="text/html", body="<p>Pagina non trovata</p>"))
+    page.route("**/recap/finish", lambda route: route.fulfill(status=404, content_type="text/html", body="<p>Pagina non trovata</p>"))
     with page.expect_navigation():
-        page.locator("textarea[data-target]").first.fill("Una cagnetta di nome Laika")
+        page.get_by_role("button", name="Salva l’attività").click()
     assert page.url.endswith("/thank_you")
-    assert page.locator("textarea[data-target]").first.input_value() == "Una cagnetta di nome Laika"
-    # The text is sent again as the page opens. Refused again, the page stays and says so.
+    page.wait_for_function("!document.querySelector('[data-action=finish]').disabled")
+    # Refused again within the minute, the page stays and says so instead of reloading for ever.
     reloads = []
     page.on("framenavigated", lambda frame: reloads.append(frame.url))
-    page.wait_for_function("document.querySelector('textarea[data-target]').nextElementSibling.textContent !== ''", timeout=15000)
+    page.get_by_role("button", name="Salva l’attività").click()
+    page.wait_for_function("document.querySelector('#recap-status[data-error]')", timeout=15000)
     page.wait_for_timeout(1000)
-    assert editor_message(page) == "Salvataggio non disponibile. Riprova."
+    assert recap_message(page) == "Salvataggio non disponibile. Riprova."
     assert reloads == []
-    assert page.locator("textarea[data-target]").first.input_value() == "Una cagnetta di nome Laika"
 
 
 @pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
@@ -226,14 +259,14 @@ def test_the_recap_buttons_wait_for_their_script(student_site):
     held = []
     page.route("**/recap.js*", lambda route: held.append(route))
     page.reload(wait_until="commit")
-    button = page.get_by_role("button", name="Salva modifiche")
+    button = page.get_by_role("button", name="Salva l’attività")
     button.wait_for()
-    assert button.is_disabled() and page.get_by_role("button", name="Salva l’attività").is_disabled()
+    assert button.is_disabled()
     page.wait_for_timeout(200)
     held[0].continue_()
-    page.wait_for_function("!document.querySelector('[data-action=save]').disabled")
+    page.wait_for_function("!document.querySelector('[data-action=finish]').disabled")
     page.unroute("**/recap.js*")
-    with page.expect_response("**/recap/save-changes") as saved:
+    with page.expect_response("**/recap/finish") as saved:
         button.click()
     assert saved.value.ok
 

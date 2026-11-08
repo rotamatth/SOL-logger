@@ -65,6 +65,36 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Show today's questions on the whole picture at the end
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, session
+
+**Files**
+- `logger/search-app/templates/recap.html` — today's picture with an orange "Domanda N" over each question's part of it, the two answer cards, the dashed arrow and magnifier; "Salva l'attività", then only "Chiudi"
+- `logger/search-app/static/recap.css` — positions from Diletta's Figma frames for spazio and orecchio, as shares of the picture; a plain layout for a theme without its picture and for narrow screens
+- `logger/search-app/static/recap.js` — no editing and no arrows between questions; saving sends the draft revisions the page was given
+- `logger/search-app/student_recap.py` — the current session only, with its theme and arrows; the child's `/recap/pdf` route removed
+- `logger/search-app/search_app.py` — passes the theme to the recap
+- `logger/search-app/tests/test_editable_recap.py`, `test_child_pages.py`, `test_child_pages_browser.py`, `test_first_answer_flow_browser.py`
+
+**What changed for the participant**
+The last page shows the whole drawing of today's activity, as in the Figma. Over each part of it an orange "Domanda 1", "2" or "3" gives the order in which the child met that question, with what the child knew before and knows now below it. The three session columns, the arrows between questions and editing are gone, and so are "Salva modifiche" and "Scarica PDF". After "Salva l'attività" the page says "La sessione è salvata.", the drawing stays, and "Chiudi" is the only button. The stars of the child's own rating sit on the top edge of the first card. A long answer scrolls inside its card.
+
+**How it works**
+A question's part of the picture is its `topic_id`, the slot that also picks its clip on the page after it. If the theme has no picture, or the three questions do not fill slots 1, 2 and 3, they stand side by side instead. On the server "Salva l'attività" is unchanged: it still checks the recap draft revisions of every session it could change (`_check_recap_draft_revisions`), so the page carries them in `data-draft-revisions` and sends them back. The server still makes and keeps the PDF at that moment. Only the child's download is gone, so nothing is saved on the tablet.
+
+**If something looks wrong after this, check**
+- "Le risposte sono cambiate in un'altra scheda" on saving → `data-draft-revisions` on the page against `progress_recap_drafts`.
+- Cards on the wrong part of the picture → the question's `topic_id` and the `.recap-piece--` rules in `recap.css`.
+- Three questions side by side over the picture → the theme is not spazio or orecchio, or the slots are not 1, 2 and 3.
+- No PDF on the server → `commit_recap` in `study_progress.py`, which this change left alone.
+
+**Left alone**
+What "Salva l'attività" saves and logs, the PDF on the server, `/recap/draft` and `/recap/save-changes` (no page calls them now), the idle limit, earlier sessions' answers.
+
+**Verified**
+New tests for the layout, the plain layout and today's questions only. The recap's browser tests rewritten for the save button: a dropped connection, a connection that stays down, an out-of-date page, buttons waiting for their script. A new browser test that the recap fits at 1180 x 699, 1280 x 680 and 1024 x 520 with long answers and no overlapping cards.
+
 ## 2026-11-08 — Give the answer cards the subtitle's size on every page
 
 **Commit:** pending · **Type:** fix · **Area:** styling, task-flow

@@ -138,38 +138,31 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             page.wait_for_function("document.querySelector('.recap-artwork')?.naturalWidth > 0")
             assert page.locator(".recap-artwork").get_attribute("src").endswith(artwork)
             assert page.get_by_role("button", name="Chiudi", exact=True).count() == 0
-            first_editor = page.locator("#answer-2-1")
-            page.route("**/recap/draft", lambda route: route.fulfill(json={"revision": "invalid"}))
-            first_editor.fill("Bozza con conferma non valida")
-            page.get_by_text("Conferma della bozza non valida. Riprova.").wait_for()
-            assert first_editor.get_attribute("data-revision") == "0"
-            assert first_editor.input_value() == "Bozza con conferma non valida"
-            page.unroute("**/recap/draft")
-            first_editor.fill("Risposta finale 1")
-            next_card = page.get_by_role("button", name="Domanda successiva, sessione 2")
+            recap = page.locator("#recap")
+            # Today's three questions on the picture, each with both answers, and nothing to edit.
             for index in range(1, 4):
-                assert page.get_by_text(f"Prima risposta {index}", exact=True).is_visible()
-                field = page.locator(f"#answer-2-{index}")
-                assert field.input_value() == f"Risposta finale {index}"
-                field.fill(f"Risposta aggiornata {index}")
-                if index < 3:
-                    next_card.click()
+                assert recap.get_by_role("heading", name=f"Domanda {index}", exact=True).is_visible()
+                assert recap.get_by_text(f"Prima risposta {index}", exact=True).is_visible()
+                assert recap.get_by_text(f"Risposta finale {index}", exact=True).is_visible()
+            assert recap.locator("textarea").count() == 0 and page.get_by_text("Sessione").count() == 0
+            assert page.get_by_role("button", name="Salva modifiche").count() == 0
             page.set_viewport_size({"width": 1024, "height": 768})
-            positions = [page.get_by_role("heading", name=f"Sessione {index}").bounding_box() for index in range(1, 4)]
-            assert positions[0]["y"] == positions[1]["y"] == positions[2]["y"]
-            assert positions[0]["x"] < positions[1]["x"] < positions[2]["x"]
+            labels = [recap.get_by_role("heading", name=f"Domanda {index}", exact=True).bounding_box() for index in range(1, 4)]
+            assert len({round(label["y"]) for label in labels}) == 1 and len({round(label["x"]) for label in labels}) == 3
             assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+            assert page.evaluate("document.documentElement.scrollHeight <= innerHeight + 1")
             finish = page.get_by_role("button", name="Salva l’attività")
             page.route("**/recap/finish", lambda route: route.fulfill(status=503, json={"error": "Riprova."}))
             finish.click()
             page.locator("#recap-status[data-error]").wait_for()
-            assert page.locator("#answer-2-3").input_value() == "Risposta aggiornata 3"
-            assert page.get_by_role("link", name="Scarica PDF").count() == 0
+            assert page.get_by_role("button", name="Chiudi", exact=True).count() == 0
             page.unroute("**/recap/finish")
             finish.click()
-            with page.expect_download() as result:
-                page.get_by_role("link", name="Scarica PDF").click()
-            assert result.value.path().read_bytes().startswith(b"%PDF-")
+            page.get_by_text("La sessione è salvata.").wait_for()
+            # Nothing is saved on the tablet: the picture stays, with only the button to close.
+            assert recap.get_by_text("Risposta finale 3", exact=True).is_visible()
+            assert page.get_by_role("link", name="Scarica PDF").count() == 0 and page.locator("a[download]").count() == 0
+            assert page.locator("#recap [data-action]").count() == 1
             page.get_by_role("button", name="Chiudi", exact=True).click()
             page.wait_for_url("**/welcome")
         assert page.evaluate("sessionStorage.getItem('solFirstDraft:another-attempt:1')") == "An unrelated draft"
@@ -180,7 +173,7 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
         f"Prima risposta {n}" for n in range(1, 4)]
     assert [event["answer"] for event in types_of(events, "TaskEnded")] == [
         f"Risposta finale {n}" for n in range(1, 4)]
-    assert len(types_of(events, "RecapAnswerEdited")) == 3
+    assert not types_of(events, "RecapAnswerEdited")
     assert len(types_of(events, "studySessionFinished")) == 1
     assert not types_of(events, "experimentFinished")
     assert not types_of(events, "rewardShown")
