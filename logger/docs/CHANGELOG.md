@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Document Diletta's feedback and the iPad check of 8 November
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/child_pages_2026-11.md` — fixes 23-37, the decisions of this round, what was checked and how, what is left
+- `logger/docs/child_pages_2026-11/before-r3-*.jpg`, `after-r3-*.jpg` — before and after pictures of this round
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+Nothing in the app.
+
+**Left alone**
+Everything else.
+
+**Verified**
+Every picture the document names exists. The pictures show test IDs, made-up answers and synthetic dashboard runs only.
+
 ## 2026-11-08 — Show "Non lo so" as the first answer in the dashboard
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard
