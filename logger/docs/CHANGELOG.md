@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Show May's question on its run page
+
+**Commit:** pending · **Type:** content · **Area:** dashboard
+
+**Files**
+- `logger/search-app/research_dashboard/legacy_topics.py` — `legacy_question` gives a legacy run's topic name and question
+- `logger/search-app/research_dashboard/history_views.py`, `templates/research/run.html` — a task with no recorded question shows the one from `data/user_topics.csv`, with a note saying so
+- `logger/search-app/research_dashboard/i18n.py` — the note, in both languages
+- `logger/search-app/tests/test_dashboard_answers.py`
+
+**What changed for the participant**
+No visible change for the children. On a May run's page, "Recorded question" read "Question text was not recorded". It now shows the question May's app read for that ID and topic, next to the topic's name, and says that it was not recorded in the log.
+
+**How it works**
+The same lookup as the topic names: `data/user_topics.csv`, for legacy runs from 19 May 2026 on. Runs whose log recorded the question keep it.
+
+**If something looks wrong after this, check**
+- A wrong question → the ID's row in `data/user_topics.csv`.
+
+**Left alone**
+The logs, exports, runs of this year.
+
+**Verified**
+Tests for a May run and an older one.
+
 ## 2026-11-08 — Keep the recap's cards inside the picture and its lines visible
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, styling

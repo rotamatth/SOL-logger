@@ -33,12 +33,21 @@ def _dated(date):
     return isinstance(date, str) and date >= VALID_FROM
 
 
-def topic_name(run, topic):
-    """The name of a topic of a legacy run from May's experiment on, or None."""
+def legacy_question(run, topic):
+    """The topic name and question of a legacy run from May's experiment on, or None."""
     if run.get("collection") != "legacy" or not _dated(run.get("date")) or str(topic) not in ("1", "2", "3"):
         return None
     questions = _questions().get(str(run.get("participant_id")))
-    return questions[int(topic) - 1][0] or None if questions else None
+    if not questions or not questions[int(topic) - 1][0]:
+        return None
+    name, question = questions[int(topic) - 1]
+    return {"topic": name, "question": question}
+
+
+def topic_name(run, topic):
+    """The name of a topic of a legacy run from May's experiment on, or None."""
+    found = legacy_question(run, topic)
+    return found["topic"] if found else None
 
 
 def experiment_questions(uids, date):
