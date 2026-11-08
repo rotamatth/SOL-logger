@@ -1,0 +1,222 @@
+.study-review-page {
+  padding: 34px 14px 10px;
+}
+
+.study-review {
+  /* The answer cards use the subtitle's size on every page that shows them, so a tablet can read them. */
+  --review-card-size: clamp(0.98rem, 2.6vh, 1.1rem);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100vh - 44px);
+  min-height: calc(100dvh - 44px);
+  padding: clamp(10px, 2.4vh, 22px) clamp(12px, 3vw, 40px);
+  border-radius: 24px;
+  background: #fff;
+}
+
+.study-review h1 {
+  margin: clamp(4px, 1.2vh, 12px) 0 2px;
+  color: #111;
+  font-size: clamp(1.15rem, 3.2vh, 1.45rem);
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.study-review > p {
+  margin: 0;
+  font-size: var(--review-card-size);
+  text-align: center;
+}
+
+.review-task {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A 760 x 420 stage that keeps its proportions, so the cards stay where the Figma has them. */
+.unlock {
+  --stage: min(58vh, 430px, calc((100vw - 90px) * 0.5526));
+  position: relative;
+  width: calc(var(--stage) * 1.8095);
+  height: var(--stage);
+  margin: 0 auto;
+}
+
+@supports (height: 1dvh) {
+  .unlock {
+    --stage: min(58dvh, 430px, calc((100vw - 90px) * 0.5526));
+  }
+}
+
+.review-animation {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+}
+
+.unlock-arrow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.review-card {
+  padding: 0.5em 0.8em 0.6em;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  font-size: var(--review-card-size);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.unlock .review-card {
+  position: absolute;
+  z-index: 2;
+  width: 34%;
+}
+
+.review-card h3 {
+  margin: 0 0 3px;
+  color: inherit;
+  font-size: 1em;
+  font-weight: 800;
+}
+
+.review-card p {
+  max-height: 6.5em;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.review-before {
+  border: 1.5px solid var(--sol-blue);
+  background: rgb(255 255 255 / 95%);
+  color: #111;
+}
+
+.review-before h3 {
+  color: var(--sol-blue-dark);
+}
+
+.review-after {
+  border: 1.5px solid transparent;
+  background: rgb(66 133 244 / 96%);
+  color: #fff;
+}
+
+.unlock--ear-1 .review-animation { left: 39.5%; aspect-ratio: 408 / 840; }
+.unlock--space-1 .review-animation { left: 24%; aspect-ratio: 586 / 448; }
+.unlock--ear-2 .review-animation { left: 8%; aspect-ratio: 836 / 840; }
+.unlock--space-2 .review-animation { left: 8%; aspect-ratio: 534 / 548; }
+.unlock--space-3 .review-animation { left: 14%; aspect-ratio: 604 / 840; }
+.unlock--ear-3 .review-animation { left: 62%; aspect-ratio: 466 / 832; }
+
+.unlock--ear-1 .review-before, .unlock--space-1 .review-before { left: 8%; top: 3%; }
+.unlock--ear-1 .review-after, .unlock--space-1 .review-after { left: 27.5%; bottom: 3%; }
+.unlock--ear-2 .review-before, .unlock--space-2 .review-before, .unlock--space-3 .review-before { left: 52.5%; top: 7%; }
+.unlock--ear-2 .review-after, .unlock--space-2 .review-after, .unlock--space-3 .review-after { left: 47.5%; bottom: 4%; }
+.unlock--ear-3 .review-before { left: 19.5%; top: 8%; }
+.unlock--ear-3 .review-after { left: 22%; bottom: 6%; }
+
+/* A theme without artwork: the two answers side by side. */
+.unlock--none {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: min(760px, 100%);
+  height: auto;
+}
+
+.unlock--none .review-card {
+  position: static;
+  width: auto;
+}
+
+/* Too narrow for cards beside the picture: everything in one column. */
+@media (max-width: 620px) {
+  .unlock {
+    width: 100%;
+    height: auto;
+  }
+
+  .review-animation {
+    position: static;
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 34vh;
+    margin: 0 auto 10px;
+  }
+
+  .unlock-arrow {
+    display: none;
+  }
+
+  .unlock .review-card,
+  .unlock--ear-1 .review-before, .unlock--space-1 .review-before, .unlock--ear-2 .review-before, .unlock--space-2 .review-before,
+  .unlock--space-3 .review-before, .unlock--ear-3 .review-before, .unlock--ear-1 .review-after, .unlock--space-1 .review-after,
+  .unlock--ear-2 .review-after, .unlock--space-2 .review-after, .unlock--space-3 .review-after, .unlock--ear-3 .review-after {
+    position: static;
+    width: auto;
+    margin-bottom: 8px;
+  }
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: clamp(4px, 1.4vh, 12px);
+}
+
+.review-button,
+.review-button:hover {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 20px;
+  border: 2px solid var(--sol-blue);
+  border-radius: 999px;
+  background: var(--sol-blue);
+  color: #fff;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.review-button--outline,
+.review-button--outline:hover {
+  background: #fff;
+  color: var(--sol-blue-dark);
+}
+
+.review-button--warm,
+.review-button--warm:hover {
+  border-color: var(--sol-yellow);
+  background: var(--sol-yellow);
+  color: #111;
+}
+
+.review-close,
+.review-close:hover {
+  border-color: #a46917;
+  background: #ffcb74;
+  color: #38250a;
+}
+
+.review-button:focus-visible {
+  outline: 3px solid #202d48;
+  outline-offset: 3px;
+}

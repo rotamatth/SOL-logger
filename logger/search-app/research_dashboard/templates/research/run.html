@@ -8,6 +8,7 @@
   <div class="record-actions">
     <a class="button" href="#events">{{ t('visualize_logs') }}</a>
     {% if not task %}<a class="button" href="{{ u('export', scope='run', collection=run.collection, run=run.id) }}">{{ icons.download() }} {{ t('download_run') }}</a>{% endif %}
+    {% if has_recap_pdf %}<a class="button" href="{{ u('run_recap_pdf', key=run.id) }}">{{ icons.download() }} {{ t('download_recap_pdf') }}</a>{% endif %}
   </div>
 </div>
 {% if run.task_stats and not task %}<section class="panel stats-panel" aria-labelledby="run-stats-heading"><h2 id="run-stats-heading">{{ t('stats_by_question') }}</h2>{{ task_table(run) }}</section>{% endif %}
@@ -43,8 +44,9 @@
 {% for item in tasks %}
 <section class="panel">
   <div class="section-heading"><h2>{{ t('task') }} {{ item.number }}</h2><span class="badge {{ item.status }}">{{ t(item.status) }}</span></div>
-  <p class="muted small">{{ t('topic') }}: <strong>{{ item.topics|join(', ') or t('unknown') }}</strong></p>
-  <h3>{{ t('question') }}</h3>{% for question in item.questions %}<p class="preserve">{{ question }}</p>{% else %}<p class="muted">{{ t('question_missing') }}</p>{% endfor %}
+  {% set looked_up = legacy_questions.get(item.number) %}
+  <p class="muted small">{{ t('topic') }}: <strong>{{ item.topics|join(', ') or t('unknown') }}</strong>{% if looked_up %} · {{ looked_up.topic }}{% endif %}</p>
+  <h3>{{ t('question') }}</h3>{% for question in item.questions %}<p class="preserve">{{ question }}</p>{% else %}{% if looked_up %}<p class="preserve">{{ looked_up.question }}</p><p class="muted small">{{ t('question_from_user_topics') }}</p>{% else %}<p class="muted">{{ t('question_missing') }}</p>{% endif %}{% endfor %}
   <h3>{{ t('answer') }}</h3>
   {% for answer in item.answers %}
   <div class="answer">{% if not answer.present %}<p class="muted">{{ t('answer_field_missing') }}</p>{% elif answer.value == '' %}<p class="muted">{{ t('answer_empty') }}</p>{% elif answer.value is string %}<p class="preserve">{{ answer.value }}</p>{% else %}<pre>{{ pretty(answer.value) }}</pre>{% endif %}<small class="muted">{{ answer.timestamp or t('unknown') }} · {{ t('line') }} {{ answer.line }}</small></div>

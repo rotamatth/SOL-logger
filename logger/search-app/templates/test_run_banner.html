@@ -1,0 +1,4 @@
+{% if session.progress_is_test %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='test-run.css') }}">
+<div class="test-run-banner" role="status">PROVA: questi dati non contano per lo studio. <a href="{{ url_for('restart_test_run') }}">Ricomincia</a></div>
+{% endif %}

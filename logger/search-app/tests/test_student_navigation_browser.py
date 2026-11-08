@@ -60,9 +60,9 @@ def student_browser():
     def log_session():
         return jsonify(status="ok")
 
-    @app.get("/reward")
-    def reward():
-        return "synthetic reward"
+    @app.get("/next_task")
+    def next_task():
+        return "synthetic next question"
 
     server = make_server("127.0.0.1", 0, app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()

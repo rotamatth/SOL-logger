@@ -11,6 +11,7 @@ import tempfile
 from .state import DEFAULT_STUDY_ID, roster
 from .runtime import sync_directory
 from .participants import enrollment
+from .permanent_test import TEST_RUNS_FOLDER, TEST_SOURCE
 
 
 def safe_participant(participant_id):
@@ -19,7 +20,8 @@ def safe_participant(participant_id):
 
 
 def record_run(directory, state, user_id, session_id, log_id, order, topics, settings=None,
-               study_session=None, question_set=None, assignment_source=None, admit=False):
+               study_session=None, question_set=None, assignment_source=None, admit=False,
+               progress_enabled=False):
     started = datetime.now(ZoneInfo("Europe/Zurich"))
     settings = settings if settings is not None else state.settings()
     grade = roster(settings).get(user_id)
@@ -68,6 +70,10 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
                         question_set_theme=question_set.get("theme"),
                         question_set_metadata=deepcopy(question_set.get("metadata", {})),
                         assignment_source=assignment_source)
+    if assignment_source == TEST_SOURCE:
+        metadata["is_test"] = True
+    if progress_enabled:
+        metadata.update(progress_enabled=True, topics_snapshot=deepcopy(topics))
     if admit:
         state.admit_attempt(metadata)
     publish_metadata(directory, metadata)
@@ -77,7 +83,8 @@ def record_run(directory, state, user_id, session_id, log_id, order, topics, set
 
 
 def publish_metadata(directory, metadata):
-    path = Path(directory) / f"{safe_participant(metadata['participant_id'])}_{metadata['log_id']}.run.json"
+    folder = Path(directory) / TEST_RUNS_FOLDER if metadata.get("is_test") else Path(directory)
+    path = folder / f"{safe_participant(metadata['participant_id'])}_{metadata['log_id']}.run.json"
     if path.exists():
         if path.is_symlink() or json.loads(path.read_text()) != metadata:
             raise FileExistsError("Conflicting immutable run metadata")

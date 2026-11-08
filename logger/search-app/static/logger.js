@@ -190,6 +190,7 @@
                 timestamp: formatSwissTimestamp(),
                 sessionID: this.sessionID,
                 uid: window.USER_ID || null,
+                ...(window.STUDY_PROGRESS_CONTEXT || {}),
                 ...details
             };
             console.log("[LOG]", event);
@@ -537,6 +538,7 @@ if (searchbox) {
 const querySuggestionsList = document.getElementById("query-suggestions");
 if(querySuggestionsList){
     querySuggestionsList.addEventListener("mouseover", (e) => {
+    if (querySuggestionsList.getAttribute("aria-busy") === "true") return;
     const suggestionElement = e.target.closest("li") || e.target.closest("option");
     if (!suggestionElement) return;
 
@@ -547,6 +549,7 @@ if(querySuggestionsList){
     });
     
     querySuggestionsList.addEventListener("pointerdown", (e) => {
+        if (querySuggestionsList.getAttribute("aria-busy") === "true") return;
         const suggestionElement = e.target.closest("li") || e.target.closest("option");
         if (!suggestionElement) return;
 
@@ -1128,7 +1131,7 @@ if (taskHelpBtn && taskHelpModal) {
     const taskHelpPayload = () => {
         const payload = { fromURL: window.location.href };
         const tn = taskHelpBtn.dataset.taskNumber;
-        if (tn) payload.task_number = tn;
+        if (tn) payload.task_number = Number(tn);
         return payload;
     };
 
@@ -1143,6 +1146,55 @@ if (taskHelpBtn && taskHelpModal) {
             studyLogger.logEvent("taskQuestionHelpClosed", taskHelpPayload());
         });
     }
+}
+
+const firstAnswerBtn = document.getElementById("search-first-answer-btn");
+const firstAnswerDialog = document.getElementById("search-first-answer-dialog");
+if (firstAnswerBtn && firstAnswerDialog) {
+    let firstAnswerOpen = false;
+    const firstAnswerPayload = () => ({
+        fromURL: window.location.href, outcome: firstAnswerBtn.dataset.outcome, answerPhase: "pre-search"
+    });
+    const recordFirstAnswerClosed = reason => {
+        if (!firstAnswerOpen) return;
+        firstAnswerOpen = false;
+        studyLogger.logEvent("firstAnswerClosed", {...firstAnswerPayload(), reason});
+    };
+    const closeFirstAnswer = reason => {
+        if (!firstAnswerDialog.open) return;
+        firstAnswerDialog.close(reason);
+        recordFirstAnswerClosed(reason);
+    };
+    firstAnswerBtn.addEventListener("click", () => {
+        if (window.taskEndLockout || firstAnswerDialog.open) return;
+        firstAnswerDialog.returnValue = "";
+        firstAnswerDialog.showModal();
+        firstAnswerOpen = true;
+        studyLogger.logEvent("firstAnswerOpened", firstAnswerPayload());
+    });
+    document.getElementById("search-first-answer-close").addEventListener("click", () => {
+        closeFirstAnswer("button");
+    });
+    firstAnswerDialog.addEventListener("cancel", event => {
+        event.preventDefault();
+        closeFirstAnswer("escape");
+    });
+    firstAnswerDialog.addEventListener("close", () => {
+        if (firstAnswerDialog.open) return; // Ignore a queued close from before a restored page reopened it.
+        recordFirstAnswerClosed(firstAnswerDialog.returnValue || "escape");
+        firstAnswerBtn.focus();
+    });
+    firstAnswerDialog.addEventListener("click", event => {
+        const bounds = firstAnswerDialog.getBoundingClientRect();
+        if (event.target === firstAnswerDialog && (event.clientX < bounds.left || event.clientX > bounds.right
+                || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+            closeFirstAnswer("backdrop");
+        }
+    });
+    window.addEventListener("pagehide", () => {
+        if (firstAnswerDialog.open) closeFirstAnswer("pagehide");
+        else recordFirstAnswerClosed(firstAnswerDialog.returnValue || "pagehide");
+    });
 }
 
 // Upload while the child works, not only when a task ends: an interrupted run

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ 'Il tuo riassunto' if review_only else 'Le tue risposte' }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='child-pages-2') }}">
+  {% if review_tasks %}
+  <script src="{{ url_for('static', filename='study-review.js', v='child-pages-1') }}" defer></script>
+  {% endif %}
+</head>
+<body class="study-review-page">
+{% include "test_run_banner.html" %}
+  <main class="study-review" aria-labelledby="review-heading">
+    {% if review_only %}
+    {% set task = review_tasks[0] %}
+    <section class="review-task" aria-label="Il tuo riassunto">
+      <div class="unlock unlock--{{ piece or 'none' }}">
+        {% if animation %}
+        <video class="review-animation" src="{{ url_for('static', filename=animation, v='child-pages-1') }}"
+               poster="{{ url_for('static', filename=poster, v='child-pages-1') }}" aria-label="Animazione della domanda {{ task.number }}"
+               muted playsinline preload="auto"></video>
+        <svg class="unlock-arrow" viewBox="0 0 760 420" aria-hidden="true">
+          <path d="{{ arrow.line }}" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="5 5"/>
+          <path d="{{ arrow.tip }}" fill="none" stroke="#111" stroke-width="2"/>
+          <g transform="translate({{ arrow.x }} {{ arrow.y }})">
+            <circle r="15" fill="#4285f4"/>
+            <circle cx="-2" cy="-2" r="6" fill="none" stroke="#fff" stroke-width="2.5"/>
+            <path d="M3 3l6 6" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+          </g>
+        </svg>
+        {% endif %}
+        <div class="review-card review-before">
+          <h3>Cosa sapevi prima</h3>
+          <p>{{ 'Non lo so' if task.first_answer.outcome == 'unknown' else task.first_answer.text }}</p>
+        </div>
+        <div class="review-card review-after">
+          <h3>Cosa sai adesso</h3>
+          <p>{{ task.final_answer.text }}</p>
+        </div>
+      </div>
+    </section>
+    <h1 id="review-heading">Avete sbloccato il {{ ('primo', 'secondo', 'terzo')[task.number - 1] }} riassunto delle vostre risposte!</h1>
+    <p class="review-intro">{{ ('Andate avanti per scoprire le prossime domande.', 'Andate avanti per scoprire l’ultima domanda.', 'Continuate per vedere cosa avete imparato oggi.')[task.number - 1] }}</p>
+    <div class="review-actions">
+      <a class="review-button" href="{{ url_for('next_task', review=task.number) }}">{{ 'Continua' if is_last else 'Prossima domanda' }}</a>
+    </div>
+    {% else %}
+    <h1 id="review-heading">Hai risposto alle tre domande</h1>
+    <p>Le tue risposte sono salvate. Attendi le indicazioni del ricercatore per continuare.</p>
+    <div class="review-actions">
+      <a class="review-button review-close" href="{{ url_for('welcome', reset=1, finished=1) }}">Chiudi l’attività</a>
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>
