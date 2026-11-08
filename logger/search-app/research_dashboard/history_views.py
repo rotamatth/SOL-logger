@@ -8,6 +8,7 @@ from .exports import SourceSnapshotError, capture_log
 from .history_data import collect_participants, collection_runs, display_session, has_logs, scoped_people
 from .participants import GRADES, valid_school_year
 from .recap_pdfs import recap_pdf, run_attempt, saved_attempts
+from .session_views import historical_rows
 from .state import DEFAULT_STUDY_ID
 from .study_config import session_readiness
 from .task_stats import question_rows, session_rows, trend_charts
@@ -95,7 +96,10 @@ def register_history_routes(dash):
             expected = (session_readiness(settings, selected_session_configuration)["count"]
                         if selected_session_configuration else None)
             question_stats = question_rows([run for run in scoped_runs if _in_session(run, selected_session)], expected)
+        historical_experiments = [row for row in historical_rows(settings, selected_year, grade)
+                                  if row.get("experiment")] if collection == "study" and not selected_session else []
         return dash.page("overview", people=people, grade=grade, collection=collection, question_stats=question_stats,
+                         historical_experiments=historical_experiments,
                          study_context=study_context, research_area="history",
                          history_sessions=[card["session"] for card in session_cards],
                          unidentified=unidentified if grade in ("all", "unassigned", "legacy") else [],

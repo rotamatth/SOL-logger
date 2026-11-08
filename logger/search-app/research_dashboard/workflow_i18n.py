@@ -12,6 +12,11 @@ WORKFLOW_TEXT = {
     'session_group_draft_hint': ('Children cannot start these yet.', 'I bambini non possono ancora iniziarle.'),
     'session_group_past': ('Past sessions', 'Sessioni passate'),
     'historical_session_name': ('{date} experiment', 'Esperimento {date}'),
+    'experiment_theme': ('Theme', 'Tema'),
+    'historical_questions_hint': ("The questions of this experiment, as the first app read them from data/user_topics.csv. "
+                                  "Each child met them in their own order.",
+                                  "Le domande di questo esperimento, come le leggeva la prima app da data/user_topics.csv. "
+                                  "Ogni bambino le ha incontrate nel proprio ordine."),
     'month_names': ('January February March April May June July August September October November December',
                     'gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre'),
     'session_published': ('Published', 'Pubblicata'),

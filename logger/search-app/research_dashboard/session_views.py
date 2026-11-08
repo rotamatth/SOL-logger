@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from flask import abort, redirect, request
 
+from .legacy_topics import experiment_questions
 from .participants import GRADES, school_year_for, valid_school_year
 from .preparation_views import (DETAIL_ERRORS, is_placeholder, save_session_details, session_group, session_needs,
                                 zurich_today)
@@ -32,9 +33,14 @@ def historical_rows(settings, year, grade):
             continue
         key = (rule["grade"], rule["school_year"], rule["date_from"], rule["date_to"])
         row = rows.setdefault(key, {"historical": True, "grade": rule["grade"], "school_year": rule["school_year"],
-                                    "date": rule["date_from"], "count": 0,
+                                    "date": rule["date_from"], "date_to": rule["date_to"], "count": 0, "ids": [],
                                     "session": {"date": rule["date_from"], "grade": rule["grade"], "number": 0}})
         row["count"] += rule["end"] - rule["start"] + 1
+        row["ids"] += [rule["prefix"] + str(number).zfill(rule["width"]) for number in range(rule["start"], rule["end"] + 1)]
+    for row in rows.values():
+        # A one-day experiment: its theme and questions, when all its IDs had the same ones.
+        if row["date"] == row["date_to"]:
+            row["experiment"] = experiment_questions(row["ids"], row["date"])
     return list(rows.values())
 
 
