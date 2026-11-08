@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-08 — Open the first answer's pop-up on its title, not on the close button
+
+**Commit:** pending · **Type:** fix · **Area:** serp, styling
+
+**Files**
+- `logger/search-app/templates/search_first_answer.html` — `autofocus` moves from the ✕ to the title, which takes `tabindex="-1"`
+- `logger/search-app/static/main.css` — no focus ring on the title
+- `logger/search-app/templates/first_answer.html`, `recap.html`, `study_handoff.html`, `task_intro.html`, `layout.html` — load `main.css` as `child-pages-3`
+- `logger/search-app/tests/test_search_first_answer_browser.py`
+
+**What changed for the participant**
+On Matthias's iPad the ✕ of "La mia prima risposta" opened with a dark ring around it, drawn with a small animation, gone after a tap anywhere. That was the browser's focus ring: the pop-up put the focus on the ✕ as it opened. It now puts it on the title, so the ✕ shows only its own light-blue circle.
+
+**How it works**
+A `<dialog>` opened with `showModal()` focuses its `autofocus` element. The title is that element now. Tab still reaches the ✕, and Escape still closes the pop-up.
+
+**If something looks wrong after this, check**
+- A ring around the ✕ again → which element has `autofocus` in `search_first_answer.html`.
+- A screen reader not announcing the pop-up → the title's `tabindex` and `autofocus`.
+
+**Left alone**
+`logger.js`, what is logged on opening and closing, where the focus returns after closing, the "?" pop-up.
+
+**Verified**
+The pop-up's browser tests, now also checking that the title has the focus when it opens.
+
 ## 2026-11-08 — Show the theme and questions of May's experiment in the dashboard
 
 **Commit:** pending · **Type:** content · **Area:** dashboard

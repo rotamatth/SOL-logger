@@ -849,6 +849,11 @@ a:hover {
   font-size: 1.05rem;
 }
 
+/* The title takes the focus when the pop-up opens, so a screen reader starts there; it needs no ring. */
+.search-first-answer-dialog h2:focus {
+  outline: none;
+}
+
 .search-first-answer-close {
   position: absolute;
   top: 14px;
