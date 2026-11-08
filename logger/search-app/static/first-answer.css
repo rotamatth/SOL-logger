@@ -28,12 +28,6 @@
   line-height: 1.2;
 }
 
-.first-answer-intro {
-  margin: 0 100px clamp(3px, 1vh, 8px) 0;
-  font-size: clamp(1.05rem, 2.8vh, 1.25rem);
-  font-weight: 600;
-}
-
 .first-answer-panel h1 {
   white-space: pre-line;
   max-width: 1000px;
@@ -132,10 +126,6 @@
   line-height: 1.3;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.first-answer-hint--center {
-  text-align: center;
 }
 
 .first-answer-outline {
@@ -321,7 +311,7 @@
 @media (max-width: 800px) {
   .first-answer-panel { padding-top: 60px; }
   .first-answer-number { top: 18px; right: 28px; font-size: 2.5rem; }
-  .first-answer-intro, .first-answer-panel h1 { margin-right: 0; }
+  .first-answer-panel h1 { margin-right: 0; }
   .first-answer-row { flex-wrap: wrap; gap: 12px; }
   .first-answer-actions { flex-direction: row; width: 100%; }
   .first-answer-actions .app-btn { flex: 1; }
