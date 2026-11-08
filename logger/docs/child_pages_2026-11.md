@@ -15,7 +15,10 @@ a browser. They are not from a classroom tablet: see fix 8.
 | First answer page | Keep the confirmation step of issue #6 (Conferma, then the search button on the same page), although the Figma has none |
 | Button to the search | Keep the wording "Entra nel motore di ricerca", not the Figma's "Ora cerca con Google" |
 | Review page | The Figma's layout, without the question text |
-| Final recap | Keep the three session columns and their functions, with the Figma's graphics |
+| Final recap | Until 8 November: the three session columns with the Figma's graphics. From 8 November: Diletta's one picture of today's questions, numbered in the order the child met them, with no editing (fix 23) |
+| The child's stars on the recap | Kept, although the Figma has none |
+| The recap's PDF | Kept on the server only; researchers download it from the dashboard (fixes 24 and 31) |
+| Answer cards | The subtitle's size, on the page after each question and on the recap (fix 25) |
 | "Cominciamo!" and the question introduction | Add both, with a text for each theme in the style of Diletta's spazio text |
 | "Indietro" on question pages | Not added: the flow goes one way |
 | Fonts | The Figma's Poppins and Nunito |
@@ -235,6 +238,151 @@ The tab on the results page said "Cerca - Search Results". It now says "Cerca - 
 - **Fix 17's connection setting.** Full-page forms failed 1 to 2% of the time at the old 2 seconds and 0 of 400 at 75 seconds, in a small test app. The cause on the iPad is still not proven.
 - **The rehearsal robot.** It could count a child as finished when the recap failed, and could report a second tap when a page was only slow to load. Both are corrected for the Tuesday runs from fix 19 on. Earlier "finished" counts are weaker than they looked, although the last comparison run was checked by hand: all 20 had their finishing event.
 
+## Diletta's feedback, 8 November
+
+Diletta tried the app on a tablet on 8 November and sent her points by priority, with the Figma frames of the final recap for spazio and orecchio. Matthias answered each point; fixes 23-32 follow from that. The orecchio sites that do not display are Samuele's, who received the same message, and are not part of this change.
+
+"Before" pictures come from the version of 7 November (`a9b3f68`), "after" pictures from this one, both on the production image at 1280 x 680 with test IDs and made-up answers. The dashboard pictures come from a dashboard with synthetic runs.
+
+### 23. The final recap: one picture of today's questions
+
+**Was:** three session columns, the arrows between questions, editing ("Tocca per modificare", "Salva modifiche", "Vedi l'originale") and "Scarica PDF". Diletta: the children cannot change anything in this session, so talking about changing answers in later sessions is a concept they cannot try yet.
+**Now:** the whole drawing of today's activity, as in her Figma. Over each question's part of it, an orange "Domanda 1", "2" or "3" gives the order in which the child met that question, as Diletta asked ("domanda 1,2,3 a seconda dell'ordine che è apparso loro"). Under it, "Cosa sapevi prima", the dashed arrow and magnifier, and "Cosa sai adesso", as on the page after each question. The stars of the child's own rating sit on the top edge of the first card: Matthias kept them. The only button is "Salva l'attività". After it the page says "La sessione è salvata.", the drawing stays, and "Chiudi" is the only button.
+**Where the cards sit:** a question's part of the picture is its slot, the one that also picks its clip, at the positions of Diletta's two frames, moved inside the picture (fix 34). If the theme has no picture, or the three questions do not fill the three slots, they stand side by side instead.
+**Unchanged:** what "Salva l'attività" saves and logs, including the PDF the server makes at that moment. The server still accepts drafts of earlier sessions; no page sends them now.
+
+| Before | After |
+| --- | --- |
+| ![Before, orecchio](child_pages_2026-11/before-r3-recap-orecchio.jpg) | ![After, orecchio](child_pages_2026-11/after-r3-recap-orecchio.jpg) |
+| ![Before, spazio](child_pages_2026-11/before-r3-recap-spazio.jpg) | ![After, spazio](child_pages_2026-11/after-r3-recap-spazio.jpg) |
+
+| Before, saved | After, saved | After, long answers at 1024 x 520 |
+| --- | --- | --- |
+| ![Before](child_pages_2026-11/before-r3-recap-saved.jpg) | ![After](child_pages_2026-11/after-r3-recap-saved.jpg) | ![Long answers](child_pages_2026-11/after-r3-recap-long.jpg) |
+
+A long answer scrolls inside its card, cut at a whole line, and no card reaches another. A browser test checks this at 1180 x 699, 1280 x 680 and 1024 x 520, before and after saving.
+
+### 24. No PDF on the tablet
+
+**Was:** "Scarica PDF" saved a file on the tablet, which both classes share.
+**Now:** nothing is saved on the tablet, as Diletta asked. The server still keeps the PDF, and researchers download it from the dashboard (fix 31).
+
+### 25. The answer cards at the subtitle's size
+
+**Was:** the two cards on the page after each question had smaller text than the line under the title, hard to read on a tablet.
+**Now:** the cards are a little bigger, with the subtitle's size, on that page and on the final recap.
+
+| Before | After |
+| --- | --- |
+| ![Before](child_pages_2026-11/before-r3-review.jpg) | ![After](child_pages_2026-11/after-r3-review.jpg) |
+
+### 26. Small grey hints and the repeated question
+
+**Was:** "Pensi di sapere la risposta a questa domanda?" above the question, which the introduction had just asked; "Conferma la tua risposta per iniziare la ricerca." under the answer box; "Prima risposta confermata. Ora puoi cercare informazioni." after confirming.
+**Now:** all three are gone. A message about a failed save still appears, only when it happens.
+
+| Before | After |
+| --- | --- |
+| ![Before](child_pages_2026-11/before-r3-form.jpg) | ![After](child_pages_2026-11/after-r3-form.jpg) |
+
+### 27. "La tua prima risposta è:"
+
+**Was:** "La tua prima risposta è la seguente:".
+**Now:** "La tua prima risposta è:", on the answer page and in the "La mia prima risposta" pop-up. The "?" pop-up keeps "La domanda a cui devi rispondere è la seguente:".
+
+| Before | After |
+| --- | --- |
+| ![Before](child_pages_2026-11/before-r3-saved.jpg) | ![After](child_pages_2026-11/after-r3-saved.jpg) |
+
+### 28. The same round ✕ on both pop-ups
+
+**Was:** the ✕ of "La mia prima risposta" had no circle. The circle Diletta saw on the "?" pop-up was the browser's focus ring, there only while the button had focus.
+**Now:** both buttons draw the same light-blue ring themselves. See also fix 33.
+
+| Before | After | The "?" pop-up, after |
+| --- | --- | --- |
+| ![Before](child_pages_2026-11/before-r3-popup.jpg) | ![After](child_pages_2026-11/after-r3-popup.jpg) | ![After](child_pages_2026-11/after-r3-popup-help.jpg) |
+
+### 29. May's questions named in the dashboard
+
+**Was:** May's logs record only the topic number, so a child's page read "1. 3".
+**Now:** "1. Altre galassie", from `data/user_topics.csv`, the file May's app read its questions from, for legacy runs from 19 May 2026 on, the day that file last changed.
+
+### 30. The answers under each question in the dashboard
+
+**Now:** each question of a child shows the answer before and after searching, with the child's own rating as stars, or "Non lo so" (fixed during the rehearsal, see below). May's runs have no answer before searching. The dashboard reads these from the logs, so its first refresh after the deploy reads every log again, once.
+
+### 31. The recap PDF for researchers
+
+**Now:** where the child saved the activity, the run page and the participant page offer "Scarica il riepilogo finale del bambino (PDF)": the PDF the server kept. The dashboard finds it by the attempt ID in the answer events, and reads the children's database read-only.
+
+### 32. May's experiment: theme and questions
+
+**Now:** in Sessions, "Esperimento 19 maggio" shows its theme per class: India for the 3rd class (IDs 1-8, 17, 18), Spazio for the 4th (IDs 9-16), whose questions this year's 4th class has again. The class's data page for 2025/2026 lists the three questions. Both come from `data/user_topics.csv`.
+
+| Before | After |
+| --- | --- |
+| ![Before](child_pages_2026-11/before-r3-dashboard-sessions.jpg) | ![After](child_pages_2026-11/after-r3-dashboard-sessions.jpg) |
+
+![The 3rd class's May questions](child_pages_2026-11/after-r3-dashboard-may-class.jpg)
+
+## Matthias's iPad check, 8 November
+
+Matthias deployed fixes 23-32 and tried them on his iPad the same evening.
+
+### 33. A dark ring around the ✕ as the pop-up opened
+
+**Was:** the ✕ of "La mia prima risposta" opened with a dark ring drawn with a small animation, gone after a tap anywhere. The pop-up put the focus on the ✕ as it opened, and the browser drew its focus ring.
+**Now:** the pop-up opens with the focus on its title. Tab still reaches the ✕, and Escape still closes the pop-up.
+
+### 34. Recap cards out of the picture, lines hard to see
+
+**Was:** some cards and magnifiers stuck out of the picture, as in the Figma. The dashed lines were black and disappeared on dark parts.
+**Now:** every card and magnifier sits inside the picture. On orecchio the lines are dark with a light edge, on spazio white with a dark edge. The numbering stays as Diletta asked (fix 23).
+
+### 35. "Cerca" right after the bar
+
+**Was:** an empty space was kept between the bar and "Cerca" for the ✕ that clears the search.
+**Now:** "Cerca" sits right after the bar. Once the child types, the ✕ appears between them; the bar gives it the room, so the row keeps its width and stays centred.
+
+| Before | After, empty | After, typing |
+| --- | --- | --- |
+| ![Before](child_pages_2026-11/before-r3-search.jpg) | ![After](child_pages_2026-11/after-r3-search.jpg) | ![After](child_pages_2026-11/after-r3-search-typed.jpg) |
+
+### 36. May's question on its run page
+
+**Was:** "Recorded question: Question text was not recorded".
+**Now:** the question May's app read for that ID and topic, next to the topic's name, with a note that it was not recorded in the log.
+
+| Before | After |
+| --- | --- |
+| ![Before](child_pages_2026-11/before-r3-dashboard-may-run.jpg) | ![After](child_pages_2026-11/after-r3-dashboard-may-run.jpg) |
+
+### 37. A child's statistics as one card per question
+
+**Was:** one wide table, the answers squeezed into the first column and small notes under the numbers. Matthias found it chaotic.
+**Now:** one card per question: the question, the answers before and after the search side by side, then one labelled value per figure. Under the cards, the PDF of the recap where there is one.
+
+| May, before | May, after | A child of this year, after |
+| --- | --- | --- |
+| ![Before](child_pages_2026-11/before-r3-dashboard-may.jpg) | ![After](child_pages_2026-11/after-r3-dashboard-may.jpg) | ![After](child_pages_2026-11/after-r3-dashboard-tuesday.jpg) |
+
+### Checks on this round
+
+On the production image with a stand-in search and synthetic data, not on a real tablet. A first pass ran without May's synthetic logs, by a mistake in the rehearsal's setup; the second pass, with them, on `9dd8e89`, gives the figures for Monday, Tuesday, the exports and the dashboard.
+
+| Check | Result |
+| --- | --- |
+| Monday: the setup tool on a fresh install, then Diletta enters the orecchio questions | Done; a second run is refused; nobody can start before Tuesday |
+| Tuesday: both classes and the test IDs at once | 20 of 20 finished; no log damage in the real or the test folder; no test data among the real logs; nobody needed a second tap |
+| Exports | Each class holds its own IDs, byte-identical to the logs, with May's records in their 2025/2026 classes; May's old logs unchanged |
+| Dashboard | All 60 final answers under their question; all 20 recap PDFs identical to the server's; May's questions named, except one synthetic run of 18 May, older than the file, which keeps its number as intended |
+| Server killed during a class of 20 | Back in 2.1 s, 20 of 20 finished, no log damage; the test runs alongside finished |
+| 9 faults: offline, lost replies, reload, double taps and more | Nothing lost; the PDF kept on the server |
+| Full test suite with browser tests | 1100 of 1101 passed. The other, in `test_student_security.py`, passed alone 3 of 3 and in its file 19 of 19; it is the test that failed once under load on 7 November, and this round does not change that page's HTML |
+
+**Found by the rehearsal and fixed:** a child who chose "Non lo so" had no "Prima della ricerca" in the dashboard, because that answer is logged with no text (`9dd8e89`).
+
 ## Awkward use, tried on the production image
 
 Each of these ran on the real pages in a browser, in WebKit, Chromium or both, with test IDs unless noted.
@@ -265,13 +413,13 @@ These change nothing in the logs. Each was left because it is a decision, or a c
 - **Two tabs on one tablet.** If a second tab ends the session, "Chiudi" keeps saying "Salvataggio dei dati non disponibile" until the page is reloaded. Children use one tab.
 - **Text typed before the page's script has started** is treated as already saved, and is lost unless the child types more. It is a narrow window, and untested. The simple fix could log edits that never happened, so it needs care.
 - **Diletta's questions on the child pages.** Test IDs have their own fixed questions, and real IDs open only on the session's day, so she cannot see her own questions as a child before Tuesday. She can read them in the dashboard and check the clips through `TEST-orecchio`, whose three questions follow the same box order.
-- **The orecchio recap.** The first column covers the child in the picture, as the wider columns did before. It may need looking at on a real screen.
+- **The charts "Nel corso delle sessioni"** on a child's page appear from the child's second session. May's experiment is not a session, so after Tuesday each child has a table with one row and no chart yet.
 - **Emoji in the PDF** print as a black square. The pages and the log keep them.
 - **Old external scripts on the search page** raise a browser error, `Cannot read properties of undefined (reading 'fn')`, which stopped nothing in any rehearsal. Removing them is a change to a page that works.
 
 ## What did not change
 
-What is saved and logged, the search, the question order, the session rules, the dashboard's other pages, and the search page's layout apart from its font and pop-up.
+What is saved and logged, the search, the question order, the session rules, the dashboard's other pages, and the search page's layout apart from its font, its pop-up and the place of "Cerca" (fix 35).
 
 ## How to change things later
 
@@ -280,3 +428,5 @@ What is saved and logged, the search, the question order, the session rules, the
 - **Where the cards sit on an animation:** the `.unlock--` rules in `static/study-review.css`, and `REVIEW_ARROWS` in `search_app.py`.
 - **After changing a page's CSS, script or clip:** raise its `child-pages-N` where the pages load it, or tablets may keep the old file.
 - **How long an idle connection stays open:** `--keep-alive` in `logger/search-app/Dockerfile`.
+- **Where the recap's cards and arrows sit:** the `.recap-piece--` rules in `static/recap.css`, and `RECAP_ARROWS` in `student_recap.py`.
+- **May's question names and themes in the dashboard:** `data/user_topics.csv`, and `THEMES` in `research_dashboard/legacy_topics.py`.
