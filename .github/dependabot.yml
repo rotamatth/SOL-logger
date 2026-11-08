@@ -2,7 +2,7 @@
 # per ecosystem. They go through the same three checks and need an approval.
 # GitHub reads this file only from the default branch (main): it takes effect with
 # the next release. Dependabot pull requests get no Actions secrets, so SONAR_TOKEN
-# must also exist as a Dependabot secret (see logger/docs/follow_up_checks.md).
+# must also exist as a Dependabot secret.
 version: 2
 updates:
   - package-ecosystem: github-actions

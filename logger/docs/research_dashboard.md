@@ -15,9 +15,6 @@ highlights follow the selected section and grade, with text labels for status. W
 use their own orange-red colour and a triangle icon so they stand out from the yellow
 interface.
 
-For remaining merge checks and the next V2 integration work, see
-[Merge and V2 readiness](merge_v2_readiness.md).
-
 ## Sessions, live view, statistics and guide
 
 **Sessions** is where the dashboard opens. **View and manage** lists the sessions of a
@@ -107,7 +104,7 @@ one transaction. Reactivating is one child at a time with **Edit enrollment**.
    it and to reset a forgotten one (decided 2026-11-02). Only sign-in sessions end:
    after 30 minutes without activity or 8 hours, researchers sign in again with the
    same password. Single sign-on (SWITCH edu-ID) or self-service recovery may come
-   later; see `follow_up_checks.md`.
+   later.
 4. Open `/dashboard`, log in and choose a UI language. In **Sessions**, open a session
    from the list or use **Create**. A session's page shows its name and class, with a
    link back to the list.
@@ -660,8 +657,7 @@ browser module when its dependencies are unavailable.
 
 The additional UI modules cover scoped bulk selection, keyboard navigation,
 unsaved edits in sibling forms, logout recovery, and navigation after preparation
-validation errors. The [22 October review](dashboard_review_2026-10-22.md) records
-the fixes and the completed UI/UX work.
+validation errors.
 
 Repeat the layout and long-question save/reopen/preview checks with WebKit:
 

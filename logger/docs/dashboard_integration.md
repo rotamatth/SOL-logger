@@ -5,9 +5,7 @@ The foundation covers dashboard configuration (#14), collection hardening (#18),
 and permanent identity/yearly enrollment (#19). Durable draft/resume semantics
 and researcher-authorized repeats remain #6/#15. Live monitoring remains #17.
 
-For the 20 October 2026 checkpoint, outstanding merge/deployment checks and V2
-decisions, read [Merge and V2 readiness](merge_v2_readiness.md) first. This document
-defines the extension contract; it does not certify an untested merge or release.
+This document defines the extension contract; it does not certify an untested merge or release.
 
 ## Branch integration
 
