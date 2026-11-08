@@ -161,3 +161,32 @@ def test_the_search_results_page_has_no_english_labels(student_modules):
     page = client.post("/result", data={"query": "luna"}).get_data(as_text=True)
     assert "<title>Cerca - Risultati</title>" in page
     assert "Search Results" not in page and "Page navigation" not in page and "Result thumbnail" not in page
+
+
+def recap_page(module):
+    from .test_editable_recap import complete_today
+    client = begin(module)
+    complete_today(client)
+    return client, client.get("/thank_you").text
+
+
+def test_the_recap_shows_todays_three_questions_on_the_whole_picture(site):
+    client, page = recap_page(site)
+    pieces = re.findall(r'class="recap-piece recap-piece--ear-(\d)" aria-labelledby="recap-question-(\d)"', page)
+    assert sorted(slot for slot, _ in pieces) == ["1", "2", "3"] and sorted(number for _, number in pieces) == ["1", "2", "3"]
+    for slot, number in pieces:
+        # Each question sits on its own part of the picture, the part its review page showed, labelled by the order seen.
+        assert f"unlock--ear-{slot}" in client.get(f"/task-review/{number}").text
+        assert f'id="recap-question-{number}" title="Today question' in page and f">Domanda {number}</h2>" in page
+    assert page.count('class="recap-arrow"') == 3 and "/static/images/review/ear-recap.webp" in page
+    assert page.count('class="recap-confidence"') == 3 and page.count("Today original") == 3
+    assert "Sessione" not in page and "<textarea" not in page and "Vedi l’originale" not in page
+    assert 'data-action="finish"' in page and 'data-action="save"' not in page and "Scarica PDF" not in page
+
+
+def test_a_theme_without_its_picture_shows_the_three_questions_side_by_side(student_modules):
+    module = student_modules()
+    schedule(module)
+    _, page = recap_page(module)
+    assert "recap-stage--plain" in page and 'class="recap-arrow"' not in page
+    assert page.count('<section class="recap-piece"') == 3
