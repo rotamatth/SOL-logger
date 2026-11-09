@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-09 — Give TEST-orecchio the questions of 5a orecchio
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — TEST-orecchio's three placeholder questions replaced by the three Diletta entered for 5a orecchio, in the same order; TEST-spazio unchanged, since it already had 4a spazio's
+- `logger/search-app/tests/test_permanent_test_experiment.py` — a test that TEST-spazio matches the 4a setup and TEST-orecchio the 5a questions, in clip order
+
+**What changed for the participant**
+No change for children. A researcher trying TEST-orecchio now sees the questions the 5a class gets on 10 November ("Quali sono i 3 ossicini dentro al nostro orecchio?", "Che forma ha la coclea e dove si trova?", "Quali sono 5 animali con l'udito più sviluppato al mondo?") instead of "Domanda di prova: …". TEST-spazio already asked 4a's questions.
+
+**How it works**
+The questions are copied from the server's stored settings of 9 November, read without writing. A question's position still chooses its clip, so the order is 5a's.
+
+**If something looks wrong after this, check**
+- TEST-orecchio showing other questions than 5a → the session was edited in the dashboard after 9 November; the test ID keeps its own copy in `permanent_test.py`.
+
+**Left alone**
+The real sessions and their questions, where test runs are saved (`logs-v2/test-runs`), the PROVA banner, `tools/setup_session_2026_11_10.py`.
+
+**Verified**
+The test-ID, setup and child-page tests (54 passed) and Ruff.
+
 ## 2026-11-09 — Line up the recap's cards under the labels and along the bottom
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, styling
