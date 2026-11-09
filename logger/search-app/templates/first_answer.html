@@ -9,7 +9,7 @@
   <script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}" defer></script>
   <script src="{{ url_for('static', filename='first-answer.js', v='child-pages-2') }}" defer></script>
 </head>
-<body class="first-answer-page">
+<body class="first-answer-page" data-sol-step-page>
 {% include "test_run_banner.html" %}
   <main class="first-answer-panel" aria-labelledby="first-answer-question">
     <span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>
@@ -95,7 +95,8 @@
     window.USER_ID = {{ session.get('user_id')|tojson }};
     window.STUDY_PROGRESS_CONTEXT = {{ study_context|tojson }};
   </script>
-  <script src="{{ url_for('static', filename='logger.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='logger.js', v='strict-back-1') }}" defer></script>
   {% endif %}
 </body>
 </html>

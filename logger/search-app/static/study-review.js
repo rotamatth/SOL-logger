@@ -1,9 +1,6 @@
+// Kept out of sight while in the browser's cache; back-guard.js reloads or moves on when it comes back.
 window.addEventListener("pagehide", event => {
     if (event.persisted) document.querySelector(".study-review").hidden = true;
-});
-
-window.addEventListener("pageshow", event => {
-    if (event.persisted) window.location.reload();
 });
 
 const animation = document.querySelector(".review-animation");

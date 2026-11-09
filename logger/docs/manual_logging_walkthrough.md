@@ -71,7 +71,7 @@ the saved log therefore grows while the task is still open.
 
 ### Browser back blocking
 
-- `browserBackBlocked`: emitted when native browser back navigation is intercepted, blocked, or redirected back to the latest allowed app URL, including the current URL and target URL.
+- `browserBackBlocked`: emitted when native browser back navigation is intercepted, blocked, or redirected back to the latest allowed app URL, including the current URL and target URL. `reason` is `popstate` when the page simply stayed, `pageshow` or `back-forward-load` when the browser reached an earlier page and was sent on. Every child page blocks back (`static/back-guard.js`), but only pages with the logger record it: the question introductions and the review pages block without an event.
 
 ### Completion
 

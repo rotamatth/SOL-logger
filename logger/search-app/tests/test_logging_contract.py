@@ -13,6 +13,7 @@ from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 LOGGER_JS = APP_ROOT / "static" / "logger.js"
+BACK_GUARD_JS = APP_ROOT / "static" / "back-guard.js"
 WEBPAGE_HTML = APP_ROOT / "templates" / "webpage.html"
 SEARCH_APP = APP_ROOT / "search_app.py"
 LAYOUT_HTML = APP_ROOT / "templates" / "layout.html"
@@ -301,12 +302,14 @@ def test_back_navigation_return_metadata_contract():
 
 def test_back_navigation_events_include_destination_urls():
     logger_source = LOGGER_JS.read_text(encoding="utf-8")
+    guard_source = BACK_GUARD_JS.read_text(encoding="utf-8")
     checker_source = CHECK_LOGS.read_text(encoding="utf-8")
 
-    assert 'studyLogger.logEvent("wentBack"' not in logger_source
-    assert "const toURL = targetURL || fromURL" in logger_source
-    assert "fromURL," in logger_source
-    assert "toURL," in logger_source
+    assert 'studyLogger.logEvent("wentBack"' not in logger_source + guard_source
+    # The browser's back button is blocked and recorded by back-guard.js, through the logger.
+    assert 'studyLogger.logEvent("browserBackBlocked"' in guard_source
+    assert "toURL: targetURL || fromURL" in guard_source
+    assert "fromURL," in guard_source
     assert "getBackButtonNavigationDetails(serpBackBtn, \"serp\")" in logger_source
     assert "getBackButtonNavigationDetails(viewerBackBtn, \"webpage\")" in logger_source
     assert '"customBackButtonClicked": ("fromURL", "toURL")' in checker_source

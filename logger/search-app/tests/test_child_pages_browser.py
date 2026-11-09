@@ -266,9 +266,10 @@ def test_a_recap_the_server_no_longer_recognises_is_reopened(student_site):
         page.get_by_role("button", name="Salva l’attività").click()
     assert page.url.endswith("/thank_you")
     page.wait_for_function("!document.querySelector('[data-action=finish]').disabled")
-    # Refused again within the minute, the page stays and says so instead of reloading for ever.
+    # Refused again within the minute, the page stays and says so instead of reloading for ever. Counted by
+    # loads, since the back guard adds a history entry on the tap without leaving the page.
     reloads = []
-    page.on("framenavigated", lambda frame: reloads.append(frame.url))
+    page.on("load", lambda loaded: reloads.append(loaded.url))
     page.get_by_role("button", name="Salva l’attività").click()
     page.wait_for_function("document.querySelector('#recap-status[data-error]')", timeout=15000)
     page.wait_for_timeout(1000)
