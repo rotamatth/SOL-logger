@@ -168,7 +168,17 @@ LONG = ("Il suono entra nell'orecchio e fa vibrare il timpano, poi gli ossicini 
         "coclea, che manda il segnale al cervello attraverso il nervo acustico. ") * 4
 
 
-@pytest.mark.parametrize("student_site", ["Orecchio"], indirect=True)
+def boxes_overlap(a, b):
+    return not (a["x"] + a["width"] <= b["x"] or b["x"] + b["width"] <= a["x"]
+                or a["y"] + a["height"] <= b["y"] or b["y"] + b["height"] <= a["y"])
+
+
+def all_boxes(page, selector):
+    found = page.locator(selector)
+    return [found.nth(index).bounding_box() for index in range(found.count())]
+
+
+@pytest.mark.parametrize("student_site", ["Spazio", "Orecchio"], indirect=True)
 @pytest.mark.parametrize("size", SIZES)
 def test_the_recap_fits_a_short_tablet_even_with_long_answers(student_site, size):
     page, base, _ = student_site
@@ -179,9 +189,8 @@ def test_the_recap_fits_a_short_tablet_even_with_long_answers(student_site, size
         page.wait_for_function("[...document.images].every(image => image.complete)")
         fits(page, f"[data-action={button}]")
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
-        cards = page.locator(".recap-piece .review-card")
-        assert cards.count() == 6
-        boxes = [cards.nth(index).bounding_box() for index in range(6)]
+        boxes = all_boxes(page, ".recap-piece .review-card")
+        assert len(boxes) == 6
         picture = page.locator(".recap-picture").bounding_box()
         for index, box in enumerate(boxes):
             # Every card stays inside the picture.
@@ -189,8 +198,19 @@ def test_the_recap_fits_a_short_tablet_even_with_long_answers(student_site, size
                     and picture["y"] <= box["y"] and box["y"] + box["height"] <= picture["y"] + picture["height"] + 1), \
                 f"card {index} leaves the picture"
             for other in boxes[index + 1:]:
-                assert (box["x"] + box["width"] <= other["x"] or other["x"] + other["width"] <= box["x"]
-                        or box["y"] + box["height"] <= other["y"] or other["y"] + other["height"] <= box["y"]), "cards overlap"
+                assert not boxes_overlap(box, other), "cards overlap"
+        # The first answers form one row under the labels and the final answers one row along the bottom.
+        before, after = all_boxes(page, ".recap-piece .review-before"), all_boxes(page, ".recap-piece .review-after")
+        assert max(box["y"] for box in before) - min(box["y"] for box in before) <= 1
+        assert (max(box["y"] + box["height"] for box in after) - min(box["y"] + box["height"] for box in after)) <= 1
+        assert max(box["y"] + box["height"] for box in before) < min(box["y"] for box in after)
+        # Even with long answers no card hides a magnifier, and the stars stay clear of the labels.
+        magnifiers = all_boxes(page, ".recap-arrow circle[r='17']")
+        assert len(magnifiers) == 3
+        assert not any(boxes_overlap(card, glass) for card in boxes for glass in magnifiers), "a card hides a magnifier"
+        labels = all_boxes(page, ".recap-piece .review-number")
+        assert not any(boxes_overlap(stars, label) for stars in all_boxes(page, ".recap-confidence") for label in labels)
+        assert all(label["y"] + label["height"] < card["y"] for label in labels for card in before)
         # A long answer scrolls inside its card, which keeps its place on the picture.
         answer = page.locator(".recap-piece .review-after p").first
         assert answer.evaluate("p => p.scrollHeight > p.clientHeight && getComputedStyle(p).overflowY === 'auto'")

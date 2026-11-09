@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-09 — Line up the recap's cards under the labels and along the bottom
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, styling
+
+**Files**
+- `logger/search-app/static/recap.css` — the same card places for both themes: first answers in one row under the labels, final answers in one row along the bottom; cards 24.8% x 19.4%; `recap.css` as `child-pages-6`
+- `logger/search-app/student_recap.py` — the arrows and magnifiers redrawn for the new places
+- `logger/search-app/templates/recap.html` — the new `recap.css` version, so tablets fetch it
+- `logger/search-app/tests/test_child_pages_browser.py` — the recap test runs on both themes and checks the two rows, the magnifiers and the stars
+- `logger/docs/recap_card_positions_2026-11-09/` — six before and after pictures for the pull request, with the test IDs only; removed again in the next commit, so the description can link to this one and the server's checkout stays without them
+
+**What changed for the participant**
+On the iPad the recap's cards sat at different heights, out of line with the "Domanda" labels, and covered the drawings: the dog astronaut, the inside of the ear, the galaxy. Matthias drew where they go, after Diletta asked for the first answers at the top and the final answers at the bottom. The three first answers now form one row just under the labels and the three final answers one row along the bottom, in the same places on spazio and orecchio. The middle of each drawing stays free. On spazio the middle arrow passes left of the dog instead of over it.
+
+**How it works**
+Positions only, as shares of the picture. A first answer starts at 9.4% of the picture's height, or lower on a short screen, so its stars never touch the label above. A final answer is anchored 6.6% from the bottom and grows upwards with a long answer. The magnifiers sit at about half the picture's height (48% to 54%), which no card reaches even with a long answer.
+
+**If something looks wrong after this, check**
+- A card over a magnifier or a label → the `.recap-stage--space`/`--ear` rules at the end of the positions block in `recap.css`, and `RECAP_ARROWS` in `student_recap.py`.
+- Old positions on a tablet → the browser kept the old `recap.css`; the page asks for `v=child-pages-6`.
+
+**Left alone**
+The labels and their numbering, the pictures, what the recap saves and logs, the review page after each question (`study_handoff.html`, `REVIEW_ARROWS`), the narrow-screen layout under 620 px, the plain layout for a theme without a picture.
+
+**Verified**
+The child-page tests, 42 passed, including the recap test on both themes at 1180 x 699, 1280 x 680 and 1024 x 520 with long answers. The new checks (rows, magnifiers, stars) fail on the previous layout. Pictures of both themes with the test IDs before and after, with short and long answers. Not yet seen on a real iPad or classroom tablet.
+
 ## 2026-11-08 — Keep working notes, screenshots and experiments out of the repository
 
 **Commit:** pending · **Type:** infra · **Area:** docs
