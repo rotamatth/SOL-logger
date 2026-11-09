@@ -1,6 +1,8 @@
 """A test ID runs a permanent experiment on any day and as often as needed, apart from the results."""
 from datetime import datetime
+import importlib.util
 import json
+from pathlib import Path
 import re
 from zoneinfo import ZoneInfo
 
@@ -62,6 +64,24 @@ def test_a_test_id_needs_no_session_and_has_its_theme(student_modules, uid, them
         assert module.run_theme() == theme
     complete_today(client)
     assert clip in client.get("/task-review/1").text or clip in client.get("/thank_you").text
+
+
+def test_the_test_ids_ask_the_questions_of_the_10_november_sessions():
+    """TEST-spazio asks what the setup gave 4a spazio, TEST-orecchio what Diletta entered for 5a orecchio, in clip order."""
+    from research_dashboard.permanent_test import TEST_EXPERIMENTS
+    spec = importlib.util.spec_from_file_location(
+        "setup_session_for_test_ids", Path(__file__).resolve().parents[1] / "tools" / "setup_session_2026_11_10.py")
+    setup = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(setup)
+
+    def rows(uid):
+        return tuple((item["topic"], item["question"]) for item in TEST_EXPERIMENTS[uid]["questions"])
+
+    assert rows("TEST-spazio") == setup.SPAZIO_QUESTIONS
+    assert rows("TEST-orecchio") == (
+        ("Fact-finding -- Ossicini Orecchio", "Quali sono i 3 ossicini dentro al nostro orecchio?"),
+        ("Multi-step -- Coclea", "Che forma ha la coclea e dove si trova?"),
+        ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))
 
 
 def test_a_whole_test_run_stays_out_of_the_real_folder(student_modules, tmp_path):

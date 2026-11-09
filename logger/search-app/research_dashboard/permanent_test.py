@@ -22,16 +22,17 @@ def _question_set(theme, rows):
                           for number, (topic, question) in enumerate(rows, 1)]}
 
 
-# In the order of their animations: a question's position chooses its clip and poster.
+# In the order of their animations: a question's position chooses its clip and poster. The questions are
+# those of the 10 November 2026 sessions, 4a spazio and 5a orecchio, as the server stored them on 9 November.
 TEST_EXPERIMENTS = {
     "TEST-spazio": _question_set("spazio", (
         ("Sistema solare Giove", "Come si chiamano i satelliti maggiori di Giove?"),
         ("Primo animale nello spazio", "Qual è stato il primo animale nello spazio e come si chiamava?"),
         ("Altre galassie", "Quali sono i nomi di altre 3 galassie oltre la nostra?"))),
     "TEST-orecchio": _question_set("orecchio", (
-        ("Prova orecchio 1", "Domanda di prova: come fa l'orecchio a sentire i suoni?"),
-        ("Prova orecchio 2", "Domanda di prova: quali sono le parti dell'orecchio?"),
-        ("Prova orecchio 3", "Domanda di prova: quali animali sentono meglio delle persone?"))),
+        ("Fact-finding -- Ossicini Orecchio", "Quali sono i 3 ossicini dentro al nostro orecchio?"),
+        ("Multi-step -- Coclea", "Che forma ha la coclea e dove si trova?"),
+        ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))),
 }
 
 
