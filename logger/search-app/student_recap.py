@@ -31,15 +31,16 @@ def _arrow(start, bend_in, magnifier, bend_out, end):
             "tip": f"M{point(left)} L{point(end)} L{point(right)}", "x": magnifier[0], "y": magnifier[1]}
 
 
-# Each question's arrow as in Diletta's Figma, by theme and by the question's part of the picture,
-# moved inside the picture with the cards.
+# Each question's arrow, by theme and by the question's part of the picture: from under its first answer,
+# through the magnifier, to its final answer. The cards sit in the same places for both themes (recap.css),
+# and every magnifier is between 266 and 413, where even a card with a long answer never reaches.
 RECAP_ARROWS = {
-    "space": {"1": _arrow((40, 236), (22, 300), (40, 354), (52, 420), (82, 452)),
-              "2": _arrow((640, 238), (652, 290), (643, 323), (600, 370), (562, 392)),
-              "3": _arrow((955, 300), (972, 345), (958, 391), (948, 440), (925, 478))},
-    "ear": {"1": _arrow((40, 236), (20, 290), (38, 340), (48, 410), (78, 452)),
-            "2": _arrow((471, 242), (468, 290), (484, 329), (500, 365), (525, 393)),
-            "3": _arrow((880, 150), (975, 165), (958, 332), (945, 440), (925, 520))},
+    "space": {"1": _arrow((45, 200), (22, 265), (40, 340), (55, 420), (95, 486)),
+              "2": _arrow((372, 200), (366, 275), (376, 345), (392, 430), (440, 486)),
+              "3": _arrow((862, 130), (975, 160), (958, 340), (945, 440), (925, 486))},
+    "ear": {"1": _arrow((45, 200), (22, 265), (40, 340), (55, 420), (95, 486)),
+            "2": _arrow((470, 200), (468, 270), (480, 340), (500, 420), (520, 486)),
+            "3": _arrow((862, 130), (975, 160), (958, 340), (945, 440), (925, 486))},
 }
 SAVE_ERROR = "Salvataggio non disponibile. Riprova."
 CONFLICT_ERROR = "Le risposte sono cambiate in un'altra scheda. Riapri il riepilogo prima di riprovare."
