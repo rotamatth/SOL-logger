@@ -15,6 +15,7 @@ WALKTHROUGH = REPO_LOGGER_ROOT / "docs" / "manual_logging_walkthrough.md"
 
 SOURCE_FILES = [
     APP_ROOT / "static" / "logger.js",
+    APP_ROOT / "static" / "back-guard.js",
     APP_ROOT / "templates" / "layout.html",
     APP_ROOT / "templates" / "webpage.html",
     APP_ROOT / "templates" / "error.html",

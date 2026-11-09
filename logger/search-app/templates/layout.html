@@ -652,7 +652,8 @@
         window.USER_ID = {{ session.get('user_id')|tojson }};
         window.STUDY_PROGRESS_CONTEXT = {{ study_context|default(none)|tojson }};
     </script>
-    <script src="{{ url_for('static', filename='logger.js') }}"></script>
+    <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}"></script>
+    <script src="{{ url_for('static', filename='logger.js', v='strict-back-1') }}"></script>
     <script src="{{ url_for('static', filename='interface.js') }}?v=20261022"></script>
     {% if final_answer_draft %}<script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}"></script>
     <script src="{{ url_for('static', filename='final-answer-draft.js', v='child-pages-2') }}"></script>{% endif %}

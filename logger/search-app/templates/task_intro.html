@@ -6,8 +6,9 @@
   <title>{{ 'Cominciamo!' if welcome_lines else 'Domanda ' ~ task_number }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='child-pages-2') }}">
+  <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
 </head>
-<body class="first-answer-page">
+<body class="first-answer-page" data-sol-step-page>
 {% include "test_run_banner.html" %}
   <main class="first-answer-panel task-intro">
     {% if welcome_lines %}

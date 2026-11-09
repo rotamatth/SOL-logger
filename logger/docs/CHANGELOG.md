@@ -65,6 +65,39 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-09 — Make the browser's back button do nothing on every child page
+
+**Commit:** pending · **Type:** fix · **Area:** back-navigation, logging
+
+**Files**
+- `logger/search-app/static/back-guard.js` — new: the back blocker that was in `logger.js`, now loaded by every child page, with two additions (below)
+- `logger/search-app/static/logger.js` — the blocker removed; it still records the blocked attempts and reads `window.__SOLBrowserBackRecoveryInProgress`
+- `logger/search-app/templates/task_intro.html`, `study_handoff.html` — load the blocker, which they never had
+- `logger/search-app/templates/layout.html`, `first_answer.html`, `recap.html` — load it before the logger; `logger.js` as `strict-back-1`, so tablets drop the old copy that still holds the old blocker
+- `logger/search-app/templates/first_answer.html`, `task_intro.html`, `study_handoff.html`, `recap.html` — marked as step pages (`data-sol-step-page`)
+- `logger/search-app/static/study-review.js` — its own reload on a cache restore removed; the blocker does it
+- `logger/search-app/tests/test_back_navigation_browser.py` — new
+- `logger/search-app/tests/test_logging_contract.py`, `test_manual_logging_walkthrough.py` — read `back-guard.js` too, where `browserBackBlocked` is now recorded
+- `logger/search-app/tests/test_child_pages_browser.py` — the recap's no-reload check counts page loads, since the guard adds a history entry on a tap without leaving the page
+- `logger/docs/manual_logging_walkthrough.md` — where `browserBackBlocked` comes from
+
+**What changed for the participant**
+On 9 November Matthias found on the iPad that back left the question introduction and the review page, and could bring back a question's answer form after its answer was confirmed; confirming again only gave "La risposta è già stata confermata". Now back does nothing on every child page: the page stays as it is.
+
+**How it works**
+The blocker fills the history with copies of the current page and adds them again after each back, as before, but now on every page: the introductions and review pages never loaded it, and the end of a question cleared the last page reached, so nothing sent the child forward from there. A copy is also added on the child's first tap on each page, because browsers may skip copies added without one. If the browser still reaches an earlier page, it sends the child on to the last page reached, and a step page that comes back from the browser's cache at the same address reloads, since `/task` shows the introduction, the answer form and the confirmed answer at one address; the server then shows the current step.
+
+**If something looks wrong after this, check**
+- Back leaves a page → that page's template must load `back-guard.js`; `history.state.__solBrowserBackBlockerGuard` is true on a guarded page.
+- A page reloads by itself → it is a step page restored from the browser's cache; `browserBackBlocked` with reason `pageshow` is in the log.
+- `browserBackBlocked` missing on an introduction or review page → expected: those pages have no logger.
+
+**Left alone**
+What the search page and viewer do when restored from the cache (they keep their page and resynchronize, so results are not logged twice), the server's checks that refuse a step already done, the in-app back buttons, the dashboard.
+
+**Verified**
+The new browser tests (back twice on every page of a question: introduction, answer form, confirmed answer, search, results, review, next introduction; an answer form and a review page restored from the cache) pass, and all three fail on the previous code. The full suite: 1108 passed. In an earlier full run one search test (`test_original_is_read_only_across_search_results_viewer_and_navigation`, which does not use back) failed once; it passed six times alone, four times run together and in the last full run. Chromium cannot reproduce Safari's cache, so the iPad remains the acceptance check.
+
 ## 2026-11-09 — Give TEST-orecchio the questions of 5a orecchio
 
 **Commit:** pending · **Type:** content · **Area:** task-flow, tests
