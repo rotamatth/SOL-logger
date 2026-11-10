@@ -13,6 +13,7 @@ from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 LOGGER_JS = APP_ROOT / "static" / "logger.js"
+BACK_GUARD_JS = APP_ROOT / "static" / "back-guard.js"
 WEBPAGE_HTML = APP_ROOT / "templates" / "webpage.html"
 SEARCH_APP = APP_ROOT / "search_app.py"
 LAYOUT_HTML = APP_ROOT / "templates" / "layout.html"
@@ -102,7 +103,9 @@ def test_webpage_closed_has_duration_exit_reason_guard_and_fallback():
     assert "window.logOpenWebpageClosed = (reason) =>" in source
     assert 'emitClosed(reason || "end-task-button", "end-task")' in source
     assert 'emitClosed("back-button", "custom-back")' in source
-    assert 'window.addEventListener("pagehide", () => emitClosed("pagehide", "page-unload"))' in source
+    # The handler also hides the iframe loader; verify the close behavior inside it.
+    pagehide_handler = source[source.index('window.addEventListener("pagehide"'):]
+    assert 'emitClosed("pagehide", "page-unload")' in pagehide_handler
 
 
 def test_answer_submission_closes_open_webpage_before_task_ended():
@@ -125,7 +128,7 @@ def test_modal_close_logging_contract():
     ]
     feedback_close = source[
         source.index("function closeFeedbackModal()"):
-        source.index("function toggleSavedTitles")
+        source.index("</script>", source.index("function closeFeedbackModal()"))
     ]
     confirm_branch = source[
         source.index("yesEndBtn.addEventListener"):
@@ -158,14 +161,15 @@ def test_log_session_warns_only_for_expected_logging_contract_issues():
     assert "def warn_logging_contract_issues(logs, default_task_number):" in source
     assert "warn_logging_contract_issues(logs, task_number)" in source
     assert "if session_id != server_session_id:" in source
-    assert 'return jsonify({"error": "Session mismatch"}), 409' in source
+    # A batch from an earlier session of the browser is recovered, not rejected:
+    # a permanent rejection left the browser retrying it and unable to send new events.
+    assert "return _accept_other_session_batch(data, session_id, logs, user_id)" in source
+    assert 'return jsonify({"error": "Session mismatch"}), 409' not in source
     # Events from a previous, unfinished participant are recovered into their
     # own incomplete-experiment log, never dropped and never rejected.
-    assert "def _write_incomplete_recovery(foreign_groups, recovered_from_user):" in source
+    assert "def _prepare_upload(" in source
     assert '"type": "incompleteExperiment"' in source
     assert "_INCOMPLETE.log" in source
-    assert "[log] RECOVER incomplete" in source
-    assert 'status="incomplete"' in source
     assert '"recovered_incomplete": recovered_incomplete' in source
     # Neither the old all-or-nothing reject nor the interim "drop foreign" path
     # may come back — both lost data.
@@ -191,8 +195,9 @@ def test_log_session_writes_full_and_per_task_logs_without_aggregate_outputs():
 
     assert 'combined_filename = f"{safe_user}_{log_id}_FULL.log"' in source
     assert 'task_filename     = f"{safe_user}_{log_id}_task{visible_task_number}_topic{actual_topic_number}.log"' in source
-    assert "full_f.write(line)" in source
-    assert "task_f.write(line)" in source
+    # Actual durability/retry behavior is exercised in test_collection_recovery.
+    assert "files[combined_filename]" in source
+    assert "files[task_filename]" in source
     assert "write_aggregate_json" not in source
     assert "log_aggregation" not in source
     assert "_aggregate.log" not in source
@@ -221,31 +226,10 @@ def test_start_post_resets_server_session_before_new_experiment_state():
     order_index = source.index("assign_random_task_order(user_id)", post_index)
 
     assert post_index < clear_index < user_index < session_id_index < log_id_index < order_index
-    assert "session['pieces_earned'] = []" in source
+    assert "session['completed_tasks'] = []" in source
     assert "session['tasks_started'] = []" in source
-    assert "session['reward_shown_logged'] = []" in source
     assert "session['last_active'] = datetime.now().isoformat()" in source
     assert "session[\"search_results\"]" not in source[post_index:order_index]
-
-
-def test_reward_shown_server_logging_is_idempotent_per_task():
-    source = SEARCH_APP.read_text(encoding="utf-8")
-    reward_source = source[
-        source.index("def reward():"):
-        source.index("@app.route('/thank_you')")
-    ]
-
-    key_index = reward_source.index('reward_log_key = f"{display_task_number}:{task_number}"')
-    logged_index = reward_source.index("reward_shown_logged = session.get('reward_shown_logged', [])")
-    guard_index = reward_source.index("if log_id and user_id and reward_log_key not in reward_shown_logged:")
-    write_index = reward_source.index("f.write(line)")
-    append_index = reward_source.index("reward_shown_logged.append(reward_log_key)")
-    assign_index = reward_source.index("session['reward_shown_logged'] = reward_shown_logged")
-
-    assert key_index < guard_index < write_index < append_index < assign_index
-    assert logged_index < guard_index
-    assert '"type": "rewardShown"' in reward_source
-    assert '"source": "server"' in reward_source
 
 
 def test_client_cleanup_clears_local_session_and_in_memory_logger_state():
@@ -318,12 +302,14 @@ def test_back_navigation_return_metadata_contract():
 
 def test_back_navigation_events_include_destination_urls():
     logger_source = LOGGER_JS.read_text(encoding="utf-8")
+    guard_source = BACK_GUARD_JS.read_text(encoding="utf-8")
     checker_source = CHECK_LOGS.read_text(encoding="utf-8")
 
-    assert 'studyLogger.logEvent("wentBack"' not in logger_source
-    assert "const toURL = targetURL || fromURL" in logger_source
-    assert "fromURL," in logger_source
-    assert "toURL," in logger_source
+    assert 'studyLogger.logEvent("wentBack"' not in logger_source + guard_source
+    # The browser's back button is blocked and recorded by back-guard.js, through the logger.
+    assert 'studyLogger.logEvent("browserBackBlocked"' in guard_source
+    assert "toURL: targetURL || fromURL" in guard_source
+    assert "fromURL," in guard_source
     assert "getBackButtonNavigationDetails(serpBackBtn, \"serp\")" in logger_source
     assert "getBackButtonNavigationDetails(viewerBackBtn, \"webpage\")" in logger_source
     assert '"customBackButtonClicked": ("fromURL", "toURL")' in checker_source
@@ -405,7 +391,6 @@ if __name__ == "__main__":
         test_log_session_writes_full_and_per_task_logs_without_aggregate_outputs,
         test_log_filename_timestamp_uses_europe_zurich_timezone,
         test_start_post_resets_server_session_before_new_experiment_state,
-        test_reward_shown_server_logging_is_idempotent_per_task,
         test_client_cleanup_clears_local_session_and_in_memory_logger_state,
         test_duplicate_query_submit_suppression_contract,
         test_italian_pagination_target_parsing,

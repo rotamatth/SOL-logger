@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Le tue risposte</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='child-pages-2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='recap.css', v='child-pages-6') }}">
+  <script>
+    window.SESSION_ID = {{ session.get('session_id')|tojson }};
+    window.USER_ID = {{ session.get('user_id')|tojson }};
+    window.STUDY_PROGRESS_CONTEXT = {{ study_context|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='logger.js', v='strict-back-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}" defer></script>
+  <script src="{{ url_for('static', filename='recap.js', v='child-pages-5') }}" defer></script>
+</head>
+<body class="study-review-page" data-sol-step-page>
+{% include "test_run_banner.html" %}
+  <main id="recap" class="study-review recap{% if finished %} recap--finished{% endif %}" data-attempt-id="{{ attempt_id }}"
+        data-csrf-token="{{ csrf_token }}" data-draft-revisions="{{ draft_revisions|tojson|forceescape }}"
+        aria-labelledby="recap-heading">
+    <h1 class="visually-hidden" id="recap-heading">Le tue risposte</h1>
+    {% if finished %}<p class="review-intro">La sessione è salvata.</p>{% endif %}
+    {# The whole picture of today's session, with each question's two answers over its part of it, as in the Figma. #}
+    <div class="recap-stage{% if theme %} recap-stage--{{ theme }}{% else %} recap-stage--plain{% endif %}">
+      <div class="recap-picture">
+        <img class="recap-artwork" src="{{ url_for('static', filename=background) }}" alt="">
+      </div>
+      {% if theme %}
+      <svg class="recap-arrows" viewBox="0 0 1000 667" aria-hidden="true">
+        {% for task in tasks %}{% set arrow = arrows[task.slot] %}
+        <g class="recap-arrow">
+          <path class="recap-arrow-halo" d="{{ arrow.line }}" vector-effect="non-scaling-stroke"/>
+          <path class="recap-arrow-halo" d="{{ arrow.tip }}" vector-effect="non-scaling-stroke"/>
+          <path class="recap-arrow-line" d="{{ arrow.line }}" stroke-dasharray="6 6" vector-effect="non-scaling-stroke"/>
+          <path class="recap-arrow-line" d="{{ arrow.tip }}" vector-effect="non-scaling-stroke"/>
+          <g transform="translate({{ arrow.x }} {{ arrow.y }})">
+            <circle r="17" fill="#4285f4"/>
+            <circle cx="-2.5" cy="-2.5" r="7" fill="none" stroke="#fff" stroke-width="3"/>
+            <path d="M3 3l7 7" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+          </g>
+        </g>
+        {% endfor %}
+      </svg>
+      {% endif %}
+      {% for task in tasks %}
+      <section class="recap-piece{% if theme %} recap-piece--{{ theme }}-{{ task.slot }}{% endif %}" aria-labelledby="recap-question-{{ task.number }}">
+        <h2 class="review-number" id="recap-question-{{ task.number }}" title="{{ task.question }}">Domanda {{ task.number }}</h2>
+        <div class="review-card review-before">
+          <h3>Cosa sapevi prima</h3>
+          {% if task.confidence %}
+          <span class="recap-confidence" role="img" aria-label="Autovalutazione iniziale: {{ confidence_labels[task.confidence] }}" title="{{ confidence_labels[task.confidence] }}">
+            {% for star in range(task.confidence) %}<img src="{{ url_for('static', filename='confidence/star.svg') }}" width="16" height="15" alt="">{% endfor %}
+          </span>
+          {% endif %}
+          <p>{{ task.first }}</p>
+        </div>
+        <div class="review-card review-after">
+          <h3>Cosa sai adesso</h3>
+          <p>{{ task.final }}</p>
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+    <p id="recap-status" class="recap-status" role="status"></p>
+    <div class="review-actions">
+      {% if finished %}
+      <button type="button" class="review-button" data-action="restart"
+              data-url="{{ url_for('recap_restart') }}" disabled>Chiudi</button>
+      {% else %}
+      <button type="button" class="review-button review-button--warm" data-action="finish"
+              data-url="{{ url_for('recap_finish') }}" disabled>Salva l’attività</button>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>

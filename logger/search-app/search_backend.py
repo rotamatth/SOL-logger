@@ -39,20 +39,33 @@ Both must be present in API_keys.json (or the env vars below).
 autocomplete_query_model is optional and defaults to search-history, which
 matches Vertex AI Search website data stores.
 The vertex Ai or search agent has to be set up on google console.
+
+Two datasets can be served side by side. Set VERTEX_SPAZIO_ENGINE_ID and
+VERTEX_SPAZIO_DATA_STORE_ID, and the same two for ORECCHIO, and each run searches
+the engine of its question set's theme. A theme without its own engine then fails
+visibly on the search page: it never answers from another theme's dataset. With
+none of these set, every run uses the single engine above, as before.
 """
 
 import os
 import json
+import logging
+from functools import cache
+
 import requests
 from spellchecker import SpellChecker
 
 from google.cloud import discoveryengine_v1 as discoveryengine
 from google.api_core.client_options import ClientOptions
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_AUTOCOMPLETE_QUERY_MODEL = "search-history"
 DEFAULT_SERP_AUTOCOMPLETE_HL = "it"
 DEFAULT_SERP_AUTOCOMPLETE_GL = "it"
-DEFAULT_SERP_AUTOCOMPLETE_CLIENT = "gws-wiz"  # SerpAPI client; "" disables, also "chrome"/"safari"/"gws-wiz-serp"
+DEFAULT_SERP_AUTOCOMPLETE_CLIENT = "gws-wiz"
+VERTEX_AUTOCOMPLETE_TIMEOUT_SECONDS = 0.75
+SERP_AUTOCOMPLETE_TIMEOUT_SECONDS = 2
 SERP_AUTOCOMPLETE_HL = os.getenv("SERP_AUTOCOMPLETE_HL", DEFAULT_SERP_AUTOCOMPLETE_HL)
 SERP_AUTOCOMPLETE_GL = os.getenv("SERP_AUTOCOMPLETE_GL", DEFAULT_SERP_AUTOCOMPLETE_GL)
 SERP_AUTOCOMPLETE_CLIENT = os.getenv("SERP_AUTOCOMPLETE_CLIENT", DEFAULT_SERP_AUTOCOMPLETE_CLIENT).strip()
@@ -70,7 +83,6 @@ def serp_autocomplete_params(query):
         "api_key": SERP_API_KEY,
         "hl": SERP_AUTOCOMPLETE_HL,
         "gl": SERP_AUTOCOMPLETE_GL,
-        "client": "gws-wiz" ## adding client so that autocomplete suggestions are similar to what a user would get if they used Google 
     }
     if SERP_AUTOCOMPLETE_CLIENT:
         params["client"] = SERP_AUTOCOMPLETE_CLIENT
@@ -104,7 +116,7 @@ def load_vertex_config():
                 or cfg.get('autocomplete_query_model')
             )
         except (OSError, ValueError) as e:
-            print(f"[Vertex Config WARN] Could not load API_keys.json: {e}")
+            logger.warning("[Vertex Config WARN] Could not load API_keys.json: %s", e)
 
     autocomplete_query_model = (
         autocomplete_query_model or DEFAULT_AUTOCOMPLETE_QUERY_MODEL
@@ -119,6 +131,22 @@ def load_vertex_config():
         autocomplete_query_model,
     )
 
+
+# Theme names come from the caller, which reads them from the frozen question set.
+VERTEX_THEME_SETTINGS = {"space": "SPAZIO", "ear": "ORECCHIO"}
+
+
+def load_theme_configs(default):
+    """Per-theme engines. Project, location, language and model stay shared."""
+    configs = {}
+    for theme, label in VERTEX_THEME_SETTINGS.items():
+        engine_id = os.getenv(f"VERTEX_{label}_ENGINE_ID", "").strip()
+        data_store_id = os.getenv(f"VERTEX_{label}_DATA_STORE_ID", "").strip()
+        if engine_id or data_store_id:
+            configs[theme] = (*default[:2], engine_id, data_store_id, *default[4:])
+    return configs
+
+
 # ---------------------------------------------------------------------------
 # Lazy client factories
 # ---------------------------------------------------------------------------
@@ -132,6 +160,7 @@ def get_search_client(location):
     return discoveryengine.SearchServiceClient(client_options=client_options)
 
 
+@cache
 def get_completion_client(location):
     client_options = None
     if location and location != "global":
@@ -155,8 +184,8 @@ def vertex_search(query, page, rpp, config):
     project, location, engine_id, _data_store_id, language_code = config[:5]
 
     if not project or not engine_id:
-        print("[Vertex Search ERROR] Missing project_number or engine_id in config")
-        return [], 0
+        logger.error("[Vertex Search ERROR] Missing project_number or engine_id in config")
+        raise RuntimeError("Vertex search is not configured")
 
     client = get_search_client(location)
 
@@ -182,14 +211,15 @@ def vertex_search(query, page, rpp, config):
         )
         response = client.search(request)
     except Exception as e:
-        print(f"[Vertex Search ERROR] {e}")
-        return [], 0
+        # Provider messages may include participant text or credential-bearing URLs.
+        logger.error("[Vertex Search ERROR] %s", type(e).__name__)
+        raise  # The search page shows its connection error.
 
     results = []
     total = response.total_size if hasattr(response, "total_size") else 0
 
     if response.corrected_query:
-        print("Corrected query is: ", response.corrected_query)
+        logger.debug("Vertex AI returned a corrected query")  # Never log participant text.
         corrected_query = response.corrected_query
         query_correction_source = "vertex"
     else:
@@ -197,7 +227,7 @@ def vertex_search(query, page, rpp, config):
         # failures return early above). Trust it; do NOT run the naive
         # pyspellchecker, which mangles correct-but-rare Italian forms
         # (e.g. "vulcaniche" -> "vulcanica").
-        print("No correction needed from Vertex AI")
+        logger.debug("No correction needed from Vertex AI")
         query_correction_source = "none"
         corrected_query = query
 
@@ -252,13 +282,9 @@ def vertex_autocomplete(query, config, max_suggestions=5):
         config[5] if len(config) > 5 else DEFAULT_AUTOCOMPLETE_QUERY_MODEL
     )
 
-    print("autocomplete query model: ", autocomplete_query_model)
-
     if not project or not data_store_id:
-        print("[Vertex Autocomplete ERROR] Missing project_number or data_store_id in config")
+        logger.error("[Vertex Autocomplete ERROR] Missing project_number or data_store_id in config")
         return []
-
-    client = get_completion_client(location)
 
     data_store_path = (
         f"projects/{project}/locations/{location}"
@@ -266,79 +292,71 @@ def vertex_autocomplete(query, config, max_suggestions=5):
     )
 
     try:
-        fallback_flag = 0
+        client = get_completion_client(location)
         request = discoveryengine.CompleteQueryRequest(
             data_store=data_store_path,
             query=query,
             query_model=autocomplete_query_model,
             include_tail_suggestions=True,
         )
-        response = client.complete_query(request)
-        suggestions = [s.suggestion for s in response.query_suggestions][:max_suggestions]
-        if (len(suggestions)==0):
-            print("No autocomplete suggestions from Vertex AI, trying SERP API...")
-            fallback_flag = 1
-            suggestions = pyterrier_autocomplete(query, max_suggestions)
-            if (len(suggestions)==0):
-                print("No suggestions generated from SERP API either.")
-        else:
-            print("Autocomplete suggestions from Vertex AI are: ", suggestions)
-        return suggestions, fallback_flag
-    except Exception as e:
-        print(f"[Vertex Autocomplete ERROR] {e}")
-        return [], 0
+        response = client.complete_query(request, retry=None, timeout=VERTEX_AUTOCOMPLETE_TIMEOUT_SECONDS)
+        return [s.suggestion for s in response.query_suggestions if s.suggestion.strip()][:max_suggestions]
+    except Exception as error:
+        # SDK failures can include the participant's query or credentials.
+        logger.error("[Vertex Autocomplete ERROR] %s", type(error).__name__)
+        return []
 
 
 # ---------------------------------------------------------------------------
 # PyTerrier fallback
 # ---------------------------------------------------------------------------
 
+PYTERRIER_TIMEOUT_SECONDS = 10
+
+
 def pyterrier_search(query, page, rpp, db_url="http://search_engine:7002"):
-    url = f"{db_url}/ranking?query={query}&rpp={VERTEX_MAX_RESULTS}"
+    """Rank with the local PyTerrier service.
+
+    Returns (corrected_query, results, count, correction_source) like vertex_search.
+    Raises when the service is unreachable or answers badly, so the participant
+    sees the same "could not connect" page as with Vertex instead of a crash.
+    """
     corrected_query = spellcheck_query(query)
-    try:
-        response = requests.get(url)
-    except requests.ConnectionError:
-        return [], 0
-
-    if response.status_code != 200:
-        return [], 0
-
-    try:
-        data = response.json()
-    except ValueError:
-        return [], 0
-
+    response = requests.get(f"{db_url}/ranking", params={"query": query, "rpp": VERTEX_MAX_RESULTS},
+                            timeout=PYTERRIER_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    data = response.json()
     if isinstance(data, dict):
         itemlist = data.get("itemlist", [])
     elif isinstance(data, list):
         itemlist = data
     else:
         itemlist = []
-
     return corrected_query, itemlist, len(itemlist), "pyspellchecker"
 
 
-def pyterrier_autocomplete(query, MAX_SUGGESTIONS=5):
-    # """Stub. When SEARCH_BACKEND=pyterrier, autocomplete is disabled. To enable,
-    # replace this function with a loader that prefix-matches against a curated
-    # suggestions file (e.g. data/autocomplete_suggestions.json) or against the
-    # PyTerrier lexicon."""
-    # return []
-    response = requests.get(
+def serp_autocomplete(query, max_suggestions=5):
+    if not SERP_API_KEY:
+        return []
+
+    try:
+        response = requests.get(
             "https://serpapi.com/search.json",
             params=serp_autocomplete_params(query),
-            timeout=5
+            timeout=SERP_AUTOCOMPLETE_TIMEOUT_SECONDS,
         )
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as error:
+        # HTTPError can include a URL with the query and API key.
+        logger.warning("[SerpAPI Autocomplete ERROR] %s", type(error).__name__)
+        return []
 
-    response.raise_for_status()
-    data = response.json()
-
-    SERP_API_suggestions = [
-        s["value"] for s in data.get("suggestions", [])
-    ][:MAX_SUGGESTIONS]
-
-    return SERP_API_suggestions
+    entries = data.get("suggestions") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return []
+    values = [entry.get("value") for entry in entries if isinstance(entry, dict)]
+    return [value for value in values if isinstance(value, str) and value.strip()][:max_suggestions]
 
 
 # ---------------------------------------------------------------------------
@@ -347,21 +365,37 @@ def pyterrier_autocomplete(query, MAX_SUGGESTIONS=5):
 
 SEARCH_BACKEND = os.getenv("SEARCH_BACKEND", "vertex").lower()
 _vertex_config = load_vertex_config()
+_theme_configs = load_theme_configs(_vertex_config)
 
 
-def search(query, page, rpp):
+def vertex_config_for(theme):
+    """Once any theme has its own engine, a run may only search the engine of its theme."""
+    if not _theme_configs:
+        return _vertex_config
+    config = _theme_configs.get(theme)
+    if config is None:
+        logger.error("[Vertex Config ERROR] No search engine is set for this run's theme")
+        raise RuntimeError("No search engine is set for this run's theme")
+    return config
+
+
+def search(query, page, rpp, theme=None):
     if SEARCH_BACKEND == "vertex":
-        return vertex_search(query, page, rpp, _vertex_config)
+        return vertex_search(query, page, rpp, vertex_config_for(theme))
     return pyterrier_search(query, page, rpp)
 
 
-def autocomplete(query):
+def autocomplete(query, theme=None):
+    """Return (suggestions, source), preserving the source labels in study logs."""
     if SEARCH_BACKEND == "vertex":
-        suggestions, fallback_flag = vertex_autocomplete(query, _vertex_config)
-        if fallback_flag==1:
-            return suggestions, "SERP_API"
-        return suggestions, "vertex"
-    return pyterrier_autocomplete(query), "pyterrier"
+        suggestions = vertex_autocomplete(query, vertex_config_for(theme))
+        if suggestions:
+            return suggestions, "vertex"
+        source = "SERP_API"
+    else:
+        source = "pyterrier"
+    suggestions = serp_autocomplete(query)
+    return suggestions, source if suggestions else "none"
 
 spell = SpellChecker(language='it')
 def spellcheck_query(cleaned_query):

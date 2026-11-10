@@ -15,6 +15,7 @@ WALKTHROUGH = REPO_LOGGER_ROOT / "docs" / "manual_logging_walkthrough.md"
 
 SOURCE_FILES = [
     APP_ROOT / "static" / "logger.js",
+    APP_ROOT / "static" / "back-guard.js",
     APP_ROOT / "templates" / "layout.html",
     APP_ROOT / "templates" / "webpage.html",
     APP_ROOT / "templates" / "error.html",
@@ -29,9 +30,26 @@ DYNAMIC_LOG_EVENTS = {
 }
 
 SERVER_LOG_EVENTS = {
-    # search_app.py writes this event directly to the task/full log files.
-    "rewardShown",
+    "OwnKnowledgeAnswerSubmitted", "TaskStarted", "TaskEnded", "sessionCompleted", "experimentFinished",
+    "RecapAnswerEdited", "studySessionFinished",
 }
+
+# Frozen pre-migration non-reward inventory: editing the walkthrough cannot
+# accidentally authorize dropping an existing event family.
+NON_REWARD_EVENTS = set("""
+autocompleteSuggestionsShown AnswerBoxClosed ClickedEndTaskConfirmation
+ClickedOnSendAndTerminateTask EndTaskConfirmationClosed EndTaskDialogClosed
+OpenedAnswerBox TaskContinued TaskEnded TaskStarted browserBackBlocked
+choseAutoCompleteSuggestion clickedDidYouMeanSuggestion clickedResult
+cursorEnteredSnippet cursorLeftSnippet customBackButtonClicked experimentFinished
+firstAnswerClosed firstAnswerOpened generatedDidYouMean hoverOverDidYouMean
+hoverOverQuerySuggestions idSubmitted iframeBackNavigation iframeNavigation
+iframeNavigationTrackingLimited logoOnSerpClicked pageNavigationClicked
+queryBoxFocused queryCleared querySubmitted resourceViewEnded resourceViewStarted
+resultExposureEnded resultExposureStarted searchError searchNoResults
+searchResultGenerated sessionCompleted taskQuestionHelpClicked taskQuestionHelpClosed
+webpageClosed webpageLoadCheckUnknown webpageLoadFailed webpageLoadSucceeded webpageOpened
+""".split())
 
 LOG_EVENT_RE = re.compile(r"studyLogger\.logEvent\(\s*[\"']([^\"']+)[\"']")
 INVENTORY_RE = re.compile(
@@ -61,6 +79,12 @@ def test_manual_walkthrough_lists_every_app_log_event_type():
     assert walkthrough_event_types() == app_event_types()
 
 
+def test_all_existing_non_reward_event_families_survive_the_new_flow():
+    emitted = app_event_types()
+    assert NON_REWARD_EVENTS <= emitted
+    assert not emitted & {"rewardShown", "finalRewardRevealClicked", "finalRewardRevealCompleted"}
+
+
 def test_manual_walkthrough_has_operational_steps():
     source = WALKTHROUGH.read_text(encoding="utf-8")
 
@@ -74,7 +98,7 @@ def test_manual_walkthrough_has_operational_steps():
         "### 6. Exercise resource page logging",
         "### 7. Exercise iframe navigation logging",
         "### 8. Exercise answer modal and task-end logging",
-        "### 9. Exercise final reward logging",
+        "### 9. Exercise completion logging",
         "### 10. Exercise search error logging",
         "## Final checks",
     ]

@@ -1,0 +1,6 @@
+{% macro school_year_input(id, name, value, choices, required=true, label='school_year') -%}
+<label for="{{ id }}">{{ t(label) }}</label>
+<input id="{{ id }}" name="{{ name }}" value="{{ value or '' }}" list="{{ id }}-choices" pattern="[0-9]{4}/[0-9]{4}" placeholder="2026/2027" aria-describedby="{{ id }}-help" {% if required %}required{% endif %}>
+<datalist id="{{ id }}-choices">{% for year in choices %}<option value="{{ year }}"></option>{% endfor %}</datalist>
+<p class="small muted" id="{{ id }}-help">{{ t('choose_or_enter_school_year') }}</p>
+{%- endmacro %}

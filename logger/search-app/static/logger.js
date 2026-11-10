@@ -58,6 +58,9 @@
         }
     }
 
+    // Events of an earlier run on this browser that never reached the server.
+    const UNSENT_RUNS_KEY = 'solUnsentRuns';
+
     function createClientSessionID() {
         return (typeof crypto !== 'undefined' && crypto.randomUUID)
             ? crypto.randomUUID()
@@ -87,6 +90,7 @@
                             && entry.uid
                             && entry.uid === currentUser;
                     });
+                    this.setAsideUnsent(storedSessionID, storedLogs.filter(entry => !logsToRestore.includes(entry)));
                     historyToRestore = [];
                 }
                 logsToRestore = logsToRestore.map(entry => ({
@@ -112,7 +116,9 @@
                 ? this.sessionID
                 : (createNewSessionID ? createClientSessionID() : null);
 
+            const unsentRuns = localStorage.getItem(UNSENT_RUNS_KEY);
             localStorage.clear();
+            if (unsentRuns) localStorage.setItem(UNSENT_RUNS_KEY, unsentRuns);
             if (typeof sessionStorage !== 'undefined') {
                 sessionStorage.clear();
             }
@@ -126,6 +132,50 @@
             }
         },
         
+        // A run can be left while uploads are failing. Its events are set aside rather than
+        // discarded, and sent later under that run's own ID (see sendUnsentRuns).
+        setAsideUnsent(sessionID, logs) {
+            try {
+                const pendingKey = `solPendingUpload:${sessionID}`;
+                const pending = JSON.parse(localStorage.getItem(pendingKey) || 'null');
+                const key = entry => `${entry.type}|${entry.timestamp}`;
+                const inPending = new Set(pending ? pending.logs.map(key) : []);
+                const rest = logs.filter(entry => entry && entry.uid && !inPending.has(key(entry)));
+                const batches = safeParseArray(localStorage.getItem(UNSENT_RUNS_KEY));
+                if (pending && pending.logs.some(entry => entry && entry.uid)) batches.push(pending);
+                if (rest.length) batches.push({session_id: sessionID, batch_id: createClientSessionID(), logs: rest});
+                if (batches.length) localStorage.setItem(UNSENT_RUNS_KEY, JSON.stringify(batches));
+                localStorage.removeItem(pendingKey);
+            } catch (error) {
+                console.warn('Could not set aside unsent events:', error);
+            }
+        },
+
+        // Separate from sendLogs: a refused old batch must never hold up the current run.
+        sendUnsentRuns() {
+            if (this.unsentInFlight) return this.unsentInFlight;
+            const send = async () => {
+                for (const batch of safeParseArray(localStorage.getItem(UNSENT_RUNS_KEY))) {
+                    const response = await fetch('/log_session', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(batch)
+                    });
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    if (data.status !== 'logged' || data.batch_id !== batch.batch_id) continue;
+                    const remaining = safeParseArray(localStorage.getItem(UNSENT_RUNS_KEY))
+                        .filter(item => item.batch_id !== batch.batch_id);
+                    if (remaining.length) localStorage.setItem(UNSENT_RUNS_KEY, JSON.stringify(remaining));
+                    else localStorage.removeItem(UNSENT_RUNS_KEY);
+                }
+            };
+            this.unsentInFlight = send()
+                .catch(error => console.warn('Unsent events will be retried:', error))
+                .finally(() => { this.unsentInFlight = null; });
+            return this.unsentInFlight;
+        },
+
         logEvent(type, details = {}) {
             if (typeof window !== 'undefined'
                 && window.taskEndLockout
@@ -140,6 +190,7 @@
                 timestamp: formatSwissTimestamp(),
                 sessionID: this.sessionID,
                 uid: window.USER_ID || null,
+                ...(window.STUDY_PROGRESS_CONTEXT || {}),
                 ...details
             };
             console.log("[LOG]", event);
@@ -170,30 +221,51 @@
         },
 
         sendLogs() {
-            if (this.logs.length === 0) return Promise.resolve();
-
-            return fetch('/log_session', {
+            if (this.uploadInFlight) return this.uploadInFlight;
+            const pendingKey = `solPendingUpload:${this.sessionID}`;
+            let pending;
+            try { pending = JSON.parse(localStorage.getItem(pendingKey) || 'null'); }
+            catch (_) { return Promise.reject(new Error('Pending upload is unreadable; keep this browser open.')); }
+            if (!pending && this.logs.length === 0) return Promise.resolve();
+            if (!pending) {
+                pending = {session_id: this.sessionID, batch_id: createClientSessionID(), logs: this.logs.slice()};
+                // Persist the exact request before sending it. A lost response or
+                // page reload must retry the same batch, including its identifier.
+                try { localStorage.setItem(pendingKey, JSON.stringify(pending)); }
+                catch (error) { return Promise.reject(error); }
+            }
+            const body = JSON.stringify(pending);
+            this.uploadInFlight = fetch('/log_session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    session_id: this.sessionID,
-                    logs: this.logs
-                })
-            }).then(response => {
+                body,
+                // A small batch may finish after the page closes (browsers cap
+                // keepalive bodies at 64 KiB). Otherwise the next page retries it.
+                keepalive: new Blob([body]).size < 60000
+            }).then(async response => {
                 if (!response.ok) {
                     throw new Error('Failed to send logs.');
                 }
+                const data = await response.json();
+                if (data.status !== 'logged' || data.batch_id !== pending.batch_id) {
+                    throw new Error('Upload acknowledgement does not match the pending batch.');
+                }
                 console.log('Logs successfully sent to server.');
-                localStorage.removeItem('sessionLogs');
-                localStorage.removeItem('browserHistory');
-                this.logs = [];
-                this.historyTracker = [];
+                // Events added while the request was in flight must remain queued.
+                const prefix = this.logs.slice(0, pending.logs.length);
+                if (JSON.stringify(prefix) === JSON.stringify(pending.logs)) {
+                    this.logs.splice(0, pending.logs.length);
+                }
+                localStorage.setItem('sessionLogs', JSON.stringify(this.logs));
+                localStorage.removeItem(pendingKey);
+                // The navigation history stays: uploads now also happen during a
+                // task, and logSERP uses it to tell a revisited results page from
+                // a new one. Ending a task clears all client data, history included.
                 // The server may have recovered events left behind by a
                 // previous, unfinished participant and saved them as an
                 // incomplete experiment. Surface that to the operator.
-                return response.json().catch(() => ({})).then(data => {
                     const recovered = data && data.recovered_incomplete;
                     if (recovered && typeof recovered === 'object'
                         && Object.keys(recovered).length > 0
@@ -204,8 +276,13 @@
                         }));
                     }
                     return response;
-                });
+            }).finally(() => {
+                this.uploadInFlight = null;
+            }).then(async response => {
+                if (this.logs.length) await this.sendLogs();
+                return response;
             });
+            return this.uploadInFlight;
         }
     };
 
@@ -213,169 +290,15 @@
     window.studyLogger = logger;
 })();
 
-const BROWSER_BACK_BLOCKER_HISTORY_DEPTH = 10;
-const BROWSER_BACK_BLOCKER_GUARD_STATE_KEY = "__solBrowserBackBlockerGuard";
-const BROWSER_BACK_BLOCKER_BASE_STATE_KEY = "__solBrowserBackBlockerBase";
-const LAST_ALLOWED_APP_URL_SESSION_KEY = "solLastAllowedAppUrl";
-
-window.__SOLBrowserBackRecoveryInProgress = false;
-let browserBackBarrierArmedUrl = null;
-
-function getCurrentWindowUrl() {
-    return window.location?.href || window.location?.origin || "";
-}
-
-function getCurrentWindowPathname() {
-    return window.location?.pathname || "";
-}
-
-function getPageNavigationType() {
-    const entries = window.performance?.getEntriesByType?.("navigation") || [];
-    return entries[0]?.type || "";
-}
-
-function isSameOriginUrl(url) {
-    if (!url) return false;
-    try {
-        return new URL(url, getCurrentWindowUrl()).origin === window.location.origin;
-    } catch (_) {
-        return false;
-    }
-}
-
-function getLastAllowedAppUrl() {
-    try {
-        return sessionStorage.getItem(LAST_ALLOWED_APP_URL_SESSION_KEY);
-    } catch (_) {
-        return null;
-    }
-}
-
-function storeLastAllowedAppUrl() {
-    const currentUrl = getCurrentWindowUrl();
-    if (!currentUrl) return;
-    try {
-        sessionStorage.setItem(LAST_ALLOWED_APP_URL_SESSION_KEY, currentUrl);
-    } catch (_) {}
-}
-
-function buildBrowserBackBlockerHistoryState(extraState = {}) {
-    const currentState = window.history?.state;
-    const safeCurrentState = (
-        currentState && typeof currentState === "object" && !Array.isArray(currentState)
-    ) ? currentState : {};
-
-    return {
-        ...safeCurrentState,
-        ...extraState,
-        solUrl: getCurrentWindowUrl()
-    };
-}
-
-function logNativeBrowserBackBlocked(reason, targetURL = null) {
-    if (!window.studyLogger) return;
-    const fromURL = getCurrentWindowUrl();
-    const toURL = targetURL || fromURL;
-    window.studyLogger.logEvent("browserBackBlocked", {
-        url: fromURL,
-        pathname: getCurrentWindowPathname(),
-        fromURL,
-        toURL,
-        reason,
-        targetURL,
-        navigationType: getPageNavigationType()
-    });
-}
-
-function armBrowserBackHistoryBarrier(force = false) {
-    if (!window.history?.replaceState || !window.history?.pushState) return;
-
-    const currentUrl = getCurrentWindowUrl();
-    if (!force && browserBackBarrierArmedUrl === currentUrl) return;
-
-    try {
-        window.history.replaceState(
-            buildBrowserBackBlockerHistoryState({
-                [BROWSER_BACK_BLOCKER_BASE_STATE_KEY]: true
-            }),
-            "",
-            currentUrl
-        );
-
-        for (let index = 0; index < BROWSER_BACK_BLOCKER_HISTORY_DEPTH; index += 1) {
-            window.history.pushState(
-                buildBrowserBackBlockerHistoryState({
-                    [BROWSER_BACK_BLOCKER_GUARD_STATE_KEY]: true,
-                    browserBackBlockerGuardIndex: index
-                }),
-                "",
-                currentUrl
-            );
-        }
-        browserBackBarrierArmedUrl = currentUrl;
-    } catch (err) {
-        console.warn("Failed to arm browser back blocker:", err);
-    }
-}
-
-function getRecoveryUrlForNativeBackNavigation(event = null) {
-    const lastAllowedUrl = getLastAllowedAppUrl();
-    const currentUrl = getCurrentWindowUrl();
-    const navigationType = getPageNavigationType();
-    const isBackForwardNavigation = Boolean(event?.persisted) || navigationType === "back_forward";
-
-    if (!isBackForwardNavigation) return null;
-    if (!lastAllowedUrl || lastAllowedUrl === currentUrl) return null;
-    if (!isSameOriginUrl(lastAllowedUrl)) return null;
-
-    return lastAllowedUrl;
-}
-
-function redirectNativeBackNavigationToLastAllowedUrl(reason, event = null) {
-    const targetURL = getRecoveryUrlForNativeBackNavigation(event);
-    if (!targetURL) return false;
-
-    window.__SOLBrowserBackRecoveryInProgress = true;
-    logNativeBrowserBackBlocked(reason, targetURL);
-
-    try {
-        window.location.replace(targetURL);
-    } catch (err) {
-        console.warn("Failed to recover from native browser back:", err);
-    }
-    return true;
-}
-
-function installNativeBrowserBackBlocker() {
-    if (!window.history?.replaceState || !window.history?.pushState) return;
-
-    window.addEventListener("popstate", () => {
-        logNativeBrowserBackBlocked("popstate", getCurrentWindowUrl());
-        armBrowserBackHistoryBarrier(true);
-        storeLastAllowedAppUrl();
-    });
-
-    window.addEventListener("pageshow", (event) => {
-        if (redirectNativeBackNavigationToLastAllowedUrl("pageshow", event)) return;
-
-        window.__SOLBrowserBackRecoveryInProgress = false;
-        storeLastAllowedAppUrl();
-        armBrowserBackHistoryBarrier();
-    }, true);
-
-    if (redirectNativeBackNavigationToLastAllowedUrl("back-forward-load")) return;
-
-    storeLastAllowedAppUrl();
-    armBrowserBackHistoryBarrier();
-}
-
-installNativeBrowserBackBlocker();
+// The browser's back button is blocked by back-guard.js, which every child page loads before this file.
+// It records blocked attempts through this logger as `browserBackBlocked` and sets window.__SOLBrowserBackRecoveryInProgress.
 
 const idform = document.getElementById("enter-id-form");
 if (idform) {
   idform.addEventListener("submit", (e) => {
     if (e.defaultPrevented) return;
     const uid = document.getElementById("id-box")?.value || "";
+    studyLogger.setAsideUnsent(studyLogger.sessionID, studyLogger.logs);
     studyLogger.clearClientData({ createNewSessionID: true });
     studyLogger.logEvent("idSubmitted", { uid });
   });
@@ -460,6 +383,7 @@ if (searchbox) {
 const querySuggestionsList = document.getElementById("query-suggestions");
 if(querySuggestionsList){
     querySuggestionsList.addEventListener("mouseover", (e) => {
+    if (querySuggestionsList.getAttribute("aria-busy") === "true") return;
     const suggestionElement = e.target.closest("li") || e.target.closest("option");
     if (!suggestionElement) return;
 
@@ -470,6 +394,7 @@ if(querySuggestionsList){
     });
     
     querySuggestionsList.addEventListener("pointerdown", (e) => {
+        if (querySuggestionsList.getAttribute("aria-busy") === "true") return;
         const suggestionElement = e.target.closest("li") || e.target.closest("option");
         if (!suggestionElement) return;
 
@@ -943,6 +868,7 @@ function logPageNavigation(){
 }
 
 let listenersAttached = false;
+let serpInitialized = false;
 
 function loggingSearchActions(isPageShow = false){
     if (window.__SOLBrowserBackRecoveryInProgress) return;
@@ -952,7 +878,13 @@ function loggingSearchActions(isPageShow = false){
         studyLogger.init();
     }
 
-    logSERP();
+    // A BFCache restore retains this DOM and its listeners. Re-syncing stored
+    // state must not emit its results again or attach did-you-mean handlers a
+    // second time. A fresh page gets a fresh flag and the usual SERP logging.
+    if (!serpInitialized) {
+        logSERP();
+        serpInitialized = true;
+    }
 
     // Only attach event listeners once to prevent duplicates
     if (!listenersAttached) {
@@ -1044,7 +976,7 @@ if (taskHelpBtn && taskHelpModal) {
     const taskHelpPayload = () => {
         const payload = { fromURL: window.location.href };
         const tn = taskHelpBtn.dataset.taskNumber;
-        if (tn) payload.task_number = tn;
+        if (tn) payload.task_number = Number(tn);
         return payload;
     };
 
@@ -1060,3 +992,78 @@ if (taskHelpBtn && taskHelpModal) {
         });
     }
 }
+
+const firstAnswerBtn = document.getElementById("search-first-answer-btn");
+const firstAnswerDialog = document.getElementById("search-first-answer-dialog");
+if (firstAnswerBtn && firstAnswerDialog) {
+    let firstAnswerOpen = false;
+    const firstAnswerPayload = () => ({
+        fromURL: window.location.href, outcome: firstAnswerBtn.dataset.outcome, answerPhase: "pre-search"
+    });
+    const recordFirstAnswerClosed = reason => {
+        if (!firstAnswerOpen) return;
+        firstAnswerOpen = false;
+        studyLogger.logEvent("firstAnswerClosed", {...firstAnswerPayload(), reason});
+    };
+    const closeFirstAnswer = reason => {
+        if (!firstAnswerDialog.open) return;
+        firstAnswerDialog.close(reason);
+        recordFirstAnswerClosed(reason);
+    };
+    firstAnswerBtn.addEventListener("click", () => {
+        if (window.taskEndLockout || firstAnswerDialog.open) return;
+        firstAnswerDialog.returnValue = "";
+        firstAnswerDialog.showModal();
+        firstAnswerOpen = true;
+        studyLogger.logEvent("firstAnswerOpened", firstAnswerPayload());
+    });
+    document.getElementById("search-first-answer-close").addEventListener("click", () => {
+        closeFirstAnswer("button");
+    });
+    firstAnswerDialog.addEventListener("cancel", event => {
+        event.preventDefault();
+        closeFirstAnswer("escape");
+    });
+    firstAnswerDialog.addEventListener("close", () => {
+        if (firstAnswerDialog.open) return; // Ignore a queued close from before a restored page reopened it.
+        recordFirstAnswerClosed(firstAnswerDialog.returnValue || "escape");
+        firstAnswerBtn.focus();
+    });
+    firstAnswerDialog.addEventListener("click", event => {
+        const bounds = firstAnswerDialog.getBoundingClientRect();
+        if (event.target === firstAnswerDialog && (event.clientX < bounds.left || event.clientX > bounds.right
+                || event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+            closeFirstAnswer("backdrop");
+        }
+    });
+    window.addEventListener("pagehide", () => {
+        if (firstAnswerDialog.open) closeFirstAnswer("pagehide");
+        else recordFirstAnswerClosed(firstAnswerDialog.returnValue || "pagehide");
+    });
+}
+
+// Upload while the child works, not only when a task ends: an interrupted run
+// (lesson over, iPad switched off, the next child starting on this iPad) keeps
+// everything up to the last page. Each batch keeps its identifier until it is
+// acknowledged, so a retry never writes events twice. Failures stay queued for
+// the next trigger and for the end of the task, which reports them.
+function syncLogsInBackground() {
+    // Only events of the run the server issued to this page; never after the
+    // end of a task or the experiment has cleared the client data.
+    if (!window.SESSION_ID || studyLogger.sessionID !== window.SESSION_ID) return;
+    studyLogger.sendUnsentRuns();
+    studyLogger.sendLogs().catch((error) => console.warn("Background upload will be retried:", error));
+}
+
+const BACKGROUND_UPLOAD_INTERVAL_MS = 60000;
+
+window.addEventListener("load", () => {
+    syncLogsInBackground();
+    setInterval(syncLogsInBackground, BACKGROUND_UPLOAD_INTERVAL_MS);
+    // Registered after the page's own pagehide handlers (for example the viewer's
+    // webpageClosed event), so leaving the page includes them.
+    window.addEventListener("pagehide", syncLogsInBackground);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") syncLogsInBackground();
+    });
+});
