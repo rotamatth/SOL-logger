@@ -645,7 +645,8 @@ these checks locally, install the pinned browser-test dependencies and matching
 Chromium, then run:
 
 ```bash
-python -m pip install -r logger/search-app/requirements.lock -r logger/search-app/requirements-browser-test.txt
+python -m pip install --require-hashes -r logger/search-app/requirements.lock
+python -m pip install -r logger/search-app/requirements-browser-test.txt
 python -m playwright install --only-shell chromium
 SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest -q logger/search-app/tests/test_*browser.py
 ```

@@ -21,8 +21,8 @@ updates:
   # files, so the production pins in requirements.lock are refreshed by hand; the
   # pip-audit step in "Code quality" still blocks known vulnerabilities in them.
   # No requirements-*.txt may include requirements.lock (-r or -c): Dependabot
-  # cannot open it and then fails for the whole folder. Install commands name
-  # the lock file next to the test file instead.
+  # cannot open it and then fails for the whole folder. Install the lock first, in
+  # a command of its own (it carries hashes, the test files do not), then the test file.
   - package-ecosystem: pip
     directory: /logger/search-app
     target-branch: matthias-dev

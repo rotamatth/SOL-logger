@@ -1,5 +1,7 @@
-# Test tools only. Install them together with the production pins:
-#   python -m pip install -r requirements.lock -r requirements-test.txt
+# Test tools only. Install the production pins first, in a command of their own,
+# because requirements.lock carries hashes and this file does not:
+#   python -m pip install --require-hashes -r requirements.lock
+#   python -m pip install -r requirements-test.txt
 # Do not include requirements.lock here: Dependabot reads only .txt and .in files
 # and fails on the whole folder when one of them points at the lock file.
 pytest==9.1.1

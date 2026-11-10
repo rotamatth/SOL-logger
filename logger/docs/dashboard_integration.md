@@ -289,7 +289,8 @@ accounts and permissions as a separate change if teachers need different access.
 From the repository root:
 
 ```bash
-python -m pip install -r logger/search-app/requirements.lock -r logger/search-app/requirements-test.txt
+python -m pip install --require-hashes -r logger/search-app/requirements.lock
+python -m pip install -r logger/search-app/requirements-test.txt
 python -m pytest logger/search-app/tests -q \
   --ignore=logger/search-app/tests/test_back_navigation.py \
   --ignore=logger/search-app/tests/test_bfcache_simulation.py
@@ -305,7 +306,8 @@ annual enrollments as well as snapshots, cookies and upload receipts.
 CI separately requires the dashboard Chromium regressions. To run them locally:
 
 ```bash
-python -m pip install -r logger/search-app/requirements.lock -r logger/search-app/requirements-browser-test.txt
+python -m pip install --require-hashes -r logger/search-app/requirements.lock
+python -m pip install -r logger/search-app/requirements-browser-test.txt
 python -m playwright install --only-shell chromium
 SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest logger/search-app/tests/test_editor_browser.py -q
 ```
