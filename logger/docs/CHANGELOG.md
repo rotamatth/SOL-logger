@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-10 — Let Dependabot read the test requirement files
+
+**Commit:** pending · **Type:** infra · **Area:** infra, tests, docs
+
+**Files**
+- `logger/search-app/requirements-test.txt` — no longer includes `requirements.lock`; a comment says why
+- `.github/workflows/collection.yml` — the three install steps name `requirements.lock` next to the test, browser-test or quality file
+- `.github/dependabot.yml` — comment: no `requirements-*.txt` may include the lock file
+- `CONTRIBUTING.md`, `logger/docs/dashboard_integration.md`, `logger/docs/research_dashboard.md`, `logger/docs/production_readiness.md` — the local install commands name the lock file too
+
+**What changed for the participant**
+No visible change. The app image installs `requirements.lock` exactly as before.
+
+**How it works**
+Dependabot became active when `matthias-dev` was released to `main` (PR #34, `35dd88e`). Its first pip run on `main` failed with "Could not open requirements file: requirements.lock": Dependabot copies only `.txt` and `.in` files, and `requirements-test.txt` began with `-r requirements.lock`. Because `requirements-quality.txt` and `requirements-browser-test.txt` include `requirements-test.txt`, all three failed, and the weekly pip update (Mondays 06:00) would have failed the same way. The test files now list test tools only, and whoever installs them names the lock file as well: `python -m pip install -r requirements.lock -r requirements-test.txt`. Each CI job installs the same packages as before.
+
+**If something looks wrong after this, check**
+- `ModuleNotFoundError` for Flask or another app package when running tests locally → the install left out `-r logger/search-app/requirements.lock`; older notes outside this repository may still show the one-file command.
+- Dependabot's "Graph Update: pip" run on `main` still failing → its log names the file it could not open; look for another `-r` or `-c` that points at a file that does not end in `.txt` or `.in`.
+
+**Left alone**
+`requirements.lock` itself and the Dockerfile, so production versions are unchanged and still updated by hand. The pip-audit step, which still audits `requirements.lock`. The GitHub Actions and Docker parts of `dependabot.yml`. `requirements.txt`, which never included the lock.
+
+**Verified**
+A script copied only the `.txt` and `.in` files of `logger/search-app` into an empty folder, as Dependabot does, and parsed every requirements file with pip's own parser. On `main` the three test files failed with Dependabot's error; with this change all four parse. CI on the pull request installs and runs the full suite, the browser tests and the quality job with the new commands. Dependabot's own run happens on `main` after the merge.
+
 ## 2026-11-09 — Make the browser's back button do nothing on every child page
 
 **Commit:** pending · **Type:** fix · **Area:** back-navigation, logging

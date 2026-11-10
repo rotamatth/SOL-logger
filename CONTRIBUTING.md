@@ -57,7 +57,7 @@ reviewed (safe or fixed) on the pull request's SonarQube Cloud page.
 From the repository root, in a virtual environment with Python 3.14 (CI) or 3.13:
 
 ```bash
-python -m pip install -r logger/search-app/requirements-quality.txt
+python -m pip install -r logger/search-app/requirements.lock -r logger/search-app/requirements-quality.txt
 ruff check logger/search-app
 pip-audit -r logger/search-app/requirements.lock --no-deps --disable-pip
 python -m pytest logger/search-app/tests --ignore-glob='*browser.py' --cov --cov-report=term
@@ -66,7 +66,7 @@ python -m pytest logger/search-app/tests --ignore-glob='*browser.py' --cov --cov
 Browser tests need Playwright's Chromium:
 
 ```bash
-python -m pip install -r logger/search-app/requirements-browser-test.txt
+python -m pip install -r logger/search-app/requirements.lock -r logger/search-app/requirements-browser-test.txt
 python -m playwright install --only-shell chromium
 SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest logger/search-app/tests/test_*browser.py -q
 ```

@@ -169,7 +169,7 @@ unchanged. Backups are recovery artifacts, not the dashboard's research export Z
 
 ## Verification and extension points
 
-Install `requirements-test.txt` and run:
+Install `requirements.lock` and `requirements-test.txt` and run:
 
 ```bash
 python -m pytest logger/search-app/tests -q --ignore=logger/search-app/tests/test_back_navigation.py --ignore=logger/search-app/tests/test_bfcache_simulation.py
