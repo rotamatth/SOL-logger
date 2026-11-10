@@ -65,6 +65,127 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
+
+**Commit:** pending · **Type:** infra · **Area:** tests, infra
+
+**Files**
+- `.coveragerc` — `exclude_also` for `if __name__ == "__main__":`
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+SonarCloud failed PR #36 on coverage of new code: 0%, because its only new coverable line was the `app.run(...)` line in the `__main__` block of `search_app.py`. That block runs only when the file is started by hand, and tests import the module, so no test can reach it. coverage.py now leaves such blocks out of the report: for `search_app.py` the measured lines go from 793 to 790, the three lines of that block.
+
+**If something looks wrong after this, check**
+- Coverage of a file dropping or rising by a few lines → its own `if __name__ == "__main__":` block, now left out.
+
+**Left alone**
+What the tests run, the 80% threshold on new code in SonarCloud, and the coverage exclusions in `sonar-project.properties`.
+
+**Verified**
+The coverage report of one test file was compared with the old and the new setting: only the three lines of the `__main__` block of `search_app.py` disappear.
+
+## 2026-11-10 — Install production packages by hash and copy only named files into the image
+
+**Commit:** pending · **Type:** infra · **Area:** infra, tests, docs
+
+**Files**
+- `logger/search-app/Dockerfile` — `pip install --only-binary :all: --require-hashes`; named files and folders instead of `COPY . .`
+- `logger/search-app/.dockerignore` — `**/.DS_Store`
+- `logger/search-app/requirements.lock` — sha256 hashes for every pin; the versions are unchanged
+- `logger/search-app/tools/hash_requirements_lock.py` — new: rewrites those hashes from PyPI after a version change
+- `logger/search-app/tests/test_container_image.py` — new: every file and folder is copied or deliberately left out, every pin has hashes, and the hash tool keeps comments
+- `logger/search-app/requirements-test.txt` — its comment shows the two install commands
+- `.github/workflows/collection.yml` — each install step installs the lock with `--require-hashes`, then the test file
+- `.github/dependabot.yml` — comment updated
+- `CONTRIBUTING.md`, `logger/docs/dashboard_integration.md`, `logger/docs/research_dashboard.md`, `logger/docs/production_readiness.md` — the same two install commands, and the hash tool after a version change
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+These are SonarCloud's three findings on the Dockerfile.
+- **Wheels only.** pip installs only wheels, so no package runs its own setup script while the image is built. All 36 pins have wheels for Python 3.14 on Linux x86_64 and arm64.
+- **Hashes.** pip refuses any file whose sha256 is not listed in `requirements.lock`. The hashes cover every file PyPI publishes for each version, so the same lock works on the server, in CI and on a Mac. pip cannot mix a hashed file and an unhashed one in one command, so the lock is installed first and the test tools second.
+- **Named files.** The image copies six Python files and `data/`, `research_dashboard/`, `static/`, `templates/` and `tools/` by name. It no longer contains `tests/`, the other requirement files, the Dockerfile or `.dockerignore`, which nothing in the container used. Without `COPY . .`, a new module missing from the Dockerfile would be missing on the server, so `test_container_image.py` fails in CI until it is added there or to the test's `LEFT_OUT` list.
+
+**If something looks wrong after this, check**
+- Image build fails with "hashes are required" or "do not match the hashes" → a version in `requirements.lock` changed without `python tools/hash_requirements_lock.py`.
+- Image build fails with "no matching distribution" → a pinned version has no wheel for Python 3.14 on Linux; choose one that has.
+- `ModuleNotFoundError` or a missing template only on the server → a file the Dockerfile does not copy; `test_container_image.py` should have caught it.
+- A local install fails with "hashes are required" → the lock and a test file in one `pip install`; use the two commands.
+
+**Left alone**
+- The installed versions: `pip freeze` is identical in the old and new images.
+- The app's files: the 167 files both images contain are byte-identical.
+- Gunicorn's command, and the user the container runs as (still root, until the data volumes are writable for another user).
+- The compose files, `deploy.sh` and the pip-audit step.
+
+**Verified**
+- **Images compared.** Both images were built on this Mac (arm64). The new one leaves out `tests/`, five requirement and build files and the unused `no_result.html`, and adds only the hash tool.
+- **Container checks.** CI's checks passed on the new image: collection seed and verify, backup create, restore and verify.
+- **Running server.** Gunicorn started. `/health/ready`, `/start`, `logger.js` and `main.css` answered 200, and the dashboard login answered 503 without a password, the same as the old image.
+- **Installs and tools.** The CI install commands ran verbatim in a fresh environment, and pip-audit reads the hashed lock. Dependabot's view of the folder still parses.
+- **Suite.** The full suite passed (1112), browser tests included.
+- **Not yet.** The x86_64 build runs in CI on the pull request.
+
+## 2026-11-10 — Fix SonarCloud findings in the child pages and the development server
+
+**Commit:** pending · **Type:** fix · **Area:** logging, pagination, styling, infra
+
+**Files**
+- `logger/search-app/static/logger.js` — `Math.trunc` in the fallback ID generator; `Number.parseInt` and `Number.isNaN` in `getTargetPage` and `logPageNavigation`
+- `logger/search-app/templates/layout.html` — `<html lang="it">`, as the other child pages already had
+- `logger/search-app/templates/start.html` — the text above the number menu is now the menu's `<label for="id-box">` instead of a paragraph
+- `logger/search-app/static/main.css` — `.form-label-strong` gets `display: block`, so the label sits exactly where the paragraph did
+- `logger/search-app/templates/no_result.html` — deleted: its first line said it was never used, and nothing renders it
+- `logger/search-app/search_app.py` — `python search_app.py` listens on 127.0.0.1 unless `SOL_DEV_HOST` says otherwise
+
+**What changed for the participant**
+No visible change. Screenshots of the start page at 1180×699, 1280×680 and 1024×520 are byte-identical before and after. A screen reader now reads the text with the menu, and browsers know that the start and search pages are in Italian.
+
+**How it works**
+These are SonarCloud's open issues on `main` after the release in #34. `Math.random() * 16 | 0` and `Math.trunc(Math.random() * 16)` give the same 0–15 for every value. `Number.parseInt` is the same function as `parseInt`, and `Number.isNaN` gives the same answer as `isNaN` on the numbers `parseInt` returns, so logged page numbers and generated IDs are unchanged. The `app.run` block runs only when the file is started directly: the container runs Gunicorn and the local UI runs `flask run`, so neither is affected.
+
+**If something looks wrong after this, check**
+- Page numbers in `pageNavigationClicked` → `getTargetPage` in `logger.js`.
+- The text above the start page's menu a pixel lower or narrower → a tablet still holding the cached `main.css` (`child-pages-3`) without `display: block`; it goes once the file is reloaded.
+- `python search_app.py` not reachable from a tablet on the network → set `SOL_DEV_HOST=0.0.0.0`.
+
+**Left alone**
+The `logger.js` version string (`strict-back-1`) and the `main.css` one: the code behaves the same, so cached copies stay correct. Gunicorn's `-b 0.0.0.0:7001` in the Dockerfile, which the container needs. The Sonar finding on CSRF protection for the student pages (`python:S4502`): the student session cookie is `SameSite=Lax`, so another site cannot post as a child, and the dashboard checks its own CSRF token. A Flask-WTF token would have to travel with every background upload, including the ones sent after a session has ended, and a rejected upload is a lost event.
+
+**Verified**
+The full suite passed before (1108 tests) and after (1112, including the four new tests of the next commit), browser tests included. Start-page screenshots were compared byte by byte, before and after. The image was built and served `/start` with the label and `lang="it"`.
+
+## 2026-11-10 — Let Dependabot read the test requirement files
+
+**Commit:** pending · **Type:** infra · **Area:** infra, tests, docs
+
+**Files**
+- `logger/search-app/requirements-test.txt` — no longer includes `requirements.lock`; a comment says why
+- `.github/workflows/collection.yml` — the three install steps name `requirements.lock` next to the test, browser-test or quality file
+- `.github/dependabot.yml` — comment: no `requirements-*.txt` may include the lock file
+- `CONTRIBUTING.md`, `logger/docs/dashboard_integration.md`, `logger/docs/research_dashboard.md`, `logger/docs/production_readiness.md` — the local install commands name the lock file too
+
+**What changed for the participant**
+No visible change. The app image installs `requirements.lock` exactly as before.
+
+**How it works**
+Dependabot became active when `matthias-dev` was released to `main` (PR #34, `35dd88e`). Its first pip run on `main` failed with "Could not open requirements file: requirements.lock": Dependabot copies only `.txt` and `.in` files, and `requirements-test.txt` began with `-r requirements.lock`. Because `requirements-quality.txt` and `requirements-browser-test.txt` include `requirements-test.txt`, all three failed, and the weekly pip update (Mondays 06:00) would have failed the same way. The test files now list test tools only, and whoever installs them names the lock file as well: `python -m pip install -r requirements.lock -r requirements-test.txt`. Each CI job installs the same packages as before.
+
+**If something looks wrong after this, check**
+- `ModuleNotFoundError` for Flask or another app package when running tests locally → the install left out `-r logger/search-app/requirements.lock`; older notes outside this repository may still show the one-file command.
+- Dependabot's "Graph Update: pip" run on `main` still failing → its log names the file it could not open; look for another `-r` or `-c` that points at a file that does not end in `.txt` or `.in`.
+
+**Left alone**
+`requirements.lock` itself and the Dockerfile, so production versions are unchanged and still updated by hand. The pip-audit step, which still audits `requirements.lock`. The GitHub Actions and Docker parts of `dependabot.yml`. `requirements.txt`, which never included the lock.
+
+**Verified**
+A script copied only the `.txt` and `.in` files of `logger/search-app` into an empty folder, as Dependabot does, and parsed every requirements file with pip's own parser. On `main` the three test files failed with Dependabot's error; with this change all four parse. CI on the pull request installs and runs the full suite, the browser tests and the quality job with the new commands. Dependabot's own run happens on `main` after the merge.
+
 ## 2026-11-09 — Make the browser's back button do nothing on every child page
 
 **Commit:** pending · **Type:** fix · **Area:** back-navigation, logging

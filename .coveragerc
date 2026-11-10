@@ -10,3 +10,7 @@ relative_files = True
 
 [report]
 skip_empty = True
+# A file's `if __name__ == "__main__":` block runs only when it is started by hand
+# (`python search_app.py`); tests import the module, so they can never reach it.
+exclude_also =
+    if __name__ == .__main__.:

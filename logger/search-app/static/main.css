@@ -236,6 +236,7 @@ a:hover {
 }
 
 .form-label-strong {
+  display: block;
   font-size: 1rem;
   font-weight: 700;
   margin-bottom: 14px;
