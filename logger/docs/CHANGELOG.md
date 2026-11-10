@@ -65,6 +65,28 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
+
+**Commit:** pending · **Type:** infra · **Area:** tests, infra
+
+**Files**
+- `.coveragerc` — `exclude_also` for `if __name__ == "__main__":`
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+SonarCloud failed PR #36 on coverage of new code: 0%, because its only new coverable line was the `app.run(...)` line in the `__main__` block of `search_app.py`. That block runs only when the file is started by hand, and tests import the module, so no test can reach it. coverage.py now leaves such blocks out of the report: for `search_app.py` the measured lines go from 793 to 790, the three lines of that block.
+
+**If something looks wrong after this, check**
+- Coverage of a file dropping or rising by a few lines → its own `if __name__ == "__main__":` block, now left out.
+
+**Left alone**
+What the tests run, the 80% threshold on new code in SonarCloud, and the coverage exclusions in `sonar-project.properties`.
+
+**Verified**
+The coverage report of one test file was compared with the old and the new setting: only the three lines of the `__main__` block of `search_app.py` disappear.
+
 ## 2026-11-10 — Install production packages by hash and copy only named files into the image
 
 **Commit:** pending · **Type:** infra · **Area:** infra, tests, docs
