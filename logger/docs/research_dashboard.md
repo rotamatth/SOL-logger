@@ -65,7 +65,7 @@ run that finished it, and "typical" is the median. The figures are not added to 
 The **guide** at `/dashboard/guide` opens by itself on the first sign-in in a browser, unless
 the sign-in was on its way to a specific page, and the **Guide** button brings it back. Sign-ins
 are shared, so this is remembered per browser. After changing a page the guide shows, run
-`python tools/capture_guide_screens.py` from `search-app` (needs `requirements-browser-test.txt`)
+`python tools/capture_guide_screens.py` from `search-app` (needs `requirements.lock` and `requirements-browser-test.txt`)
 and commit the pictures. They show demo data only.
 
 On the participant list, **Deactivate selected** deactivates several children after one review, in
@@ -645,7 +645,7 @@ these checks locally, install the pinned browser-test dependencies and matching
 Chromium, then run:
 
 ```bash
-python -m pip install -r logger/search-app/requirements-browser-test.txt
+python -m pip install -r logger/search-app/requirements.lock -r logger/search-app/requirements-browser-test.txt
 python -m playwright install --only-shell chromium
 SOL_REQUIRE_BROWSER_TESTS=1 python -m pytest -q logger/search-app/tests/test_*browser.py
 ```
