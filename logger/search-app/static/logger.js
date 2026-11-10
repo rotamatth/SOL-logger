@@ -4,7 +4,7 @@
     // Fallback-UUID-Function for outdated browsers
     function generateUUID() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0,
+            const r = Math.trunc(Math.random() * 16),
                   v = c === 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
@@ -504,8 +504,8 @@ function getTargetPage(label, current, link = null) {
     const href = link?.href || link?.getAttribute?.("href") || "";
     if (href) {
         try {
-            const targetPage = parseInt(new URL(href, window.location.origin).searchParams.get("page"), 10);
-            if (!isNaN(targetPage)) return targetPage;
+            const targetPage = Number.parseInt(new URL(href, window.location.origin).searchParams.get("page"), 10);
+            if (!Number.isNaN(targetPage)) return targetPage;
         } catch (err) {
             // Fall back to label parsing below.
         }
@@ -515,8 +515,8 @@ function getTargetPage(label, current, link = null) {
     if (normalizedLabel.includes("next") || normalizedLabel.includes("successiva") || label.includes("»")) return current + 1;
     if (normalizedLabel.includes("previous") || normalizedLabel.includes("precedente") || label.includes("«")) return current - 1;
 
-    const num = parseInt(label, 10);
-    return isNaN(num) ? null : num;
+    const num = Number.parseInt(label, 10);
+    return Number.isNaN(num) ? null : num;
 }
 
 function getResultRank(element) {
@@ -849,7 +849,7 @@ function logPageNavigation(){
         link.addEventListener("click", (e) => {
             flushActiveResultExposures("pagination");
             const clickedLabel = link.textContent.trim();
-            const currentPage = parseInt(document.querySelector(".page-item.active a")?.textContent || "0", 10);
+            const currentPage = Number.parseInt(document.querySelector(".page-item.active a")?.textContent || "0", 10);
             const nextPage = getTargetPage(clickedLabel, currentPage, link);
             const context = getCurrentSearchContext();
             studyLogger.logEvent("pageNavigationClicked", {

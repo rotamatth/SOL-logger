@@ -65,6 +65,35 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-10 — Fix SonarCloud findings in the child pages and the development server
+
+**Commit:** pending · **Type:** fix · **Area:** logging, pagination, styling, infra
+
+**Files**
+- `logger/search-app/static/logger.js` — `Math.trunc` in the fallback ID generator; `Number.parseInt` and `Number.isNaN` in `getTargetPage` and `logPageNavigation`
+- `logger/search-app/templates/layout.html` — `<html lang="it">`, as the other child pages already had
+- `logger/search-app/templates/start.html` — the text above the number menu is now the menu's `<label for="id-box">` instead of a paragraph
+- `logger/search-app/static/main.css` — `.form-label-strong` gets `display: block`, so the label sits exactly where the paragraph did
+- `logger/search-app/templates/no_result.html` — deleted: its first line said it was never used, and nothing renders it
+- `logger/search-app/search_app.py` — `python search_app.py` listens on 127.0.0.1 unless `SOL_DEV_HOST` says otherwise
+
+**What changed for the participant**
+No visible change. Screenshots of the start page at 1180×699, 1280×680 and 1024×520 are byte-identical before and after. A screen reader now reads the text with the menu, and browsers know that the start and search pages are in Italian.
+
+**How it works**
+These are SonarCloud's open issues on `main` after the release in #34. `Math.random() * 16 | 0` and `Math.trunc(Math.random() * 16)` give the same 0–15 for every value. `Number.parseInt` is the same function as `parseInt`, and `Number.isNaN` gives the same answer as `isNaN` on the numbers `parseInt` returns, so logged page numbers and generated IDs are unchanged. The `app.run` block runs only when the file is started directly: the container runs Gunicorn and the local UI runs `flask run`, so neither is affected.
+
+**If something looks wrong after this, check**
+- Page numbers in `pageNavigationClicked` → `getTargetPage` in `logger.js`.
+- The text above the start page's menu a pixel lower or narrower → a tablet still holding the cached `main.css` (`child-pages-3`) without `display: block`; it goes once the file is reloaded.
+- `python search_app.py` not reachable from a tablet on the network → set `SOL_DEV_HOST=0.0.0.0`.
+
+**Left alone**
+The `logger.js` version string (`strict-back-1`) and the `main.css` one: the code behaves the same, so cached copies stay correct. Gunicorn's `-b 0.0.0.0:7001` in the Dockerfile, which the container needs. The Sonar finding on CSRF protection for the student pages (`python:S4502`): the student session cookie is `SameSite=Lax`, so another site cannot post as a child, and the dashboard checks its own CSRF token. A Flask-WTF token would have to travel with every background upload, including the ones sent after a session has ended, and a rejected upload is a lost event.
+
+**Verified**
+The full suite passed before (1108 tests) and after (1112, including the four new tests of the next commit), browser tests included. Start-page screenshots were compared byte by byte, before and after. The image was built and served `/start` with the label and `lang="it"`.
+
 ## 2026-11-10 — Let Dependabot read the test requirement files
 
 **Commit:** pending · **Type:** infra · **Area:** infra, tests, docs

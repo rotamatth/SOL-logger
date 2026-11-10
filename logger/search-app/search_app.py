@@ -1191,5 +1191,8 @@ def internal_error(e):
                            error_message="Qualcosa non ha funzionato. Riprova o chiedi al ricercatore."), 500
 
 if __name__ == '__main__':
+    # Only for `python search_app.py` on a developer's machine: the container runs Gunicorn
+    # (Dockerfile) and the local UI runs `flask run` (docker-compose.local.yml). Reachable from
+    # this machine only, unless SOL_DEV_HOST=0.0.0.0 is set to try it from a tablet on the network.
     debug = os.getenv("FLASK_DEBUG", "0") == "1"
-    app.run(host='0.0.0.0', port=7001, threaded=True, debug=debug)
+    app.run(host=os.getenv("SOL_DEV_HOST", "127.0.0.1"), port=7001, threaded=True, debug=debug)
