@@ -65,6 +65,50 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-10 — Install production packages by hash and copy only named files into the image
+
+**Commit:** pending · **Type:** infra · **Area:** infra, tests, docs
+
+**Files**
+- `logger/search-app/Dockerfile` — `pip install --only-binary :all: --require-hashes`; named files and folders instead of `COPY . .`
+- `logger/search-app/.dockerignore` — `**/.DS_Store`
+- `logger/search-app/requirements.lock` — sha256 hashes for every pin; the versions are unchanged
+- `logger/search-app/tools/hash_requirements_lock.py` — new: rewrites those hashes from PyPI after a version change
+- `logger/search-app/tests/test_container_image.py` — new: every file and folder is copied or deliberately left out, every pin has hashes, and the hash tool keeps comments
+- `logger/search-app/requirements-test.txt` — its comment shows the two install commands
+- `.github/workflows/collection.yml` — each install step installs the lock with `--require-hashes`, then the test file
+- `.github/dependabot.yml` — comment updated
+- `CONTRIBUTING.md`, `logger/docs/dashboard_integration.md`, `logger/docs/research_dashboard.md`, `logger/docs/production_readiness.md` — the same two install commands, and the hash tool after a version change
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+These are SonarCloud's three findings on the Dockerfile.
+- **Wheels only.** pip installs only wheels, so no package runs its own setup script while the image is built. All 36 pins have wheels for Python 3.14 on Linux x86_64 and arm64.
+- **Hashes.** pip refuses any file whose sha256 is not listed in `requirements.lock`. The hashes cover every file PyPI publishes for each version, so the same lock works on the server, in CI and on a Mac. pip cannot mix a hashed file and an unhashed one in one command, so the lock is installed first and the test tools second.
+- **Named files.** The image copies six Python files and `data/`, `research_dashboard/`, `static/`, `templates/` and `tools/` by name. It no longer contains `tests/`, the other requirement files, the Dockerfile or `.dockerignore`, which nothing in the container used. Without `COPY . .`, a new module missing from the Dockerfile would be missing on the server, so `test_container_image.py` fails in CI until it is added there or to the test's `LEFT_OUT` list.
+
+**If something looks wrong after this, check**
+- Image build fails with "hashes are required" or "do not match the hashes" → a version in `requirements.lock` changed without `python tools/hash_requirements_lock.py`.
+- Image build fails with "no matching distribution" → a pinned version has no wheel for Python 3.14 on Linux; choose one that has.
+- `ModuleNotFoundError` or a missing template only on the server → a file the Dockerfile does not copy; `test_container_image.py` should have caught it.
+- A local install fails with "hashes are required" → the lock and a test file in one `pip install`; use the two commands.
+
+**Left alone**
+- The installed versions: `pip freeze` is identical in the old and new images.
+- The app's files: the 167 files both images contain are byte-identical.
+- Gunicorn's command, and the user the container runs as (still root, until the data volumes are writable for another user).
+- The compose files, `deploy.sh` and the pip-audit step.
+
+**Verified**
+- **Images compared.** Both images were built on this Mac (arm64). The new one leaves out `tests/`, five requirement and build files and the unused `no_result.html`, and adds only the hash tool.
+- **Container checks.** CI's checks passed on the new image: collection seed and verify, backup create, restore and verify.
+- **Running server.** Gunicorn started. `/health/ready`, `/start`, `logger.js` and `main.css` answered 200, and the dashboard login answered 503 without a password, the same as the old image.
+- **Installs and tools.** The CI install commands ran verbatim in a fresh environment, and pip-audit reads the hashed lock. Dependabot's view of the folder still parses.
+- **Suite.** The full suite passed (1112), browser tests included.
+- **Not yet.** The x86_64 build runs in CI on the pull request.
+
 ## 2026-11-10 — Fix SonarCloud findings in the child pages and the development server
 
 **Commit:** pending · **Type:** fix · **Area:** logging, pagination, styling, infra

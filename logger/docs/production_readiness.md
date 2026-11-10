@@ -169,15 +169,17 @@ unchanged. Backups are recovery artifacts, not the dashboard's research export Z
 
 ## Verification and extension points
 
-Install `requirements.lock` and `requirements-test.txt` and run:
+Install `requirements.lock` with `--require-hashes`, then `requirements-test.txt` in a second
+command (the lock carries hashes, the test file does not), and run:
 
 ```bash
 python -m pytest logger/search-app/tests -q --ignore=logger/search-app/tests/test_back_navigation.py --ignore=logger/search-app/tests/test_bfcache_simulation.py
 ```
 
 Production and tests use the checked-in exact versions in `requirements.lock`.
-`requirements.txt` lists direct dependencies; update the lock deliberately, run
-`pip check`, the collection suite, and a fresh image build when changing versions.
+`requirements.txt` lists direct dependencies; update the lock deliberately, rewrite its
+hashes with `python tools/hash_requirements_lock.py`, run `pip check`, the collection suite,
+and a fresh image build when changing versions.
 CI runs the suite, validates Compose, builds the image, then seeds an attempt in
 one disposable container and checks its cookie, snapshot and upload receipt in a
 replacement container using `tools/check_collection_restart.py`. It also creates a
