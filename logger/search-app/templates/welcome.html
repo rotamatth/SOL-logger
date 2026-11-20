@@ -1,8 +1,16 @@
-{% extends "layout.html" %}
-{% block title %}Welcome{% endblock %}
-{% block content %}
-
-<div class="welcome-container app-blue-screen">
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cerca</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='student-fullscreen.css', v='1') }}">
+    <script src="{{ url_for('static', filename='student-fullscreen.js', v='1') }}" defer></script>
+</head>
+<body>
+{% include "test_run_banner.html" %}
+<main class="welcome-container app-blue-screen">
     <div class="welcome-logo-wrap">
         <img
             src="{{ url_for('static', filename='images/Logo.png') }}"
@@ -10,9 +18,11 @@
             class="welcome-logo-img"
         >
     </div>
-    <a href="{{ url_for('start_page') }}" class="app-btn app-btn-warm welcome-start-btn">
+    <a href="{{ url_for('start_page') }}" class="app-btn app-btn-warm welcome-start-btn"
+       data-fullscreen-host-url="{{ url_for('welcome') }}"
+       data-back-guard-url="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}">
         Inizia
     </a>
-</div>
-
-{% endblock %}
+</main>
+</body>
+</html>
