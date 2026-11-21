@@ -390,6 +390,18 @@ def welcome():
         return redirect(phase_redirect_url())
     return render_template("welcome.html", show_search=False)
 
+
+@app.get("/fine")
+def finished_page():
+    """The end of the experiment: the group raises its hand and the tablet stays here.
+
+    The run is saved and its session already cleared by the recap's Chiudi; the older ending passes
+    reset=1 to clear it here. A researcher holds the logo to bring the tablet back to the welcome page.
+    """
+    if request.args.get('reset') == '1':
+        session.clear()
+    return render_template("finished.html")
+
 @app.route("/search")
 def search_page():
     """Search bar page — the main SOL Search interface."""

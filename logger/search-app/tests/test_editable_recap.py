@@ -132,7 +132,8 @@ def test_pdf_failure_rolls_back_edits_and_finished_events(recap, monkeypatch, st
     assert module.PROGRESS.store.recap_pdf(auth["attempt_id"]) == pdf
     worker = student_modules()
     assert draft(client, auth, past_id, 1, "Late draft", 2).status_code == 409
-    assert client.post("/recap/restart", json=auth).status_code == 200
+    restarted = client.post("/recap/restart", json=auth)
+    assert restarted.status_code == 200 and restarted.get_json() == {"welcome": "/fine"}
     types = [event["type"] for event in events(module)]
     assert types.count("studySessionFinished") == 1 and "experimentFinished" not in types
     resumed = begin(worker)
