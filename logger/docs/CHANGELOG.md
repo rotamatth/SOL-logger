@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Show a changed "Non lo so" in the dashboard
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, tests
+
+**Files**
+- `logger/search-app/research_dashboard/index.py` — reads `OwnKnowledgeAnswerChanged`; a question's first answer is then the written one, with `changed_from_unknown`
+- `logger/search-app/research_dashboard/templates/research/task_stats.html` — the note beside such an answer
+- `logger/search-app/research_dashboard/stats_i18n.py` — "first “Non lo so”, changed before searching" / "prima “Non lo so”, cambiata prima della ricerca"
+- `logger/search-app/tests/test_first_answer_change_dashboard.py` — new
+
+**What changed for the participant**
+No visible change. On a participant's page, "Before searching" shows the written answer and its stars, followed by the note, when the group replaced "Non lo so" before searching.
+
+**How it works**
+The index collects `OwnKnowledgeAnswerChanged` per question beside `OwnKnowledgeAnswerSubmitted`. When the submitted answer is "Non lo so" and a change exists, `_task_figures` gives the change as the first answer and adds `changed_from_unknown: True`. Answers that never changed keep exactly the figure they had, so cached and older runs are unaffected.
+
+**If something looks wrong after this, check**
+- A changed answer shown as "Don't know" → the run's log lacks `OwnKnowledgeAnswerChanged`, or the event has no text.
+
+**Left alone**
+The index version, the final answers, exports (the raw logs carry both events) and every other figure.
+
+**Verified**
+`tests/test_first_answer_change_dashboard.py` in English and Italian, with the dashboard answer tests and the full server suite.
+
 ## 2026-11-22 — Let a confirmed "Non lo so" become a written answer before the first search
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, data, logging, docs, tests

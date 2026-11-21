@@ -261,7 +261,8 @@ class Index:
                         task = str(task_value) if isinstance(task_value, (str, int)) else position
                         if task is not None:
                             t = info["tasks"].setdefault(task, {"topics": [], "questions": [], "answers": [],
-                                                                "first_answers": [], "events": 0})
+                                                                "first_answers": [], "first_answer_changes": [],
+                                                                "events": 0})
                             t["events"] += 1
                             add_event(info["task_stats"].setdefault(task, new_stats()), event)
                             topic = event.get("actual_topic_number")
@@ -275,6 +276,9 @@ class Index:
                             if event.get("type") == "OwnKnowledgeAnswerSubmitted":
                                 t["first_answers"].append({"value": event.get("answer"), "outcome": event.get("outcome"),
                                                            "confidence": event.get("confidence")})
+                            if event.get("type") == "OwnKnowledgeAnswerChanged":
+                                t.setdefault("first_answer_changes", []).append(
+                                    {"value": event.get("answer"), "confidence": event.get("confidence")})
                             if event.get("type") == "TaskEnded":
                                 t["answers"].append({"present": "answer" in event,
                                                      "value": event.get("answer"),
@@ -446,7 +450,8 @@ def _study_session_for_run(run, settings, study_id, grade, issues):
 
 def _merge_tasks(canonical, meta, issues):
     """Combine per-task events, answers, topics and questions of the canonical logs."""
-    tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "first_answers": [], "events": 0}
+    tasks = {str(n): {"number": str(n), "topics": [], "questions": [], "answers": [], "first_answers": [],
+                      "first_answer_changes": [], "events": 0}
              for n in (1, 2, 3)}
     for f in canonical:
         for number, task in f["tasks"].items():
@@ -457,6 +462,7 @@ def _merge_tasks(canonical, meta, issues):
             dest["events"] += task["events"]
             dest["answers"].extend(task["answers"])
             dest["first_answers"].extend(task.get("first_answers", []))
+            dest["first_answer_changes"].extend(task.get("first_answer_changes", []))
             for field in ("topics", "questions"):
                 dest[field] = list(dict.fromkeys(dest[field] + task[field]))
     # The run snapshot records what was presented even when no event mentions it.
@@ -497,12 +503,18 @@ def _task_figures(canonical, tasks):
             # "Non lo so" is logged with no text at all: its outcome says what the child chose.
             first = next((a for a in task["first_answers"]
                           if isinstance(a.get("value"), str) or a.get("outcome") == "unknown"), None)
+            # A "Non lo so" replaced before the first search: the written answer, marked as a change.
+            change = next((c for c in task["first_answer_changes"] if isinstance(c.get("value"), str)), None)
+            if change and first and first.get("outcome") == "unknown":
+                first = {"value": change["value"], "outcome": "answered", "confidence": change.get("confidence"),
+                         "changed_from_unknown": True}
             final = next((a["value"] for a in task["answers"] if a["present"] and isinstance(a["value"], str)), None)
             figures[number] = {**summarize(stats), "finished": task["status"] == "completed",
                                "topic": task["topics"][0] if task["topics"] else None,
                                "question": task["questions"][0] if task["questions"] else None,
                                "first_answer": first and {
                                    "text": first["value"] or "", "unknown": first.get("outcome") == "unknown",
+                                   **({"changed_from_unknown": True} if first.get("changed_from_unknown") else {}),
                                    "confidence": first["confidence"] if first.get("confidence") in (1, 2, 3) else None},
                                "final_answer": final}
     return figures
