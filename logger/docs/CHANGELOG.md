@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-21 — Give the practice question its own search engine
+
+**Commit:** pending · **Type:** feature · **Area:** search-bar, autocomplete, infra, tests
+
+**Files**
+- `logger/search-app/search_backend.py` — `PRACTICE_THEME`, `load_practice_config`, `practice_engine_status`, `practice_engine_configured`; `vertex_config_for("practice")` returns that engine
+- `logger/search-app/tools/check_search_engines.py` — asks the practice engine too when it is set; `--prova-query` for a topic other than volcanoes
+- `logger/search-app/tests/test_practice_engine.py` — new
+
+**What changed for the participant**
+No visible change yet. This prepares the practice question that comes before the ID (Diletta's point 7, PR #44).
+
+**How it works**
+The practice question is on a topic no class studies (volcanoes for now), so it cannot search the spazio or orecchio engine. It has its own slot in the env file, `VERTEX_PROVA_ENGINE_ID` and `VERTEX_PROVA_DATA_STORE_ID`, in the same Google project and with the same credentials as the others. The slot is kept apart from the theme engines (`_theme_configs`): setting it never turns on "each run searches only its theme's engine", and it never changes which engine a run searches. With only one of the two IDs, or none, the practice engine counts as missing and nothing searches in its place. `practice_engine_status` tells the dashboard whether it is set and whether it is an engine a class also searches, without returning any ID.
+
+**If something looks wrong after this, check**
+- A run searching the wrong engine → `vertex_config_for`: only the theme `"practice"` reaches `_practice_config`.
+- The engine check printing "the practice question is skipped" → both `VERTEX_PROVA_*` values in the server's env file.
+
+**Left alone**
+The theme engines, the single engine, autocomplete's SerpAPI fallback, and every route of the app.
+
+**Verified**
+`tests/test_practice_engine.py` (practice searches and completes on its own engine; a half-set or missing engine never falls back; a run's engine is unchanged with and without theme engines; the check tool), with `test_search_by_theme.py` and `test_backend_privacy.py`: all passed.
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra

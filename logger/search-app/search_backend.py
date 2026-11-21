@@ -45,6 +45,11 @@ VERTEX_SPAZIO_DATA_STORE_ID, and the same two for ORECCHIO, and each run searche
 the engine of its question set's theme. A theme without its own engine then fails
 visibly on the search page: it never answers from another theme's dataset. With
 none of these set, every run uses the single engine above, as before.
+
+The practice question before the ID has an engine of its own, on a topic no class
+studies: VERTEX_PROVA_ENGINE_ID and VERTEX_PROVA_DATA_STORE_ID. It is kept apart
+from the theme engines, so setting it never changes which engine a run searches,
+and without it the practice question is skipped rather than searching elsewhere.
 """
 
 import os
@@ -145,6 +150,19 @@ def load_theme_configs(default):
         if engine_id or data_store_id:
             configs[theme] = (*default[:2], engine_id, data_store_id, *default[4:])
     return configs
+
+
+# Not a theme: the practice question's topic is chosen so that no class studies it.
+PRACTICE_THEME = "practice"
+
+
+def load_practice_config(default):
+    """The practice question's engine, or None. Both IDs are needed, as a half-set engine cannot search and suggest."""
+    engine_id = os.getenv("VERTEX_PROVA_ENGINE_ID", "").strip()
+    data_store_id = os.getenv("VERTEX_PROVA_DATA_STORE_ID", "").strip()
+    if not (engine_id and data_store_id):
+        return None
+    return (*default[:2], engine_id, data_store_id, *default[4:])
 
 
 # ---------------------------------------------------------------------------
@@ -366,10 +384,29 @@ def serp_autocomplete(query, max_suggestions=5):
 SEARCH_BACKEND = os.getenv("SEARCH_BACKEND", "vertex").lower()
 _vertex_config = load_vertex_config()
 _theme_configs = load_theme_configs(_vertex_config)
+_practice_config = load_practice_config(_vertex_config)
+
+
+def practice_engine_status():
+    """For the dashboard: is the practice engine set, and is it one a class also searches? No IDs are returned."""
+    if SEARCH_BACKEND != "vertex" or _practice_config is None:
+        return {"configured": False, "shared_with_theme": False}
+    shared = any(config[2] == _practice_config[2] or config[3] == _practice_config[3]
+                 for config in (*_theme_configs.values(), _vertex_config))
+    return {"configured": True, "shared_with_theme": shared}
+
+
+def practice_engine_configured():
+    return practice_engine_status()["configured"]
 
 
 def vertex_config_for(theme):
     """Once any theme has its own engine, a run may only search the engine of its theme."""
+    if theme == PRACTICE_THEME:
+        if _practice_config is None:
+            logger.error("[Vertex Config ERROR] No search engine is set for the practice question")
+            raise RuntimeError("No search engine is set for the practice question")
+        return _practice_config
     if not _theme_configs:
         return _vertex_config
     config = _theme_configs.get(theme)
