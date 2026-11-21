@@ -65,6 +65,36 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-21 — Set the practice question in the dashboard
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/research_dashboard/practice_views.py` — new: `/dashboard/settings/practice`, saving the practice and trying a search on its engine
+- `logger/search-app/research_dashboard/templates/research/practice.html` — new: the page
+- `logger/search-app/research_dashboard/templates/research/settings_navigation.html` — a third tab, "Practice question"
+- `logger/search-app/research_dashboard/__init__.py` — registers the page
+- `logger/search-app/research_dashboard/i18n.py` — the page's English and Italian texts
+- `logger/search-app/research_dashboard/static/research.css` — the switch, text area and test results of the page
+- `logger/docs/research_dashboard.md` — new section "Practice question"
+- `logger/search-app/tests/test_practice_dashboard.py` — new
+
+**What changed for the participant**
+No visible change. Researchers get Settings › Practice question.
+
+**How it works**
+The page edits the practice's topic, question and switch through `State.save_practice`, with the revision of the form, so a save from an older page is refused. It shows the engine's state from `practice_engine_status` (set, missing, or also used by a class) and whether children will see the practice. **Try a search** runs the practice engine with the words given and lists the first five titles and sites; it saves nothing and shows no provider message, which could hold credentials. The topic's field says that the last page's volcano is fixed in the app.
+
+**If something looks wrong after this, check**
+- The tab missing → `settings_navigation.html` and `register_practice_routes` in `__init__.py`.
+- "No search engine is set" although the env file has the IDs → the app was not restarted after the change, or one of the two IDs is empty.
+
+**Left alone**
+The study settings page and its forms, the session and ID pages, and the practice's child pages.
+
+**Verified**
+`tests/test_practice_dashboard.py` (tab, default, every engine state, save, conflict, refused values, token, sign-in, test search and its failures, both languages), the full server suite (1011 passed) and the dashboard browser tests (51 passed).
+
 ## 2026-11-21 — Add the practice question before the ID
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, serp, search-bar, autocomplete, result-viewer, logging, tests

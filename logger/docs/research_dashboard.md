@@ -513,6 +513,36 @@ child's unsent events that reach a test browser stay with the child. To read the
     docker compose exec search_app ls -la /app/logs/test-runs
     docker compose cp search_app:/app/logs/test-runs ./test-runs-copy
 
+## Practice question
+
+After **Inizia**, and before choosing its ID, each group tries the app once with one practice
+question on a topic no class studies (volcanoes at first): "Facciamo una prova!", the question
+with a first answer, the search, a page, the final answer, and "Avete finito la prova!" with both
+answers next to a volcano. **Inizia** there opens the ID page and the experiment goes on as usual.
+
+**Nothing is saved.** The practice comes before the ID, so there is no participant, run or log
+yet. Its pages do not load the logger, its answers stay in the browser's session until the ID page,
+and it never appears in Data and history, the live view, exports, recaps or session numbers. A
+screen recording is its only record.
+
+**Settings › Practice question** holds the topic, the question and an on/off switch, stored apart
+from the study settings. A practice already under way keeps the question it began with. The page
+shows whether the practice's search engine is set, and **Try a search** asks it a question as a
+child would, to check that it answers about the topic. The picture on the last page is a volcano,
+fixed in the app: a new topic needs a new picture from a developer
+(`static/images/practice/volcano.svg`).
+
+**Its search engine** is its own, in the same Google project and with the same credentials as the
+others. The server's env file names it:
+
+    VERTEX_PROVA_ENGINE_ID=…
+    VERTEX_PROVA_DATA_STORE_ID=…
+
+With either missing, or with the switch off, **Inizia** opens the ID page directly, as before. To
+change the topic: create the new engine, change the two lines, restart the app, enter the new
+question in the dashboard, and check it with **Try a search** or
+`docker compose exec search_app python tools/check_search_engines.py --prova-query "…"`.
+
 ## Historical grade and school-year setup
 
 Historical assignment editing is temporarily unavailable in Study settings. Rules
