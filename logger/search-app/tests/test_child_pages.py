@@ -37,7 +37,8 @@ def test_a_new_run_opens_with_cominciamo_then_the_question_then_the_form(site):
     welcome = client.get(start.location)
     assert "Cominciamo!" in welcome.text and "corpo umano" in welcome.text and "universo" not in welcome.text
     question = client.get(re.search(r'id="task-intro-continue"[^>]*href="([^"]+)"', welcome.text)[1].replace("&amp;", "&"))
-    assert "Prova a rispondere alla domanda:" in question.text and "#1" in question.text
+    assert "#1" in question.text and "Pensi di sapere la risposta?" in question.text
+    assert "Prova a rispondere" not in question.text, "the practice question owns the word prova"
     assert "Cominciamo!" not in question.text
     assert re.search(r'id="task-intro-continue"[^>]*href="/task"', question.text)
     assert 'id="first-answer-form"' in client.get("/task").text
@@ -78,7 +79,7 @@ def test_the_next_question_has_its_introduction_but_no_second_cominciamo(site):
     following = client.get("/next_task?review=1")
     assert following.location.endswith("/task/intro")
     page = client.get(following.location)
-    assert "Cominciamo!" not in page.text and "#2" in page.text and "Prova a rispondere" in page.text
+    assert "Cominciamo!" not in page.text and "#2" in page.text and "Pensi di sapere la risposta?" in page.text
 
 
 def test_back_from_an_introduction_does_not_start_the_question(site):

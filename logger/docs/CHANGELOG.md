@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Drop "Prova a rispondere alla domanda:" from the question introduction
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/templates/task_intro.html` — the line is gone
+- `logger/search-app/tests/test_child_pages.py` — checks the page without it
+
+**What changed for the participant**
+The page before each question shows "#1", the question, "Pensi di sapere la risposta?" and Inizia, as in Diletta's Figma. The word "prova" now belongs to the practice question before the ID (PR #44), so the real questions no longer use it (Diletta's point 12).
+
+**How it works**
+One paragraph removed from the template.
+
+**If something looks wrong after this, check**
+- The question's introduction missing a line → `task_intro.html`.
+
+**Left alone**
+"Cominciamo!" and its texts per theme, the answer form and every logged event.
+
+**Verified**
+`test_child_pages.py` passed, with the full suites (see the next entry).
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra
