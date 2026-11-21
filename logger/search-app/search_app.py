@@ -152,6 +152,21 @@ def ready():
         app.logger.exception("Collection readiness check failed")
         return jsonify(status="unavailable"), 503
 
+@app.post('/presenza')
+def child_presence():
+    """A tablet's light signal: which page is open and whether it is visible.
+
+    It feeds the live view only, through its own small database file: never the logs, the progress database
+    or the session, and it does not count as activity for the idle limit. It always answers quickly, also
+    before an ID is chosen, so the page can tell whether the server is reachable.
+    """
+    data = request.get_json(silent=True, force=True)
+    if session.get('user_id') and session.get('session_id') and isinstance(data, dict):
+        app.extensions["research"]["presence"].beat(session['session_id'], session['user_id'],
+                                                    data.get('page'), data.get('visible') is not False)
+    return "", 204
+
+
 # ------------------------------------------------------------------------------------------------------------------------------------------
 # TEMPORARY TESTING FLAG - If API GOOGLE IS NOT AVAILABLE, SET TO TRUE TO ALLOW ANSWER SUBMISSION WITHOUT SEARCH RESULTS.
 # ------------------------------------------------------------------------------------------------------------------------------------------

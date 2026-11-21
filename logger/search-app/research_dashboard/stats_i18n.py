@@ -46,6 +46,8 @@ STATS_TEXT = {
     'live_completed': ('Completed', 'Completato'),
     'live_finished': ('finished', 'completate'),
     'live_saved_at': ('Saved', 'Salvato'),
+    'live_off_page': ('Off the page', 'Fuori dalla pagina'),
+    'live_no_signal': ('No signal for', 'Nessun segnale da'),
     'live_since': ('since', 'dalle'),
     'live_not_reached': ('Not reached yet', 'Non ancora raggiunta'),
     'live_nothing_saved': ('Nothing saved yet.', 'Ancora nulla di salvato.'),

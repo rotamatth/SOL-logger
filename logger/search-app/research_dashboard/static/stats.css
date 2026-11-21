@@ -74,3 +74,8 @@
   .stats-table td.live-task-note::before { content:none }
 }
 .stats-recap-pdf { margin:10px 0 0 }
+
+/* Where an unfinished child's tablet is now: off the page (the app hidden) or silent (no signal). */
+.live-presence { font-weight:700 }
+.live-presence-hidden { border-color:#b7791f; background:#fff4d6; color:#6b4200 }
+.live-presence-silent { border-color:var(--warning-line); background:var(--warning-soft); color:var(--warning-ink) }

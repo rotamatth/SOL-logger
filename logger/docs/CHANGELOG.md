@@ -65,6 +65,34 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Show in the live view when a tablet is off the page or silent
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, infra, tests
+
+**Files**
+- `logger/search-app/research_dashboard/presence.py` — new: `Presence`, one row per run in `presence.sqlite3`
+- `logger/search-app/research_dashboard/__init__.py` — creates it in the research state folder (`app.extensions["research"]["presence"]`)
+- `logger/search-app/search_app.py` — `POST /presenza`: a tablet's page and visibility, stored only for a browser with a run; always answers 204
+- `logger/search-app/research_dashboard/live.py`, `live_views.py` — each unfinished child's row gets `presence` (hidden or silent)
+- `logger/search-app/research_dashboard/templates/research/session_live_row.html`, `stats_i18n.py`, `static/stats.css` — the badges "Fuori dalla pagina" and "Nessun segnale da N s"
+- `logger/search-app/tests/test_presence.py` — new
+
+**What changed for the participant**
+No visible change. In the live view, an unfinished child's row says "Fuori dalla pagina" when the tablet's app is hidden, and "Nessun segnale da N s" when nothing has arrived for 30 seconds (Diletta's point 10). The tablets start sending the signal in the next commit.
+
+**How it works**
+`/presenza` writes the run's latest signal (`technical_session_id`, participant, page, visible, time) to its own SQLite file with a 0.5-second timeout, apart from the logs, the progress database and the research database. Write errors are swallowed, so the signal can never fail a page or hold a lock that saving a log waits on. The route reads the session but never writes it and never touches `last_active`, so it is not activity for the 60-minute limit. The live view reads the rows of the unfinished children's latest runs; finished and not-started children get no badge, and a visible tablet adds nothing.
+
+**If something looks wrong after this, check**
+- No badges although tablets are off → `presence.sqlite3` in the research state folder, and whether the tablets load `connection-watch.js` (next commit).
+- "Nessun segnale" for a working tablet → its requests to `/presenza`, and `SILENT_AFTER_SECONDS` (30).
+
+**Left alone**
+The logs, the progress and research databases, the live view's other figures and its 5-second refresh.
+
+**Verified**
+`tests/test_presence.py`: nothing stored before an ID, a run's page and visibility stored, the session untouched and no log written, malformed signals ignored, a corrupt file never raising, the three states, and the badges in the live view in English and Italian.
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra

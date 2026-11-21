@@ -30,6 +30,7 @@ from .guide_views import register_guide_routes
 from .index import Index
 from .live_views import register_live_routes
 from .preparation_views import register_preparation_routes
+from .presence import Presence
 from .question_views import register_question_routes
 from .security import register_security
 from .session_views import register_session_routes
@@ -61,7 +62,8 @@ def init_dashboard(app):
                           url_prefix=PREFIX)
     dash = Dashboard(app, blueprint, state, index)
     app.extensions["research"] = {"state": state, "index": index,
-                                  "credential_ready": lambda: bool(dash.password_hash())}
+                                  "credential_ready": lambda: bool(dash.password_hash()),
+                                  "presence": Presence(app.config["RESEARCH_STATE_DIR"])}
     register_security(dash)
     register_template_context(dash)
     register_editor_routes(dash)
