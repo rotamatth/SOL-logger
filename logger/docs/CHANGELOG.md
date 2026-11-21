@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Pass the practice engine's IDs to the app on the server
+
+**Commit:** pending · **Type:** fix · **Area:** infra, docs, tests
+
+**Files**
+- `logger/docker-compose.yml` — passes `VERTEX_PROVA_ENGINE_ID` and `VERTEX_PROVA_DATA_STORE_ID`
+- `logger/docs/production_readiness.md` — the two lines for `logger/.env`
+- `logger/search-app/tests/test_practice_engine.py` — the compose file passes both
+
+**What changed for the participant**
+No visible change until the IDs are set on the server; then the practice question appears after Inizia.
+
+**How it works**
+`docker-compose.yml` hands the app only the variables it names. Without these two lines the IDs written in the server's `logger/.env` would never reach the app, and the practice would stay off.
+
+**If something looks wrong after this, check**
+- The dashboard saying "No search engine is set" although `.env` has both IDs → the container was not recreated after the change (`docker compose up -d`), or one value is empty.
+
+**Left alone**
+The other engines' variables.
+
+**Verified**
+`test_practice_engine.py` passed.
+
 ## 2026-11-21 — Set the practice question in the dashboard
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests

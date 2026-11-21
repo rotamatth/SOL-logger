@@ -85,3 +85,10 @@ def test_the_engine_check_says_when_the_practice_question_is_skipped(backend, mo
     tool = load_check_tool(backend, monkeypatch)
     assert tool.main([]) == 0
     assert "the practice question is skipped" in capsys.readouterr().out
+
+
+def test_the_server_passes_the_practice_engine_to_the_app():
+    """docker-compose.yml names each variable it hands to the app: without these the IDs in .env never arrive."""
+    compose = (APP_ROOT.parent / "docker-compose.yml").read_text()
+    for name in ("VERTEX_PROVA_ENGINE_ID", "VERTEX_PROVA_DATA_STORE_ID"):
+        assert f'{name}: "${{{name}:-}}"' in compose
