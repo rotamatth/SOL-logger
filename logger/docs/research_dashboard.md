@@ -245,6 +245,17 @@ access either: every student page and script is same-origin.
   the search backend logs neither corrected queries nor autocomplete suggestions.
 - Malformed result addresses are refused like any other non-web address.
 
+### Recap PDF
+
+When a group presses **Salva l'attività**, the server keeps a PDF of the session, downloadable from
+the participant's page; the tablet keeps nothing. Its first page is the recap picture as the tablet
+showed it: the theme's drawing, "Domanda N" in the order the group met the questions, the first
+answers with their stars and the final answers on their cards, and the arrows. It is drawn on the
+server with ReportLab (`recap_picture.py`), at the card positions of `recap.css`, so a change of the
+recap's layout needs the same change there (a test compares them). A card holds what fits; the text
+pages that follow keep every answer in full, as before. A session without a recap picture (an
+unknown theme) keeps the text pages only.
+
 ## Research interpretation
 
 - A **study session** is the configured grade/date classroom experiment. It is

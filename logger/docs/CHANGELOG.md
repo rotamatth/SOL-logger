@@ -65,6 +65,35 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Put the recap picture in the recap PDF
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, docs, tests
+
+**Files**
+- `logger/search-app/recap_picture.py` — new: `RecapPicture`, the recap picture drawn with ReportLab at the positions of `recap.css`
+- `logger/search-app/student_recap.py` — `render_recap_pdf(columns, picture=None)`: with a picture, a landscape first page before the unchanged text pages; `StudentRecap` takes `artwork` and builds the picture at Salva from the committed answers
+- `logger/search-app/search_app.py` — passes the session's drawing and theme to `StudentRecap`
+- `logger/search-app/Dockerfile` — copies `recap_picture.py`
+- `logger/docs/research_dashboard.md` — "Recap PDF"
+- `logger/search-app/tests/test_recap_picture.py` — new
+
+**What changed for the participant**
+No visible change on the tablet. The recap PDF that researchers download now opens with the picture the group saw: the theme's drawing with "Domanda N", the first answers and their stars, the final answers and the arrows (Diletta's point 9). On 10 November these pictures had to be rebuilt by hand, because the server kept only the text.
+
+**How it works**
+At "Salva l'attività" the commit hands the PDF function the committed answers. `StudentRecap._picture` takes today's session from them, as the recap page does, with the drawing and theme of the session (from `review_illustration` and `review_artwork_theme`). `RecapPicture` draws the drawing, then the arrows (the quadratic curves of `RECAP_ARROWS` as cubic ones, white halo under a dashed black line), the labels, the cards and the stars, at the shares of the picture in `recap.css`. Text the standard PDF fonts cannot show (emoji, other scripts) is left out of the cards only. A card holds the lines that fit and ends with "…"; the text pages keep every answer in full. Without a picture (unknown theme, a missing drawing, a question without its part) the PDF is the text only, as before. No browser runs on the server and nothing comes from the tablet.
+
+**If something looks wrong after this, check**
+- A card in the wrong place in the PDF → `recap_picture.py` against `recap.css` (`test_the_pdf_places_cards_and_labels_where_the_tablet_does`).
+- Salva failing with "Salvataggio non disponibile" → the PDF's drawing: `_pdf_for_finish` turns any error into the existing 503, so nothing is saved half.
+- No picture in the PDF → the session's theme is not spazio or orecchio, or its drawing is missing.
+
+**Left alone**
+The tablet's recap, its text pages, what Salva saves and logs, and the dashboard's download.
+
+**Verified**
+`tests/test_recap_picture.py`: a landscape picture page before the portrait text page for both themes, the text-only PDF without a picture, cut and broken lines, emoji left out of cards, a long answer noted as cut, the positions matching `recap.css`, and Salva in the app keeping the picture for spazio and orecchio and not for an unknown theme. The full server suite passed. Both themes' first pages were checked as images.
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra

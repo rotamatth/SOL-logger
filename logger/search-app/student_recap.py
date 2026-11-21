@@ -8,9 +8,12 @@ from xml.sax.saxutils import escape
 
 from flask import abort, jsonify, render_template, request, session, url_for
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import (BaseDocTemplate, Frame, NextPageTemplate, PageBreak, PageTemplate, Paragraph,
+                                SimpleDocTemplate, Spacer)
+
+from recap_picture import PICTURE_RATIO, RecapPicture
 
 from student_progress import ZONE
 from study_progress import AttemptNotFound, DraftConflict, SubmissionConflict
@@ -56,7 +59,9 @@ def latest_final(task):
     return revision["after_text"] if revision else task["final_answer"]["text"]
 
 
-def render_recap_pdf(columns):
+def render_recap_pdf(columns, picture=None):
+    """The recap PDF the server keeps. With `picture` (background, tasks, arrows) its first page is the recap
+    picture as the tablet showed it; the text pages follow unchanged, with every answer in full."""
     styles = getSampleStyleSheet()
     styles["Title"].textColor = colors.HexColor("#173769")
     styles["Heading2"].textColor = colors.HexColor("#235b9e")
@@ -85,19 +90,36 @@ def render_recap_pdf(columns):
     def footer(canvas, doc):
         canvas.setFillColor(colors.HexColor("#52647b"))
         canvas.setFont("Helvetica", 9)
-        canvas.drawRightString(A4[0] - 48, 26, f"Pagina {doc.page}")
+        canvas.drawRightString(canvas._pagesize[0] - 48, 26, f"Pagina {doc.page}")
 
     pdf = BytesIO()
-    SimpleDocTemplate(pdf, pagesize=A4, leftMargin=48, rightMargin=48, topMargin=40,
-                      bottomMargin=48, title="SOL Search - Le tue risposte").build(
-                          flow, onFirstPage=footer, onLaterPages=footer)
+    if picture is None:
+        SimpleDocTemplate(pdf, pagesize=A4, leftMargin=48, rightMargin=48, topMargin=40,
+                          bottomMargin=48, title="SOL Search - Le tue risposte").build(
+                              flow, onFirstPage=footer, onLaterPages=footer)
+        return pdf.getvalue()
+    wide = landscape(A4)
+    picture_frame = Frame(36, 40, wide[0] - 72, wide[1] - 76, id="picture")
+    text_frame = Frame(48, 48, A4[0] - 96, A4[1] - 88, id="text")
+    document = BaseDocTemplate(pdf, pagesize=A4, title="SOL Search - Le tue risposte")
+    document.addPageTemplates([PageTemplate("picture", [picture_frame], pagesize=wide, onPage=footer),
+                               PageTemplate("text", [text_frame], pagesize=A4, onPage=footer)])
+    width = min(picture_frame._width - 12, (picture_frame._height - 74) * PICTURE_RATIO)
+    page_one = [Paragraph("SOL Search · Le risposte di oggi", styles["Title"]),
+                RecapPicture(picture["background"], picture["tasks"], picture["arrows"], width),
+                Spacer(1, 6),
+                Paragraph("Le risposte complete sono nelle pagine seguenti.", styles["BodyText"]),
+                NextPageTemplate("text"), PageBreak()]
+    document.build(page_one + flow)
     return pdf.getvalue()
 
 
 class StudentRecap:
     render_pdf = staticmethod(render_recap_pdf)
 
-    def __init__(self, app, progress):
+    def __init__(self, app, progress, artwork=None):
+        # attempt -> (illustration, theme): the recap picture of the session, for its page in the PDF.
+        self.artwork = artwork
         self.app = app
         self.progress = progress
         self.store = progress.store
@@ -188,9 +210,25 @@ class StudentRecap:
         except (OSError, sqlite3.Error):
             return jsonify(error=SAVE_ERROR), 503
 
-    def _pdf_for_finish(self, states):
+    def _picture(self, attempt, states):
+        """The recap picture as the tablet showed it at Salva, or None when the session has no picture."""
+        if self.artwork is None:
+            return None
+        illustration, theme = self.artwork(attempt)
+        number = attempt["metadata"]["study_session_snapshot"]["number"]
+        tasks = sorted((self._piece(task) for task in states.get(number, {}).get("tasks", [])),
+                       key=lambda task: task["slot"])
+        background = self._background(illustration)
+        if (theme not in RECAP_ARROWS or [task["slot"] for task in tasks] != ["1", "2", "3"]
+                or background == RECAP_PLACEHOLDER):
+            return None
+        return {"background": Path(self.app.static_folder) / background, "tasks": tasks,
+                "arrows": RECAP_ARROWS[theme]}
+
+    def _pdf_for_finish(self, states, attempt=None):
         try:
-            return self.render_pdf(states)
+            picture = self._picture(attempt, states) if attempt is not None else None
+            return self.render_pdf(states, picture) if picture is not None else self.render_pdf(states)
         except Exception as error:
             raise OSError("Could not create recap PDF") from error
 
@@ -199,7 +237,7 @@ class StudentRecap:
         try:
             self.store.commit_recap(self.progress.key(attempt["metadata"]), attempt["attempt_id"],
                                    data.get("draft_revisions"),
-                                   self._pdf_for_finish if finish else None)
+                                   (lambda states: self._pdf_for_finish(states, attempt)) if finish else None)
             if not self.progress.publish(attempt):
                 return jsonify(error=SAVE_ERROR), 503
             return jsonify(saved=True)
