@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Il collegamento non funziona</title>
+  <!-- Shown by sw.js when a page cannot be loaded: self-contained, it needs nothing from the server. -->
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box;
+           background: #4285f4; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 520px; padding: 32px 28px; border-radius: 24px; background: #fff; text-align: center; }
+    h1 { margin: 0 0 10px; color: #c5221f; font-size: 1.6rem; }
+    p { margin: 0 0 14px; color: #111; font-size: 1.35rem; font-weight: 700; }
+    small { color: #5f6368; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <main role="alert">
+    <h1>Il collegamento non funziona.</h1>
+    <p>Alza la mano e chiama un adulto.</p>
+    <small>Riprovo da solo…</small>
+  </main>
+  <script>
+    // As soon as the server answers again, load the page the group was opening.
+    setInterval(() => {
+      // The tablets' own light signal, not the server's health check, which takes database locks.
+      fetch("/presenza", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
+                           body: JSON.stringify({ page: location.pathname, visible: true }) })
+        .then(response => { if (response.ok) location.reload(); }).catch(() => {});
+    }, 5000);
+  </script>
+</body>
+</html>

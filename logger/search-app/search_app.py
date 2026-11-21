@@ -167,6 +167,15 @@ def child_presence():
     return "", 204
 
 
+@app.get('/sw.js')
+def service_worker():
+    """The children's service worker, served from the root so that it may look after the children's pages."""
+    response = app.send_static_file('sw.js')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Content-Type'] = 'text/javascript; charset=utf-8'
+    return response
+
+
 # ------------------------------------------------------------------------------------------------------------------------------------------
 # TEMPORARY TESTING FLAG - If API GOOGLE IS NOT AVAILABLE, SET TO TRUE TO ALLOW ANSWER SUBMISSION WITHOUT SEARCH RESULTS.
 # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -1202,8 +1211,8 @@ def page_not_found(e):
 @app.errorhandler(500)
 def internal_error(e):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Errore",
-                           error_message="Qualcosa non ha funzionato. Riprova o chiedi al ricercatore."), 500
+                           error_title="Qualcosa non ha funzionato!",
+                           error_message="Alza la mano e chiama un adulto."), 500
 
 if __name__ == '__main__':
     # Only for `python search_app.py` on a developer's machine: the container runs Gunicorn

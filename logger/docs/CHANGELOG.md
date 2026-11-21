@@ -65,6 +65,38 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Ask the group to call an adult when the connection drops
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, logging, infra, docs, tests
+
+**Files**
+- `logger/search-app/static/connection-watch.js` — new: the signal every 15 seconds, the "chiama un adulto" notice, the page-left and connection events, and the service worker's registration
+- `logger/search-app/static/sw.js`, `static/offline.html` — new: when a children's page cannot be loaded at all, the same message instead of the browser's error
+- `logger/search-app/search_app.py` — `GET /sw.js` from the root; the server-error page says "Qualcosa non ha funzionato! Alza la mano e chiama un adulto."
+- `logger/search-app/templates/layout.html`, `first_answer.html`, `task_intro.html`, `study_handoff.html`, `recap.html` — load `connection-watch.js`
+- `logger/docs/research_dashboard.md`, `logger/docs/manual_logging_walkthrough.md` — the statuses, the notice, the service worker and the four new events
+- `logger/search-app/tests/test_connection_watch.py`, `tests/test_connection_watch_browser.py` — new
+- `logger/search-app/tests/conftest.py`, `tests/test_background_upload_browser.py` — the `no_service_worker` marker; `tests/test_final_answer_draft_browser.py` uses it for its faked page load
+- `logger/search-app/tests/ui_fixture.py`, `tests/test_student_navigation_browser.py` — their small test apps answer `/presenza`
+- `logger/search-app/tests/test_first_answer_ui.py`, `tests/test_manual_logging_walkthrough.py` — know the new script and events
+
+**What changed for the participant**
+When the tablet loses the network, or the server stops answering for about two signals, the page shows "Il collegamento non funziona. Alza la mano e chiama un adulto." over everything, and it closes by itself when the server answers again. A page that cannot load at all shows the same message. A server error says "Qualcosa non ha funzionato! Alza la mano e chiama un adulto." (Diletta's point 10).
+
+**How it works**
+`connection-watch.js` posts `{page, visible}` to `/presenza` every 15 seconds while the page is visible, and every 5 seconds while the notice is shown. Two failed signals in a row, or the browser's `offline` event, show the notice and log `connectionLost` (`reason: no-answer` or `offline`); the next answered signal hides it and logs `connectionBack` with `lostSeconds`. When the page is hidden for more than 1.5 seconds it sends `visible: false` (beacon) and logs `pageHidden`; back on the page it logs `pageVisible` with `hiddenSeconds`. Moving to the next page hides a page only for an instant, so it does not count. Events go through the page's logger as any other, so they wait in its buffer while offline. The service worker handles only GET page loads of the children's app, from the network, and caches one file, `offline.html`, which needs nothing from the server and reloads itself when `/presenza` answers again. Form submissions, the logs, every other request and the dashboard never pass through it. It registers only in a secure context.
+
+**If something looks wrong after this, check**
+- The notice appearing while the tablet works → its `/presenza` requests failing (two in a row), or the browser reporting offline.
+- A page load misbehaving → `sw.js`; to retire it, serve a version that unregisters itself.
+- A test that fakes a page with `page.route()` failing → mark it `no_service_worker`: a service worker's own requests bypass Playwright's routing.
+
+**Left alone**
+`logger.js`, the uploads, every existing event, the Back blocker, form submissions and the dashboard's pages.
+
+**Verified**
+All 961 server tests and 169 of 170 browser tests passed. The other, `test_original_is_read_only_across_search_results_viewer_and_navigation`, timed out once in the full run, as it also did once on #41; it passed six times in a row alone. New in Chromium: offline shows and online hides the notice, two unanswered signals (on a fake clock) show it and an answer hides it, leaving the app is logged and signalled while a brief hide is not, the offline page while a load fails and the real page once back, and the dashboard left to the browser. Not checked on a classroom tablet yet.
+
 ## 2026-11-22 — Show in the live view when a tablet is off the page or silent
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, infra, tests
