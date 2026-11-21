@@ -63,6 +63,7 @@
         if (document.visibilityState === "visible") timer = window.setTimeout(beat, delay);
     }
 
+    // Never rejects: every failure is counted inside, so callers start it with `void`.
     async function beat() {
         let reached = false;
         try {
@@ -107,11 +108,11 @@
             log("pageVisible", { hiddenSeconds: Math.round((Date.now() - hiddenAt) / 1000) });
             hiddenAt = null;
         }
-        beat();
+        void beat();
     });
-    window.addEventListener("pageshow", event => { if (event.persisted) beat(); });
+    window.addEventListener("pageshow", event => { if (event.persisted) void beat(); });
     window.addEventListener("offline", () => { failures = FAILURES_BEFORE_NOTICE; showNotice("offline"); schedule(RETRY_MS); });
-    window.addEventListener("online", () => beat());
+    window.addEventListener("online", () => { void beat(); });
 
     const style = document.createElement("style");
     style.textContent = "#connection-lost-notice{position:fixed;inset:0;z-index:2147483646;display:flex;"

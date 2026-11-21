@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Mark the connection watch's background signals as such
+
+**Commit:** pending · **Type:** fix · **Area:** infra
+
+**Files**
+- `logger/search-app/static/connection-watch.js` — `void beat()` where a signal starts from an event
+- `logger/search-app/templates/layout.html`, `first_answer.html`, `task_intro.html`, `study_handoff.html`, `recap.html` — cache version `watch-2`
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+SonarCloud's reliability rule S9383 failed the quality gate of PR #39 on two calls of `beat()` whose promise nobody waited for. `beat()` never rejects (it counts every failure itself), so the calls are now marked as deliberately not awaited.
+
+**If something looks wrong after this, check**
+- The notice or the signal behaving differently → nothing in the logic changed; compare `connection-watch.js` with the previous entry.
+
+**Left alone**
+Everything else in the connection watch.
+
+**Verified**
+The connection-watch server and browser tests passed.
+
 ## 2026-11-22 — Ask the group to call an adult when the connection drops
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, logging, infra, docs, tests
