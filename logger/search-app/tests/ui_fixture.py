@@ -27,10 +27,15 @@ def fixture_identity():
     session.update(user_id="UI-TEST", task_number="1", task_position=0)
 
 
+# The endpoints the search pages link to, named as in search_app.CHILD_ROUTES.
+CHILD_ROUTES = {"search": "search_page", "result": "result", "webpage": "webpage",
+                "autocomplete": "autocomplete", "iframe_check": "iframe_check", "end": "end_task"}
+
+
 @app.context_processor
 def context():
     return dict(session_id="issue11-ui-fixture", show_search=False,
-                allow_answer_without_results_for_testing=False)
+                allow_answer_without_results_for_testing=False, child_routes=CHILD_ROUTES, practice=False)
 
 
 @app.get("/welcome")

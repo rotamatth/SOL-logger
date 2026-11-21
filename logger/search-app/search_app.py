@@ -31,6 +31,7 @@ from research_dashboard.log_store import LogStore, UploadConflict
 from research_dashboard.runtime import configure_runtime
 from research_dashboard.study_config import scheduled_assignment
 from study_progress import init_progress, SubmissionConflict
+from practice_question import PRACTICE_THEME, PracticeQuestion
 from student_progress import SessionUnavailable, StudentProgress
 from student_recap import StudentRecap
 
@@ -358,13 +359,21 @@ def idle_session_expired(*, touch=True):
     return False
 
 
+# The search pages' own links and requests. The practice question renders the same pages
+# with its own addresses (practice_question.PRACTICE_ROUTES), so nothing it does reaches a run's routes.
+CHILD_ROUTES = {"search": "search_page", "result": "result", "webpage": "webpage",
+                "autocomplete": "autocomplete", "iframe_check": "iframe_check", "end": "end_task"}
+
+
 @app.context_processor
 def base():
     form = SearchForm()
     return dict(
         form=form,
         allow_answer_without_results_for_testing=ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING,
-        session_id=session.get('session_id', '')
+        session_id=session.get('session_id', ''),
+        child_routes=CHILD_ROUTES,
+        practice=False,
     )
 
 @app.route("/")
@@ -533,6 +542,16 @@ def result():
         return redirect(url_for('welcome'))
 
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
+    return search_results_page(theme=run_theme(), reminder=reminder)
+
+
+def search_results_page(*, theme, reminder, routes=CHILD_ROUTES, **page_values):
+    """The results of a search, for a run's question or for the practice question.
+
+    The caller has already checked that this browser may search. `routes` names the endpoints the
+    page links to, and `page_values` go to every page rendered here.
+    """
+    page_values = {"child_routes": routes, **page_values}
     form = SearchForm()
     page = 1
 
@@ -550,7 +569,8 @@ def result():
                                form=form,
                                show_search=True,
                                reminder=reminder,
-                               search_error="Inserisci una domanda prima di cercare.")
+                               search_error="Inserisci una domanda prima di cercare.",
+                               **page_values)
 
     rpp = 10 # results per page; may be changed later
     query = sanitize_query(raw_query)
@@ -562,7 +582,8 @@ def result():
                                form=form,
                                show_search=True,
                                reminder=reminder,
-                               search_error="Inserisci una domanda prima di cercare.")
+                               search_error="Inserisci una domanda prima di cercare.",
+                               **page_values)
 
     # ---- Custom "Indietro" back-navigation history -----------------------
     # nav_stack: ordered list of {"q","page"} views the participant actually
@@ -591,8 +612,8 @@ def result():
         # Invariant: after record_view(), nav_stack[-1] is the current view.
         if len(nav_stack) >= 2:
             prev = nav_stack[-2]
-            return url_for('result', query=prev["q"], page=prev["page"], back=1)
-        return url_for('search_page')
+            return url_for(routes["result"], query=prev["q"], page=prev["page"], back=1)
+        return url_for(routes["search"])
 
     def cache_query_results(results, total_pages, no_results_message=None):
         results_by_query[query] = {
@@ -620,7 +641,8 @@ def result():
                                total_pages=0, show_search=True,
                                reminder=reminder,
                                no_results_message=message,
-                               back_url=back_url())
+                               back_url=back_url(),
+                               **page_values)
 
     def normalize_result(result):
         if not isinstance(result, dict):
@@ -650,14 +672,15 @@ def result():
     else:
         cached_no_results_message = None
         try:
-            corrected_query, raw_results, _, query_correction_source = search_backend.search(query, page, rpp, theme=run_theme())
+            corrected_query, raw_results, _, query_correction_source = search_backend.search(query, page, rpp, theme=theme)
         except Exception:
             if ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING:
                 return render_no_results("Modalità test: nessun risultato disponibile, ma puoi comunque scrivere una risposta.", query_correction_source=query_correction_source)
             return render_template(ERROR_URL, show_search=False,
                                    error_title="Ricerca non disponibile",
                                    error_message="Il motore di ricerca non risponde. Riprova tra poco.",
-                                   is_search_engine_error=True, search_error_log="Connection Error"), 503
+                                   is_search_engine_error=True, search_error_log="Connection Error",
+                                   **page_values), 503
 
         all_results = [normalize_result(r) for r in raw_results]
         session["search_results"] = all_results
@@ -685,7 +708,7 @@ def result():
                            corrected_query=corrected_query,
                            page=page, total_pages=total_pages,
                            show_search=True, reminder=reminder, query_correction_source=query_correction_source,
-                           back_url=back_url())
+                           back_url=back_url(), **page_values)
 
 @app.route("/webpage")
 def webpage():
@@ -773,7 +796,11 @@ def iframe_check():
     # Only a participant who is currently searching can make the server probe a URL.
     if current_phase() != 'searching':
         return jsonify({"blocked": None, "reason": "no-active-search"})
-    url = request.args.get("url", "")
+    return frame_check_response(request.args.get("url", ""))
+
+
+def frame_check_response(url):
+    """Whether a shown result can be embedded. The caller has checked that this browser is searching."""
     if not url:
         return jsonify({"blocked": None, "reason": "empty-url"})
     link = _shown_result_link(url)
@@ -806,9 +833,16 @@ def autocomplete():
     # Suggestions call the paid search API: only for a participant in a session.
     if not session.get('user_id') or len(query) < 3:
         return jsonify(empty_response)
+    return autocomplete_response(query, run_theme())
 
+
+def autocomplete_response(query, theme):
+    """Suggestions for a query of at least three characters. The caller has checked who may ask."""
+    empty_response = {"suggestions": [], "source": "none", "query_model": None}
+    if len(query) < 3:
+        return jsonify(empty_response)
     try:
-        suggestions, source = search_backend.autocomplete(query, theme=run_theme())
+        suggestions, source = search_backend.autocomplete(query, theme=theme)
         if not suggestions:
             return jsonify(empty_response)
         return jsonify({
@@ -1177,6 +1211,23 @@ def thank_you():
     # Session will be cleared client-side via clearClientData().
     return render_template('end.html', show_search=False,
                            total_tasks=total_tasks)
+
+
+def practice_engine_ready():
+    """The practice question searches only its own engine; a backend without one skips it."""
+    configured = getattr(search_backend, "practice_engine_configured", None)
+    return bool(configured and configured())
+
+
+PRACTICE = PracticeQuestion(
+    app, settings=RESEARCH_STATE.practice, engine_ready=practice_engine_ready, phase=current_phase,
+    resume_url=phase_redirect_url, search_results=search_results_page, frame_check=frame_check_response,
+    autocomplete=autocomplete_response, is_web_address=_is_web_address)
+app.config["PRACTICE_SEARCH"] = lambda query: search_backend.search(query, 1, 5, theme=PRACTICE_THEME)
+app.config["PRACTICE_ENGINE_STATUS"] = lambda: (search_backend.practice_engine_status()
+                                                if hasattr(search_backend, "practice_engine_status")
+                                                else {"configured": False, "shared_with_theme": False})
+
 
 @app.errorhandler(404)
 def page_not_found(e):

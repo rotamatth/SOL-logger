@@ -10,7 +10,8 @@
             class="welcome-logo-img"
         >
     </div>
-    <a href="{{ url_for('start_page') }}" class="app-btn app-btn-warm welcome-start-btn">
+    {# The practice question comes first; when it is off or has no engine, /prova sends the group on to the ID page. #}
+    <a href="{{ url_for('practice_intro') }}" class="app-btn app-btn-warm welcome-start-btn">
         Inizia
     </a>
 </div>

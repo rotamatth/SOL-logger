@@ -29,6 +29,7 @@ from .history_views import register_history_routes
 from .guide_views import register_guide_routes
 from .index import Index
 from .live_views import register_live_routes
+from .practice_views import register_practice_routes
 from .preparation_views import register_preparation_routes
 from .question_views import register_question_routes
 from .security import register_security
@@ -72,6 +73,7 @@ def init_dashboard(app):
     register_question_routes(dash)
     register_enrollment_routes(dash)
     register_settings_routes(dash)
+    register_practice_routes(dash)
     register_history_routes(dash)
     register_export_routes(dash)
     app.extensions["research"]["clear_editor_saved"] = dash.clear_editor_saved

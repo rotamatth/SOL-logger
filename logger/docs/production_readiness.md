@@ -115,6 +115,17 @@ VERTEX_ORECCHIO_ENGINE_ID=<GOOGLE_ENGINE_ID of vertex-ear.env>
 VERTEX_ORECCHIO_DATA_STORE_ID=<GOOGLE_DATASTORE_ID of vertex-ear.env>
 ```
 
+The practice question before the ID searches an engine of its own, on a topic no class studies
+(volcanoes at first). Add its two values too:
+
+```
+VERTEX_PROVA_ENGINE_ID=<GOOGLE_ENGINE_ID of the practice engine>
+VERTEX_PROVA_DATA_STORE_ID=<GOOGLE_DATASTORE_ID of the practice engine>
+```
+
+Until both are set, Inizia leads straight to the ID page. The practice engine never changes which
+engine a class searches; Settings › Practice question shows whether it is set and can try a search.
+
 Each run searches the engine of its question set's theme, frozen when it starts. Once
 any of these is set, a theme without its own engine shows the search error page instead
 of answering from another dataset. With none of them set, every run uses `VERTEX_ENGINE_ID`

@@ -1,0 +1,13 @@
+/* "Avete finito la prova!": the review page's stage, cards on the left and the volcano on the right, as in the Figma. */
+.unlock--practice .review-animation { left: 46%; aspect-ratio: 1 / 1; }
+.unlock--practice .review-before { left: 8%; top: 4%; }
+.unlock--practice .review-after { left: 12%; bottom: 6%; }
+
+@media (max-width: 620px) {
+  .unlock--practice .review-before,
+  .unlock--practice .review-after {
+    position: static;
+    width: auto;
+    margin-bottom: 8px;
+  }
+}

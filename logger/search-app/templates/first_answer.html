@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prima risposta · Domanda {{ task_number }}</title>
+  <title>{% if practice %}Prova{% else %}Prima risposta · Domanda {{ task_number }}{% endif %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='child-pages-2') }}">
   <script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}" defer></script>
@@ -12,7 +12,7 @@
 <body class="first-answer-page" data-sol-step-page>
 {% include "test_run_banner.html" %}
   <main class="first-answer-panel" aria-labelledby="first-answer-question">
-    <span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>
+    {% if not practice %}<span class="first-answer-number" aria-label="Domanda {{ task_number }}">#{{ task_number }}</span>{% endif %}
     <h1 id="first-answer-question">{{ topic }}</h1>
 
     {% if error %}
@@ -97,6 +97,9 @@
   </script>
   <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
   <script src="{{ url_for('static', filename='logger.js', v='strict-back-1') }}" defer></script>
+  {% elif practice %}
+  {# The practice question records nothing: the Back blocker without the logger. #}
+  <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
   {% endif %}
 </body>
 </html>

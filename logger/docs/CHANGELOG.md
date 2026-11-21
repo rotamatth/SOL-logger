@@ -65,6 +65,170 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Pass the practice engine's IDs to the app on the server
+
+**Commit:** pending · **Type:** fix · **Area:** infra, docs, tests
+
+**Files**
+- `logger/docker-compose.yml` — passes `VERTEX_PROVA_ENGINE_ID` and `VERTEX_PROVA_DATA_STORE_ID`
+- `logger/docs/production_readiness.md` — the two lines for `logger/.env`
+- `logger/search-app/tests/test_practice_engine.py` — the compose file passes both
+
+**What changed for the participant**
+No visible change until the IDs are set on the server; then the practice question appears after Inizia.
+
+**How it works**
+`docker-compose.yml` hands the app only the variables it names. Without these two lines the IDs written in the server's `logger/.env` would never reach the app, and the practice would stay off.
+
+**If something looks wrong after this, check**
+- The dashboard saying "No search engine is set" although `.env` has both IDs → the container was not recreated after the change (`docker compose up -d`), or one value is empty.
+
+**Left alone**
+The other engines' variables.
+
+**Verified**
+`test_practice_engine.py` passed.
+
+## 2026-11-21 — Set the practice question in the dashboard
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/research_dashboard/practice_views.py` — new: `/dashboard/settings/practice`, saving the practice and trying a search on its engine
+- `logger/search-app/research_dashboard/templates/research/practice.html` — new: the page
+- `logger/search-app/research_dashboard/templates/research/settings_navigation.html` — a third tab, "Practice question"
+- `logger/search-app/research_dashboard/__init__.py` — registers the page
+- `logger/search-app/research_dashboard/i18n.py` — the page's English and Italian texts
+- `logger/search-app/research_dashboard/static/research.css` — the switch, text area and test results of the page
+- `logger/docs/research_dashboard.md` — new section "Practice question"
+- `logger/search-app/tests/test_practice_dashboard.py` — new
+
+**What changed for the participant**
+No visible change. Researchers get Settings › Practice question.
+
+**How it works**
+The page edits the practice's topic, question and switch through `State.save_practice`, with the revision of the form, so a save from an older page is refused. It shows the engine's state from `practice_engine_status` (set, missing, or also used by a class) and whether children will see the practice. **Try a search** runs the practice engine with the words given and lists the first five titles and sites; it saves nothing and shows no provider message, which could hold credentials. The topic's field says that the last page's volcano is fixed in the app.
+
+**If something looks wrong after this, check**
+- The tab missing → `settings_navigation.html` and `register_practice_routes` in `__init__.py`.
+- "No search engine is set" although the env file has the IDs → the app was not restarted after the change, or one of the two IDs is empty.
+
+**Left alone**
+The study settings page and its forms, the session and ID pages, and the practice's child pages.
+
+**Verified**
+`tests/test_practice_dashboard.py` (tab, default, every engine state, save, conflict, refused values, token, sign-in, test search and its failures, both languages), the full server suite (1011 passed) and the dashboard browser tests (51 passed).
+
+## 2026-11-21 — Add the practice question before the ID
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, serp, search-bar, autocomplete, result-viewer, logging, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — new: the practice routes under `/prova`, their guards and the practice state in the session
+- `logger/search-app/search_app.py` — registers the practice; `practice_engine_ready()`; `practice=False` in the template context; the dashboard's test search and engine status in `app.config`
+- `logger/search-app/static/practice-page.js` — new: loaded instead of `logger.js`; a logger stand-in that keeps, stores and sends nothing, plus the "?" and "La mia prima risposta" pop-ups without events
+- `logger/search-app/templates/practice_intro.html`, `practice_done.html` — new: "Facciamo una prova!" and "Avete finito la prova!"
+- `logger/search-app/static/practice.css`, `static/images/practice/volcano.svg` — new: the last page's layout and a placeholder volcano until Diletta's picture
+- `logger/search-app/templates/welcome.html` — Inizia opens `/prova`
+- `logger/search-app/templates/first_answer.html` — practice mode: no question number, the Back blocker without the logger
+- `logger/search-app/templates/layout.html` — practice mode: `practice-page.js` instead of `logger.js`, the final answer sent with the end request, and `clearClientData` that clears nothing
+- `logger/search-app/Dockerfile` — copies `practice_question.py`
+- `logger/search-app/tests/test_practice_question.py`, `tests/test_practice_question_browser.py` — new
+
+**What changed for the participant**
+After Inizia, a group first does one practice question on volcanoes: "Facciamo una prova!", the question with a first answer (stars or "Non lo so"), the search, a page, the final answer, then "Avete finito la prova!" with both answers next to a volcano. "Inizia" there leads to the ID page, and the experiment goes on as before. When the practice is off in the dashboard, or its engine is not set, Inizia leads straight to the ID page as before.
+
+**How it works**
+The practice comes before the ID, so the browser has no participant, run or log yet. Every practice route refuses once a run exists (it sends the browser back to its run), and the run's own routes keep refusing a browser without a run. The practice pages are the real templates with the practice's own endpoints (`PRACTICE_ROUTES`) and `practice=True`. They load `practice-page.js` instead of `logger.js`, so no event is kept, written to the browser's storage or sent, and the tablet's stored data (an earlier group's unsent run, for instance) is never cleared. The answers stay in the server-side session of this browser only, to draw the last page, and leave it when the group goes on to the ID (choosing an ID clears the session too). The question is the dashboard's at the moment the practice begins; a later edit does not change a practice under way. Searches use the practice engine (`theme="practice"`).
+
+**If something looks wrong after this, check**
+- A log, progress row or study record appearing for a practice → nothing should write one: `test_a_whole_practice_records_nothing`.
+- Inizia going straight to the ID page → the practice is off in the dashboard, or `VERTEX_PROVA_*` is not set on the server.
+- A pop-up not opening on the practice's search page → `practice-page.js`, which copies those two blocks from the end of `logger.js`.
+- The volcano missing on the last page → `static/images/practice/volcano.svg`.
+
+**Left alone**
+`logger.js`, every logged event, the run's routes and their guards, the start page, the questions, reviews and recap of the run, and the session numbering.
+
+**Verified**
+All 993 server tests and all 166 browser tests passed, including the practice tests: the whole flow, every refused step and token, that a whole practice leaves no log file, progress row or study record, that a browser with a run never enters the practice, and in Chromium that the practice sends nothing to `/log_session`, leaves the stored data unchanged and the real question empty. Not checked on a classroom tablet yet.
+
+## 2026-11-21 — Let the practice question share the search pages' code
+
+**Commit:** pending · **Type:** infra · **Area:** serp, search-bar, autocomplete, result-viewer, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `CHILD_ROUTES` and `child_routes` in the template context; the body of `/result` moved into `search_results_page()`, the probe of `/iframe_check` into `frame_check_response()` and the call of `/autocomplete` into `autocomplete_response()`
+- `logger/search-app/templates/home.html`, `search.html`, `webpage.html`, `layout.html` — links, forms and requests name their endpoint through `child_routes` instead of a fixed address
+- `logger/search-app/tests/test_child_routes.py` — new: a run's pages keep `/result`, `/webpage`, `/search`, `/autocomplete`, `/iframe_check` and `/end`
+- `logger/search-app/tests/ui_fixture.py`, `tests/test_student_navigation_browser.py` — their small test apps provide `child_routes` (and an `/end` route) like the real app
+
+**What changed for the participant**
+No visible change. A run's pages render the same addresses as before.
+
+**How it works**
+The practice question (PR #44) shows the same search, results and viewer pages, so it must not get copies that drift apart. The real routes keep their guards (the run's phase, the idle limit) and then call the shared function, which does exactly what the route did before. The templates take the endpoint names from `child_routes`, which the app sets to the run's routes for every page; the practice question will pass its own names.
+
+**If something looks wrong after this, check**
+- A run's search, page or answer going to a wrong address → `CHILD_ROUTES` in `search_app.py` and `test_child_routes.py`.
+- `'child_routes' is undefined` in a page → a Flask app that renders these templates without `search_app`'s context processor (test fixtures included).
+
+**Left alone**
+`logger.js`, every logged event, the guards of the run's routes, the session keys of the search, and the result cache.
+
+**Verified**
+All 971 server tests and all 165 browser tests passed. The 13 browser tests that first failed did so because their own test apps lacked `child_routes`, fixed in the fixtures.
+
+## 2026-11-21 — Store the practice question apart from the study settings
+
+**Commit:** pending · **Type:** feature · **Area:** data, dashboard, tests
+
+**Files**
+- `logger/search-app/research_dashboard/practice_settings.py` — new: the default (volcano question, on) and validation
+- `logger/search-app/research_dashboard/state.py` — table `practice_question`; `State.practice()` and `State.save_practice()`
+- `logger/search-app/tests/test_practice_settings.py` — new
+
+**What changed for the participant**
+No visible change yet (PR #44).
+
+**How it works**
+The practice question's topic, text and on/off switch get a table of their own in `research.sqlite3`, with their own revisions. Saving them never writes the study settings, so it cannot move a session, an ID or the settings revision that admission checks before letting a child in. A save from a form opened before someone else's save is refused (`practice_changed`). Before the first save the default applies: on, topic "Vulcani", question "Le eruzioni vulcaniche possono essere di diversi tipi. Sapete elencarne 3?". The table is created with `CREATE TABLE IF NOT EXISTS` and the schema version stays 2, so an older image opens the same database after a rollback and ignores it. Nothing a child does in the practice is stored here or anywhere else.
+
+**If something looks wrong after this, check**
+- The dashboard showing the default question after a save → the `practice_question` table in `research.sqlite3`.
+- "Saved by someone else" on the practice form → `practice_changed`, raised by `save_practice`.
+
+**Left alone**
+The study settings document, its revisions and `SETTING_FIELDS`, the schema version and the migrations.
+
+**Verified**
+`tests/test_practice_settings.py` (default, save and read back, conflict, every refused value, study settings unchanged, schema version 2, reopening), with the settings, backup and start-and-recovery tests: all passed.
+
+## 2026-11-21 — Give the practice question its own search engine
+
+**Commit:** pending · **Type:** feature · **Area:** search-bar, autocomplete, infra, tests
+
+**Files**
+- `logger/search-app/search_backend.py` — `PRACTICE_THEME`, `load_practice_config`, `practice_engine_status`, `practice_engine_configured`; `vertex_config_for("practice")` returns that engine
+- `logger/search-app/tools/check_search_engines.py` — asks the practice engine too when it is set; `--prova-query` for a topic other than volcanoes
+- `logger/search-app/tests/test_practice_engine.py` — new
+
+**What changed for the participant**
+No visible change yet. This prepares the practice question that comes before the ID (Diletta's point 7, PR #44).
+
+**How it works**
+The practice question is on a topic no class studies (volcanoes for now), so it cannot search the spazio or orecchio engine. It has its own slot in the env file, `VERTEX_PROVA_ENGINE_ID` and `VERTEX_PROVA_DATA_STORE_ID`, in the same Google project and with the same credentials as the others. The slot is kept apart from the theme engines (`_theme_configs`): setting it never turns on "each run searches only its theme's engine", and it never changes which engine a run searches. With only one of the two IDs, or none, the practice engine counts as missing and nothing searches in its place. `practice_engine_status` tells the dashboard whether it is set and whether it is an engine a class also searches, without returning any ID.
+
+**If something looks wrong after this, check**
+- A run searching the wrong engine → `vertex_config_for`: only the theme `"practice"` reaches `_practice_config`.
+- The engine check printing "the practice question is skipped" → both `VERTEX_PROVA_*` values in the server's env file.
+
+**Left alone**
+The theme engines, the single engine, autocomplete's SerpAPI fallback, and every route of the app.
+
+**Verified**
+`tests/test_practice_engine.py` (practice searches and completes on its own engine; a half-set or missing engine never falls back; a run's engine is unchanged with and without theme engines; the check tool), with `test_search_by_theme.py` and `test_backend_privacy.py`: all passed.
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra
