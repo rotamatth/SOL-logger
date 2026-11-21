@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Avete finito la prova!</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='child-pages-2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='practice.css', v='prova-1') }}">
+  {# The practice question records nothing: the Back blocker, no logger. #}
+  <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
+</head>
+<body class="study-review-page" data-sol-step-page>
+  <main class="study-review" aria-labelledby="practice-done-heading">
+    <section class="review-task" aria-label="Le vostre risposte della prova">
+      <div class="unlock unlock--practice">
+        {# The practice picture is fixed in the app: a new topic needs a new picture here. #}
+        <img class="review-animation" src="{{ url_for('static', filename='images/practice/volcano.svg', v='prova-1') }}" alt="">
+        <svg class="unlock-arrow" viewBox="0 0 760 420" aria-hidden="true">
+          <path d="M175 122 C 118 185, 140 250, 200 286" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="5 5"/>
+          <path d="M188 288 L200 286 L194 275" fill="none" stroke="#111" stroke-width="2"/>
+          <g transform="translate(139 204)">
+            <circle r="15" fill="#4285f4"/>
+            <circle cx="-2" cy="-2" r="6" fill="none" stroke="#fff" stroke-width="2.5"/>
+            <path d="M3 3l6 6" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+          </g>
+        </svg>
+        <div class="review-card review-before">
+          <h3>Cosa sapevi prima</h3>
+          <p>{{ 'Non lo so' if first_answer.outcome == 'unknown' else first_answer.text }}</p>
+        </div>
+        <div class="review-card review-after">
+          <h3>Cosa sai adesso</h3>
+          <p>{{ final_answer }}</p>
+        </div>
+      </div>
+    </section>
+    <h1 id="practice-done-heading">Avete finito la prova!</h1>
+    <p class="review-intro">Ora siete pronti per iniziare l’attività.</p>
+    <form class="review-actions" method="post" action="{{ url_for('practice_leave') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button id="practice-done-continue" class="review-button" type="submit">Inizia</button>
+    </form>
+  </main>
+</body>
+</html>

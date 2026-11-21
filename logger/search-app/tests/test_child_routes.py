@@ -23,7 +23,7 @@ def test_the_search_page_of_a_run_sends_its_searches_and_suggestions_to_the_runs
     assert 'action="/result"' in page
     assert "`/autocomplete?query=${encodeURIComponent(query)}`" in page
     assert "fetch('/end'" in page
-    assert "logger.js" in page and "practice-page.js" not in page
+    assert "/static/logger.js" in page and "practice-page.js" not in page
 
 
 def test_the_results_and_the_viewer_of_a_run_link_to_the_runs_routes(searching):

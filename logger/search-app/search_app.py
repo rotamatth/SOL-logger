@@ -31,6 +31,7 @@ from research_dashboard.log_store import LogStore, UploadConflict
 from research_dashboard.runtime import configure_runtime
 from research_dashboard.study_config import scheduled_assignment
 from study_progress import init_progress, SubmissionConflict
+from practice_question import PRACTICE_THEME, PracticeQuestion
 from student_progress import SessionUnavailable, StudentProgress
 from student_recap import StudentRecap
 
@@ -359,7 +360,7 @@ def idle_session_expired(*, touch=True):
 
 
 # The search pages' own links and requests. The practice question renders the same pages
-# with its own addresses, so nothing it does reaches a run's routes.
+# with its own addresses (practice_question.PRACTICE_ROUTES), so nothing it does reaches a run's routes.
 CHILD_ROUTES = {"search": "search_page", "result": "result", "webpage": "webpage",
                 "autocomplete": "autocomplete", "iframe_check": "iframe_check", "end": "end_task"}
 
@@ -372,6 +373,7 @@ def base():
         allow_answer_without_results_for_testing=ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING,
         session_id=session.get('session_id', ''),
         child_routes=CHILD_ROUTES,
+        practice=False,
     )
 
 @app.route("/")
@@ -1209,6 +1211,22 @@ def thank_you():
     # Session will be cleared client-side via clearClientData().
     return render_template('end.html', show_search=False,
                            total_tasks=total_tasks)
+
+
+def practice_engine_ready():
+    """The practice question searches only its own engine; a backend without one skips it."""
+    configured = getattr(search_backend, "practice_engine_configured", None)
+    return bool(configured and configured())
+
+
+PRACTICE = PracticeQuestion(
+    app, settings=RESEARCH_STATE.practice, engine_ready=practice_engine_ready, phase=current_phase,
+    resume_url=phase_redirect_url, search_results=search_results_page, frame_check=frame_check_response,
+    autocomplete=autocomplete_response, is_web_address=_is_web_address)
+app.config["PRACTICE_SEARCH"] = lambda query: search_backend.search(query, 1, 5, theme=PRACTICE_THEME)
+app.config["PRACTICE_ENGINE_STATUS"] = lambda: (search_backend.practice_engine_status()
+                                                if hasattr(search_backend, "practice_engine_status")
+                                                else {"configured": False, "shared_with_theme": False})
 
 
 @app.errorhandler(404)

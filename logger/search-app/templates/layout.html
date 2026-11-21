@@ -490,14 +490,16 @@
 
                     const response = await fetch('{{ url_for(child_routes.end) }}', {
                         method: 'POST',
-                        redirect: 'manual'
+                        redirect: 'manual'{% if practice %},
+                        // The practice question has no logger: its answer travels with the request itself.
+                        body: new URLSearchParams({answer, csrf_token: window.PRACTICE_CSRF}){% endif %}
                     });
 
                     if (response.type === 'opaqueredirect' || response.status === 0 || (response.status >= 300 && response.status < 400)) {
                         localStorage.removeItem(submissionKey);
                         clearDraftAnswer();
                         clearClientData();
-                        window.location.href = "{{ url_for('task') if study_context else url_for('next_task') }}";
+                        window.location.href = "{{ url_for('practice_done') if practice else url_for('task') if study_context else url_for('next_task') }}";
                         return;
                     }
 
@@ -628,6 +630,8 @@
 
     <script>
     function clearClientData() {
+        // The practice question stored nothing, and this tablet may still hold an earlier group's unsent run.
+        if (window.SOL_PRACTICE) return;
         if (window.STUDY_PROGRESS_CONTEXT) {
             // The next question keeps the run and any unrelated recovery buffers.
             if (window.studyLogger) window.studyLogger.historyTracker = [];
@@ -651,9 +655,12 @@
         window.TASK_NUMBER = {{ session.get('task_number')|tojson }};
         window.USER_ID = {{ session.get('user_id')|tojson }};
         window.STUDY_PROGRESS_CONTEXT = {{ study_context|default(none)|tojson }};
+        {% if practice %}window.SOL_PRACTICE = true;
+        window.PRACTICE_CSRF = {{ practice_csrf|tojson }};{% endif %}
     </script>
     <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}"></script>
-    <script src="{{ url_for('static', filename='logger.js', v='strict-back-1') }}"></script>
+    {% if practice %}<script src="{{ url_for('static', filename='practice-page.js', v='prova-1') }}"></script>
+    {% else %}<script src="{{ url_for('static', filename='logger.js', v='strict-back-1') }}"></script>{% endif %}
     <script src="{{ url_for('static', filename='interface.js') }}?v=20261022"></script>
     {% if final_answer_draft %}<script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}"></script>
     <script src="{{ url_for('static', filename='final-answer-draft.js', v='child-pages-2') }}"></script>{% endif %}

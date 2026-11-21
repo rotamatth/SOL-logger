@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facciamo una prova!</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='child-pages-2') }}">
+  {# The practice question records nothing: the Back blocker, no logger. #}
+  <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
+</head>
+<body class="first-answer-page" data-sol-step-page>
+  <main class="first-answer-panel task-intro">
+    <h1 class="task-intro-title">Facciamo una prova!</h1>
+    <p class="task-intro-text">Usare un motore di ricerca come Google non è facile.</p>
+    <p class="task-intro-text">Per questo motivo, il primo compito sarà una prova per imparare ad usare l’applicazione.</p>
+    <p class="task-intro-text"><strong>Vi sentite pronti?</strong></p>
+    <a id="practice-intro-continue" class="app-btn app-btn-primary" href="{{ next_url }}">Iniziamo</a>
+  </main>
+</body>
+</html>

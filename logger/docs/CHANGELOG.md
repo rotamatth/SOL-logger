@@ -65,6 +65,40 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-21 — Add the practice question before the ID
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, serp, search-bar, autocomplete, result-viewer, logging, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — new: the practice routes under `/prova`, their guards and the practice state in the session
+- `logger/search-app/search_app.py` — registers the practice; `practice_engine_ready()`; `practice=False` in the template context; the dashboard's test search and engine status in `app.config`
+- `logger/search-app/static/practice-page.js` — new: loaded instead of `logger.js`; a logger stand-in that keeps, stores and sends nothing, plus the "?" and "La mia prima risposta" pop-ups without events
+- `logger/search-app/templates/practice_intro.html`, `practice_done.html` — new: "Facciamo una prova!" and "Avete finito la prova!"
+- `logger/search-app/static/practice.css`, `static/images/practice/volcano.svg` — new: the last page's layout and a placeholder volcano until Diletta's picture
+- `logger/search-app/templates/welcome.html` — Inizia opens `/prova`
+- `logger/search-app/templates/first_answer.html` — practice mode: no question number, the Back blocker without the logger
+- `logger/search-app/templates/layout.html` — practice mode: `practice-page.js` instead of `logger.js`, the final answer sent with the end request, and `clearClientData` that clears nothing
+- `logger/search-app/Dockerfile` — copies `practice_question.py`
+- `logger/search-app/tests/test_practice_question.py`, `tests/test_practice_question_browser.py` — new
+
+**What changed for the participant**
+After Inizia, a group first does one practice question on volcanoes: "Facciamo una prova!", the question with a first answer (stars or "Non lo so"), the search, a page, the final answer, then "Avete finito la prova!" with both answers next to a volcano. "Inizia" there leads to the ID page, and the experiment goes on as before. When the practice is off in the dashboard, or its engine is not set, Inizia leads straight to the ID page as before.
+
+**How it works**
+The practice comes before the ID, so the browser has no participant, run or log yet. Every practice route refuses once a run exists (it sends the browser back to its run), and the run's own routes keep refusing a browser without a run. The practice pages are the real templates with the practice's own endpoints (`PRACTICE_ROUTES`) and `practice=True`. They load `practice-page.js` instead of `logger.js`, so no event is kept, written to the browser's storage or sent, and the tablet's stored data (an earlier group's unsent run, for instance) is never cleared. The answers stay in the server-side session of this browser only, to draw the last page, and leave it when the group goes on to the ID (choosing an ID clears the session too). The question is the dashboard's at the moment the practice begins; a later edit does not change a practice under way. Searches use the practice engine (`theme="practice"`).
+
+**If something looks wrong after this, check**
+- A log, progress row or study record appearing for a practice → nothing should write one: `test_a_whole_practice_records_nothing`.
+- Inizia going straight to the ID page → the practice is off in the dashboard, or `VERTEX_PROVA_*` is not set on the server.
+- A pop-up not opening on the practice's search page → `practice-page.js`, which copies those two blocks from the end of `logger.js`.
+- The volcano missing on the last page → `static/images/practice/volcano.svg`.
+
+**Left alone**
+`logger.js`, every logged event, the run's routes and their guards, the start page, the questions, reviews and recap of the run, and the session numbering.
+
+**Verified**
+All 993 server tests and all 166 browser tests passed, including the practice tests: the whole flow, every refused step and token, that a whole practice leaves no log file, progress row or study record, that a browser with a run never enters the practice, and in Chromium that the practice sends nothing to `/log_session`, leaves the stored data unchanged and the real question empty. Not checked on a classroom tablet yet.
+
 ## 2026-11-21 — Let the practice question share the search pages' code
 
 **Commit:** pending · **Type:** infra · **Area:** serp, search-bar, autocomplete, result-viewer, tests
