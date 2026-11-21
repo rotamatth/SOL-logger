@@ -16,6 +16,10 @@
   <h2 id="search-first-answer-title" class="task-help-label" tabindex="-1" autofocus>La tua prima risposta è:</h2>
   {% if search_first_answer.outcome == 'unknown' %}
   <p class="search-first-answer-value">Non lo so</p>
+  {% if first_answer_change_url %}
+  {# Until the first search, a "Non lo so" can still become a written answer. #}
+  <a id="search-first-answer-change" class="app-btn app-btn-primary search-first-answer-change" href="{{ first_answer_change_url }}">Cambia la mia risposta</a>
+  {% endif %}
   {% else %}
   <p id="search-first-answer-text" class="search-first-answer-value">{{ search_first_answer.text }}</p>
   {% endif %}

@@ -134,6 +134,23 @@ SCHEMA = (
         attempt_id TEXT PRIMARY KEY REFERENCES progress_attempts(attempt_id),
         finished_at TEXT NOT NULL, pdf BLOB NOT NULL
     )""",
+    # A confirmed "Non lo so" that the group replaced with a written answer before its first search.
+    # The original row in progress_first_answers is never changed; this is kept beside it. Like the next
+    # table it needs no new schema version, so an older image still opens the database after a rollback.
+    """CREATE TABLE IF NOT EXISTS progress_first_answer_changes (
+        attempt_id TEXT NOT NULL, question_number INTEGER NOT NULL,
+        text TEXT NOT NULL CHECK(length(trim(text)) > 0),
+        confidence INTEGER NOT NULL CHECK(confidence BETWEEN 1 AND 3),
+        changed_at TEXT NOT NULL,
+        PRIMARY KEY(attempt_id, question_number),
+        FOREIGN KEY(attempt_id, question_number) REFERENCES progress_first_answers(attempt_id, question_number)
+    )""",
+    # When a question was first searched: from then on its first answer cannot change.
+    """CREATE TABLE IF NOT EXISTS progress_first_searches (
+        attempt_id TEXT NOT NULL, question_number INTEGER NOT NULL, searched_at TEXT NOT NULL,
+        PRIMARY KEY(attempt_id, question_number),
+        FOREIGN KEY(attempt_id, question_number) REFERENCES progress_tasks(attempt_id, number)
+    )""",
 )
 
 
@@ -221,7 +238,7 @@ class ProgressStore:
         attempt["is_test"] = bool(attempt["is_test"])
         attempt["metadata"] = json.loads(attempt["metadata"])
         tasks = [{"number": task["number"], "snapshot": json.loads(task["snapshot"]),
-                  "drafts": {}, "first_answer": None, "final_answer": None}
+                  "drafts": {}, "first_answer": None, "final_answer": None, "searched": False}
                  for task in db.execute("""SELECT number, snapshot FROM progress_tasks
                      WHERE attempt_id = ? ORDER BY number""", (row["attempt_id"],))]
         for draft in db.execute("SELECT * FROM progress_drafts WHERE attempt_id = ?", (row["attempt_id"],)):
@@ -234,6 +251,15 @@ class ProgressStore:
             tasks[answer["question_number"] - 1]["first_answer"] = {
                 "text": answer["text"], "outcome": answer["outcome"], "confidence": answer["confidence"],
                 "submitted_at": answer["submitted_at"]}
+        # A changed "Non lo so" is the first answer from then on; the original stays under changed_from.
+        for change in db.execute("SELECT * FROM progress_first_answer_changes WHERE attempt_id = ?",
+                                 (row["attempt_id"],)):
+            task = tasks[change["question_number"] - 1]
+            task["first_answer"] = {"text": change["text"], "outcome": "answered", "confidence": change["confidence"],
+                                    "submitted_at": change["changed_at"], "changed_from": task["first_answer"]}
+        for searched in db.execute("SELECT question_number FROM progress_first_searches WHERE attempt_id = ?",
+                                   (row["attempt_id"],)):
+            tasks[searched["question_number"] - 1]["searched"] = True
         for answer in db.execute("SELECT * FROM progress_final_answers WHERE attempt_id = ?",
                                  (row["attempt_id"],)):
             tasks[answer["question_number"] - 1]["final_answer"] = {
@@ -592,9 +618,11 @@ class ProgressStore:
                    "actual_topic_number": topics[number - 1], "task_order": topics,
                    "answer": answer["text"],
                    "answerPhase": "post-search" if event_type == "TaskEnded" else "pre-search"}
-        if event_type == "OwnKnowledgeAnswerSubmitted":
+        if event_type in ("OwnKnowledgeAnswerSubmitted", "OwnKnowledgeAnswerChanged"):
             payload["outcome"] = answer["outcome"]
             payload["confidence"] = answer["confidence"]
+        if event_type == "OwnKnowledgeAnswerChanged":
+            payload["previousOutcome"] = "unknown"
         db.execute("""INSERT INTO progress_events
             (event_id, event_key, attempt_id, question_number, type, payload, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(event_key) DO NOTHING""",
@@ -624,6 +652,55 @@ class ProgressStore:
                      "created_at": row["created_at"], "payload": json.loads(row["payload"])}
                     for row in db.execute("""SELECT * FROM progress_events
                         WHERE attempt_id = ? AND published_at IS NULL ORDER BY rowid""", (attempt_id,))]
+
+    def mark_first_search(self, key, attempt_id, question_number):
+        """Note once that the current question has been searched; its first answer can no longer change."""
+        if type(question_number) is not int or not 1 <= question_number <= 3:
+            raise ValueError("Invalid question")
+        with self._transaction(write=True) as db:
+            attempt = self._find_attempt(db, key, attempt_id)
+            if attempt["status"] != "active" or attempt["question_number"] != question_number:
+                return False
+            db.execute("INSERT OR IGNORE INTO progress_first_searches VALUES (?, ?, ?)",
+                       (attempt_id, question_number, _now()))
+            return True
+
+    def change_first_answer(self, key, attempt_id, question_number, text, confidence):
+        """Replace a confirmed "Non lo so" with a written answer, once, before the question's first search.
+
+        The original answer and its event are kept as they were. The change is stored beside them and
+        queued as its own event, OwnKnowledgeAnswerChanged. An identical retry returns the saved change.
+        """
+        if (type(question_number) is not int or not 1 <= question_number <= 3
+                or not isinstance(text, str) or not text.strip()
+                or type(confidence) is not int or confidence not in (1, 2, 3)):
+            raise ValueError("A written answer and its confidence are required")
+        with self._transaction(write=True) as db:
+            attempt = self._find_attempt(db, key, attempt_id)
+            existing = db.execute("""SELECT text, confidence, changed_at FROM progress_first_answer_changes
+                WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone()
+            if existing is not None:
+                if existing["text"] != text or existing["confidence"] != confidence:
+                    raise SubmissionConflict("The first answer has already been changed")
+                return dict(existing)
+            if (attempt["status"] != "active" or attempt["question_number"] != question_number
+                    or attempt["phase"] != "search"):
+                raise SubmissionConflict("The question is no longer open for a change")
+            original = db.execute("""SELECT outcome FROM progress_first_answers
+                WHERE attempt_id = ? AND question_number = ?""", (attempt_id, question_number)).fetchone()
+            if original is None or original["outcome"] != "unknown":
+                raise SubmissionConflict("Only a confirmed Non lo so can change")
+            if db.execute("""SELECT 1 FROM progress_first_searches WHERE attempt_id = ? AND question_number = ?""",
+                          (attempt_id, question_number)).fetchone():
+                raise SubmissionConflict("The question has already been searched")
+            changed = {"text": text, "confidence": confidence, "changed_at": _now()}
+            db.execute("""INSERT INTO progress_first_answer_changes
+                (attempt_id, question_number, text, confidence, changed_at) VALUES (?, ?, ?, ?, ?)""",
+                       (attempt_id, question_number, text, confidence, changed["changed_at"]))
+            self._queue_answer_event(db, attempt, question_number,
+                                     {"text": text, "outcome": "answered", "confidence": confidence,
+                                      "submitted_at": changed["changed_at"]}, "OwnKnowledgeAnswerChanged")
+            return changed
 
     def task_started(self, attempt_id, question_number):
         with self._transaction() as db:

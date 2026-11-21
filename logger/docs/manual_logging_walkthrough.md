@@ -15,6 +15,7 @@ the saved log therefore grows while the task is still open.
 - `idSubmitted`: emitted when the participant ID form is submitted.
 - `TaskStarted`: emitted once when the first-answer screen is first shown for an attempt/question.
 - `OwnKnowledgeAnswerSubmitted`: emitted once with the confirmed original first answer, outcome, confidence and `answerPhase: pre-search`.
+- `OwnKnowledgeAnswerChanged`: emitted at most once per question, by the server, when a confirmed "Non lo so" is replaced with a written answer before the question's first search. It carries the new `answer`, `confidence`, `outcome: answered`, `previousOutcome: unknown` and `answerPhase: pre-search`; the original `OwnKnowledgeAnswerSubmitted` stays in the log.
 - `ClickedOnSendAndTerminateTask`: emitted when the answer box is opened from the task button.
 - `OpenedAnswerBox`: emitted whenever the answer modal is shown.
 - `AnswerBoxClosed`: emitted when the answer modal is closed with the x button or by continuing search.
@@ -88,6 +89,7 @@ the saved log therefore grows while the task is still open.
 
 <!-- event-inventory:start -->
 - `OwnKnowledgeAnswerSubmitted`
+- `OwnKnowledgeAnswerChanged`
 - `autocompleteSuggestionsShown`
 - `AnswerBoxClosed`
 - `ClickedEndTaskConfirmation`

@@ -65,6 +65,37 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Let a confirmed "Non lo so" become a written answer before the first search
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, data, logging, docs, tests
+
+**Files**
+- `logger/search-app/study_progress.py` — tables `progress_first_answer_changes` and `progress_first_searches`; `change_first_answer()`, `mark_first_search()`; the attempt snapshot shows a changed answer (with `changed_from`) and each question's `searched`
+- `logger/search-app/student_progress.py` — `/first-answer/change`; `can_change()`; `mark_searched()`; `/task?change=1` shows the form for a written answer; uploads drop a tablet's own `OwnKnowledgeAnswerChanged`
+- `logger/search-app/search_app.py` — `/result` notes the question's first search before searching
+- `logger/search-app/templates/first_answer.html` — "Cambia la mia risposta" beside "Entra nel motore di ricerca"; the change form has "Annulla" instead of "Non lo so"
+- `logger/search-app/templates/search_first_answer.html` — the same button in the "La mia prima risposta" pop-up, until the first search
+- `logger/search-app/static/first-answer.js`, `static/first-answer.css`, `static/main.css` — the form without "Non lo so"; the buttons' spacing; cache versions `change-answer-1`
+- `logger/docs/manual_logging_walkthrough.md`, `logger/docs/research_dashboard.md` — the new event and the rule
+- `logger/search-app/tests/test_first_answer_change.py`, `tests/test_first_answer_change_browser.py` — new; `tests/test_manual_logging_walkthrough.py` — knows the new server event
+
+**What changed for the participant**
+After confirming "Non lo so", a group can tap "Cambia la mia risposta", write an answer and choose its stars, once, as long as it has not searched yet for that question (Diletta's point 11). The button is on the confirmed answer and in the search page's "La mia prima risposta" pop-up; it disappears with the first search. "Annulla" keeps "Non lo so".
+
+**How it works**
+Nothing is overwritten. The original "Non lo so" stays in `progress_first_answers` and its `OwnKnowledgeAnswerSubmitted` stays in the log. The written answer goes to `progress_first_answer_changes` and the outbox as `OwnKnowledgeAnswerChanged` (`answer`, `confidence`, `outcome: answered`, `previousOutcome: unknown`, `answerPhase: pre-search`), published like the other server events. `/result` notes the question's first search in `progress_first_searches` before searching, so the change closes even if the browser's session is lost; the session's search keys close it too. `change_first_answer` refuses a written first answer, a second change, a searched question and a question no longer current, and returns the saved change on an identical retry. The attempt snapshot then gives the written answer as the first answer, so the recap shows it. The two tables need no new schema version: the store accepts versions up to 7 and refuses others, so a version change would stop an older image after a rollback.
+
+**If something looks wrong after this, check**
+- "Cambia la mia risposta" missing after "Non lo so" → `can_change()`: a search already noted for the question (`progress_first_searches`), or search keys in the session.
+- Two different first answers in a log → expected after a change: `OwnKnowledgeAnswerSubmitted` (unknown) then `OwnKnowledgeAnswerChanged`.
+- An error in the change form → `first-answer.js` expects no "Non lo so" button there.
+
+**Left alone**
+A written first answer, the "Non lo so" confirmation dialog, the final answer, the schema version and the earlier events.
+
+**Verified**
+All 963 server tests passed, and 166 of 167 browser tests in the full run. The other, `test_original_is_read_only_across_search_results_viewer_and_navigation`, timed out once right after the full run; it uses a written answer, where none of this shows, and passed in 13 runs in a row afterwards. New: the change and its refusals (searched, written, second change, token, missing text or stars), the search note surviving a lost session, both events, a forged upload dropped, the recap's answer, schema version 7, and in Chromium the whole change and "Annulla".
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra
