@@ -41,6 +41,7 @@ class StudentProgress:
         app.add_url_rule("/task/intro", "task_intro", self.intro)
         app.add_url_rule("/first-answer", "first_answer", self.submit_first, methods=["POST"])
         app.add_url_rule("/first-answer/draft", "first_answer_draft", self.save_first_draft, methods=["POST"])
+        app.add_url_rule("/first-answer/change", "first_answer_change", self.change_first, methods=["POST"])
         app.add_url_rule("/final-answer/draft", "final_answer_draft", self.save_final_draft, methods=["POST"])
         app.before_request(self.guard_search)
         app.context_processor(lambda: {"study_context": self.context(), **self.search_context()})
@@ -84,7 +85,9 @@ class StudentProgress:
         if not task["first_answer"] or task["final_answer"] is not None:
             return {}
         draft = task["drafts"].get("final-answer", {"text": "", "revision": 0})
-        return {"search_first_answer": task["first_answer"], "final_answer_draft": {
+        return {"search_first_answer": task["first_answer"],
+                "first_answer_change_url": url_for("task", change=1) if self.can_change(task) else None,
+                "final_answer_draft": {
             **draft, "csrf_token": session["progress_csrf"], "attempt_id": attempt["attempt_id"],
             "question_number": session["task_position"] + 1, "url": url_for("final_answer_draft")}}
 
@@ -228,7 +231,32 @@ class StudentProgress:
         except (SubmissionConflict, OSError, sqlite3.Error):
             return False
 
-    def page(self, error=None, text=None, status=200, *, start_task=True, confidence=None):
+    @staticmethod
+    def can_change(task):
+        """A confirmed "Non lo so" may become a written answer, once, until the question is first searched."""
+        first = task["first_answer"]
+        return bool(first and first["outcome"] == "unknown" and "changed_from" not in first
+                    and not task["searched"] and task["final_answer"] is None
+                    and not session.get("results_by_query"))
+
+    def mark_searched(self):
+        """Called before a run's search: from now on this question's first answer stays as it is."""
+        attempt = self.current()
+        if attempt is None or attempt["status"] != "active":
+            return
+        number = session["task_position"] + 1
+        noted = f"{attempt['attempt_id']}:{number}"
+        if session.get("progress_searched") == noted:
+            return
+        try:
+            self.store.mark_first_search(self.key(attempt["metadata"]), attempt["attempt_id"], number)
+        except (OSError, sqlite3.Error):
+            # A search is never blocked by this note; the session's search keys still close the change.
+            self.app.logger.warning("Could not note the first search of a question")
+            return
+        session["progress_searched"] = noted
+
+    def page(self, error=None, text=None, status=200, *, start_task=True, confidence=None, change=None):
         attempt = self.current()
         if attempt["metadata"]["study_session_snapshot"]["date"] != datetime.now(ZONE).date().isoformat():
             session.clear()
@@ -255,7 +283,17 @@ class StudentProgress:
                 error = "Salvataggio non disponibile. Ricarica la pagina o chiedi al ricercatore."
                 status = 503
         draft = task["drafts"].get("first-answer", {})
+        changeable = self.can_change(task)
+        if change is None:
+            change = request.args.get("change") == "1"
+        if change and changeable:
+            return render_template("first_answer.html", task_number=number, topic=task["snapshot"]["question"],
+                                   attempt_id=attempt["attempt_id"], first_answer=None, change_mode=True,
+                                   draft_text=text or "", draft_confidence=confidence, error=error,
+                                   csrf_token=session["progress_csrf"], submit_url=url_for("first_answer_change"),
+                                   back_url=url_for("task")), status
         return render_template("first_answer.html", task_number=number, topic=task["snapshot"]["question"],
+                               change_url=url_for("task", change=1) if changeable else None,
                                attempt_id=attempt["attempt_id"], draft_revision=draft.get("revision", 0),
                                draft_text=text if text is not None else draft.get("text", ""),
                                draft_confidence=confidence if text is not None else draft.get("confidence"),
@@ -305,6 +343,31 @@ class StudentProgress:
         except (OSError, sqlite3.Error):
             return self.page("Salvataggio non riuscito. La risposta è ancora qui: riprova.",
                              request.form.get("text", ""), 503, start_task=False, confidence=confidence)
+        self.publish(attempt)
+        return redirect(url_for("task"), code=303)
+
+    def change_first(self):
+        """The group replaces its "Non lo so" with a written answer before searching."""
+        attempt, error = self.checked_context(request.form)
+        if error:
+            return error
+        text = request.form.get("text", "")
+        confidence = request.form.get("confidence")
+        confidence = int(confidence) if confidence in ("1", "2", "3") else None
+        number = int(request.form["question_number"])
+        if not self.can_change(attempt["tasks"][number - 1]):
+            return redirect(url_for("task"), code=303)
+        try:
+            self.store.change_first_answer(self.key(attempt["metadata"]), attempt["attempt_id"], number, text,
+                                           confidence)
+        except SubmissionConflict:
+            return redirect(url_for("task"), code=303)
+        except ValueError:
+            return self.page("Scrivi una risposta e scegli quanto è giusta.", text, 400, start_task=False,
+                             confidence=confidence, change=True)
+        except (OSError, sqlite3.Error):
+            return self.page("Salvataggio non riuscito. La risposta è ancora qui: riprova.", text, 503,
+                             start_task=False, confidence=confidence, change=True)
         self.publish(attempt)
         return redirect(url_for("task"), code=303)
 
@@ -411,7 +474,7 @@ class StudentProgress:
                 if final is not None and final != candidate:
                     raise ValueError("Conflicting final answers in one upload")
                 final = candidate
-            elif event["type"] not in ("TaskStarted", "OwnKnowledgeAnswerSubmitted"):
+            elif event["type"] not in ("TaskStarted", "OwnKnowledgeAnswerSubmitted", "OwnKnowledgeAnswerChanged"):
                 groups.setdefault(number, []).append(event)
         metadata = attempt["metadata"]
         if final is not None:

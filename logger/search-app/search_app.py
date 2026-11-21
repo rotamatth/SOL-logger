@@ -554,6 +554,10 @@ def result():
         return redirect(url_for('welcome'))
 
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
+    asked = request.form.get('query') if request.method == "POST" else (request.args.get("query") or session.get("query"))
+    if (asked or '').strip():
+        # Once a question has been searched, its "Non lo so" can no longer become a written answer.
+        PROGRESS.mark_searched()
     return search_results_page(theme=run_theme(), reminder=reminder)
 
 

@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% if practice %}Prova{% else %}Prima risposta · Domanda {{ task_number }}{% endif %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='child-pages-2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='first-answer.css', v='change-answer-1') }}">
   <script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}" defer></script>
-  <script src="{{ url_for('static', filename='first-answer.js', v='child-pages-2') }}" defer></script>
+  <script src="{{ url_for('static', filename='first-answer.js', v='change-answer-1') }}" defer></script>
 </head>
 <body class="first-answer-page" data-sol-step-page>
 {% include "test_run_banner.html" %}
@@ -37,8 +37,13 @@
                   placeholder="Scrivi qui la tua risposta">
 {{ draft_text }}</textarea>
         <div class="first-answer-actions">
+          {% if change_mode %}
+          {# Replacing a confirmed "Non lo so": only a written answer, or back to the saved one. #}
+          <a id="first-answer-change-cancel" class="app-btn first-answer-outline" href="{{ back_url }}">Annulla</a>
+          {% else %}
           <button id="first-answer-unknown" class="app-btn first-answer-outline" type="button"
                   aria-haspopup="dialog" aria-controls="first-answer-unknown-dialog">Non lo so</button>
+          {% endif %}
           <button id="first-answer-confirm" class="app-btn app-btn-primary" type="submit" name="outcome" value="answered">Conferma</button>
         </div>
       </div>
@@ -65,6 +70,7 @@
       <button id="first-answer-retry-draft" class="app-btn first-answer-outline" type="button" hidden>Riprova salvataggio</button>{% endif %}
     </form>
 
+    {% if not change_mode %}
     <dialog id="first-answer-unknown-dialog" class="first-answer-dialog"
             aria-labelledby="first-answer-dialog-title" aria-describedby="first-answer-dialog-description">
       <h2 id="first-answer-dialog-title">Non sai la risposta?</h2>
@@ -81,9 +87,11 @@
       </form>
     </dialog>
     {% endif %}
+    {% endif %}
 
     {% if first_answer %}
     <div class="first-answer-search">
+      {% if change_url %}<a id="first-answer-change" class="app-btn first-answer-outline" href="{{ change_url }}">Cambia la mia risposta</a>{% endif %}
       <a id="first-answer-search" class="app-btn app-btn-primary" href="{{ search_url }}">Entra nel motore di ricerca</a>
     </div>
     {% endif %}

@@ -12,7 +12,7 @@
     </div>
     {% if task.first_answer or task.final_answer %}
     <dl class="question-card-answers">
-      {% if task.first_answer %}<div><dt>{{ t('stats_first_answer') }}</dt><dd>{{ t('stats_answer_unknown') if task.first_answer.unknown else task.first_answer.text }}{% if task.first_answer.confidence %} <span class="stats-confidence" title="{{ t('stats_confidence') }}: {{ task.first_answer.confidence }}/3">{{ '★' * task.first_answer.confidence }}{{ '☆' * (3 - task.first_answer.confidence) }}</span>{% endif %}</dd></div>{% endif %}
+      {% if task.first_answer %}<div><dt>{{ t('stats_first_answer') }}</dt><dd>{{ t('stats_answer_unknown') if task.first_answer.unknown else task.first_answer.text }}{% if task.first_answer.confidence %} <span class="stats-confidence" title="{{ t('stats_confidence') }}: {{ task.first_answer.confidence }}/3">{{ '★' * task.first_answer.confidence }}{{ '☆' * (3 - task.first_answer.confidence) }}</span>{% endif %}{% if task.first_answer.changed_from_unknown %} <span class="muted stats-first-answer-changed">({{ t('stats_first_answer_changed') }})</span>{% endif %}</dd></div>{% endif %}
       {% if task.final_answer %}<div><dt>{{ t('stats_final_answer') }}</dt><dd>{{ task.final_answer }}</dd></div>{% endif %}
     </dl>
     {% endif %}

@@ -19,7 +19,8 @@
   // Conferma stays tappable, so a child who taps early is told what is missing.
   function showReadiness() {
     document.getElementById('first-answer-confirm').classList.toggle('is-waiting', !text.value.trim() || confidence() === null);
-    document.getElementById('first-answer-unknown').classList.toggle('is-waiting', Boolean(text.value.trim()));
+    // Absent when a confirmed "Non lo so" is being replaced: that form only takes a written answer.
+    document.getElementById('first-answer-unknown')?.classList.toggle('is-waiting', Boolean(text.value.trim()));
   }
   function restore(value) {
     text.value = value.text;
@@ -28,12 +29,14 @@
   }
   updateAssessment();
   const dialog = document.getElementById('first-answer-unknown-dialog');
-  document.getElementById('first-answer-unknown').addEventListener('click', () => {
-    dialog.showModal();
-  });
-  document.getElementById('first-answer-cancel-unknown').addEventListener('click', () => {
-    dialog.close();
-  });
+  if (dialog) {
+    document.getElementById('first-answer-unknown').addEventListener('click', () => {
+      dialog.showModal();
+    });
+    document.getElementById('first-answer-cancel-unknown').addEventListener('click', () => {
+      dialog.close();
+    });
+  }
   // The browser words its own warnings in the tablet's language, so the form turns them off and asks in Italian.
   function ask(event, field, message) {
     event.preventDefault();
@@ -46,7 +49,7 @@
     showReadiness();
   }));
   form.addEventListener('submit', (event) => {
-    if (!text.value.trim()) ask(event, text, 'Scrivi una risposta oppure scegli “Non lo so”.');
+    if (!text.value.trim()) ask(event, text, dialog ? 'Scrivi una risposta oppure scegli “Non lo so”.' : 'Scrivi la tua risposta.');
     else if (confidence() === null) ask(event, options[0], 'Scegli quanto è giusta la tua risposta.');
   });
 
