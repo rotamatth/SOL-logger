@@ -17,6 +17,9 @@ from werkzeug.serving import make_server
 from .test_editor_browser import REQUIRE_BROWSER_TESTS, playwright_api, until
 
 APP_ROOT = Path(__file__).resolve().parents[1]
+# The endpoints the search pages link to, named as in search_app.CHILD_ROUTES.
+CHILD_ROUTES = {"search": "search_page", "result": "result", "webpage": "webpage",
+                "autocomplete": "autocomplete", "iframe_check": "iframe_check", "end": "end_task"}
 
 
 @pytest.fixture
@@ -27,7 +30,7 @@ def student_browser():
 
     def render_student(template, **values):
         session.update(user_id="synthetic-navigation-id", task_number=1)
-        return render_template(template, session_id="synthetic-server-session", **values)
+        return render_template(template, session_id="synthetic-server-session", child_routes=CHILD_ROUTES, **values)
 
     @app.get("/search")
     def search_page():
@@ -63,6 +66,10 @@ def student_browser():
     @app.get("/next_task")
     def next_task():
         return "synthetic next question"
+
+    @app.post("/end")
+    def end_task():
+        return "", 204
 
     server = make_server("127.0.0.1", 0, app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()

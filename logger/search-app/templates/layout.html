@@ -232,7 +232,7 @@
                 autocompleteRequest = request;
                 try {
                     const response = await fetch(
-                        `/autocomplete?query=${encodeURIComponent(query)}`,
+                        `{{ url_for(child_routes.autocomplete) }}?query=${encodeURIComponent(query)}`,
                         { signal: request.signal }
                     );
 
@@ -488,7 +488,7 @@
                         await studyLogger.sendLogs();
                     }
 
-                    const response = await fetch('/end', {
+                    const response = await fetch('{{ url_for(child_routes.end) }}', {
                         method: 'POST',
                         redirect: 'manual'
                     });

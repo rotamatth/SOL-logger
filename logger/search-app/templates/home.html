@@ -10,7 +10,7 @@
         <span class="sol-red">C</span><span class="sol-green">e</span><span class="sol-blue">r</span><span class="sol-yellow">c</span><span class="sol-red">a</span>
       </div>
 
-      <form method="POST" action="{{ url_for('result') }}" id="search-bar" class="home-search-form">
+      <form method="POST" action="{{ url_for(child_routes.result) }}" id="search-bar" class="home-search-form">
         {{ form.hidden_tag() }}
         {% if reminder %}
         <button type="button"

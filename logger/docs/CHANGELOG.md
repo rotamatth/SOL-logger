@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-21 — Let the practice question share the search pages' code
+
+**Commit:** pending · **Type:** infra · **Area:** serp, search-bar, autocomplete, result-viewer, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `CHILD_ROUTES` and `child_routes` in the template context; the body of `/result` moved into `search_results_page()`, the probe of `/iframe_check` into `frame_check_response()` and the call of `/autocomplete` into `autocomplete_response()`
+- `logger/search-app/templates/home.html`, `search.html`, `webpage.html`, `layout.html` — links, forms and requests name their endpoint through `child_routes` instead of a fixed address
+- `logger/search-app/tests/test_child_routes.py` — new: a run's pages keep `/result`, `/webpage`, `/search`, `/autocomplete`, `/iframe_check` and `/end`
+- `logger/search-app/tests/ui_fixture.py`, `tests/test_student_navigation_browser.py` — their small test apps provide `child_routes` (and an `/end` route) like the real app
+
+**What changed for the participant**
+No visible change. A run's pages render the same addresses as before.
+
+**How it works**
+The practice question (PR #44) shows the same search, results and viewer pages, so it must not get copies that drift apart. The real routes keep their guards (the run's phase, the idle limit) and then call the shared function, which does exactly what the route did before. The templates take the endpoint names from `child_routes`, which the app sets to the run's routes for every page; the practice question will pass its own names.
+
+**If something looks wrong after this, check**
+- A run's search, page or answer going to a wrong address → `CHILD_ROUTES` in `search_app.py` and `test_child_routes.py`.
+- `'child_routes' is undefined` in a page → a Flask app that renders these templates without `search_app`'s context processor (test fixtures included).
+
+**Left alone**
+`logger.js`, every logged event, the guards of the run's routes, the session keys of the search, and the result cache.
+
+**Verified**
+All 971 server tests and all 165 browser tests passed. The 13 browser tests that first failed did so because their own test apps lacked `child_routes`, fixed in the fixtures.
+
 ## 2026-11-21 — Store the practice question apart from the study settings
 
 **Commit:** pending · **Type:** feature · **Area:** data, dashboard, tests
