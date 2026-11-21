@@ -164,7 +164,8 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             assert page.get_by_role("link", name="Scarica PDF").count() == 0 and page.locator("a[download]").count() == 0
             assert page.locator("#recap [data-action]").count() == 1
             page.get_by_role("button", name="Chiudi", exact=True).click()
-            page.wait_for_url("**/welcome")
+            page.wait_for_url("**/fine")
+            page.get_by_text("Alzate la mano per dire che avete finito!").wait_for()
         assert page.evaluate("sessionStorage.getItem('solFirstDraft:another-attempt:1')") == "An unrelated draft"
         assert not page.evaluate("JSON.parse(localStorage.getItem('browserHistory') || '[]').some(url => url.includes('/result'))")
     events = saved(root, "1")

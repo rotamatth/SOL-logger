@@ -245,6 +245,14 @@ access either: every student page and script is same-origin.
   the search backend logs neither corrected queries nor autocomplete suggestions.
 - Malformed result addresses are refused like any other non-web address.
 
+### End of the experiment
+
+After **Salva l'attività** and **Chiudi** on the recap, the tablet shows "Complimenti! Siete
+arrivati alla fine! … Alzate la mano per dire che avete finito!" and stays there, so the group
+knows it has finished. The run is already saved and closed. A tap does nothing; to prepare the
+tablet for the next group, a researcher **holds the SOL logo for three seconds** (it fades while
+held) and the welcome page opens with a fresh session.
+
 ## Research interpretation
 
 - A **study session** is the configured grade/date classroom experiment. It is

@@ -65,6 +65,35 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — End the experiment on an "Alzate la mano" page
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, docs, tests
+
+**Files**
+- `logger/search-app/search_app.py` — new route `/fine` (`finished_page`); `reset=1` clears the session there
+- `logger/search-app/templates/finished.html`, `static/finished.css`, `static/finished.js` — new: the end page and the researchers' three-second hold on the logo
+- `logger/search-app/student_recap.py` — the recap's Chiudi now sends the tablet to `/fine` instead of the welcome page
+- `logger/search-app/templates/study_handoff.html` — "Chiudi l'attività" goes to `/fine?reset=1`
+- `logger/docs/research_dashboard.md` — "End of the experiment"
+- `logger/search-app/tests/test_finished_page.py`, `tests/test_finished_page_browser.py` — new
+- `logger/search-app/tests/test_editable_recap.py`, `tests/test_first_answer_flow_browser.py` — expect `/fine` after Chiudi
+
+**What changed for the participant**
+After "Salva l'attività" and "Chiudi", the tablet no longer returns to the welcome page: it shows "Complimenti! Siete arrivati alla fine!", the SOL logo and "Alzate la mano per dire che avete finito!", on the blue screen of Diletta's Figma (point 8). It stays there. A researcher holds the logo for three seconds to bring the welcome page back for the next group.
+
+**How it works**
+The recap's restart saves and clears the session exactly as before, then returns `/fine` as the address to open. The end page has the Back blocker and no logger, since the run is closed. `finished.js` starts a three-second timer on `pointerdown` over the logo and cancels it on `pointerup`, `pointerleave` or `pointercancel`; when it runs out it opens `/welcome?reset=1`. The logo fades while held, and the CSS turns off the tablet's long-press menu and selection on it.
+
+**If something looks wrong after this, check**
+- The tablet back on the welcome page after Chiudi → the `welcome` value returned by `/recap/restart` in `student_recap.py`.
+- The hold not working on a tablet → `finished.js` and the `touch-action`/`-webkit-touch-callout` rules in `finished.css`.
+
+**Left alone**
+What Salva and Chiudi save and log, the legacy `end.html` page of runs without progress saving, and the welcome page.
+
+**Verified**
+All 951 server tests and all 168 browser tests passed, including the new ones: the page's texts and links, the reset only with `reset=1`, a tap or a 1.2-second press keeping the page, a 3-second hold opening the welcome page, and Back staying on the end page. Not checked on a classroom tablet yet.
+
 ## 2026-11-22 — Drop "Prova a rispondere alla domanda:" from the question introduction
 
 **Commit:** pending · **Type:** content · **Area:** task-flow, tests

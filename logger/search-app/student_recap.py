@@ -223,4 +223,5 @@ class StudentRecap:
         if not self.progress.publish(attempt):
             return jsonify(error=SAVE_ERROR), 503
         session.clear()
-        return jsonify(welcome=url_for("welcome"))
+        # The group stays on the end page until a researcher resets the tablet for the next class.
+        return jsonify(welcome=url_for("finished_page"))
