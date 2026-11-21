@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-21 — Store the practice question apart from the study settings
+
+**Commit:** pending · **Type:** feature · **Area:** data, dashboard, tests
+
+**Files**
+- `logger/search-app/research_dashboard/practice_settings.py` — new: the default (volcano question, on) and validation
+- `logger/search-app/research_dashboard/state.py` — table `practice_question`; `State.practice()` and `State.save_practice()`
+- `logger/search-app/tests/test_practice_settings.py` — new
+
+**What changed for the participant**
+No visible change yet (PR #44).
+
+**How it works**
+The practice question's topic, text and on/off switch get a table of their own in `research.sqlite3`, with their own revisions. Saving them never writes the study settings, so it cannot move a session, an ID or the settings revision that admission checks before letting a child in. A save from a form opened before someone else's save is refused (`practice_changed`). Before the first save the default applies: on, topic "Vulcani", question "Le eruzioni vulcaniche possono essere di diversi tipi. Sapete elencarne 3?". The table is created with `CREATE TABLE IF NOT EXISTS` and the schema version stays 2, so an older image opens the same database after a rollback and ignores it. Nothing a child does in the practice is stored here or anywhere else.
+
+**If something looks wrong after this, check**
+- The dashboard showing the default question after a save → the `practice_question` table in `research.sqlite3`.
+- "Saved by someone else" on the practice form → `practice_changed`, raised by `save_practice`.
+
+**Left alone**
+The study settings document, its revisions and `SETTING_FIELDS`, the schema version and the migrations.
+
+**Verified**
+`tests/test_practice_settings.py` (default, save and read back, conflict, every refused value, study settings unchanged, schema version 2, reopening), with the settings, backup and start-and-recovery tests: all passed.
+
 ## 2026-11-21 — Give the practice question its own search engine
 
 **Commit:** pending · **Type:** feature · **Area:** search-bar, autocomplete, infra, tests
