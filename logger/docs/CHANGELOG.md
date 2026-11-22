@@ -65,6 +65,7 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-20 — Enter fullscreen from the existing Inizia button
 ## 2026-11-22 — Put the recap picture in the recap PDF
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, data, docs, tests
@@ -235,6 +236,36 @@ All 963 server tests passed, and 166 of 167 browser tests in the full run. The o
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, docs, tests
 
 **Files**
+- `logger/search-app/templates/welcome.html` — standalone welcome/fullscreen host.
+- `logger/search-app/static/student-fullscreen.js` — user-triggered entry and browser fallback.
+- `logger/search-app/static/student-fullscreen.css` — full-height student frame and keyboard focus.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — entry, navigation, fallback and exit regressions.
+- `logger/docs/research_dashboard.md` — setup and browser/device limits.
+
+**What changed for the participant**
+Tapping Inizia enters fullscreen when the browser permits it. The child can move
+through the study without each page load leaving fullscreen. A refused request
+still opens the usual ID page.
+
+**How it works**
+The trusted click requests fullscreen on the welcome document, then opens the
+student app in one same-origin iframe. Only the inner student app runs its logger
+and Back guard. Returning to welcome inside the frame reuses that host.
+
+**If something looks wrong after this, check**
+- No fullscreen → browser support, fullscreen policy and whether Inizia was tapped.
+- Frame too short → `student-fullscreen.css` and the tablet's viewport/rotation.
+- Route appears unchanged → the address bar retains the welcome host's URL.
+
+**Left alone**
+Student routes, saved answers, logging contracts, the shared Back guard and the
+research dashboard. No installation, device lock or automatic fullscreen on load.
+
+**Verified**
+947 server tests and all 174 Chromium browser regressions passed, including nine
+fullscreen cases. Ruff and syntax checks for all 12 production JavaScript files
+passed. Welcome and fullscreen results screenshots were visually inspected.
+No physical classroom tablet is connected for iPad/Safari or Android acceptance.
 - `logger/search-app/search_app.py` — new route `/fine` (`finished_page`); `reset=1` clears the session there
 - `logger/search-app/templates/finished.html`, `static/finished.css`, `static/finished.js` — new: the end page and the researchers' three-second hold on the logo
 - `logger/search-app/student_recap.py` — the recap's Chiudi now sends the tablet to `/fine` instead of the welcome page

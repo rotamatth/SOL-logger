@@ -15,6 +15,30 @@ highlights follow the selected section and grade, with text labels for status. W
 use their own orange-red colour and a triangle icon so they stand out from the yellow
 interface.
 
+## Student fullscreen entry
+
+Open the student site at `/` or `/welcome`, then tap **Inizia**. On a browser
+that supports and allows fullscreen, this existing button enters fullscreen and
+opens the ID page. Keyboard users can focus the link and press Enter. There is
+no installation step and no additional fullscreen button. Browsers require this
+interaction: opening the URL alone cannot force fullscreen.
+
+The welcome document then hosts the student app in a same-origin frame, keeping
+fullscreen active while the child moves between questions, answers, results and
+the viewer. The student routes retain their existing logger and Back protection.
+The address bar keeps the outer welcome URL; the active student route is inside
+the frame. Research dashboard pages must still be opened separately.
+
+If fullscreen is unavailable, disabled or refused, **Inizia** opens the usual ID
+page in the browser. This includes older browsers that only offer a prefixed
+fullscreen API. Leaving fullscreen with Escape or the browser's own control
+keeps the app usable. Reloading the top-level page exits fullscreen and follows
+the existing server-side session recovery; fullscreen needs a new user gesture.
+Fullscreen does not lock the device to this app. Check the actual classroom
+tablet/browser before the session, including keyboard, rotation, result previews,
+Back gestures and exiting fullscreen. Chromium tests do not replace an iPad/Safari
+or Android hardware acceptance check.
+
 ## Sessions, live view, statistics and guide
 
 **Sessions** is where the dashboard opens. **View and manage** lists the sessions of a
