@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Add test IDs for the constellations and muscles topics
+
+**Commit:** pending · **Type:** feature · **Area:** session, tests, docs
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — `TEST-costellazioni` and `TEST-muscoli`, with placeholder questions
+- `logger/search-app/tests/test_permanent_test_experiment.py` — the start list ends with four test IDs; each new one runs on its topic without clips; their topics are words the app knows
+- `logger/docs/research_dashboard.md` — "Permanent test IDs"
+
+**What changed for the participant**
+No change for the children. The start page's list ends with two more test IDs, after `TEST-orecchio`. They run like the other two (red PROVA banner, any day, kept out of the results) and search the constellations and muscles engines, with three placeholder questions each.
+
+**How it works**
+Two more entries in `TEST_EXPERIMENTS`, with the topic words `costellazioni` and `muscoli`, so `known_theme` picks the new engines. Each run gets its own session, as before. The placeholders' topics start with "Segnaposto". When Diletta's questions for 4a costellazioni and 5a muscoli are in the dashboard, they replace the placeholders here, as `TEST-orecchio` got 5a orecchio's.
+
+**If something looks wrong after this, check**
+- A new test ID ends on the search error page → that topic's two env lines on the server, and `tools/check_search_engines.py`.
+- A new test ID shows a clip → `REVIEW_CLIPS` in `search_app.py` (it should list only spazio and orecchio).
+
+**Left alone**
+`TEST-spazio`, `TEST-orecchio`, and where test runs are written. The real sessions and their questions.
+
+**Verified**
+New tests for the start list, a whole run on each new test ID, and their topic words. The test ID and topic tests pass.
+
 ## 2026-11-22 — Say under a session's topic what the app understood, and warn when the search would fail
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
