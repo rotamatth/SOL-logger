@@ -25,6 +25,9 @@ services:
       - ./search-app/forms.py:/app/forms.py:ro
       - ./search-app/study_progress.py:/app/study_progress.py:ro
       - ./search-app/student_recap.py:/app/student_recap.py:ro
+      - ./search-app/student_progress.py:/app/student_progress.py:ro
+      - ./search-app/practice_question.py:/app/practice_question.py:ro
+      - ./search-app/recap_picture.py:/app/recap_picture.py:ro
       - ./search-app/research_dashboard:/app/research_dashboard:ro
       - ./search-app/templates:/app/templates:ro
       - ./search-app/static:/app/static:ro

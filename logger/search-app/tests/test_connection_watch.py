@@ -34,7 +34,8 @@ def test_the_offline_page_needs_nothing_from_the_server():
 
 def test_every_child_page_watches_the_connection():
     templates = Path(__file__).resolve().parents[1] / "templates"
-    for name in ("layout.html", "first_answer.html", "task_intro.html", "study_handoff.html", "recap.html"):
+    for name in ("layout.html", "first_answer.html", "task_intro.html", "study_handoff.html", "recap.html",
+                 "practice_intro.html", "practice_done.html", "finished.html"):
         assert "connection-watch.js" in (templates / name).read_text(), name
 
 

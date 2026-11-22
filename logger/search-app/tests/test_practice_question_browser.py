@@ -16,6 +16,9 @@ def storage(page):
 def test_a_group_goes_through_the_practice_and_on_to_its_id_without_a_trace(student_site):
     page, base, root = student_site
     sys.modules["search_backend"].practice_engine_configured = lambda: True
+    # Fullscreen refused: the app stays in the top page, where this test reads storage and requests.
+    # The fullscreen frame (#38) is covered by the production-image rehearsal.
+    page.context.add_init_script("Element.prototype.requestFullscreen = () => Promise.reject(new Error('refused'));")
     page.set_viewport_size({"width": 1024, "height": 768})
     page.goto(base + "/welcome")
     # This tablet still holds an earlier group's unsent run: the practice must leave it alone.

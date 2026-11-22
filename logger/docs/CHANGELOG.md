@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Join the 26 November changes where they meet
+
+**Commit:** pending · **Type:** infra · **Area:** task-flow, infra, tests
+
+**Files**
+- `logger/search-app/templates/practice_intro.html`, `practice_done.html`, `finished.html` — load `connection-watch.js`, like every other child page
+- `logger/search-app/tests/test_connection_watch.py` — lists the practice and end pages among the child pages
+- `logger/search-app/tests/test_practice_question_browser.py` — refuses fullscreen, so the app stays in the top page this test reads
+- `logger/docker-compose.local.yml` — mounts `student_progress.py`, `practice_question.py` and `recap_picture.py` for local UI work
+
+**What changed for the participant**
+The practice pages and the end page also show "Il collegamento non funziona" when the connection drops.
+
+**How it works**
+The merge of #44, #40, #41, #39, #42 and #38 kept every side of each conflict. `/result` notes the first search (#41) before calling the shared results function (#44), so the practice never notes one. The welcome page is Samuele's fullscreen page (#38) with Inizia leading to `/prova` (#44), so the practice runs inside the fullscreen frame. The welcome page itself stays without the connection watch: it hosts the frame, whose pages send the signal.
+
+**If something looks wrong after this, check**
+- A page without the notice → whether it loads `connection-watch.js` (`test_every_child_page_watches_the_connection`).
+
+**Left alone**
+Everything the six PRs do on their own.
+
+**Verified**
+All 1058 server tests passed, and 184 of 185 browser tests in the full run. The other was the practice browser test, which needed the fullscreen refusal above; it passed with Samuele's fullscreen tests afterwards.
+
 ## 2026-11-20 — Enter fullscreen from the existing Inizia button
 ## 2026-11-22 — Put the recap picture in the recap PDF
 
