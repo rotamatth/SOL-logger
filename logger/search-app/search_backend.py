@@ -40,11 +40,11 @@ autocomplete_query_model is optional and defaults to search-history, which
 matches Vertex AI Search website data stores.
 The vertex Ai or search agent has to be set up on google console.
 
-Two datasets can be served side by side. Set VERTEX_SPAZIO_ENGINE_ID and
-VERTEX_SPAZIO_DATA_STORE_ID, and the same two for ORECCHIO, and each run searches
-the engine of its question set's theme. A theme without its own engine then fails
-visibly on the search page: it never answers from another theme's dataset. With
-none of these set, every run uses the single engine above, as before.
+Each class topic can have its own dataset. Set VERTEX_SPAZIO_ENGINE_ID and
+VERTEX_SPAZIO_DATA_STORE_ID, and the same two for ORECCHIO, COSTELLAZIONI and MUSCOLI,
+and each run searches the engine of its question set's theme. A theme without its own
+engine then fails visibly on the search page: it never answers from another theme's
+dataset. With none of these set, every run uses the single engine above, as before.
 
 The practice question before the ID has an engine of its own, on a topic no class
 studies: VERTEX_PROVA_ENGINE_ID and VERTEX_PROVA_DATA_STORE_ID. It is kept apart
@@ -138,7 +138,7 @@ def load_vertex_config():
 
 
 # Theme names come from the caller, which reads them from the frozen question set.
-VERTEX_THEME_SETTINGS = {"space": "SPAZIO", "ear": "ORECCHIO"}
+VERTEX_THEME_SETTINGS = {"space": "SPAZIO", "ear": "ORECCHIO", "constellations": "COSTELLAZIONI", "muscles": "MUSCOLI"}
 
 
 def load_theme_configs(default):
@@ -414,6 +414,11 @@ def vertex_config_for(theme):
         logger.error("[Vertex Config ERROR] No search engine is set for this run's theme")
         raise RuntimeError("No search engine is set for this run's theme")
     return config
+
+
+def theme_engine_ready(theme):
+    """Whether a run of this theme can search: always on a single engine, else only with an engine of its own."""
+    return SEARCH_BACKEND != "vertex" or not _theme_configs or theme in _theme_configs
 
 
 def search(query, page, rpp, theme=None):

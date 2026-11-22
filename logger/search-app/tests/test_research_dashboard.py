@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlsplit
 from .enrollment_helpers import enroll_initial_roster, school_year
 
 import pytest
+from .backend_stub import search_backend_stub
 from flask import Flask, session
 from werkzeug.security import generate_password_hash
 
@@ -575,7 +576,7 @@ def test_existing_student_flow_writes_logs_and_question_snapshot(tmp_path, monke
     monkeypatch.setenv("RESEARCH_LEGACY_LOG_DIR", str(tmp_path / "legacy"))
     monkeypatch.setenv("RESEARCH_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("SOL_GIT_COMMIT", "integration-commit")
-    monkeypatch.setitem(sys.modules, "search_backend", types.ModuleType("search_backend"))
+    monkeypatch.setitem(sys.modules, "search_backend", search_backend_stub())
     # Flask-Session's filesystem backend otherwise uses the app cwd.
     import flask_session
     original = flask_session.Session

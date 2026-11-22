@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 import importlib.util
 import json
 import sys
-import types
 
+from .backend_stub import search_backend_stub
 from .enrollment_helpers import enroll_initial_roster, school_year
 
 import pytest
@@ -22,7 +22,7 @@ def student_modules(tmp_path, monkeypatch):
     monkeypatch.setenv("SOL_LOG_DIR", str(tmp_path / "v2"))
     monkeypatch.setenv("RESEARCH_LEGACY_LOG_DIR", str(tmp_path / "legacy"))
     monkeypatch.setenv("RESEARCH_STATE_DIR", str(tmp_path / "state"))
-    monkeypatch.setitem(sys.modules, "search_backend", types.ModuleType("search_backend"))
+    monkeypatch.setitem(sys.modules, "search_backend", search_backend_stub())
     import flask_session
     original = flask_session.Session
 

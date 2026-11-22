@@ -65,6 +65,7 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Say under a session's topic what the app understood, and warn when the search would fail
 ## 2026-11-22 — Join the 26 November changes where they meet
 
 **Commit:** pending · **Type:** infra · **Area:** task-flow, infra, tests
@@ -366,6 +367,81 @@ The other engines' variables.
 **Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
 
 **Files**
+- `logger/search-app/search_backend.py` — `theme_engine_ready(theme)`: whether a run of that topic can search
+- `logger/search-app/search_app.py` — `topic_search_status(text)` and the four topic words, handed to the dashboard through `app.config`
+- `logger/search-app/research_dashboard/question_views.py`, `templates/research/session_questions.html`, `i18n.py` — the line under "Tema della sessione" and the suggestions in the field
+- `logger/docs/research_dashboard.md` — "Session topic"
+- `logger/search-app/tests/test_class_topics.py` — the line in its four states; `tests/backend_stub.py` — new, the stand-in search backend of the tests that load the whole app, now shared by three of them
+
+**What changed for the participant**
+No visible change for the children. On the dashboard's questions page, the topic field suggests `spazio`, `orecchio`, `costellazioni` and `muscoli`, and the line under it says "Tema riconosciuto: muscoli." or, in a yellow warning, that the children's search would show an error: the app does not know the word, or the topic has no engine on the server (naming the two env lines). An empty field says "Nessun tema. Scrivi uno di questi: …".
+
+**How it works**
+The topic is free text, and a typo used to show up only in class, as the search error page. `topic_search_status` runs the text through `known_theme` and asks `search_backend.theme_engine_ready`, which is true with no per-topic engines (every run uses the single engine) and otherwise only for a topic that has its own. The dashboard reads the function from `app.config["TOPIC_SEARCH_STATUS"]`, so a dashboard without the children's app (its own tests) shows no line. The line reflects the text as last saved, not as it is being typed.
+
+**If something looks wrong after this, check**
+- No line under the topic → `TOPIC_SEARCH_STATUS` in `app.config` (set at the end of the topic code in `search_app.py`).
+- A warning although the class searched fine → the topic text saved for the session, and `tools/check_search_engines.py` on the server.
+- A test that loads the whole app failing on `theme_engine_ready` → it needs `tests/backend_stub.py`.
+
+**Left alone**
+Saving and approving: a warning never blocks them. The engines, the topics and the children's pages.
+
+**Verified**
+New tests for the recognised topic, a topic without an engine, an unknown word, an empty field, a dashboard without the children's app, and the status function on the real backend with four, two and no engines. All 976 server tests and 165 browser tests pass. Creating both 2 December sessions in the Italian dashboard, on a copy of the 10 November setup, gives Session 2 with the right ten IDs, the recognised topic and "Pubblicata".
+
+## 2026-11-22 — Add the constellations and muscles topics, each with its own search engine
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, serp, autocomplete, infra, docs, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `TOPIC_NAMES`: the words a session's topic may be typed with, now also `costellazioni` and `muscoli`; `REVIEW_ARTWORK_THEMES` is built from it
+- `logger/search-app/search_backend.py` — `VERTEX_THEME_SETTINGS` gains `COSTELLAZIONI` and `MUSCOLI`
+- `logger/search-app/student_progress.py` — intro lines for both topics
+- `logger/search-app/tools/check_search_engines.py` — asks the two new engines too, and names a topic without an engine instead of failing on it
+- `logger/docker-compose.yml` — passes `VERTEX_COSTELLAZIONI_*` and `VERTEX_MUSCOLI_*` to the app
+- `logger/docs/production_readiness.md` — "Search engines per theme": the four topics and the words to type
+- `logger/search-app/tests/test_class_topics.py` — new; `test_child_pages.py`, `test_search_by_theme.py` — the new topics in the existing cases
+
+**What changed for the participant**
+On 2 December class 4 searches constellations and class 5 muscles, each in its own dataset (Google apps `SOL-app-constellations` and `SOL-app-muscles`). The "Cominciamo!" page says "In classe state studiando le curiosità dell'universo." (constellations) or "… del corpo umano." (muscles), then "Ma ci sono ancora tante cose da imparare!": Diletta will write the line about the topic itself. There are no clips or recap drawing for these topics yet, so the page after each question shows the two answers alone and the recap has its plain layout; the recap PDF is text only.
+
+**How it works**
+A session's topic is the free text "Tema della sessione" in the dashboard. `known_theme` matches it, ignoring case and extra spaces, against `TOPIC_NAMES` and gives `constellations` or `muscles`. `search_backend` then reads `VERTEX_COSTELLAZIONI_ENGINE_ID` / `_DATA_STORE_ID` or `VERTEX_MUSCOLI_*`. As for spazio and orecchio, once any topic has its own engine, a run whose topic has none gets the search error page and never searches another topic's dataset. `corpo umano` alone still means orecchio, as before, so the muscles topic is typed `muscoli` or `corpo umano (muscoli)`.
+
+**If something looks wrong after this, check**
+- Search error page for a constellations or muscles class → the two lines of that topic in the server's `logger/.env`, then `docker compose up -d --wait search_app` and `tools/check_search_engines.py`.
+- A class searching the wrong dataset → the topic typed for its session in the dashboard (`corpo umano` is orecchio).
+- An orecchio clip on a new topic → `REVIEW_CLIPS` (previous entry).
+
+**Left alone**
+Spazio and orecchio: their engines, words, clips, drawings and test IDs. The prova's engine. No test IDs for the new topics yet: they need the real questions.
+
+**Verified**
+New tests: each new topic searches and completes on its own engine and never on an old one; the dashboard words pick the topic; the intro lines; a full run on each topic ends on the plain recap with no clip; the engine check with four and with two engines; compose passes the four variables. The topic, search, child page and test-ID tests pass.
+
+## 2026-11-22 — Show a question's clip only for a topic that has clips
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `REVIEW_CLIPS`, the topics with clips by clip name; `task_review` shows a clip only for those
+- `logger/search-app/tests/test_child_pages.py` — a topic without clips
+
+**What changed for the participant**
+No visible change for spazio and orecchio. A topic without clips now shows its two answers alone on the page after each question, instead of an orecchio clip.
+
+**How it works**
+`task_review` chose the clip with `'Spazio' if theme == 'space' else 'Orecchio'`, so every other known topic got the orecchio clips, stills and arrows. It now looks the topic up in `REVIEW_CLIPS` and leaves `animation`, `poster` and `piece` empty when the topic is not there; the template then shows its `unlock--none` layout, the two cards side by side.
+
+**If something looks wrong after this, check**
+- A spazio or orecchio review without its clip → `REVIEW_CLIPS` and `test_the_review_page_is_the_figmas_with_the_right_clip_and_still`.
+
+**Left alone**
+The clips, stills, arrows and `study-review.css`; the recap picture, which already falls back to the plain layout for a topic without a drawing.
+
+**Verified**
+The new test fails before the change (an orecchio clip on a "vulcani" review) and passes after it; all child page tests pass.
 - `logger/search-app/research_dashboard/practice_views.py` — new: `/dashboard/settings/practice`, saving the practice and trying a search on its engine
 - `logger/search-app/research_dashboard/templates/research/practice.html` — new: the page
 - `logger/search-app/research_dashboard/templates/research/settings_navigation.html` — a third tab, "Practice question"

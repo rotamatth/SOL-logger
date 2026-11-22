@@ -33,7 +33,13 @@
       <label for="library-set">{{ t('question_library') }}</label><select name="library_set" id="library-set"><option value="">{{ t('choose_question_set') }}</option>{% for item in library %}<option value="{{ item.id }}">{{ item.label }}</option>{% endfor %}</select>
       <button type="submit" name="action" value="load_set">{{ t('load_question_set') }}</button><p class="small muted">{{ t('library_load_hint') }}</p>
     </details>
-    <label for="question-theme">{{ t('question_theme') }}</label><input id="question-theme" name="theme" value="{{ draft.get('theme', '') }}" maxlength="200">
+    <label for="question-theme">{{ t('question_theme') }}</label><input id="question-theme" name="theme" value="{{ draft.get('theme', '') }}" maxlength="200"{% if topic_words %} list="question-theme-words"{% endif %}{% if topic_status %} aria-describedby="question-theme-status"{% endif %}>
+    {% if topic_words %}<datalist id="question-theme-words">{% for word in topic_words %}<option value="{{ word }}">{% endfor %}</datalist>{% endif %}
+    {% if topic_status %}{% set typed = draft.get('theme', '')|trim %}
+    {% if not topic_status.searches %}<p class="notice warning" id="question-theme-status">{% if topic_status.topic %}{{ t('topic_engine_missing').format(topic=topic_status.topic, setting=topic_status.setting) }}{% else %}{{ t('topic_unknown_no_search' if typed else 'topic_missing').format(topics=topic_words|join(', ')) }}{% endif %}</p>
+    {% elif topic_status.topic %}<p class="small muted" id="question-theme-status">{{ t('topic_recognised').format(topic=topic_status.topic) }}</p>
+    {% else %}<p class="small muted" id="question-theme-status">{{ t('topic_unknown' if typed else 'topic_missing').format(topics=topic_words|join(', ')) }}</p>{% endif %}
+    {% endif %}
     {% for slot in range(3) %}{% set question = draft.questions[slot] if slot < draft.questions | length else {} %}
     <fieldset><legend>{{ t('editable_question') }} {{ slot + 1 }}</legend>
       <label for="topic-{{ slot }}">{{ t('question_topic') }}</label><input id="topic-{{ slot }}" name="topic_{{ slot }}" value="{{ question.get('topic', '') }}" maxlength="200">

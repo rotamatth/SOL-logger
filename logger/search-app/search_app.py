@@ -1137,11 +1137,17 @@ def end_task():
     return redirect(url_for('next_task'))
 
 
-REVIEW_ARTWORK_THEMES = {
-    'spazio': 'space', 'tema spazio': 'space', 'sistema solare': 'space', 'space': 'space',
-    'corpo umano': 'ear', 'corpo umano (orecchio)': 'ear', 'tema corpo umano (orecchio)': 'ear',
-    'orecchio': 'ear', 'udito': 'ear',
+# The topics a session can have, by the words its "Tema della sessione" may be typed with in the dashboard; the first
+# word is the one to type. The topic picks the search engine (search_backend.VERTEX_THEME_SETTINGS), the intro line,
+# the clips and the recap drawing. Constellations (class 4) and muscles (class 5), for 2 December 2026, have no clips
+# or drawing yet: their pages show the answers alone, on the plain recap.
+TOPIC_NAMES = {
+    'space': ('spazio', 'tema spazio', 'sistema solare', 'space'),
+    'ear': ('orecchio', 'corpo umano', 'corpo umano (orecchio)', 'tema corpo umano (orecchio)', 'udito'),
+    'constellations': ('costellazioni', 'costellazione', 'tema costellazioni'),
+    'muscles': ('muscoli', 'muscolo', 'tema muscoli', 'corpo umano (muscoli)', 'tema corpo umano (muscoli)'),
 }
+REVIEW_ARTWORK_THEMES = {name: theme for theme, names in TOPIC_NAMES.items() for name in names}
 
 
 # The dashed arrow from the first answer to the final one, on the review page's 760 x 420 stage.
@@ -1150,6 +1156,9 @@ _ARROW_RIGHT = {"line": "M610 112 C 700 200, 680 330, 604 362", "tip": "M615 351
 _ARROW_FAR_LEFT = {"line": "M165 100 C 80 190, 90 320, 168 360", "tip": "M156 362 L168 360 L161 349", "x": 105, "y": 249}
 REVIEW_ARROWS = {'space-1': _ARROW_LEFT, 'ear-1': _ARROW_LEFT, 'space-2': _ARROW_RIGHT, 'ear-2': _ARROW_RIGHT,
                  'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT}
+# The topics whose three clips and stills are in static/ (made by tools/prepare_review_media.py), by clip name.
+# A topic missing here shows its two answers alone. Adding one also needs its pieces in study-review.css and above.
+REVIEW_CLIPS = {'space': 'Spazio', 'ear': 'Orecchio'}
 
 
 def known_theme(*labels):
@@ -1159,6 +1168,17 @@ def known_theme(*labels):
             if theme:
                 return theme
     return None
+
+
+def topic_search_status(text):
+    """For the dashboard, under a session's topic: the topic the text picks, and whether its runs can search."""
+    theme = known_theme(text)
+    return {'topic': TOPIC_NAMES[theme][0] if theme else None, 'searches': search_backend.theme_engine_ready(theme),
+            'setting': search_backend.VERTEX_THEME_SETTINGS.get(theme)}
+
+
+app.config['TOPIC_SEARCH_STATUS'] = topic_search_status
+app.config['TOPIC_WORDS'] = tuple(names[0] for names in TOPIC_NAMES.values())
 
 
 def review_artwork_theme(progress):
@@ -1189,9 +1209,8 @@ def task_review(number):
     theme = review_artwork_theme(progress)
     topic = str(task['snapshot']['topic_id'])
     animation = poster = piece = None
-    if theme and topic in ('1', '2', '3'):
-        prefix = 'Spazio' if theme == 'space' else 'Orecchio'
-        animation = f'videos/review/{prefix}_0{topic}.mp4'
+    if theme in REVIEW_CLIPS and topic in ('1', '2', '3'):
+        animation = f'videos/review/{REVIEW_CLIPS[theme]}_0{topic}.mp4'
         poster = f'images/review/{theme}-{topic}.webp'
         piece = f'{theme}-{topic}'
     return render_template('study_handoff.html', review_tasks=[task], review_only=True,

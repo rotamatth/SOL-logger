@@ -45,6 +45,7 @@ def test_a_new_run_opens_with_cominciamo_then_the_question_then_the_form(site):
 
 
 @pytest.mark.parametrize(("theme", "expected", "other"), [("spazio", "universo", "corpo umano"), ("Corpo umano (orecchio)", "corpo umano", "universo"),
+                                                          ("costellazioni", "universo", "sistema solare"), ("muscoli", "corpo umano", "orecchio"),
                                                           ("Another theme", "tante cose da imparare", "universo")])
 def test_cominciamo_speaks_of_the_sessions_own_theme(student_modules, theme, expected, other):
     module = student_modules()
@@ -117,6 +118,17 @@ def test_the_review_page_is_the_figmas_with_the_right_clip_and_still(site):
     assert f"unlock--ear-{slot}" in page and "Avete sbloccato il primo riassunto delle vostre risposte!" in page
     assert "Prima Dopo" in page and "Dopo" in page
     assert "Rivedi la tua risposta" not in page and "controls" not in page
+
+
+def test_a_topic_without_clips_shows_the_two_answers_alone(student_modules, monkeypatch):
+    module = student_modules()
+    monkeypatch.setitem(module.REVIEW_ARTWORK_THEMES, "vulcani", "volcanoes")
+    schedule(module, {**question_set(), "theme": "vulcani"})
+    client = begin(module)
+    finish_question(client, "Dopo")
+    page = client.get("/task-review/1").text
+    assert "unlock--none" in page and "Prima Dopo" in page and "Cosa sai adesso" in page
+    assert "<video" not in page and "unlock-arrow" not in page and "/static/videos/review/" not in page
 
 
 @pytest.mark.parametrize(("theme", "clip"), [("space", "Spazio"), ("ear", "Orecchio")])
