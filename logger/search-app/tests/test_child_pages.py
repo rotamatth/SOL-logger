@@ -118,6 +118,17 @@ def test_the_review_page_is_the_figmas_with_the_right_clip_and_still(site):
     assert "Rivedi la tua risposta" not in page and "controls" not in page
 
 
+def test_a_topic_without_clips_shows_the_two_answers_alone(student_modules, monkeypatch):
+    module = student_modules()
+    monkeypatch.setitem(module.REVIEW_ARTWORK_THEMES, "vulcani", "volcanoes")
+    schedule(module, {**question_set(), "theme": "vulcani"})
+    client = begin(module)
+    finish_question(client, "Dopo")
+    page = client.get("/task-review/1").text
+    assert "unlock--none" in page and "Prima Dopo" in page and "Cosa sai adesso" in page
+    assert "<video" not in page and "unlock-arrow" not in page and "/static/videos/review/" not in page
+
+
 @pytest.mark.parametrize(("theme", "clip"), [("space", "Spazio"), ("ear", "Orecchio")])
 @pytest.mark.parametrize("slot", ["1", "2", "3"])
 def test_every_clip_and_still_is_there_and_nothing_needs_the_black_filter(theme, clip, slot):

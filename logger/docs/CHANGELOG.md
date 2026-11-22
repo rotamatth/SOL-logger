@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Show a question's clip only for a topic that has clips
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `REVIEW_CLIPS`, the topics with clips by clip name; `task_review` shows a clip only for those
+- `logger/search-app/tests/test_child_pages.py` — a topic without clips
+
+**What changed for the participant**
+No visible change for spazio and orecchio. A topic without clips now shows its two answers alone on the page after each question, instead of an orecchio clip.
+
+**How it works**
+`task_review` chose the clip with `'Spazio' if theme == 'space' else 'Orecchio'`, so every other known topic got the orecchio clips, stills and arrows. It now looks the topic up in `REVIEW_CLIPS` and leaves `animation`, `poster` and `piece` empty when the topic is not there; the template then shows its `unlock--none` layout, the two cards side by side.
+
+**If something looks wrong after this, check**
+- A spazio or orecchio review without its clip → `REVIEW_CLIPS` and `test_the_review_page_is_the_figmas_with_the_right_clip_and_still`.
+
+**Left alone**
+The clips, stills, arrows and `study-review.css`; the recap picture, which already falls back to the plain layout for a topic without a drawing.
+
+**Verified**
+The new test fails before the change (an orecchio clip on a "vulcani" review) and passes after it; all child page tests pass.
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra

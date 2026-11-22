@@ -1075,6 +1075,9 @@ _ARROW_RIGHT = {"line": "M610 112 C 700 200, 680 330, 604 362", "tip": "M615 351
 _ARROW_FAR_LEFT = {"line": "M165 100 C 80 190, 90 320, 168 360", "tip": "M156 362 L168 360 L161 349", "x": 105, "y": 249}
 REVIEW_ARROWS = {'space-1': _ARROW_LEFT, 'ear-1': _ARROW_LEFT, 'space-2': _ARROW_RIGHT, 'ear-2': _ARROW_RIGHT,
                  'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT}
+# The topics whose three clips and stills are in static/ (made by tools/prepare_review_media.py), by clip name.
+# A topic missing here shows its two answers alone. Adding one also needs its pieces in study-review.css and above.
+REVIEW_CLIPS = {'space': 'Spazio', 'ear': 'Orecchio'}
 
 
 def known_theme(*labels):
@@ -1114,9 +1117,8 @@ def task_review(number):
     theme = review_artwork_theme(progress)
     topic = str(task['snapshot']['topic_id'])
     animation = poster = piece = None
-    if theme and topic in ('1', '2', '3'):
-        prefix = 'Spazio' if theme == 'space' else 'Orecchio'
-        animation = f'videos/review/{prefix}_0{topic}.mp4'
+    if theme in REVIEW_CLIPS and topic in ('1', '2', '3'):
+        animation = f'videos/review/{REVIEW_CLIPS[theme]}_0{topic}.mp4'
         poster = f'images/review/{theme}-{topic}.webp'
         piece = f'{theme}-{topic}'
     return render_template('study_handoff.html', review_tasks=[task], review_only=True,
