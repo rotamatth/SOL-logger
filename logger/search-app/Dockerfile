@@ -19,7 +19,7 @@ RUN python -m pip install --only-binary :all: --require-hashes -r requirements.l
 # Only what the app needs at run time: no tests, other requirement files or local secrets.
 # tests/test_container_image.py fails when a file or folder is neither listed here nor
 # deliberately left out.
-COPY forms.py practice_question.py search_app.py search_backend.py student_progress.py student_recap.py study_progress.py ./
+COPY forms.py practice_question.py recap_picture.py search_app.py search_backend.py student_progress.py student_recap.py study_progress.py ./
 COPY data/ data/
 COPY research_dashboard/ research_dashboard/
 COPY static/ static/

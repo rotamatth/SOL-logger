@@ -124,7 +124,8 @@ PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
                            lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw),
                            test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt))
 app.config["SOL_RECAP_BACKGROUND"] = os.getenv("SOL_RECAP_BACKGROUND")
-RECAP = StudentRecap(app, PROGRESS)
+# The recap picture (drawing and theme) also goes into the recap PDF; the helpers are defined further down.
+RECAP = StudentRecap(app, PROGRESS, artwork=lambda progress: (review_illustration(progress), review_artwork_theme(progress)))
 
 
 @app.get('/health/ready')
