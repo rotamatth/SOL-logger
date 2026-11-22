@@ -1,8 +1,9 @@
 """The practice question ("prova") between the welcome page and the ID. It records nothing.
 
 A group tries the whole flow once on a topic no class studies: the question, a first answer (stars or
-"Non lo so"), the search, a page, a final answer and a picture with both answers. Then it chooses its ID
-and the experiment starts as before.
+"Non lo so", which can become a written answer until the first search, as in the real questions), the
+search, a page, a final answer and a picture with both answers. Then it chooses its ID and the experiment
+starts as before.
 
 Nothing is recorded, by construction:
 - It comes before the ID, so this browser has no participant, run or log yet. Every route here refuses
@@ -39,6 +40,7 @@ class PracticeQuestion:
         for rule, endpoint, view, methods in (
                 ("/prova", "practice_intro", self.intro, ["GET"]),
                 ("/prova/domanda", "practice_question", self.question, ["GET", "POST"]),
+                ("/prova/cambia", "practice_change", self.change, ["POST"]),
                 ("/prova/cerca", "practice_search", self.search, ["GET"]),
                 ("/prova/risultati", "practice_result", self.result, ["GET", "POST"]),
                 ("/prova/pagina", "practice_webpage", self.webpage, ["GET"]),
@@ -103,13 +105,20 @@ class PracticeQuestion:
         return state
 
     @staticmethod
+    def can_change(state):
+        """As in a real question: a confirmed "Non lo so" may become a written answer, once, until the first search."""
+        first = state and state["first"]
+        return bool(first and first["outcome"] == "unknown" and state["final"] is None
+                    and not session.get("results_by_query"))
+
+    @staticmethod
     def valid_token(state, token):
         return isinstance(token, str) and secrets.compare_digest(token, state["csrf"])
 
-    @staticmethod
-    def page_values(state):
+    def page_values(self, state):
         return {"practice": True, "practice_csrf": state["csrf"], "session_id": f"prova-{state['id']}",
-                "search_first_answer": state["first"], "child_routes": PRACTICE_ROUTES}
+                "search_first_answer": state["first"], "child_routes": PRACTICE_ROUTES,
+                "first_answer_change_url": url_for("practice_question", change=1) if self.can_change(state) else None}
 
     # -- Pages --------------------------------------------------------------------------------
 
@@ -129,14 +138,23 @@ class PracticeQuestion:
             return redirect(self.step_url(state))
         if request.method == "POST":
             return self.submit_first(state)
+        if request.args.get("change") == "1" and self.can_change(state):
+            return self.change_page(state)
         return self.first_page(state)
 
     def first_page(self, state, error=None, text="", confidence=None, status=200):
         return render_template("first_answer.html", practice=True, task_number=None, topic=state["question"],
                                attempt_id=state["id"], first_answer=state["first"], error=error,
                                draft_text=text, draft_confidence=confidence, csrf_token=state["csrf"],
-                               submit_url=url_for("practice_question"),
-                               search_url=url_for("practice_search")), status
+                               submit_url=url_for("practice_question"), search_url=url_for("practice_search"),
+                               change_url=url_for("practice_question", change=1) if self.can_change(state) else None
+                               ), status
+
+    def change_page(self, state, error=None, text="", confidence=None, status=200):
+        return render_template("first_answer.html", practice=True, task_number=None, topic=state["question"],
+                               attempt_id=state["id"], first_answer=None, change_mode=True, error=error,
+                               draft_text=text, draft_confidence=confidence, csrf_token=state["csrf"],
+                               submit_url=url_for("practice_change"), back_url=url_for("practice_question")), status
 
     def submit_first(self, state):
         if not self.valid_token(state, request.form.get("csrf_token")):
@@ -156,6 +174,24 @@ class PracticeQuestion:
         session[STATE_KEY] = {**state, "first": first}
         return redirect(url_for("practice_question"), code=303)
 
+    def change(self):
+        """The group replaces its "Non lo so" with a written answer before searching. Only in this session."""
+        if refused := self.blocked():
+            return refused
+        state = self.state()
+        if not self.can_change(state):
+            return redirect(self.step_url(state), code=303)
+        if not self.valid_token(state, request.form.get("csrf_token")):
+            return jsonify(error="Conferma scaduta: ricarica la pagina."), 403
+        text = request.form.get("text", "")
+        confidence = request.form.get("confidence")
+        confidence = int(confidence) if confidence in ("1", "2", "3") else None
+        if not text.strip() or len(text) > ANSWER_MAX or confidence is None:
+            return self.change_page(state, "Scrivi una risposta e scegli quanto è giusta.", text[:ANSWER_MAX],
+                                    confidence, 400)
+        session[STATE_KEY] = {**state, "first": {"outcome": "answered", "text": text, "confidence": confidence}}
+        return redirect(url_for("practice_question"), code=303)
+
     def search(self):
         if refused := self.blocked():
             return refused
@@ -170,7 +206,8 @@ class PracticeQuestion:
         state = self.state()
         if self.step(state) != "search":
             return redirect(self.step_url(state))
-        values = self.page_values(state)
+        # These values are taken before the search runs; results and pages always follow a search, which ends the change.
+        values = {**self.page_values(state), "first_answer_change_url": None}
         return self.search_results(theme=PRACTICE_THEME, reminder=state["question"],
                                    routes=values.pop("child_routes"), **values)
 
@@ -184,7 +221,8 @@ class PracticeQuestion:
         if not self.is_web_address(url):
             return redirect(url_for("practice_search"))
         return render_template("webpage.html", url=url, query=request.args.get("query", ""),
-                               page=request.args.get("page", "1"), show_search=False, **self.page_values(state))
+                               page=request.args.get("page", "1"), show_search=False,
+                               **{**self.page_values(state), "first_answer_change_url": None})
 
     def iframe_check(self):
         if self.searching() is None:

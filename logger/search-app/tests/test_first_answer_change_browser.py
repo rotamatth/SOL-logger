@@ -31,7 +31,7 @@ def test_a_group_replaces_non_lo_so_before_searching(student_site):
     page.wait_for_url("**/search")
     page.click("#search-first-answer-btn")
     assert "Un cane di nome Laika" in page.locator("#search-first-answer-dialog").inner_text()
-    assert page.locator("#search-first-answer-change").count() == 0
+    assert page.locator("#search-change-answer").count() == 0
     assert errors == []
     events = saved(root, "1")
     assert [event["outcome"] for event in types_of(events, "OwnKnowledgeAnswerSubmitted")] == ["unknown"]

@@ -87,6 +87,9 @@ def test_confirmed_unknown_resumes_as_unknown_in_a_fresh_browser(student_site):
         resumed.click("#continue-btn")
         resumed.click("a#first-answer-search")
         resumed.wait_for_url("**/search")
+        # Still "Non lo so" before the first search: the button at the top right offers its change.
+        assert resumed.locator("#search-change-answer").inner_text() == "Cambia la mia risposta"
+        search(resumed, "laika")
         show(resumed)
         dialog = resumed.locator("#search-first-answer-dialog")
         assert "Non lo so" in dialog.inner_text() and dialog.locator("textarea,input").count() == 0
