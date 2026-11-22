@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from .test_backend_privacy import backend  # noqa: F401
+from .test_research_dashboard import app, login  # noqa: F401
+from .test_session_question_editor import URL, configured, editor_form
 from .test_child_pages import recap_page
 from .test_connected_first_answer import begin
 from .test_search_by_theme import engines
@@ -82,3 +84,57 @@ def test_the_server_passes_the_new_topic_engines_to_the_app():
     for label in ("COSTELLAZIONI", "MUSCOLI"):
         for name in (f"VERTEX_{label}_ENGINE_ID", f"VERTEX_{label}_DATA_STORE_ID"):
             assert f'{name}: "${{{name}:-}}"' in compose
+
+
+@pytest.mark.parametrize(("settings", "label", "expected"), [
+    (ALL, "Costellazioni", {"topic": "costellazioni", "searches": True, "setting": "COSTELLAZIONI"}),
+    (OLD, "muscoli", {"topic": "muscoli", "searches": False, "setting": "MUSCOLI"}),
+    (ALL, "costelazioni", {"topic": None, "searches": False, "setting": None}),
+    ({}, "costelazioni", {"topic": None, "searches": True, "setting": None})])
+def test_the_dashboard_hears_which_topic_a_text_picks_and_whether_it_searches(student_modules, backend, monkeypatch,
+                                                                              settings, label, expected):
+    monkeypatch.chdir(APP_ROOT)  # The backend fixture left the app's folder, which the children's app reads from.
+    module = student_modules()
+    engines(backend, monkeypatch, settings)
+    monkeypatch.setattr(module, "search_backend", backend)
+    assert module.app.config["TOPIC_SEARCH_STATUS"](label) == expected
+    assert module.app.config["TOPIC_WORDS"] == ("spazio", "orecchio", "costellazioni", "muscoli")
+
+
+def topic_line(app, status, theme):  # noqa: F811
+    app.config.update(TOPIC_SEARCH_STATUS=lambda text: {**status, "text": text}, TOPIC_WORDS=("spazio", "muscoli"))
+    client = app.test_client()
+    login(client)
+    configured(app)
+    client.post(URL, data=editor_form(client, action="save_draft", theme=theme))
+    return client.get(URL).text
+
+
+def test_the_questions_page_names_the_topic_it_recognised(app):  # noqa: F811
+    page = topic_line(app, {"topic": "muscoli", "searches": True, "setting": "MUSCOLI"}, "Muscoli")
+    assert 'id="question-theme-status">Recognised topic: muscoli.' in page and "notice warning" not in page.split("question-theme")[1]
+    assert '<datalist id="question-theme-words"><option value="spazio"><option value="muscoli"></datalist>' in page
+
+
+def test_the_questions_page_warns_when_the_topic_has_no_engine(app):  # noqa: F811
+    page = topic_line(app, {"topic": "muscoli", "searches": False, "setting": "MUSCOLI"}, "muscoli")
+    assert '<p class="notice warning" id="question-theme-status">Topic: muscoli.' in page
+    assert "VERTEX_MUSCOLI_ENGINE_ID and VERTEX_MUSCOLI_DATA_STORE_ID" in page
+
+
+def test_the_questions_page_warns_when_the_app_does_not_know_the_topic(app):  # noqa: F811
+    page = topic_line(app, {"topic": None, "searches": False, "setting": None}, "muscle")
+    assert "children’s search would show an error. Type one of: spazio, muscoli." in page
+
+
+def test_the_questions_page_asks_for_a_topic_when_there_is_none(app):  # noqa: F811
+    page = topic_line(app, {"topic": None, "searches": False, "setting": None}, "")
+    assert '<p class="notice warning" id="question-theme-status">No topic yet. Type one of: spazio, muscoli.</p>' in page
+
+
+def test_a_dashboard_without_the_children_app_shows_no_topic_line(app):  # noqa: F811
+    client = app.test_client()
+    login(client)
+    configured(app)
+    page = client.get(URL).text
+    assert "question-theme-status" not in page and "question-theme-words" not in page

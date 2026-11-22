@@ -1095,6 +1095,17 @@ def known_theme(*labels):
     return None
 
 
+def topic_search_status(text):
+    """For the dashboard, under a session's topic: the topic the text picks, and whether its runs can search."""
+    theme = known_theme(text)
+    return {'topic': TOPIC_NAMES[theme][0] if theme else None, 'searches': search_backend.theme_engine_ready(theme),
+            'setting': search_backend.VERTEX_THEME_SETTINGS.get(theme)}
+
+
+app.config['TOPIC_SEARCH_STATUS'] = topic_search_status
+app.config['TOPIC_WORDS'] = tuple(names[0] for names in TOPIC_NAMES.values())
+
+
 def review_artwork_theme(progress):
     metadata = progress['metadata']
     return known_theme(metadata.get('question_set_theme'), metadata['study_session_snapshot'].get('theme'))

@@ -379,6 +379,11 @@ def vertex_config_for(theme):
     return config
 
 
+def theme_engine_ready(theme):
+    """Whether a run of this theme can search: always on a single engine, else only with an engine of its own."""
+    return SEARCH_BACKEND != "vertex" or not _theme_configs or theme in _theme_configs
+
+
 def search(query, page, rpp, theme=None):
     if SEARCH_BACKEND == "vertex":
         return vertex_search(query, page, rpp, vertex_config_for(theme))

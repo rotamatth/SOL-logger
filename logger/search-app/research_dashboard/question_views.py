@@ -8,7 +8,7 @@ from copy import deepcopy
 import json
 import secrets
 
-from flask import abort, g, redirect, request
+from flask import abort, current_app, g, redirect, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from .editor_views import recovery_key
@@ -207,7 +207,10 @@ def register_question_routes(dash):
             review_url = session_review_url(dash, study_session)
         elif error == "question_participant_moved":
             review_url = dash.u("enrollment_page", year=study_session.get("school_year") or None, q=uid)
+        topic_status = current_app.config.get("TOPIC_SEARCH_STATUS")
         return dash.page("session_questions", settings=settings, study_session=study_session,
+                         topic_status=topic_status(draft.get("theme", "")) if topic_status else None,
+                         topic_words=current_app.config.get("TOPIC_WORDS", ()),
                          from_preparation=from_preparation, review_url=review_url,
                          research_area="sessions" if from_preparation else "settings",
                          study_context=study_session,

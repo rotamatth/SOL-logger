@@ -65,6 +65,34 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Say under a session's topic what the app understood, and warn when the search would fail
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/search_backend.py` — `theme_engine_ready(theme)`: whether a run of that topic can search
+- `logger/search-app/search_app.py` — `topic_search_status(text)` and the four topic words, handed to the dashboard through `app.config`
+- `logger/search-app/research_dashboard/question_views.py`, `templates/research/session_questions.html`, `i18n.py` — the line under "Tema della sessione" and the suggestions in the field
+- `logger/docs/research_dashboard.md` — "Session topic"
+- `logger/search-app/tests/test_class_topics.py` — the line in its four states; `tests/backend_stub.py` — new, the stand-in search backend of the tests that load the whole app, now shared by three of them
+
+**What changed for the participant**
+No visible change for the children. On the dashboard's questions page, the topic field suggests `spazio`, `orecchio`, `costellazioni` and `muscoli`, and the line under it says "Tema riconosciuto: muscoli." or, in a yellow warning, that the children's search would show an error: the app does not know the word, or the topic has no engine on the server (naming the two env lines). An empty field says "Nessun tema. Scrivi uno di questi: …".
+
+**How it works**
+The topic is free text, and a typo used to show up only in class, as the search error page. `topic_search_status` runs the text through `known_theme` and asks `search_backend.theme_engine_ready`, which is true with no per-topic engines (every run uses the single engine) and otherwise only for a topic that has its own. The dashboard reads the function from `app.config["TOPIC_SEARCH_STATUS"]`, so a dashboard without the children's app (its own tests) shows no line. The line reflects the text as last saved, not as it is being typed.
+
+**If something looks wrong after this, check**
+- No line under the topic → `TOPIC_SEARCH_STATUS` in `app.config` (set at the end of the topic code in `search_app.py`).
+- A warning although the class searched fine → the topic text saved for the session, and `tools/check_search_engines.py` on the server.
+- A test that loads the whole app failing on `theme_engine_ready` → it needs `tests/backend_stub.py`.
+
+**Left alone**
+Saving and approving: a warning never blocks them. The engines, the topics and the children's pages.
+
+**Verified**
+New tests for the recognised topic, a topic without an engine, an unknown word, an empty field, a dashboard without the children's app, and the status function on the real backend with four, two and no engines. All 976 server tests and 165 browser tests pass. Creating both 2 December sessions in the Italian dashboard, on a copy of the 10 November setup, gives Session 2 with the right ten IDs, the recognised topic and "Pubblicata".
+
 ## 2026-11-22 — Add the constellations and muscles topics, each with its own search engine
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, serp, autocomplete, infra, docs, tests

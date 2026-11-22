@@ -494,6 +494,24 @@ work that needs the actual experiment's details. The grade, session and download
 controls are dropdowns so they can accept more choices without adding more tabs
 or header buttons.
 
+## Session topic
+
+The **Tema della sessione** on a session's questions page decides what the children's app does
+with that session: the search engine the children search, the line on "Cominciamo!", the clip
+after each question and the recap drawing. The app knows four topics, typed `spazio`,
+`orecchio`, `costellazioni` and `muscoli`; case and extra spaces do not matter, and the other
+accepted words are in `TOPIC_NAMES` in `search_app.py`. The field suggests the four words. Once
+the page is saved, the line under it says what the app understood:
+
+- "Tema riconosciuto: muscoli." Check that it names the topic you meant: `corpo umano` alone
+  means orecchio.
+- A warning that the children's search would show an error: either the app does not know the
+  word (a typo), or the topic has no engine in the server's env file (`production_readiness.md`,
+  "Search engines per theme").
+
+Constellations and muscles have no clips or recap drawing yet. Their page after each question
+shows the two answers alone, and the recap has its plain layout.
+
 ## Permanent test IDs
 
 `TEST-spazio` and `TEST-orecchio` close the list on the children's start page. Each is an
