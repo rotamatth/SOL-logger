@@ -46,8 +46,8 @@ def indexed_participants(module):
 def test_the_test_ids_close_the_start_list(student_modules):
     module = student_modules()
     options = re.findall(r'<option value="([^"]+)">', module.app.test_client().get("/start").text)
-    assert options[-2:] == ["TEST-spazio", "TEST-orecchio"]
-    assert options[:-2] == [str(number) for number in range(1, len(options) - 1)]
+    assert options[-4:] == ["TEST-spazio", "TEST-orecchio", "TEST-costellazioni", "TEST-muscoli"]
+    assert options[:-4] == [str(number) for number in range(1, len(options) - 3)]
 
 
 @pytest.mark.parametrize(("uid", "theme", "clip"), [("TEST-spazio", "space", "Spazio_0"),
@@ -64,6 +64,32 @@ def test_a_test_id_needs_no_session_and_has_its_theme(student_modules, uid, them
         assert module.run_theme() == theme
     complete_today(client)
     assert clip in client.get("/task-review/1").text or clip in client.get("/thank_you").text
+
+
+@pytest.mark.parametrize(("uid", "theme"), [("TEST-costellazioni", "constellations"), ("TEST-muscoli", "muscles")])
+def test_a_test_id_of_a_2_december_topic_searches_its_topic_without_clips(student_modules, uid, theme):
+    module = student_modules()
+    client = start(module, uid)
+    page = client.get("/task")
+    assert page.status_code == 200
+    assert "PROVA" in page.text
+    assert 'id="first-answer-form"' in page.text
+    with module.app.test_request_context():
+        from flask import session
+        session.update(run_state(client))
+        assert module.run_theme() == theme
+    complete_today(client)
+    review = client.get("/task-review/1").text
+    assert "videos/review/" not in review
+
+
+def test_the_2_december_test_ids_have_three_questions_on_a_topic_the_app_knows(student_modules):
+    from research_dashboard.permanent_test import TEST_EXPERIMENTS
+    module = student_modules()
+    for uid, theme in (("TEST-costellazioni", "constellations"), ("TEST-muscoli", "muscles")):
+        question_set = TEST_EXPERIMENTS[uid]
+        assert module.known_theme(question_set["theme"]) == theme
+        assert len({item["question"] for item in question_set["questions"]}) == 3
 
 
 def test_the_test_ids_ask_the_questions_of_the_10_november_sessions():

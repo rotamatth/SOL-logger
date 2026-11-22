@@ -33,6 +33,16 @@ TEST_EXPERIMENTS = {
         ("Fact-finding -- Ossicini Orecchio", "Quali sono i 3 ossicini dentro al nostro orecchio?"),
         ("Multi-step -- Coclea", "Che forma ha la coclea e dove si trova?"),
         ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))),
+    # The 2 December 2026 topics. Placeholders until Diletta's questions for 4a costellazioni and 5a muscoli
+    # are in: then these become those questions, as for the two above. No clips yet, so the order is free.
+    "TEST-costellazioni": _question_set("costellazioni", (
+        ("Segnaposto -- Stella polare", "In quale costellazione si trova la Stella Polare?"),
+        ("Segnaposto -- Orione", "Quali sono le tre stelle della cintura di Orione?"),
+        ("Segnaposto -- Zodiaco", "Quante sono le costellazioni dello zodiaco?"))),
+    "TEST-muscoli": _question_set("muscoli", (
+        ("Segnaposto -- Muscolo più grande", "Qual è il muscolo più grande del corpo umano?"),
+        ("Segnaposto -- Cuore", "Perché il cuore è un muscolo speciale?"),
+        ("Segnaposto -- Sorriso", "Quanti muscoli usiamo per sorridere?"))),
 }
 
 
