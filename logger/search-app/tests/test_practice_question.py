@@ -158,6 +158,94 @@ def test_the_last_page_shows_both_answers_on_the_volcano_and_leads_to_the_id_pag
     assert client.get("/start").status_code == 200
 
 
+def practice_state(client):
+    with client.session_transaction() as saved:
+        return dict(saved["practice"])
+
+
+def change_practice(client, text="Esplosive ed effusive", confidence="2", **extra):
+    data = {"csrf_token": token(client), "text": text, "confidence": confidence, **extra}
+    return client.post("/prova/cambia", data=data)
+
+
+def test_a_practice_non_lo_so_can_become_a_written_answer_before_the_search(site):
+    client = site.app.test_client()
+    client.get("/prova")
+    assert answer_first(client, "unknown").status_code == 303
+    saved = client.get("/prova/domanda").text
+    assert 'id="first-answer-change"' in saved and 'href="/prova/domanda?change=1"' in saved
+    search = client.get("/prova/cerca").text
+    assert 'id="search-change-answer"' in search and 'href="/prova/domanda?change=1"' in search
+    assert 'id="search-first-answer-btn"' not in search, "one button at the top right, as in a real question"
+    form = client.get("/prova/domanda?change=1").text
+    assert 'id="first-answer-change-cancel"' in form and 'action="/prova/cambia"' in form
+    assert 'id="first-answer-unknown"' not in form, "only a written answer can replace it"
+    assert change_practice(client).location.endswith("/prova/domanda")
+    assert practice_state(client)["first"] == {"outcome": "answered", "text": "Esplosive ed effusive", "confidence": 2}
+    saved = client.get("/prova/domanda").text
+    assert "Esplosive ed effusive" in saved and 'id="first-answer-change"' not in saved
+    assert 'id="search-change-answer"' not in client.get("/prova/cerca").text
+    assert change_practice(client, text="Un altro").status_code == 303
+    assert practice_state(client)["first"]["text"] == "Esplosive ed effusive", "only once"
+    client.post("/prova/risultati", data={"query": "tipi di eruzioni"})
+    assert finish(client).location.endswith("/prova/finita")
+    done = client.get("/prova/finita").text
+    assert "Esplosive ed effusive" in done and "Non lo so" not in done
+
+
+def test_after_the_practice_search_non_lo_so_stays(site):
+    client = site.app.test_client()
+    client.get("/prova")
+    answer_first(client, "unknown")
+    results = client.post("/prova/risultati", data={"query": "tipi di eruzioni"}).text
+    assert 'id="search-change-answer"' not in results and 'id="search-first-answer-btn"' in results
+    assert 'id="search-change-answer"' not in client.get("/prova/cerca").text
+    assert 'id="first-answer-change"' not in client.get("/prova/domanda").text
+    assert 'id="first-answer-change-cancel"' not in client.get("/prova/domanda?change=1").text
+    assert change_practice(client).status_code == 303
+    assert practice_state(client)["first"]["outcome"] == "unknown"
+
+
+@pytest.mark.parametrize(("text", "confidence"), [("", "2"), ("   ", "2"), ("Lava", ""), ("Lava", "4")])
+def test_a_practice_change_needs_text_and_stars(site, text, confidence):
+    client = site.app.test_client()
+    client.get("/prova")
+    answer_first(client, "unknown")
+    response = change_practice(client, text=text, confidence=confidence)
+    assert response.status_code == 400 and 'id="first-answer-change-cancel"' in response.text
+    assert practice_state(client)["first"]["outcome"] == "unknown"
+
+
+def test_a_practice_change_needs_the_pages_token(site):
+    client = site.app.test_client()
+    client.get("/prova")
+    answer_first(client, "unknown")
+    assert client.post("/prova/cambia", data={"csrf_token": "wrong", "text": "Lava", "confidence": "2"}).status_code == 403
+    assert practice_state(client)["first"]["outcome"] == "unknown"
+
+
+def test_a_written_practice_answer_offers_no_change(site):
+    client = site.app.test_client()
+    client.get("/prova")
+    answer_first(client)
+    assert 'id="first-answer-change"' not in client.get("/prova/domanda").text
+    assert 'id="search-change-answer"' not in client.get("/prova/cerca").text
+    assert change_practice(client).status_code == 303
+    assert practice_state(client)["first"]["text"] == "Lava e cenere"
+
+
+def test_a_changed_practice_records_nothing(site):
+    before = recorded(site)
+    client = site.app.test_client()
+    client.get("/prova")
+    answer_first(client, "unknown")
+    change_practice(client)
+    client.post("/prova/risultati", data={"query": "tipi di eruzioni"})
+    finish(client)
+    client.post("/prova/esci", data=HiddenFields(client.get("/prova/finita").text).values)
+    assert recorded(site) == before == ([], 0, 0)
+
+
 def test_a_whole_practice_records_nothing(site):
     before = recorded(site)
     client = site.app.test_client()

@@ -91,10 +91,25 @@ def test_the_search_note_holds_after_the_session_is_lost(site, unknown):
 
 def test_the_search_page_offers_the_change_until_the_first_search(unknown):
     home = unknown.get("/search").text
-    assert 'id="search-first-answer-change"' in home and 'href="/task?change=1"' in home
+    assert 'id="search-change-answer"' in home and 'href="/task?change=1"' in home
+    assert "Cambia la mia risposta" in home
+    assert 'id="search-first-answer-btn"' not in home, "one button at the top right: the change, not the pop-up"
     results = unknown.post("/result", data={"query": "laika"}).text
-    assert 'id="search-first-answer-change"' not in results
-    assert 'id="search-first-answer-change"' not in unknown.get("/search").text
+    assert 'id="search-change-answer"' not in results and 'id="search-first-answer-btn"' in results
+    home = unknown.get("/search").text
+    assert 'id="search-change-answer"' not in home and 'id="search-first-answer-btn"' in home
+
+
+def test_the_search_page_offers_no_change_for_a_written_answer(site):
+    client = begin(site)
+    assert first(client).status_code == 303
+    home = client.get("/search").text
+    assert 'id="search-change-answer"' not in home and 'id="search-first-answer-btn"' in home
+
+
+def test_the_search_page_offers_no_change_once_changed(site, unknown):
+    assert change(unknown).status_code == 303
+    assert 'id="search-change-answer"' not in unknown.get("/search").text
 
 
 def test_a_written_first_answer_never_changes(site):
@@ -102,7 +117,7 @@ def test_a_written_first_answer_never_changes(site):
     first(client, "Un gatto")
     assert 'id="first-answer-change"' not in client.get("/task").text
     assert 'action="/first-answer/change"' not in client.get("/task?change=1").text
-    assert 'id="search-first-answer-change"' not in client.get("/search").text
+    assert 'id="search-change-answer"' not in client.get("/search").text
 
 
 @pytest.mark.parametrize(("text", "confidence"), [("   ", "2"), ("Laika", ""), ("Laika", "5")])

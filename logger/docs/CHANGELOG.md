@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Offer the change of "Non lo so" in the prova too, and in plain sight on the search page
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, search-bar, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — `can_change`, the change form (`/prova/domanda?change=1`) and `/prova/cambia`; the search page's values carry the change link until the first search
+- `logger/search-app/templates/search_first_answer.html` — while the change is possible, the button at the top right is "Cambia la mia risposta" and opens the change; the pop-up no longer carries its own change link
+- `logger/search-app/static/main.css` — the pop-up link's unused style removed
+- `logger/search-app/tests/test_practice_question.py`, `tests/test_first_answer_change.py`, `tests/test_search_first_answer.py`, `tests/test_first_answer_change_browser.py`, `tests/test_search_first_answer_browser.py` — the change in the prova, and the one button on the search page
+
+**What changed for the participant**
+In the prova, a confirmed "Non lo so" can now become a written answer before the first search, as in the real questions: "Cambia la mia risposta" beside "Entra nel motore di ricerca". On the search page, prova and real questions alike, the button at the top right reads "Cambia la mia risposta" while a confirmed "Non lo so" can still change, and opens the change directly. Before, it was "La mia prima risposta", and the change was inside its pop-up. After the first search, or once changed, the button is "La mia prima risposta" again, with its pop-up.
+
+**How it works**
+The real questions already allowed the change until the first search (`StudentProgress.can_change`, #41). The prova now has the same rule on its session state: a "Non lo so", not yet changed, with no search results in the session. The change stays in the browser session like the rest of the prova and is never recorded. `search_first_answer.html` shows the change link instead of the pop-up whenever `first_answer_change_url` is set, which happens only before a question's first search. The prova's results and web pages never set it, because they always follow a search.
+
+**If something looks wrong after this, check**
+- No "Cambia" in the prova → `PracticeQuestion.can_change` and `first_answer_change_url` in `page_values`.
+- "Cambia la mia risposta" still at the top right after a search → `results_by_query` in the session.
+- Fewer `firstAnswerOpened` events in a log → expected: before the first search, a "Non lo so" group sees the change button, not the pop-up.
+
+**Left alone**
+How a real question stores and logs the change (#41), the pop-up itself, the confirmed-answer page of real questions, and the rule "only before the first search".
+
+**Verified**
+New tests for the prova (change, once only, needs text, stars and the page's token, gone after a search, records nothing) and for the one button on the search page. All 1101 server tests pass, Ruff is clean, and the browser tests pass. Before/after pictures from the real pages.
+
 ## 2026-11-22 — Restore two change log entries that the merges emptied
 
 **Commit:** pending · **Type:** infra · **Area:** docs

@@ -28,7 +28,10 @@ def test_original_first_answer_is_read_only_on_each_search_surface(module, path)
 def test_confirmed_unknown_is_displayed_without_turning_it_into_an_answer_text(module):
     client = begin(module)
     assert first(client, outcome="unknown").status_code == 303
-    page = client.get("/search")
+    # Before the first search the button at the top right offers the change instead of the pop-up.
+    assert 'id="search-change-answer"' in client.get("/search").text
+    module.search_backend.search = lambda query, page, rpp, theme=None: (query, [], 0, "none")
+    page = client.get("/result?query=probe")
     assert 'id="search-first-answer-btn"' in page.text
     assert 'data-outcome="unknown"' in page.text and "Non lo so" in page.text
     assert 'id="search-first-answer-text"' not in page.text
