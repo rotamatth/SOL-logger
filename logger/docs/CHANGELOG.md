@@ -65,6 +65,28 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Restore two change log entries that the merges emptied
+
+**Commit:** pending · **Type:** infra · **Area:** docs
+
+**Files**
+- `logger/docs/CHANGELOG.md` — the text of "Say under a session's topic…" (#46) and "Enter fullscreen from the existing Inizia button" (#38), copied back from their own branches
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Joining the branches into this one kept those two headings but dropped the text under them. The text is unchanged on `class-topics-2026-12-02` and `keep-children-in-app`; it is copied from there word for word.
+
+**If something looks wrong after this, check**
+- A heading with nothing under it → the same entry on the branch it came from.
+
+**Left alone**
+Every other entry, and all code.
+
+**Verified**
+Every entry under "# Entries" now has text, and each heading appears once.
+
 ## 2026-11-22 — Add test IDs for the constellations and muscles topics
 
 **Commit:** pending · **Type:** feature · **Area:** session, tests, docs
@@ -91,6 +113,33 @@ Two more entries in `TEST_EXPERIMENTS`, with the topic words `costellazioni` and
 New tests for the start list, a whole run on each new test ID, and their topic words. The test ID and topic tests pass.
 
 ## 2026-11-22 — Say under a session's topic what the app understood, and warn when the search would fail
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/search_backend.py` — `theme_engine_ready(theme)`: whether a run of that topic can search
+- `logger/search-app/search_app.py` — `topic_search_status(text)` and the four topic words, handed to the dashboard through `app.config`
+- `logger/search-app/research_dashboard/question_views.py`, `templates/research/session_questions.html`, `i18n.py` — the line under "Tema della sessione" and the suggestions in the field
+- `logger/docs/research_dashboard.md` — "Session topic"
+- `logger/search-app/tests/test_class_topics.py` — the line in its four states; `tests/backend_stub.py` — new, the stand-in search backend of the tests that load the whole app, now shared by three of them
+
+**What changed for the participant**
+No visible change for the children. On the dashboard's questions page, the topic field suggests `spazio`, `orecchio`, `costellazioni` and `muscoli`, and the line under it says "Tema riconosciuto: muscoli." or, in a yellow warning, that the children's search would show an error: the app does not know the word, or the topic has no engine on the server (naming the two env lines). An empty field says "Nessun tema. Scrivi uno di questi: …".
+
+**How it works**
+The topic is free text, and a typo used to show up only in class, as the search error page. `topic_search_status` runs the text through `known_theme` and asks `search_backend.theme_engine_ready`, which is true with no per-topic engines (every run uses the single engine) and otherwise only for a topic that has its own. The dashboard reads the function from `app.config["TOPIC_SEARCH_STATUS"]`, so a dashboard without the children's app (its own tests) shows no line. The line reflects the text as last saved, not as it is being typed.
+
+**If something looks wrong after this, check**
+- No line under the topic → `TOPIC_SEARCH_STATUS` in `app.config` (set at the end of the topic code in `search_app.py`).
+- A warning although the class searched fine → the topic text saved for the session, and `tools/check_search_engines.py` on the server.
+- A test that loads the whole app failing on `theme_engine_ready` → it needs `tests/backend_stub.py`.
+
+**Left alone**
+Saving and approving: a warning never blocks them. The engines, the topics and the children's pages.
+
+**Verified**
+New tests for the recognised topic, a topic without an engine, an unknown word, an empty field, a dashboard without the children's app, and the status function on the real backend with four, two and no engines. All 976 server tests and 165 browser tests pass. Creating both 2 December sessions in the Italian dashboard, on a copy of the 10 November setup, gives Session 2 with the right ten IDs, the recognised topic and "Pubblicata".
+
 ## 2026-11-22 — Join the 26 November changes where they meet
 
 **Commit:** pending · **Type:** infra · **Area:** task-flow, infra, tests
@@ -117,6 +166,41 @@ Everything the six PRs do on their own.
 All 1058 server tests passed, and 184 of 185 browser tests in the full run. The other was the practice browser test, which needed the fullscreen refusal above; it passed with Samuele's fullscreen tests afterwards.
 
 ## 2026-11-20 — Enter fullscreen from the existing Inizia button
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, docs, tests
+
+**Files**
+- `logger/search-app/templates/welcome.html` — standalone welcome/fullscreen host.
+- `logger/search-app/static/student-fullscreen.js` — user-triggered entry and browser fallback.
+- `logger/search-app/static/student-fullscreen.css` — full-height student frame and keyboard focus.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — entry, navigation, fallback and exit regressions.
+- `logger/docs/research_dashboard.md` — setup and browser/device limits.
+
+**What changed for the participant**
+Tapping Inizia enters fullscreen when the browser permits it. The child can move
+through the study without each page load leaving fullscreen. A refused request
+still opens the usual ID page.
+
+**How it works**
+The trusted click requests fullscreen on the welcome document, then opens the
+student app in one same-origin iframe. Only the inner student app runs its logger
+and Back guard. Returning to welcome inside the frame reuses that host.
+
+**If something looks wrong after this, check**
+- No fullscreen → browser support, fullscreen policy and whether Inizia was tapped.
+- Frame too short → `student-fullscreen.css` and the tablet's viewport/rotation.
+- Route appears unchanged → the address bar retains the welcome host's URL.
+
+**Left alone**
+Student routes, saved answers, logging contracts, the shared Back guard and the
+research dashboard. No installation, device lock or automatic fullscreen on load.
+
+**Verified**
+947 server tests and all 174 Chromium browser regressions passed, including nine
+fullscreen cases. Ruff and syntax checks for all 12 production JavaScript files
+passed. Welcome and fullscreen results screenshots were visually inspected.
+No physical classroom tablet is connected for iPad/Safari or Android acceptance.
+
 ## 2026-11-22 — Put the recap picture in the recap PDF
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, data, docs, tests
