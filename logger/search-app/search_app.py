@@ -153,6 +153,30 @@ def ready():
         app.logger.exception("Collection readiness check failed")
         return jsonify(status="unavailable"), 503
 
+@app.post('/presenza')
+def child_presence():
+    """A tablet's light signal: which page is open and whether it is visible.
+
+    It feeds the live view only, through its own small database file: never the logs, the progress database
+    or the session, and it does not count as activity for the idle limit. It always answers quickly, also
+    before an ID is chosen, so the page can tell whether the server is reachable.
+    """
+    data = request.get_json(silent=True, force=True)
+    if session.get('user_id') and session.get('session_id') and isinstance(data, dict):
+        app.extensions["research"]["presence"].beat(session['session_id'], session['user_id'],
+                                                    data.get('page'), data.get('visible') is not False)
+    return "", 204
+
+
+@app.get('/sw.js')
+def service_worker():
+    """The children's service worker, served from the root so that it may look after the children's pages."""
+    response = app.send_static_file('sw.js')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Content-Type'] = 'text/javascript; charset=utf-8'
+    return response
+
+
 # ------------------------------------------------------------------------------------------------------------------------------------------
 # TEMPORARY TESTING FLAG - If API GOOGLE IS NOT AVAILABLE, SET TO TRUE TO ALLOW ANSWER SUBMISSION WITHOUT SEARCH RESULTS.
 # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -1254,8 +1278,8 @@ def page_not_found(e):
 @app.errorhandler(500)
 def internal_error(e):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Errore",
-                           error_message="Qualcosa non ha funzionato. Riprova o chiedi al ricercatore."), 500
+                           error_title="Qualcosa non ha funzionato!",
+                           error_message="Alza la mano e chiama un adulto."), 500
 
 if __name__ == '__main__':
     # Only for `python search_app.py` on a developer's machine: the container runs Gunicorn

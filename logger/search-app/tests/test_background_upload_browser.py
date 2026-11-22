@@ -58,7 +58,9 @@ def student_site(tmp_path, monkeypatch, request):
                 if REQUIRE_BROWSER_TESTS:
                     pytest.fail(f"Chromium is required by SOL_REQUIRE_BROWSER_TESTS=1: {error}", pytrace=False)
                 pytest.skip(f"Chromium unavailable: {error}")
-            context = browser.new_context()
+            # A test that fakes a page load with page.route() must run without the service worker (sw.js).
+            blocked = request.node.get_closest_marker("no_service_worker") is not None
+            context = browser.new_context(service_workers="block" if blocked else "allow")
             context.route("https://**", lambda route: route.fulfill(status=200, body="Synthetic external page"))
             yield context.new_page(), f"http://127.0.0.1:{server.server_port}", tmp_path / "v2"
             browser.close()

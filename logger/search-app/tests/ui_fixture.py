@@ -32,6 +32,12 @@ CHILD_ROUTES = {"search": "search_page", "result": "result", "webpage": "webpage
                 "autocomplete": "autocomplete", "iframe_check": "iframe_check", "end": "end_task"}
 
 
+@app.post("/presenza")
+def child_presence():
+    """The tablets' signal (connection-watch.js): always answered, nothing kept."""
+    return "", 204
+
+
 @app.context_processor
 def context():
     return dict(session_id="issue11-ui-fixture", show_search=False,

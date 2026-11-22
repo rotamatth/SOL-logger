@@ -25,6 +25,10 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "bfcache: mark test as specifically testing BFCache behavior"
     )
+    config.addinivalue_line(
+        "markers", "no_service_worker: run without the children's service worker, for tests that fake a page "
+                   "load with Playwright routing, which a service worker's own requests bypass"
+    )
 
 
 @pytest.fixture(scope="session")

@@ -261,6 +261,7 @@ def test_lost_draft_ack_recovers_the_durable_text_without_replacing_it(student_s
     assert persisted(root) == ("Salvata senza conferma di rete", 1)
 
 
+@pytest.mark.no_service_worker
 @pytest.mark.parametrize("success", [True, False])
 def test_late_draft_reply_cannot_recreate_a_buffer_after_final_confirmation(student_site, success):
     page, base, root = student_site

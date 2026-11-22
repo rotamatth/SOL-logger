@@ -21,7 +21,8 @@ def register_live_routes(dash):
     def snapshot(session_id):
         settings = state.settings()
         study_session = preparation_session(settings, session_id)
-        progress = session_progress(state, settings, dash.index.roots["v2"], study_session, cache)
+        progress = session_progress(state, settings, dash.index.roots["v2"], study_session, cache,
+                                    dash.app.extensions["research"].get("presence"))
         for child in progress["children"]:
             child["digest"] = _digest(child)
         return {"settings": settings, "study_session": study_session, **progress,

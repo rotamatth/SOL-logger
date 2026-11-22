@@ -27,6 +27,11 @@ DYNAMIC_LOG_EVENTS = {
     "webpageLoadSucceeded",
     "webpageLoadFailed",
     "webpageLoadCheckUnknown",
+    # connection-watch.js logs these through a small helper that receives the name.
+    "pageHidden",
+    "pageVisible",
+    "connectionLost",
+    "connectionBack",
 }
 
 SERVER_LOG_EVENTS = {

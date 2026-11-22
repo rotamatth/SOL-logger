@@ -71,6 +71,10 @@ def student_browser():
     def end_task():
         return "", 204
 
+    @app.post("/presenza")
+    def child_presence():
+        return "", 204
+
     server = make_server("127.0.0.1", 0, app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:

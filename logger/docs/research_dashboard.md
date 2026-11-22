@@ -45,6 +45,22 @@ when a child changes page and at least once a minute, so a child with no recent 
 be working. A visible live page keeps the researcher signed in; the 8-hour limit still applies.
 It says when it is reconnecting and when the researcher has been signed out.
 
+Each unfinished child's row also says where the tablet is now. **Fuori dalla pagina** (Off the
+page): the app has been hidden for more than a moment, because another app, the home screen or a
+locked screen is in front. **Nessun segnale da N s** (No signal for N s): the tablet has sent
+nothing for 30 seconds or more, so it is off, out of the network or stuck. Every child page sends a
+short signal every 15 seconds (`/presenza`, `static/connection-watch.js`), stored in
+`presence.sqlite3` in the research state folder, apart from the logs and the progress database. If
+the signal fails, the rows show less and nothing else changes. A tablet that is visible and
+signalling adds nothing to its row.
+
+On the tablet, when the signal fails twice in a row or the tablet goes offline, a full-screen notice
+says "Il collegamento non funziona. Alza la mano e chiama un adulto." and closes by itself when the
+server answers again. When a page cannot be loaded at all, a small service worker (`static/sw.js`)
+shows the same message instead of the browser's error. It handles only the children's GET page
+loads, never answers, logs or the dashboard. To retire it, serve a `sw.js` that unregisters itself.
+The log records `pageHidden`, `pageVisible`, `connectionLost` and `connectionBack`.
+
 **Task statistics** come from the logged events:
 
 | Figure | How it is worked out |
@@ -308,9 +324,10 @@ held) and the welcome page opens with a fresh session.
   are used with a visible warning. Differences between full/task copies are flagged;
   originals remain available in exports. Fallback file order is deterministic, not
   a claim about global event chronology.
-- Metadata is written at run start; interaction logs still upload at task submission
-  and experiment finish. No periodic browser upload or live activity tracking was
-  added. Answers existing only in browser storage are not available to researchers.
+- Metadata is written at run start; interaction logs upload while the child works and at
+  task submission and experiment finish. The tablets' presence signal (see the live view) is
+  not study data and is kept apart. Answers existing only in browser storage are not
+  available to researchers.
 
 ## Index and data quality
 

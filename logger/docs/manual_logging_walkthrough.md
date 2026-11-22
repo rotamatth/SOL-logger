@@ -85,9 +85,20 @@ the saved log therefore grows while the task is still open.
 
 - `searchError`: emitted when the search error page is rendered for a search-engine error.
 
+### Tablet and connection (connection-watch.js)
+
+- `pageHidden`: the app stayed hidden for more than 1.5 seconds (another app, the home screen, a locked screen). Moving to the next page does not count. Carries `page`.
+- `pageVisible`: the app is visible again after `pageHidden`. Carries `page` and `hiddenSeconds`.
+- `connectionLost`: the tablet's signal to the server failed twice in a row (`reason: no-answer`) or the tablet went offline (`reason: offline`); the page shows "Il collegamento non funziona. Alza la mano e chiama un adulto." Carries `page` and `reason`.
+- `connectionBack`: the server answered again and the notice closed. Carries `page` and `lostSeconds`.
+
 ## Event inventory
 
 <!-- event-inventory:start -->
+- `connectionBack`
+- `connectionLost`
+- `pageHidden`
+- `pageVisible`
 - `OwnKnowledgeAnswerSubmitted`
 - `OwnKnowledgeAnswerChanged`
 - `autocompleteSuggestionsShown`

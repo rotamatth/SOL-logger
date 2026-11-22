@@ -89,8 +89,11 @@ def _run_progress(root, metadata, cache):
                        "task_stats": figures}}
 
 
-def session_progress(state, settings, root, study_session, cache):
-    """One row per child who is expected or has started, with class totals and question figures."""
+def session_progress(state, settings, root, study_session, cache, presence=None):
+    """One row per child who is expected or has started, with class totals and question figures.
+
+    `presence` (presence.Presence) adds where each unfinished child's tablet is now: off the page, or silent.
+    """
     trashed = state.trashed_run_ids()
     runs = {}
     for metadata in state.session_attempts(study_session["id"]):
@@ -113,6 +116,12 @@ def session_progress(state, settings, root, study_session, cache):
                          saved=(datetime.fromtimestamp(latest["saved_at"], ZURICH).strftime("%H:%M:%S")
                                 if latest["saved_at"] else None))
         children.append(child)
+    unfinished = {child["id"]: runs[child["id"]][-1]["technical_session_id"] for child in children
+                  if child["status"] == "in_progress" and runs.get(child["id"])}
+    seen = presence.latest(list(unfinished.values())) if presence and unfinished else {}
+    for child in children:
+        signal = seen.get(unfinished.get(child["id"]))
+        child["presence"] = signal if signal and signal["state"] != "visible" else None
     totals = {status: sum(child["status"] == status for child in children)
               for status in ("not_started", "in_progress", "completed")}
     return {"children": children, "totals": {**totals, "expected": len(children)},
