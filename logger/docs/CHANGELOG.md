@@ -65,6 +65,36 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-22 — Add the constellations and muscles topics, each with its own search engine
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, serp, autocomplete, infra, docs, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `TOPIC_NAMES`: the words a session's topic may be typed with, now also `costellazioni` and `muscoli`; `REVIEW_ARTWORK_THEMES` is built from it
+- `logger/search-app/search_backend.py` — `VERTEX_THEME_SETTINGS` gains `COSTELLAZIONI` and `MUSCOLI`
+- `logger/search-app/student_progress.py` — intro lines for both topics
+- `logger/search-app/tools/check_search_engines.py` — asks the two new engines too, and names a topic without an engine instead of failing on it
+- `logger/docker-compose.yml` — passes `VERTEX_COSTELLAZIONI_*` and `VERTEX_MUSCOLI_*` to the app
+- `logger/docs/production_readiness.md` — "Search engines per theme": the four topics and the words to type
+- `logger/search-app/tests/test_class_topics.py` — new; `test_child_pages.py`, `test_search_by_theme.py` — the new topics in the existing cases
+
+**What changed for the participant**
+On 2 December class 4 searches constellations and class 5 muscles, each in its own dataset (Google apps `SOL-app-constellations` and `SOL-app-muscles`). The "Cominciamo!" page says "In classe state studiando le curiosità dell'universo." (constellations) or "… del corpo umano." (muscles), then "Ma ci sono ancora tante cose da imparare!": Diletta will write the line about the topic itself. There are no clips or recap drawing for these topics yet, so the page after each question shows the two answers alone and the recap has its plain layout; the recap PDF is text only.
+
+**How it works**
+A session's topic is the free text "Tema della sessione" in the dashboard. `known_theme` matches it, ignoring case and extra spaces, against `TOPIC_NAMES` and gives `constellations` or `muscles`. `search_backend` then reads `VERTEX_COSTELLAZIONI_ENGINE_ID` / `_DATA_STORE_ID` or `VERTEX_MUSCOLI_*`. As for spazio and orecchio, once any topic has its own engine, a run whose topic has none gets the search error page and never searches another topic's dataset. `corpo umano` alone still means orecchio, as before, so the muscles topic is typed `muscoli` or `corpo umano (muscoli)`.
+
+**If something looks wrong after this, check**
+- Search error page for a constellations or muscles class → the two lines of that topic in the server's `logger/.env`, then `docker compose up -d --wait search_app` and `tools/check_search_engines.py`.
+- A class searching the wrong dataset → the topic typed for its session in the dashboard (`corpo umano` is orecchio).
+- An orecchio clip on a new topic → `REVIEW_CLIPS` (previous entry).
+
+**Left alone**
+Spazio and orecchio: their engines, words, clips, drawings and test IDs. The prova's engine. No test IDs for the new topics yet: they need the real questions.
+
+**Verified**
+New tests: each new topic searches and completes on its own engine and never on an old one; the dashboard words pick the topic; the intro lines; a full run on each topic ends on the plain recap with no clip; the engine check with four and with two engines; compose passes the four variables. The topic, search, child page and test-ID tests pass.
+
 ## 2026-11-22 — Show a question's clip only for a topic that has clips
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, tests

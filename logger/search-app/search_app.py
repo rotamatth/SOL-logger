@@ -1062,11 +1062,17 @@ def end_task():
     return redirect(url_for('next_task'))
 
 
-REVIEW_ARTWORK_THEMES = {
-    'spazio': 'space', 'tema spazio': 'space', 'sistema solare': 'space', 'space': 'space',
-    'corpo umano': 'ear', 'corpo umano (orecchio)': 'ear', 'tema corpo umano (orecchio)': 'ear',
-    'orecchio': 'ear', 'udito': 'ear',
+# The topics a session can have, by the words its "Tema della sessione" may be typed with in the dashboard; the first
+# word is the one to type. The topic picks the search engine (search_backend.VERTEX_THEME_SETTINGS), the intro line,
+# the clips and the recap drawing. Constellations (class 4) and muscles (class 5), for 2 December 2026, have no clips
+# or drawing yet: their pages show the answers alone, on the plain recap.
+TOPIC_NAMES = {
+    'space': ('spazio', 'tema spazio', 'sistema solare', 'space'),
+    'ear': ('orecchio', 'corpo umano', 'corpo umano (orecchio)', 'tema corpo umano (orecchio)', 'udito'),
+    'constellations': ('costellazioni', 'costellazione', 'tema costellazioni'),
+    'muscles': ('muscoli', 'muscolo', 'tema muscoli', 'corpo umano (muscoli)', 'tema corpo umano (muscoli)'),
 }
+REVIEW_ARTWORK_THEMES = {name: theme for theme, names in TOPIC_NAMES.items() for name in names}
 
 
 # The dashed arrow from the first answer to the final one, on the review page's 760 x 420 stage.

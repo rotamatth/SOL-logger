@@ -15,7 +15,8 @@ from study_progress import AttemptKey, DraftConflict, SubmissionConflict
 ZONE = ZoneInfo("Europe/Zurich")
 
 
-# Shown once per run, by theme. Spazio is Diletta's text in the Figma; orecchio follows it.
+# Shown once per run, by theme. Spazio is Diletta's text in the Figma; orecchio follows it. Constellations and muscles
+# say only what the class studies, until Diletta writes the line about the topic itself.
 INTRO_TEXTS = {
     "space": ("In classe state studiando le curiosità dell’universo.",
               "Avete da poco incontrato il sistema solare, con i suoi pianeti e le sue stelle.",
@@ -23,6 +24,10 @@ INTRO_TEXTS = {
     "ear": ("In classe state studiando le curiosità del corpo umano.",
             "Avete da poco incontrato l’orecchio, con le sue parti e i suoni che ci fa sentire.",
             "Ma ci sono ancora tante cose da imparare!"),
+    "constellations": ("In classe state studiando le curiosità dell’universo.",
+                       "Ma ci sono ancora tante cose da imparare!"),
+    "muscles": ("In classe state studiando le curiosità del corpo umano.",
+                "Ma ci sono ancora tante cose da imparare!"),
 }
 INTRO_DEFAULT = ("Ci sono tante cose da imparare!",)
 

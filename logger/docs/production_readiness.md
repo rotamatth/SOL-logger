@@ -104,8 +104,9 @@ external search credentials cannot be proven by local tests.
 
 ## Search engines per theme
 
-Two datasets can run on one server. Add these to `logger/.env` on the server, taking
-the values from `vertex-space.env` and `vertex-ear.env`:
+Each class topic can have its own dataset. Add these to `logger/.env` on the server,
+taking each engine's ID and its data store's ID from the Google console (AI Applications,
+project of `VERTEX_PROJECT_NUMBER`, location `global`):
 
 ```
 VERTEX_PROJECT_NUMBER=<GOOGLE_CLOUD_PROJECT>
@@ -113,7 +114,16 @@ VERTEX_SPAZIO_ENGINE_ID=<GOOGLE_ENGINE_ID of vertex-space.env>
 VERTEX_SPAZIO_DATA_STORE_ID=<GOOGLE_DATASTORE_ID of vertex-space.env>
 VERTEX_ORECCHIO_ENGINE_ID=<GOOGLE_ENGINE_ID of vertex-ear.env>
 VERTEX_ORECCHIO_DATA_STORE_ID=<GOOGLE_DATASTORE_ID of vertex-ear.env>
+VERTEX_COSTELLAZIONI_ENGINE_ID=<ID of the constellations app>
+VERTEX_COSTELLAZIONI_DATA_STORE_ID=<ID of its data store>
+VERTEX_MUSCOLI_ENGINE_ID=<ID of the muscles app>
+VERTEX_MUSCOLI_DATA_STORE_ID=<ID of its data store>
 ```
+
+A session's topic is the "Tema della sessione" typed in the dashboard: `spazio`, `orecchio`,
+`costellazioni` or `muscoli` (the other accepted words are in `TOPIC_NAMES` in `search_app.py`).
+Constellations and muscles have no clips or recap drawing yet: the page after each question
+shows the two answers alone, and the recap its plain layout.
 
 Each run searches the engine of its question set's theme, frozen when it starts. Once
 any of these is set, a theme without its own engine shows the search error page instead

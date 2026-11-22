@@ -44,6 +44,7 @@ def test_a_new_run_opens_with_cominciamo_then_the_question_then_the_form(site):
 
 
 @pytest.mark.parametrize(("theme", "expected", "other"), [("spazio", "universo", "corpo umano"), ("Corpo umano (orecchio)", "corpo umano", "universo"),
+                                                          ("costellazioni", "universo", "sistema solare"), ("muscoli", "corpo umano", "orecchio"),
                                                           ("Another theme", "tante cose da imparare", "universo")])
 def test_cominciamo_speaks_of_the_sessions_own_theme(student_modules, theme, expected, other):
     module = student_modules()

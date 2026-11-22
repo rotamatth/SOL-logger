@@ -40,11 +40,11 @@ autocomplete_query_model is optional and defaults to search-history, which
 matches Vertex AI Search website data stores.
 The vertex Ai or search agent has to be set up on google console.
 
-Two datasets can be served side by side. Set VERTEX_SPAZIO_ENGINE_ID and
-VERTEX_SPAZIO_DATA_STORE_ID, and the same two for ORECCHIO, and each run searches
-the engine of its question set's theme. A theme without its own engine then fails
-visibly on the search page: it never answers from another theme's dataset. With
-none of these set, every run uses the single engine above, as before.
+Each class topic can have its own dataset. Set VERTEX_SPAZIO_ENGINE_ID and
+VERTEX_SPAZIO_DATA_STORE_ID, and the same two for ORECCHIO, COSTELLAZIONI and MUSCOLI,
+and each run searches the engine of its question set's theme. A theme without its own
+engine then fails visibly on the search page: it never answers from another theme's
+dataset. With none of these set, every run uses the single engine above, as before.
 """
 
 import os
@@ -133,7 +133,7 @@ def load_vertex_config():
 
 
 # Theme names come from the caller, which reads them from the frozen question set.
-VERTEX_THEME_SETTINGS = {"space": "SPAZIO", "ear": "ORECCHIO"}
+VERTEX_THEME_SETTINGS = {"space": "SPAZIO", "ear": "ORECCHIO", "constellations": "COSTELLAZIONI", "muscles": "MUSCOLI"}
 
 
 def load_theme_configs(default):

@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import search_backend  # noqa: E402
 
-PROBES = {"space": ("spazio", "Giove satelliti"), "ear": ("orecchio", "orecchio udito")}
+PROBES = {"space": ("spazio", "Giove satelliti"), "ear": ("orecchio", "orecchio udito"),
+          "constellations": ("costellazioni", "costellazione Orsa Maggiore"), "muscles": ("muscoli", "muscoli del corpo")}
 
 
 def domain(link):
@@ -25,6 +26,10 @@ def main():
         return 1
     failed = False
     for theme, (label, query) in PROBES.items():
+        if theme not in search_backend._theme_configs:
+            setting = search_backend.VERTEX_THEME_SETTINGS[theme]
+            print(f"{label}: no engine set (VERTEX_{setting}_ENGINE_ID, VERTEX_{setting}_DATA_STORE_ID).")
+            continue
         try:
             config = search_backend.vertex_config_for(theme)
             _, results, _, _ = search_backend.vertex_search(query, 1, 10, config)
