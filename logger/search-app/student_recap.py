@@ -35,8 +35,9 @@ def _arrow(start, bend_in, magnifier, bend_out, end):
 
 
 # Each question's arrow, by theme and by the question's part of the picture: from under its first answer,
-# through the magnifier, to its final answer. The cards sit in the same places for both themes (recap.css),
-# and every magnifier is between 266 and 413, where even a card with a long answer never reaches.
+# through the magnifier, to its final answer. Every magnifier is where even a card with a long answer never
+# reaches: between 266 and 413 for space and ear, whose cards sit in the same places, and in the gap that
+# recap.css keeps between the cards for constellations and muscles.
 RECAP_ARROWS = {
     "space": {"1": _arrow((45, 200), (22, 265), (40, 340), (55, 420), (95, 486)),
               "2": _arrow((372, 200), (366, 275), (376, 345), (392, 430), (440, 486)),
@@ -44,6 +45,12 @@ RECAP_ARROWS = {
     "ear": {"1": _arrow((45, 200), (22, 265), (40, 340), (55, 420), (95, 486)),
             "2": _arrow((470, 200), (468, 270), (480, 340), (500, 420), (520, 486)),
             "3": _arrow((862, 130), (975, 160), (958, 340), (945, 440), (925, 486))},
+    "constellations": {"1": _arrow((118, 430), (112, 455), (125, 477), (140, 500), (144, 534)),
+                       "2": _arrow((390, 430), (388, 455), (405, 477), (422, 500), (428, 534)),
+                       "3": _arrow((850, 430), (848, 455), (860, 477), (872, 500), (874, 534))},
+    "muscles": {"1": _arrow((205, 235), (183, 290), (205, 350), (228, 440), (165, 494)),
+                "2": _arrow((365, 534), (385, 452), (482, 446), (580, 452), (603, 534)),
+                "3": _arrow((850, 424), (848, 450), (860, 473), (872, 498), (874, 534))},
 }
 SAVE_ERROR = "Salvataggio non disponibile. Riprova."
 CONFLICT_ERROR = "Le risposte sono cambiate in un'altra scheda. Riapri il riepilogo prima di riprovare."
@@ -60,7 +67,7 @@ def latest_final(task):
 
 
 def render_recap_pdf(columns, picture=None):
-    """The recap PDF the server keeps. With `picture` (background, tasks, arrows) its first page is the recap
+    """The recap PDF the server keeps. With `picture` (background, tasks, arrows, theme) its first page is the recap
     picture as the tablet showed it; the text pages follow unchanged, with every answer in full."""
     styles = getSampleStyleSheet()
     styles["Title"].textColor = colors.HexColor("#173769")
@@ -106,7 +113,7 @@ def render_recap_pdf(columns, picture=None):
                                PageTemplate("text", [text_frame], pagesize=A4, onPage=footer)])
     width = min(picture_frame._width - 12, (picture_frame._height - 74) * PICTURE_RATIO)
     page_one = [Paragraph("SOL Search · Le risposte di oggi", styles["Title"]),
-                RecapPicture(picture["background"], picture["tasks"], picture["arrows"], width),
+                RecapPicture(picture["background"], picture["tasks"], picture["arrows"], width, picture["theme"]),
                 Spacer(1, 6),
                 Paragraph("Le risposte complete sono nelle pagine seguenti.", styles["BodyText"]),
                 NextPageTemplate("text"), PageBreak()]
@@ -223,7 +230,7 @@ class StudentRecap:
                 or background == RECAP_PLACEHOLDER):
             return None
         return {"background": Path(self.app.static_folder) / background, "tasks": tasks,
-                "arrows": RECAP_ARROWS[theme]}
+                "arrows": RECAP_ARROWS[theme], "theme": theme}
 
     def _pdf_for_finish(self, states, attempt=None):
         try:

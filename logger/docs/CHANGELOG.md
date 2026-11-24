@@ -65,6 +65,37 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-24 — Add the pictures of the constellations and muscles topics, and the prova's volcano
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, data, docs, tests
+
+**Files**
+- `logger/search-app/static/images/review/constellations-{1,2,3,recap}.webp`, `muscles-{1,2,3,recap}.webp` — new: the single pictures and the recap drawings
+- `logger/search-app/static/images/practice/volcano.webp` — new; the placeholder `volcano.svg` is gone
+- `logger/search-app/search_app.py` — `REVIEW_PICTURES`: topics with three pictures, with or without clips; the arrows of the new pieces
+- `logger/search-app/templates/study_handoff.html`, `static/study-review.js` — a picture where a topic has no clip; only a clip is played
+- `logger/search-app/static/study-review.css`, `static/recap.css`, `static/practice.css` — the places of the new pictures, cards and arrows
+- `logger/search-app/student_recap.py`, `recap_picture.py` — the recap arrows and, per topic, the card places in the PDF (`PLACES`)
+- `logger/docs/research_dashboard.md`, `production_readiness.md` — which question box gets which picture
+- `logger/search-app/tests/` — `test_class_topics.py`, `test_child_pages_browser.py`, `test_recap_picture.py`, `test_permanent_test_experiment.py`, `test_practice_question.py`
+
+**What changed for the participant**
+With `costellazioni` and `muscoli`, the page after each question shows the question's picture next to the two answers, and the recap is the topic's whole drawing, with the answers on it, as for space and ear. "Avete finito la prova!" shows the real volcano. The recap PDF of these topics opens with the drawing.
+
+**How it works**
+A question's box in the session (1, 2, 3) picks its picture, left to right as on the recap drawing: constellation, sun, rocket; boy from the side, octopus, boy flexing. The recap's cards have places of their own per topic, because the faces and the main figures sit where space and ear have their cards: constellations keeps both rows in the lower half, muscles a row along the bottom with the first answers of questions 1 and 3 beside the figures. On screens up to 600 px tall the cards are slimmer, so two lines of each answer show. The single pictures are the supplied crops without their white border. The sun's supplied crop had white eraser marks, so `constellations-2` is the same area cut from the whole drawing.
+
+**If something looks wrong after this, check**
+- The picture does not match the question → the question's box in the dashboard (`research_dashboard.md`, "Session topic").
+- A card hides a figure, or the PDF differs from the tablet → `recap.css` and `recap_picture.PLACES`, which a test compares.
+- An old picture or layout on a tablet → the version in the templates' links (`pictures-1`).
+
+**Left alone**
+Space and ear: their clips, places and arrows. The search, the logs, the question order, the intro lines, the placeholder questions of the test IDs.
+
+**Verified**
+Browser tests at three tablet sizes with long answers: every card stays inside the drawing, none overlaps, no magnifier is hidden, two lines of every answer show, and no card or label covers a face, the octopus's hearts, the first boy's organs, the red star, the rocket or the child at the telescope. Not yet seen on a real tablet.
+
 ## 2026-11-24 — Retry fullscreen on the prova pages and the end page too
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, tests

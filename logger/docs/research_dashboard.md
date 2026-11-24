@@ -566,8 +566,8 @@ or header buttons.
 ## Session topic
 
 The **Tema della sessione** on a session's questions page decides what the children's app does
-with that session: the search engine the children search, the line on "Cominciamo!", the clip
-after each question and the recap drawing. The app knows four topics, typed `spazio`,
+with that session: the search engine the children search, the line on "Cominciamo!", the clip or
+picture after each question and the recap drawing. The app knows four topics, typed `spazio`,
 `orecchio`, `costellazioni` and `muscoli`; case and extra spaces do not matter, and the other
 accepted words are in `TOPIC_NAMES` in `search_app.py`. The field suggests the four words. Once
 the page is saved, the line under it says what the app understood:
@@ -578,8 +578,15 @@ the page is saved, the line under it says what the app understood:
   word (a typo), or the topic has no engine in the server's env file (`production_readiness.md`,
   "Search engines per theme").
 
-Constellations and muscles have no clips or recap drawing yet. Their page after each question
-shows the two answers alone, and the recap has its plain layout.
+Constellations and muscles have pictures instead of clips. **The question's box picks its picture**,
+left to right as on the recap drawing, so a question must sit in the box of its picture:
+
+| Tema | Domanda 1 | Domanda 2 | Domanda 3 |
+|---|---|---|---|
+| `costellazioni` | the constellation with the red star | the sun shining on the Earth | the rocket |
+| `muscoli` | the boy seen from the side, with heart and intestine | the octopus with its hearts | the boy flexing his arm |
+
+The children still meet the three questions in a random order; the picture follows its question.
 
 ## Permanent test IDs
 
@@ -620,7 +627,7 @@ from the study settings. A practice already under way keeps the question it bega
 shows whether the practice's search engine is set, and **Try a search** asks it a question as a
 child would, to check that it answers about the topic. The picture on the last page is a volcano,
 fixed in the app: a new topic needs a new picture from a developer
-(`static/images/practice/volcano.svg`).
+(`static/images/practice/volcano.webp`).
 
 **Its search engine** is its own, in the same Google project and with the same credentials as the
 others. The server's env file names it:

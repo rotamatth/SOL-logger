@@ -1139,8 +1139,8 @@ def end_task():
 
 # The topics a session can have, by the words its "Tema della sessione" may be typed with in the dashboard; the first
 # word is the one to type. The topic picks the search engine (search_backend.VERTEX_THEME_SETTINGS), the intro line,
-# the clips and the recap drawing. Constellations (class 4) and muscles (class 5), for 2 December 2026, have no clips
-# or drawing yet: their pages show the answers alone, on the plain recap.
+# the pictures after each question and the recap drawing. Constellations (class 4) and muscles (class 5), for
+# 2 December 2026, have pictures instead of clips.
 TOPIC_NAMES = {
     'space': ('spazio', 'tema spazio', 'sistema solare', 'space'),
     'ear': ('orecchio', 'corpo umano', 'corpo umano (orecchio)', 'tema corpo umano (orecchio)', 'udito'),
@@ -1154,10 +1154,18 @@ REVIEW_ARTWORK_THEMES = {name: theme for theme, names in TOPIC_NAMES.items() for
 _ARROW_LEFT = {"line": "M110 100 C 20 195, 124 318, 205 372", "tip": "M193 373 L205 372 L199 361", "x": 93, "y": 251}
 _ARROW_RIGHT = {"line": "M610 112 C 700 200, 680 330, 604 362", "tip": "M615 351 L604 362 L619 365", "x": 669, "y": 258}
 _ARROW_FAR_LEFT = {"line": "M165 100 C 80 190, 90 320, 168 360", "tip": "M156 362 L168 360 L161 349", "x": 105, "y": 249}
+_ARROW_FAR_RIGHT = {"line": "M705 108 C 748 180, 750 320, 720 370", "tip": "M723 355 L720 370 L734 364", "x": 740, "y": 247}
+_ARROW_EDGE_LEFT = {"line": "M70 100 C 22 180, 14 320, 52 368", "tip": "M38 362 L52 368 L50 353", "x": 29, "y": 246}
 REVIEW_ARROWS = {'space-1': _ARROW_LEFT, 'ear-1': _ARROW_LEFT, 'space-2': _ARROW_RIGHT, 'ear-2': _ARROW_RIGHT,
-                 'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT}
-# The topics whose three clips and stills are in static/ (made by tools/prepare_review_media.py), by clip name.
-# A topic missing here shows its two answers alone. Adding one also needs its pieces in study-review.css and above.
+                 'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT,
+                 'constellations-1': _ARROW_EDGE_LEFT, 'constellations-2': _ARROW_FAR_RIGHT,
+                 'constellations-3': _ARROW_EDGE_LEFT,
+                 'muscles-1': _ARROW_FAR_LEFT, 'muscles-2': _ARROW_RIGHT, 'muscles-3': _ARROW_FAR_LEFT}
+# The topics with three pictures in static/images/review, left to right as on the recap drawing: a question's
+# place in the session (box 1, 2 or 3) picks its picture. A topic missing here shows its two answers alone.
+# Adding one also needs its pieces in study-review.css, recap.css, recap_picture.PLACES and the arrows.
+REVIEW_PICTURES = ('space', 'ear', 'constellations', 'muscles')
+# Of these, the topics whose pictures are the last frames of clips (made by tools/prepare_review_media.py), by clip name.
 REVIEW_CLIPS = {'space': 'Spazio', 'ear': 'Orecchio'}
 
 
@@ -1209,10 +1217,11 @@ def task_review(number):
     theme = review_artwork_theme(progress)
     topic = str(task['snapshot']['topic_id'])
     animation = poster = piece = None
-    if theme in REVIEW_CLIPS and topic in ('1', '2', '3'):
-        animation = f'videos/review/{REVIEW_CLIPS[theme]}_0{topic}.mp4'
-        poster = f'images/review/{theme}-{topic}.webp'
+    if theme in REVIEW_PICTURES and topic in ('1', '2', '3'):
         piece = f'{theme}-{topic}'
+        poster = f'images/review/{piece}.webp'
+        if theme in REVIEW_CLIPS:
+            animation = f'videos/review/{REVIEW_CLIPS[theme]}_0{topic}.mp4'
     return render_template('study_handoff.html', review_tasks=[task], review_only=True,
                            animation=animation, poster=poster, piece=piece, arrow=REVIEW_ARROWS.get(piece),
                            is_last=number == len(progress['tasks']))

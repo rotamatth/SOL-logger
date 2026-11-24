@@ -32,10 +32,10 @@ def columns():
                           for n in (1, 2, 3)]}}
 
 
-@pytest.mark.parametrize(("theme", "image"), [("space", "space-recap.webp"), ("ear", "ear-recap.webp")])
-def test_the_picture_is_a_landscape_first_page_before_the_text(theme, image):
-    picture = {"background": APP_ROOT / "static/images/review" / image,
-               "tasks": [task(2, "1"), task(3, "2"), task(1, "3")], "arrows": RECAP_ARROWS[theme]}
+@pytest.mark.parametrize("theme", ["space", "ear", "constellations", "muscles"])
+def test_the_picture_is_a_landscape_first_page_before_the_text(theme):
+    picture = {"background": APP_ROOT / f"static/images/review/{theme}-recap.webp",
+               "tasks": [task(2, "1"), task(3, "2"), task(1, "3")], "arrows": RECAP_ARROWS[theme], "theme": theme}
     pdf = render_recap_pdf(columns(), picture)
     assert pdf.startswith(b"%PDF-") and pages(pdf) == 2
     assert len(re.findall(LANDSCAPE, pdf)) == 1 and len(re.findall(PORTRAIT, pdf)) == 1
@@ -65,7 +65,7 @@ def test_what_the_pdf_fonts_cannot_show_is_left_out_of_the_card():
 
 def test_a_long_answer_is_cut_on_the_picture_and_noted():
     picture = RecapPicture(APP_ROOT / "static/images/review/space-recap.webp",
-                           [task(1, "1", final="lunga " * 200), task(2, "2"), task(3, "3")], RECAP_ARROWS["space"], 700)
+                           [task(1, "1", final="lunga " * 200), task(2, "2"), task(3, "3")], RECAP_ARROWS["space"], 700, "space")
     from io import BytesIO
     from reportlab.pdfgen.canvas import Canvas
     picture.canv = Canvas(BytesIO())
@@ -75,20 +75,32 @@ def test_a_long_answer_is_cut_on_the_picture_and_noted():
 
 def test_the_pdf_places_cards_and_labels_where_the_tablet_does():
     """recap.css and recap_picture.py must agree: a change to one needs the same change to the other."""
-    css = (APP_ROOT / "static/recap.css").read_text()
+    css = re.sub(r"/\*.*?\*/", "", (APP_ROOT / "static/recap.css").read_text(), flags=re.S)
+    # Every theme's own rules, without the short-screen ones, which only make room on a small tablet.
+    rules = re.findall(r"^([^@{}/*\n][^{}]*)\{([^}]*)\}", css.split("@media (max-height: 600px) {\n  .recap-stage--")[0], re.M)
 
-    def left(kind, slot):
-        found = re.search(rf"\.recap-piece--space-{slot} \.{kind}[^{{]*\{{ left: ([\d.]+)%; \}}", css)
-        return float(found[1]) / 100
+    def value(theme, slot, kind, name):
+        """The last rule for this card that sets `name`, as a browser would pick it: all have the same weight."""
+        found = None
+        targets = (f".recap-piece--{theme}-{slot} .{kind}", f".recap-stage--{theme} .{kind}", ".recap-piece .review-card",
+                   f".recap-piece .{kind}", f".recap-stage--{theme} .review-card")
+        for selectors, body in rules:
+            if any(selector.strip() in targets for selector in selectors.split(",")):
+                match = re.search(rf"(?:^|[\s;]){re.escape(name)}: (?:max\()?([\d.]+)", body)
+                found = float(match[1]) if match else found
+        return found
 
-    for slot in ("1", "2", "3"):
-        assert left("review-number", slot) == pytest.approx(recap_picture.LABEL_LEFT[slot])
-        assert left("review-before", slot) == pytest.approx(recap_picture.BEFORE_LEFT[slot])
-        assert left("review-after", slot) == pytest.approx(recap_picture.AFTER_LEFT[slot])
-    assert "width: 24.8%;" in css and recap_picture.CARD_WIDTH == 0.248
-    assert "min-height: 19.4%;" in css and recap_picture.CARD_MIN_HEIGHT == 0.194
-    assert "bottom: 6.6%;" in css and recap_picture.AFTER_BOTTOM == 0.066
-    assert "max(9.4%," in css and recap_picture.BEFORE_TOP == 0.094
+    for theme, places in recap_picture.PLACES.items():
+        for slot in ("1", "2", "3"):
+            assert value(theme, slot, "review-number", "left") / 100 == pytest.approx(recap_picture.LABEL_LEFT[slot])
+            for kind in ("before", "after"):
+                card, place = f"review-{kind}", places[kind][slot]
+                assert value(theme, slot, card, "left") / 100 == pytest.approx(place["left"]), (theme, slot, kind)
+                assert value(theme, slot, card, "width") / 100 == pytest.approx(places["width"]), (theme, slot, kind)
+                assert value(theme, slot, card, "min-height") / 100 == pytest.approx(places["min_height"]), (theme, slot, kind)
+                assert value(theme, slot, card, "--card-share") == pytest.approx(place["max_height"]), (theme, slot, kind)
+                edge = "top" if place["top"] is not None else "bottom"
+                assert value(theme, slot, card, edge) / 100 == pytest.approx(place[edge]), (theme, slot, kind)
     assert "top: 1.8%;" in css and recap_picture.LABEL_TOP == 0.018
 
 
@@ -102,7 +114,7 @@ def finish(student_modules, theme):
     return module.PROGRESS.store.recap_pdf(auth["attempt_id"])
 
 
-@pytest.mark.parametrize("theme", ["spazio", "orecchio"])
+@pytest.mark.parametrize("theme", ["spazio", "orecchio", "costellazioni", "muscoli"])
 def test_salva_keeps_a_pdf_with_the_picture_of_the_session(student_modules, theme):
     pdf = finish(student_modules, theme)
     assert pages(pdf) == 2 and re.search(LANDSCAPE, pdf) and b"/Subtype /Image" in pdf

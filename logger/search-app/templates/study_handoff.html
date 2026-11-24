@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ 'Il tuo riassunto' if review_only else 'Le tue risposte' }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='child-pages-2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='pictures-1') }}">
   {% if review_tasks %}
-  <script src="{{ url_for('static', filename='study-review.js', v='strict-back-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='study-review.js', v='pictures-1') }}" defer></script>
   {% endif %}
   <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
   <script src="{{ url_for('static', filename='connection-watch.js', v='watch-2') }}" defer></script>
@@ -24,6 +24,10 @@
         <video class="review-animation" src="{{ url_for('static', filename=animation, v='child-pages-1') }}"
                poster="{{ url_for('static', filename=poster, v='child-pages-1') }}" aria-label="Animazione della domanda {{ task.number }}"
                muted playsinline preload="auto"></video>
+        {% elif poster %}
+        <img class="review-animation" src="{{ url_for('static', filename=poster, v='pictures-1') }}" alt="">
+        {% endif %}
+        {% if piece %}
         <svg class="unlock-arrow" viewBox="0 0 760 420" aria-hidden="true">
           <path d="{{ arrow.line }}" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="5 5"/>
           <path d="{{ arrow.tip }}" fill="none" stroke="#111" stroke-width="2"/>

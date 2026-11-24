@@ -122,8 +122,8 @@ VERTEX_MUSCOLI_DATA_STORE_ID=<ID of its data store>
 
 A session's topic is the "Tema della sessione" typed in the dashboard: `spazio`, `orecchio`,
 `costellazioni` or `muscoli` (the other accepted words are in `TOPIC_NAMES` in `search_app.py`).
-Constellations and muscles have no clips or recap drawing yet: the page after each question
-shows the two answers alone, and the recap its plain layout.
+Constellations and muscles have pictures instead of clips; which question gets which picture is in
+`research_dashboard.md`, "Session topic".
 
 The practice question before the ID searches an engine of its own, on a topic no class studies
 (volcanoes at first). Add its two values too:

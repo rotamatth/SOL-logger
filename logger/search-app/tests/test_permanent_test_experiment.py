@@ -67,7 +67,7 @@ def test_a_test_id_needs_no_session_and_has_its_theme(student_modules, uid, them
 
 
 @pytest.mark.parametrize(("uid", "theme"), [("TEST-costellazioni", "constellations"), ("TEST-muscoli", "muscles")])
-def test_a_test_id_of_a_2_december_topic_searches_its_topic_without_clips(student_modules, uid, theme):
+def test_a_test_id_of_a_2_december_topic_searches_its_topic_and_shows_its_pictures(student_modules, uid, theme):
     module = student_modules()
     client = start(module, uid)
     page = client.get("/task")
@@ -80,7 +80,7 @@ def test_a_test_id_of_a_2_december_topic_searches_its_topic_without_clips(studen
         assert module.run_theme() == theme
     complete_today(client)
     review = client.get("/task-review/1").text
-    assert "videos/review/" not in review
+    assert "videos/review/" not in review and f"images/review/{theme}-" in review
 
 
 def test_the_2_december_test_ids_have_three_questions_on_a_topic_the_app_knows(student_modules):

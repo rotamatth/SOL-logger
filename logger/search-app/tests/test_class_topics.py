@@ -1,5 +1,6 @@
 """The topics of 2 December 2026: constellations for class 4 and muscles for class 5, each on its own engine."""
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -44,15 +45,29 @@ def test_the_words_typed_in_the_dashboard_pick_the_topic(student_modules, label,
     assert student_modules().known_theme(label) == theme
 
 
-@pytest.mark.parametrize("label", ["costellazioni", "muscoli"])
-def test_a_new_topic_shows_its_answers_alone_and_the_plain_recap(student_modules, label):
+@pytest.mark.parametrize(("label", "theme"), [("costellazioni", "constellations"), ("muscoli", "muscles")])
+def test_a_new_topic_shows_its_pictures_after_each_question_and_on_the_recap(student_modules, label, theme):
     module = student_modules()
     schedule(module, {**question_set(), "theme": label})
     client, page = recap_page(module)
-    assert "recap-stage--plain" in page and 'class="recap-arrow"' not in page and "-recap.webp" not in page
-    for number in (1, 2, 3):
+    assert f"recap-stage--{theme}" in page and page.count('class="recap-arrow"') == 3
+    assert f"/static/images/review/{theme}-recap.webp" in page
+    pieces = dict(re.findall(rf'recap-piece--{theme}-(\d)" aria-labelledby="recap-question-(\d)"', page))
+    assert sorted(pieces) == ["1", "2", "3"]
+    for slot, number in pieces.items():
+        # A question's place in the session picks its picture, the same part on its review page and on the recap.
         review = client.get(f"/task-review/{number}").text
-        assert "unlock--none" in review and "<video" not in review
+        assert f"unlock--{theme}-{slot}" in review and f"/static/images/review/{theme}-{slot}.webp" in review
+        assert 'class="unlock-arrow"' in review and "<video" not in review and "/static/videos/review/" not in review
+
+
+@pytest.mark.parametrize("theme", ["constellations", "muscles"])
+def test_every_picture_of_a_new_topic_is_there_and_has_its_place(theme):
+    static = APP_ROOT / "static"
+    for name in ("1", "2", "3", "recap"):
+        assert (static / "images" / "review" / f"{theme}-{name}.webp").stat().st_size > 5_000
+    for slot in ("1", "2", "3"):
+        assert f".unlock--{theme}-{slot} .review-animation" in (static / "study-review.css").read_text()
 
 
 def load_check_tool(backend, monkeypatch):

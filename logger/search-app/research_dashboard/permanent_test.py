@@ -34,7 +34,7 @@ TEST_EXPERIMENTS = {
         ("Multi-step -- Coclea", "Che forma ha la coclea e dove si trova?"),
         ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))),
     # The 2 December 2026 topics. Placeholders until Diletta's questions for 4a costellazioni and 5a muscoli
-    # are in: then these become those questions, as for the two above. No clips yet, so the order is free.
+    # are in: then these become those questions, as for the two above, in the order of their pictures.
     "TEST-costellazioni": _question_set("costellazioni", (
         ("Segnaposto -- Stella polare", "In quale costellazione si trova la Stella Polare?"),
         ("Segnaposto -- Orione", "Quali sono le tre stelle della cintura di Orione?"),

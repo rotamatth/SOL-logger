@@ -150,7 +150,7 @@ def test_the_last_page_shows_both_answers_on_the_volcano_and_leads_to_the_id_pag
     assert "Avete finito la prova!" in done and "Ora siete pronti per iniziare l’attività." in done
     assert "Cosa sapevi prima" in done and shown in done
     assert "Cosa sai adesso" in done and "Effusive, esplosive e miste" in done
-    assert "images/practice/volcano.svg" in done and "/static/logger.js" not in done
+    assert "images/practice/volcano.webp" in done and "/static/logger.js" not in done
     leave = HiddenFields(done).values
     assert client.post("/prova/esci", data=leave).location.endswith("/start")
     with client.session_transaction() as saved:

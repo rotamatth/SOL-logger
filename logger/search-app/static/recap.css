@@ -77,11 +77,11 @@
   stroke-width: 2.4px;
 }
 
-.recap-stage--space .recap-arrow-halo {
+.recap-stage--space .recap-arrow-halo, .recap-stage--constellations .recap-arrow-halo {
   stroke: rgb(8 14 38 / 72%);
 }
 
-.recap-stage--space .recap-arrow-line {
+.recap-stage--space .recap-arrow-line, .recap-stage--constellations .recap-arrow-line {
   stroke: #fff;
 }
 
@@ -179,6 +179,45 @@
 .recap-piece--space-1 .review-after, .recap-piece--ear-1 .review-after { left: 6.2%; }
 .recap-piece--space-2 .review-after, .recap-piece--ear-2 .review-after { left: 39.6%; }
 .recap-piece--space-3 .review-after, .recap-piece--ear-3 .review-after { left: 73%; }
+
+.recap-piece--constellations-1 .review-number, .recap-piece--muscles-1 .review-number { left: 2%; }
+.recap-piece--constellations-2 .review-number, .recap-piece--muscles-2 .review-number { left: 35.7%; }
+.recap-piece--constellations-3 .review-number, .recap-piece--muscles-3 .review-number { left: 69.4%; }
+
+/* Constellations: constellation, sun and rocket fill the upper half, so both rows of cards go below it. */
+.recap-stage--constellations .review-card { width: 24.8%; min-height: 17%; }
+.recap-stage--constellations .review-before { --card-share: 0.22; top: 46.5%; }
+.recap-stage--constellations .review-after { --card-share: 0.235; bottom: 2%; }
+.recap-piece--constellations-1 .review-before { left: 1.4%; }
+.recap-piece--constellations-2 .review-before { left: 27.6%; }
+.recap-piece--constellations-3 .review-before { left: 73.5%; }
+.recap-piece--constellations-1 .review-after { left: 3%; }
+.recap-piece--constellations-2 .review-after { left: 33%; }
+.recap-piece--constellations-3 .review-after { left: 74%; }
+
+/* Muscles: the three figures stand the whole height. The cards leave their faces, the octopus's hearts and the
+   first boy's organs in sight: a row along the bottom, and the first answers of questions 1 and 3 beside them. */
+.recap-stage--muscles .review-card { width: 23.6%; min-height: 16%; }
+.recap-stage--muscles .review-before { --card-share: 0.22; }
+.recap-stage--muscles .review-after { --card-share: 0.22; bottom: 3%; }
+/* As under the labels of space and ear: on a short screen, clear of the label's bottom by the room its stars take. */
+.recap-piece--muscles-1 .review-before { left: 17.6%; top: max(12%, calc(1.8% + 2.75em + 8px)); }
+.recap-piece--muscles-2 .review-before { left: 25.6%; bottom: 3%; }
+.recap-piece--muscles-3 .review-before { --card-share: 0.2; left: 74.8%; top: 47%; }
+.recap-piece--muscles-1 .review-after { left: 1%; }
+.recap-piece--muscles-2 .review-after { left: 50.2%; }
+.recap-piece--muscles-3 .review-after { left: 75.2%; }
+
+/* These two leave the cards less room, so on a short screen a slimmer card keeps two lines of the answer in sight. */
+@media (max-height: 600px) {
+  .recap-stage--constellations .review-card, .recap-stage--muscles .review-card { padding-block: 0.25em 0.3em; }
+  .recap-stage--constellations .review-card h3, .recap-stage--muscles .review-card h3 { font-size: 0.78em; white-space: nowrap; }
+  .recap-stage--constellations .recap-confidence, .recap-stage--muscles .recap-confidence { top: -1.15em; }
+  .recap-stage--constellations .review-card p, .recap-stage--muscles .review-card p {
+    max-height: calc(var(--board-h) * var(--card-share) - 1.7em - 3px);
+    max-height: round(down, calc(var(--board-h) * var(--card-share) - 1.7em - 3px), 1.3em);
+  }
+}
 
 /* A theme without its own picture: the three questions side by side over the picture. */
 .recap-stage--plain {

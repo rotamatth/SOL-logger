@@ -1,9 +1,9 @@
 """The recap picture drawn into the recap PDF: the theme's drawing with today's answers on it.
 
 It repeats what the tablet shows (recap.html, recap.css, student_recap.RECAP_ARROWS): the same drawing, the
-"Domanda N" labels, the first answers in a row under the labels and the final answers along the bottom, and
-the dashed arrows through the magnifiers. Positions are shares of the picture, taken from recap.css, so the
-PDF and the tablet stay alike. A card holds what fits; the full answers are on the PDF's text pages.
+"Domanda N" labels, each question's two answers at the theme's places, and the dashed arrows through the
+magnifiers. Positions are shares of the picture, taken from recap.css, so the PDF and the tablet stay alike.
+A card holds what fits; the full answers are on the PDF's text pages.
 
 ReportLab draws it directly: no browser runs on the server, and nothing is taken from the tablet.
 """
@@ -19,13 +19,32 @@ PICTURE_RATIO = 1600 / 1067              # The drawings' proportions.
 # recap.css: where each label and card sits, by the question's part of the picture, as shares of the picture.
 LABEL_LEFT = {"1": 0.02, "2": 0.357, "3": 0.694}
 LABEL_TOP = 0.018
-BEFORE_LEFT = {"1": 0.014, "2": 0.312, "3": 0.609}
-AFTER_LEFT = {"1": 0.062, "2": 0.396, "3": 0.73}
-BEFORE_TOP = 0.094
-AFTER_BOTTOM = 0.066
-CARD_WIDTH = 0.248
-CARD_MIN_HEIGHT = 0.194
-CARD_MAX_HEIGHT = {"before": 0.28, "after": 0.29}
+
+
+def _place(left, max_height, top=None, bottom=None):
+    """A card hangs from `top` or stands on `bottom`, and grows to `max_height`."""
+    return {"left": left, "max_height": max_height, "top": top, "bottom": bottom}
+
+
+_SPACE_AND_EAR = {
+    "width": 0.248, "min_height": 0.194,
+    "before": {"1": _place(0.014, 0.28, top=0.094), "2": _place(0.312, 0.28, top=0.094), "3": _place(0.609, 0.28, top=0.094)},
+    "after": {"1": _place(0.062, 0.29, bottom=0.066), "2": _place(0.396, 0.29, bottom=0.066),
+              "3": _place(0.73, 0.29, bottom=0.066)}}
+PLACES = {
+    "space": _SPACE_AND_EAR,
+    "ear": _SPACE_AND_EAR,
+    "constellations": {
+        "width": 0.248, "min_height": 0.17,
+        "before": {"1": _place(0.014, 0.22, top=0.465), "2": _place(0.276, 0.22, top=0.465), "3": _place(0.735, 0.22, top=0.465)},
+        "after": {"1": _place(0.03, 0.235, bottom=0.02), "2": _place(0.33, 0.235, bottom=0.02),
+                  "3": _place(0.74, 0.235, bottom=0.02)}},
+    "muscles": {
+        "width": 0.236, "min_height": 0.16,
+        "before": {"1": _place(0.176, 0.22, top=0.12), "2": _place(0.256, 0.22, bottom=0.03), "3": _place(0.748, 0.2, top=0.47)},
+        "after": {"1": _place(0.01, 0.22, bottom=0.03), "2": _place(0.502, 0.22, bottom=0.03),
+                  "3": _place(0.752, 0.22, bottom=0.03)}},
+}
 
 BLUE = colors.HexColor("#4285f4")
 BLUE_DARK = colors.HexColor("#1a4fa3")
@@ -81,11 +100,11 @@ def _quadratic_points(path):
 
 
 class RecapPicture(Flowable):
-    """The recap picture as one flowable of the given width."""
+    """The recap picture as one flowable of the given width, with the cards at the theme's places."""
 
-    def __init__(self, background, tasks, arrows, width):
+    def __init__(self, background, tasks, arrows, width, theme):
         super().__init__()
-        self.background, self.tasks, self.arrows = background, tasks, arrows
+        self.background, self.tasks, self.arrows, self.places = background, tasks, arrows, PLACES[theme]
         self.width, self.height = width, width / PICTURE_RATIO
         self.hAlign = "CENTER"
         self.truncated = []
@@ -170,19 +189,18 @@ class RecapPicture(Flowable):
         size = self.width * 0.0118
         leading = size * 1.3
         pad = size * 0.7
-        width = self._x(CARD_WIDTH)
+        place = self.places[kind][task["slot"]]
+        width = self._x(self.places["width"])
         inner = width - 2 * pad
         title = "Cosa sapevi prima" if kind == "before" else "Cosa sai adesso"
         text = task["first"] if kind == "before" else task["final"]
-        room = int((CARD_MAX_HEIGHT[kind] * self.height - 2 * pad - leading * 1.2) // leading)
+        room = int((place["max_height"] * self.height - 2 * pad - leading * 1.2) // leading)
         lines, cut = fit(wrap(text, FONT, size, inner), max(1, room), FONT, size, inner)
         if cut:
             self.truncated.append((task["number"], kind))
-        height = max(CARD_MIN_HEIGHT * self.height, 2 * pad + leading * (1.2 + len(lines)))
-        if kind == "before":
-            x, top = self._x(BEFORE_LEFT[task["slot"]]), self._y(BEFORE_TOP)
-        else:
-            x, top = self._x(AFTER_LEFT[task["slot"]]), AFTER_BOTTOM * self.height + height
+        height = max(self.places["min_height"] * self.height, 2 * pad + leading * (1.2 + len(lines)))
+        x = self._x(place["left"])
+        top = self._y(place["top"]) if place["top"] is not None else place["bottom"] * self.height + height
         canvas.setFillColor(colors.white if kind == "before" else BLUE)
         canvas.setStrokeColor(BLUE)
         canvas.setLineWidth(1.1)
