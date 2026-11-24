@@ -19,14 +19,13 @@
         if (requesting) return requesting;
         const root = fullscreenDocument.documentElement;
         if (!root.requestFullscreen || fullscreenDocument.fullscreenEnabled === false) return null;
-        try {
-            // Keep the request synchronous with the trusted input event.
-            requesting = Promise.resolve(root.requestFullscreen());
-            requesting.then(() => { requesting = null; }, () => { requesting = null; });
-            return requesting;
-        } catch (error) {
-            return Promise.reject(error);
-        }
+        const enterFullscreen = async () => {
+            // Async functions start synchronously: invoke the API in the trusted
+            // input event, and convert synchronous throws into rejected promises.
+            await root.requestFullscreen();
+        };
+        requesting = enterFullscreen().finally(() => { requesting = null; });
+        return requesting;
     }
 
     function retryFullscreen(event) {
@@ -71,21 +70,17 @@
         event.preventDefault();
         entering = true;
         const fallback = () => window.location.assign(start.href);
-        try {
-            Promise.resolve(requested).then(() => {
-                // A reset link must not clear the new child's session on reload.
-                window.history.replaceState(window.history.state, "", start.dataset.fullscreenHostUrl);
-                const frame = document.createElement("iframe");
-                frame.id = "student-session-frame";
-                frame.title = "Percorso di ricerca";
-                frame.src = start.href;
-                frame.allow = "fullscreen";
-                document.body.classList.add("fullscreen-session");
-                document.body.replaceChildren(frame);
-                frame.focus();
-            }).catch(fallback);
-        } catch (_) {
-            fallback();
-        }
+        requested.then(() => {
+            // A reset link must not clear the new child's session on reload.
+            window.history.replaceState(window.history.state, "", start.dataset.fullscreenHostUrl);
+            const frame = document.createElement("iframe");
+            frame.id = "student-session-frame";
+            frame.title = "Percorso di ricerca";
+            frame.src = start.href;
+            frame.allow = "fullscreen";
+            document.body.classList.add("fullscreen-session");
+            document.body.replaceChildren(frame);
+            frame.focus();
+        }).catch(fallback);
     });
 })();

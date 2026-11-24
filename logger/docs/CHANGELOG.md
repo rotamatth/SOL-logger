@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-24 — Fix fullscreen quality checks and browser test setup
+
+**Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/static/student-fullscreen.js` — normalize synchronous errors and rejected promises through an async request and clear pending state in `finally`; use the existing promise catch for entry fallback.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — check that later interactions can retry after both synchronous throws and rejected promises.
+- `logger/search-app/tests/test_first_answer_flow_browser.py` — leave fullscreen before resizing the browser for responsive layout assertions.
+
+**What changed for the participant**
+No visible change: fullscreen requests still start during the trusted interaction,
+and a refused request never blocks the control's normal action or later retries.
+
+**How it works**
+Remove the two promise-related `try/catch` patterns reported by Sonar rule
+`javascript:S4822`. The async wrapper invokes the browser API before its first
+suspension and turns a synchronous throw into a rejection. The chained `finally`
+releases the request guard after either outcome.
+Fullscreen tests wait for the embedded page's deferred scripts before sending
+keyboard input. Responsive layout tests explicitly exit fullscreen before asking
+Chromium to resize its window; all layout and saved-answer assertions remain.
+
+**Verified**
+All 181 browser tests passed locally, including the GitHub regression; the focused
+fullscreen, first-answer flow and UI run passed all 28 tests. Ruff, JavaScript
+syntax and whitespace checks passed. SonarQube must reanalyse the next pushed commit.
+
 ## 2026-11-24 — Retry student fullscreen from every page
 
 **Type:** fix · **Area:** task-flow, result-viewer

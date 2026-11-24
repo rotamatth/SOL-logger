@@ -18,6 +18,9 @@ def open_fullscreen(page, base, keyboard=False, entry="/welcome"):
     page.locator("#student-session-frame").wait_for()
     frame = page.frame_locator("#student-session-frame")
     frame.locator("#id-box").wait_for()
+    # The form becomes visible before deferred scripts finish loading. Keyboard
+    # input can otherwise beat registration of the fullscreen retry listeners.
+    page.frames[1].wait_for_load_state("load")
     return frame
 
 
@@ -132,16 +135,20 @@ def test_native_select_retries_without_blocking_number_selection(student_site):
     assert until(page, lambda: page.evaluate("Boolean(document.fullscreenElement)"))
 
 
-def test_refused_retry_does_not_block_the_control_or_future_retries(student_site):
+@pytest.mark.parametrize("failure", ["rejected", "throws"])
+def test_refused_retry_does_not_block_the_control_or_future_retries(student_site, failure):
     page, base, _ = student_site
     frame = open_fullscreen(page, base)
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.evaluate("""() => {
+    page.evaluate("""failure => {
         window.realFullscreen = Element.prototype.requestFullscreen;
-        Element.prototype.requestFullscreen = () => Promise.reject(new TypeError('Synthetic refusal'));
+        Element.prototype.requestFullscreen = () => {
+            if (failure === 'throws') throw new TypeError('Synthetic refusal');
+            return Promise.reject(new TypeError('Synthetic refusal'));
+        };
         return document.exitFullscreen();
-    }""")
+    }""", failure)
     frame.locator("#id-box").select_option("1")
     frame.locator("#continue-btn").click()
     frame.locator("#task-intro-continue").wait_for()
