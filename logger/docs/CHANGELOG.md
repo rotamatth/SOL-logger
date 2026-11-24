@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-24 — Retry fullscreen on the prova pages and the end page too
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/templates/practice_intro.html`, `practice_done.html`, `finished.html` — load `student-fullscreen.js`, as Samuele's change does on every other child page
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — the prova, its last page and the end page bring fullscreen back; a tap inside an open dialog keeps the dialog usable; every child page loads the script
+
+**What changed for the participant**
+After leaving fullscreen on "Facciamo una prova!", "Avete finito la prova!" or "Alzate la mano", the next tap brings it back, as on the other pages.
+
+**How it works**
+Samuele's change (#38) was written from `matthias-dev`, which has no prova and no end page. These three templates do not extend `layout.html`, so the merge alone left them without the script.
+
+**If something looks wrong after this, check**
+- A child page where a tap does not bring fullscreen back → whether it loads `student-fullscreen.js` (`test_every_child_page_loads_the_fullscreen_script`).
+
+**Left alone**
+`student-fullscreen.js` itself, the logger, the Back blocker, the connection watch. `offline.html` stays without the script: it must load without the server.
+
+**Verified**
+On the plain merge the two new page tests failed. With the script in the three pages they pass. The full run is in the pull request.
+
 ## 2026-11-24 — Fix fullscreen quality checks and browser test setup
 
 **Type:** fix · **Area:** task-flow, tests

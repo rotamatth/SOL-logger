@@ -1,4 +1,7 @@
 """Real fullscreen entry and navigation, with synthetic study storage only."""
+from pathlib import Path
+import sys
+
 import pytest
 
 from .test_background_upload_browser import saved, search, student_site  # noqa: F401
@@ -111,6 +114,80 @@ def test_direct_student_page_can_enter_fullscreen_without_returning_to_welcome(s
     page.goto(base + "/start")
     page.locator(".id-panel").click(position={"x": 30, "y": 30})
     assert until(page, lambda: page.evaluate("Boolean(document.fullscreenElement)"))
+
+
+def leave_fullscreen_then_tap(page, child, selector):
+    page.evaluate("document.fullscreenElement ? document.exitFullscreen() : undefined")
+    assert until(page, lambda: not page.evaluate("Boolean(document.fullscreenElement)"))
+    child.locator(selector).click()
+    assert until(page, lambda: page.evaluate("document.fullscreenElement === document.documentElement"))
+
+
+def test_the_practice_and_the_end_page_restore_the_outer_fullscreen(student_site):
+    page, base, _ = student_site
+    sys.modules["search_backend"].practice_engine_configured = lambda: True
+    page.goto(base + "/welcome")
+    page.get_by_role("link", name="Inizia", exact=True).click()
+    page.locator("#student-session-frame").wait_for()
+    child = page.frames[1]
+    child.wait_for_url("**/prova")
+    child.wait_for_load_state("load")
+    leave_fullscreen_then_tap(page, child, ".task-intro-title")
+    child.click("#practice-intro-continue")
+    child.wait_for_url("**/prova/domanda")
+    child.fill("#first-answer-text", "Lava e cenere")
+    child.get_by_role("radio", name="Giustissima", exact=True).check()
+    child.click("#first-answer-confirm")
+    child.locator("a#first-answer-search").wait_for()
+    child.click("a#first-answer-search")
+    child.wait_for_url("**/prova/cerca")
+    child.fill("#search-box", "tipi di eruzioni")
+    child.click("#submit-box")
+    child.wait_for_url("**/prova/risultati")
+    child.click("#abstract-link-1")
+    child.wait_for_url("**/prova/pagina**")
+    child.click("#end-task-btn")
+    child.fill("#textarea_feedback", "Effusive ed esplosive")
+    child.click("#feedback-btn")
+    child.click("#yes-end-btn")
+    child.wait_for_url("**/prova/finita")
+    child.wait_for_load_state("load")
+    leave_fullscreen_then_tap(page, child, "#practice-done-heading")
+    child.goto(base + "/fine")
+    leave_fullscreen_then_tap(page, child, ".finished-title")
+
+
+def test_a_tap_inside_an_open_dialog_keeps_the_dialog_usable(student_site):
+    """Outside the host the page itself goes fullscreen, and must not end up over its own dialog."""
+    page, base, _ = student_site
+    page.goto(base + "/start")
+    page.select_option("#id-box", "1")
+    page.click("#continue-btn")
+    while page.locator("#task-intro-continue").count():
+        page.click("#task-intro-continue")
+        page.wait_for_load_state("load")
+    page.locator("#first-answer-unknown").wait_for()
+    page.click("#first-answer-unknown")
+    dialog = page.locator("#first-answer-unknown-dialog")
+    dialog.wait_for()
+    page.evaluate("document.fullscreenElement ? document.exitFullscreen() : undefined")
+    dialog.locator("h1, h2, p").first.click()
+    assert until(page, lambda: page.evaluate("Boolean(document.fullscreenElement)"))
+    on_top = """() => {
+        const button = document.getElementById('first-answer-cancel-unknown');
+        const box = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    }"""
+    assert page.evaluate(on_top), "the fullscreen page covers its own dialog"
+    page.click("#first-answer-cancel-unknown")
+    assert dialog.is_hidden()
+
+
+def test_every_child_page_loads_the_fullscreen_script():
+    templates = Path(__file__).resolve().parents[1] / "templates"
+    for name in ("layout.html", "welcome.html", "first_answer.html", "task_intro.html", "study_handoff.html",
+                 "recap.html", "practice_intro.html", "practice_done.html", "finished.html"):
+        assert "filename='student-fullscreen.js', v='2'" in (templates / name).read_text(), name
 
 
 def test_native_select_retries_without_blocking_number_selection(student_site):
