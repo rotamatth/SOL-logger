@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-24 — Retry student fullscreen from every page
+
+**Type:** fix · **Area:** task-flow, result-viewer
+
+**Files**
+- `logger/search-app/static/student-fullscreen.js` — retry on trusted taps, clicks and key presses; reuse the outer fullscreen host.
+- `logger/search-app/templates/` — load the shared fullscreen script on every student page and update its cache version.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — cover touch, mouse, keyboard, direct entry, refusal recovery and navigation.
+- `logger/search-app/tests/test_first_answer_ui.py` — allow the shared fullscreen script while retaining the legacy-script check.
+- `logger/docs/research_dashboard.md` — describe fullscreen recovery and external-frame limits.
+
+**What changed for the participant**
+After leaving fullscreen, the next interaction on any student page tries to enter
+fullscreen again. Returning to the welcome page is no longer required.
+
+**How it works**
+Capture listeners request fullscreen directly during trusted input, targeting the
+persistent outer host when present. Active fullscreen and pending requests are
+left alone. Failed requests do not cancel the control's action or disable retries.
+Escape can exit fullscreen; the following interaction retries. The original
+welcome entry and normal-navigation fallback remain available.
+
+**If something looks wrong after this, check**
+Check the tablet browser's fullscreen support and permission. Taps inside external
+websites' frames do not reach the app; its viewer controls still retry. Research
+dashboard pages do not load this script.
+
 ## 2026-11-20 — Enter fullscreen from the existing Inizia button
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, docs, tests

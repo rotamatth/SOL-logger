@@ -32,8 +32,17 @@ the frame. Research dashboard pages must still be opened separately.
 If fullscreen is unavailable, disabled or refused, **Inizia** opens the usual ID
 page in the browser. This includes older browsers that only offer a prefixed
 fullscreen API. Leaving fullscreen with Escape or the browser's own control
-keeps the app usable. Reloading the top-level page exits fullscreen and follows
-the existing server-side session recovery; fullscreen needs a new user gesture.
+keeps the app usable. Every student page now retries fullscreen on each tap,
+click or key press when it is not already active, including answers, search,
+the viewer controls and the final recap. Inside the persistent host, the request
+targets the outer document so navigation continues in fullscreen. Escape itself
+does not trigger re-entry. A refusal never blocks the control's normal action,
+and the next interaction can retry. Directly opened student pages also retry,
+so returning to **Inizia** is unnecessary. Interactions inside an external
+website's embedded frame cannot be observed by the app; use the viewer's own
+controls to re-enter fullscreen.
+Reloading the top-level page exits fullscreen and follows the existing server-side
+session recovery; the next interaction on the recovered page retries fullscreen.
 Fullscreen does not lock the device to this app. Check the actual classroom
 tablet/browser before the session, including keyboard, rotation, result previews,
 Back gestures and exiting fullscreen. Chromium tests do not replace an iPad/Safari
