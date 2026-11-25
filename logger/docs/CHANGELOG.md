@@ -65,6 +65,38 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-25 — Set the tablet's number before the prova, and start its run after it
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, session, logging, dashboard, docs, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — the number waits in the browser's session (`SETUP_KEY`) during the prova
+- `logger/search-app/search_app.py` — `/start`: `setup=1` only sets the number (`set_number`); the start after the prova and its errors (`run_start_page`, `start_refused`, `start_unavailable`); "Ricomincia" of a test ID skips the prova
+- `logger/search-app/student_progress.py` — setting the number takes no admission lock; a start that cannot be saved may show its own page
+- `logger/search-app/templates/run_start.html` — new: sends the number's start by itself; "Riprova" after an error
+- `logger/search-app/templates/start.html`, `welcome.html`, `layout.html` — Inizia opens the ID page, whose form before the prova only sets the number
+- `logger/search-app/research_dashboard/i18n.py` — the prova's texts say the new order
+- `logger/docs/research_dashboard.md`, `manual_logging_walkthrough.md`
+- `logger/search-app/tests/` — `test_practice_question.py`, `test_practice_question_browser.py`, `test_student_fullscreen_browser.py`, `test_practice_dashboard.py`
+
+**What changed for the participant**
+Inizia opens the ID page first. An adult sets the number and hands the tablet over at "Facciamo una prova!". Inizia on "Avete finito la prova!" leads straight to "Cominciamo!": the children no longer choose a number.
+
+**How it works**
+Choosing the number and starting the run are two steps. The ID page posts `setup=1` and only keeps `{number, date, over}` in the session, not `user_id`, so the run's routes and `/log_session` refuse the browser as before. Leaving the prova marks it `over`, and `/start` then shows `run_start.html`, which sends the old start request by itself through logger.js's `enter-id-form`. So `idSubmitted` and the clearing of the browser's storage happen when the run starts, as they did, and the ID page's form before the prova (`set-number-form`) records nothing. No database change.
+
+**If something looks wrong after this, check**
+- A log that begins long before its first question, or a stray `INCOMPLETE` fragment under an ID nobody used → the form on the ID page must be `set-number-form` while the prova is on.
+- A group's run is under another class's number → the tablet was not reset between the classes (`/welcome?reset=1`, or the end page's logo): Inizia must show the list of numbers.
+- A group stuck on "Un momento…" or "Riprova" → the server's log for "Could not admit a child" or "Could not publish research run metadata".
+- The children see the list of numbers after the prova → `setup` was lost from the session: the browser was closed, or the tablet was reset.
+
+**Left alone**
+logger.js, the start request and everything after it, the end page, the recap, the rules for two tablets with one number, the databases. With the prova off or without an engine the ID page starts the run itself, as before.
+
+**Verified**
+Server and browser tests: nothing is saved before the prova ends, the log's first event is later than the prova's end, a wrong number followed by a reset leaves nothing under it, a reload returns to the step, a failed start keeps the number and records it once. Not yet on a classroom tablet.
+
 ## 2026-11-24 — Add the pictures of the constellations and muscles topics, and the prova's volcano
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, data, docs, tests

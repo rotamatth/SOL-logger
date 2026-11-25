@@ -37,12 +37,14 @@ class SessionUnavailable(ValueError):
 
 
 class StudentProgress:
-    def __init__(self, app, state, store, logs, prepare_upload, expire_idle, test_logs=None, theme_of=None):
+    def __init__(self, app, state, store, logs, prepare_upload, expire_idle, test_logs=None, theme_of=None,
+                 start_unavailable=None):
         self.app, self.state, self.store, self.logs = app, state, store, logs
         self.test_logs = test_logs or logs
         self.theme_of = theme_of or (lambda attempt: None)
         self.prepare_upload = prepare_upload
         self.expire_idle = expire_idle
+        self.start_unavailable = start_unavailable or self.unavailable
         app.add_url_rule("/task/intro", "task_intro", self.intro)
         app.add_url_rule("/first-answer", "first_answer", self.submit_first, methods=["POST"])
         app.add_url_rule("/first-answer/draft", "first_answer_draft", self.save_first_draft, methods=["POST"])
@@ -140,7 +142,8 @@ class StudentProgress:
     def start_route(self, function):
         @wraps(function)
         def wrapped():
-            if request.method != "POST":
+            # Setting the tablet's number before the practice starts no run.
+            if request.method != "POST" or request.form.get("setup") == "1":
                 return function()
             if session.get("progress_id"):
                 self.expire_idle(touch=False)
@@ -168,7 +171,7 @@ class StudentProgress:
                 self.app.logger.exception("Could not admit a child at the start page")
                 session.clear()
                 session.update(previous)
-                return self.unavailable()
+                return self.start_unavailable()
         return wrapped
 
     def entry_url(self, attempt):

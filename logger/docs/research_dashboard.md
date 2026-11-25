@@ -612,15 +612,26 @@ child's unsent events that reach a test browser stay with the child. To read the
 
 ## Practice question
 
-After **Inizia**, and before choosing its ID, each group tries the app once with one practice
-question on a topic no class studies (volcanoes at first): "Facciamo una prova!", the question
-with a first answer, the search, a page, the final answer, and "Avete finito la prova!" with both
-answers next to a volcano. **Inizia** there opens the ID page and the experiment goes on as usual.
+An adult opens the app, taps **Inizia**, sets the tablet's ID and hands the tablet over at "Facciamo
+una prova!". Each group then tries the app once with one practice question on a topic no class
+studies (volcanoes at first): the question with a first answer, the search, a page, the final
+answer, and "Avete finito la prova!" with both answers next to a volcano. **Inizia** there starts
+the run of that ID, and the experiment goes on as usual with "Cominciamo!".
 
-**Nothing is saved.** The practice comes before the ID, so there is no participant, run or log
-yet. Its pages do not load the logger, its answers stay in the browser's session until the ID page,
-and it never appears in Data and history, the live view, exports, recaps or session numbers. A
-screen recording is its only record.
+**Nothing is saved.** Setting the ID does not start a run: the ID waits in the tablet's browser
+session, so during the practice there is no participant, run or log. The practice's pages do not
+load the logger, its answers stay in the browser's session until it ends, and it never appears in
+Data and history, the live view, exports, recaps or session numbers. A screen recording is its only
+record. The log, with `idSubmitted` first, begins when the practice is over.
+
+**The ID on the tablet.** An ID without an approved session today is refused on the ID page, while the
+adult still has the tablet. An ID that already has a run today continues it without the practice. If
+the start fails after the practice, the group sees **Riprova** and keeps its ID. The test IDs'
+**Ricomincia** skips the practice.
+
+**A wrong ID, and between two classes:** reset the tablet, or it keeps its ID until its run is finished.
+Hold the logo of the end page for three seconds, or open `/welcome?reset=1`. It worked if **Inizia** then
+shows the list of IDs. An ID left from another day is forgotten by itself.
 
 **Settings › Practice question** holds the topic, the question and an on/off switch, stored apart
 from the study settings. A practice already under way keeps the question it began with. The page
@@ -635,7 +646,7 @@ others. The server's env file names it:
     VERTEX_PROVA_ENGINE_ID=…
     VERTEX_PROVA_DATA_STORE_ID=…
 
-With either missing, or with the switch off, **Inizia** opens the ID page directly, as before. To
+With either missing, or with the switch off, the run starts as soon as the ID is chosen. To
 change the topic: create the new engine, change the two lines, restart the app, enter the new
 question in the dashboard, and check it with **Try a search** or
 `docker compose exec search_app python tools/check_search_engines.py --prova-query "…"`.

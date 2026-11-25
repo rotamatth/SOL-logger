@@ -47,13 +47,13 @@ def test_the_page_shows_the_default_volcano_question_and_says_nothing_is_saved(a
     assert re.search(r'name="enabled" value="1" id="practice-enabled" checked', page)
     assert "Nothing children do in the practice is saved." in page
     assert "a volcano, fixed in the app" in page
-    assert "Connected. Children see the practice after Inizia." in page
+    assert "Connected. Children see the practice after the ID is set." in page
 
 
 @pytest.mark.parametrize(("configured", "shared", "enabled", "message"), [
     (False, False, True, "No search engine is set for the practice"),
     (True, True, True, "also an engine a class searches"),
-    (True, False, False, "The practice is off: children go straight to the ID page."),
+    (True, False, False, "The practice is off: the experiment starts right after the ID."),
 ])
 def test_the_engine_status_says_what_children_will_see(app, researcher, configured, shared, enabled, message):  # noqa: F811
     engine(app, configured, shared)
