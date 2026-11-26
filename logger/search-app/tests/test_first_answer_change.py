@@ -1,4 +1,5 @@
 """A confirmed "Non lo so" can become a written answer once, before the question's first search, and nothing is overwritten."""
+import re
 import sqlite3
 
 import pytest
@@ -48,6 +49,8 @@ def test_after_non_lo_so_the_group_can_choose_to_write_an_answer(unknown):
     assert 'action="/first-answer/change"' in form and 'id="first-answer-unknown"' not in form
     assert "first-answer-unknown-dialog" not in form and 'id="first-answer-change-cancel"' in form
     assert 'href="/task"' in form and "Secondo te, quanto è giusta la tua risposta?" in form
+    assert re.search(r'id="first-answer-change-cancel"[^>]*>Non lo so</a>', form), "the way back says the answer it keeps"
+    assert "Annulla" not in form
 
 
 def test_the_written_answer_replaces_non_lo_so_and_the_original_stays(site, unknown):

@@ -179,6 +179,7 @@ def test_a_practice_non_lo_so_can_become_a_written_answer_before_the_search(site
     assert 'id="search-first-answer-btn"' not in search, "one button at the top right, as in a real question"
     form = client.get("/prova/domanda?change=1").text
     assert 'id="first-answer-change-cancel"' in form and 'action="/prova/cambia"' in form
+    assert 'href="/prova/domanda">Non lo so</a>' in form and "Annulla" not in form
     assert 'id="first-answer-unknown"' not in form, "only a written answer can replace it"
     assert change_practice(client).location.endswith("/prova/domanda")
     assert practice_state(client)["first"] == {"outcome": "answered", "text": "Esplosive ed effusive", "confidence": 2}

@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Call the way back from the change form "Non lo so", not "Annulla"
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests
+
+**Files**
+- `logger/search-app/templates/first_answer.html` — the change form's way back (`#first-answer-change-cancel`) reads "Non lo so" instead of "Annulla"
+- `logger/docs/research_dashboard.md` — the sentence on changing "Non lo so" names the button
+- `logger/search-app/tests/test_first_answer_change.py`, `test_practice_question.py` — the link reads "Non lo so", and "Annulla" is gone from the form
+- `logger/search-app/tests/test_first_answer_change_browser.py` — the test that keeps "Non lo so" taps the button by its new name (renamed from `test_annulla_keeps_non_lo_so`)
+
+**What changed for the participant**
+After "Cambia la mia risposta", the button beside "Conferma" reads "Non lo so", in the same place as the first form's "Non lo so". Tapping it goes back to "La tua prima risposta è: Non lo so", as "Annulla" did. Same in the prova. Matthias's request: "Annulla" was a new word for the children, and "Non lo so" says what they keep.
+
+**How it works**
+Only the label of the link. Its id, its look and its address (back to the question, or to `/prova/domanda`) are unchanged, so nothing is sent or logged when it is tapped.
+
+**If something looks wrong after this, check**
+- The button opens the "Non sai la risposta?" dialog → the page is the first form, not the change form (`change_mode` in `first_answer.html`).
+- A group's "Non lo so" changed after tapping it → it cannot from this link; look for an `OwnKnowledgeAnswerChanged` event, which only "Conferma" sends.
+
+**Left alone**
+The first form's "Non lo so" button and its dialog ("Torna alla risposta", "Confermo: non lo so"), "Cambia la mia risposta", the change itself and its logging, the search page's button, the dashboard's own "Annulla" buttons.
+
+**Verified**
+All 1308 server and browser tests pass. In Chromium, the change form of a real question and of the prova shows "Non lo so" beside "Conferma", and tapping it leaves "Non lo so" with no `OwnKnowledgeAnswerChanged` event. Not seen on a classroom tablet.
+
 ## 2026-11-24 — Add the pictures of the constellations and muscles topics, and the prova's volcano
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, data, docs, tests
