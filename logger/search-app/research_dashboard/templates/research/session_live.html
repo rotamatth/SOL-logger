@@ -1,8 +1,8 @@
 {% extends 'research/base.html' %}
 {% block page_assets %}<script src="{{ url_for('research.static', filename='live.js', v='dashboard-v2-20261105') }}" defer></script>
-<link rel="stylesheet" href="{{ url_for('research.static', filename='rooms.css', v='rooms-1') }}">
+<link rel="stylesheet" href="{{ url_for('research.static', filename='rooms.css', v='rooms-2') }}">
 <link rel="stylesheet" href="{{ url_for('research.static', filename='live-map.css', v='map-2') }}">
-<script src="{{ url_for('research.static', filename='room-drawing.js', v='rooms-1') }}" defer></script>
+<script src="{{ url_for('research.static', filename='room-drawing.js', v='rooms-2') }}" defer></script>
 <script src="{{ url_for('research.static', filename='live-map.js', v='map-2') }}" defer></script>{% endblock %}
 {% block content %}
 <div class="sessions-workspace live-workspace" id="live-workspace"{% if running %} data-live-url="{{ u('session_live_data', session_id=study_session.id) }}" data-login-url="{{ u('login', next=request.full_path.rstrip('?')) }}"{% endif %}>

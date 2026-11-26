@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Keep a turned door's word upright and show the selected piece in blue only
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, styling
+
+**Files**
+- `logger/search-app/research_dashboard/static/room-drawing.js` — a landmark's word (door, board, teacher's desk, window) turns the right way up when its piece is turned past a quarter turn
+- `logger/search-app/research_dashboard/static/rooms.css` — no orange focus outline on a piece: the selected piece is the focused one, shown by its blue outline and handle
+- `logger/search-app/research_dashboard/templates/research/rooms.html`, `session_live.html` — the drawing's files reloaded (`rooms-2`)
+
+**What changed for the participant**
+No change for children. A door on the far wall reads "PORTA", not upside down; a selected desk is outlined in blue only.
+
+**How it works**
+The word gets a half turn of its own when the piece's angle is between 90° and 270°.
+
+**If something looks wrong after this, check**
+- A word upside down → the piece's rotation in the Rooms page's panel.
+
+**Left alone**
+The pieces' geometry and everything else on both pages.
+
+**Verified**
+The 18 map and Rooms page browser tests pass; checked on the demo class.
+
 ## 2026-11-26 — Explain the Rooms page and the map's new layout
 
 **Commit:** pending · **Type:** content · **Area:** docs

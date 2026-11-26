@@ -76,7 +76,6 @@
 .room-floor:focus-visible { outline:3px solid #de9b34; outline-offset:2px }
 .room-floor .room-piece { cursor:move }
 .room-floor .room-piece:focus { outline:none }
-.room-floor .room-piece:focus-visible .room-desk, .room-floor .room-piece:focus-visible .room-landmark { stroke:#de9b34; stroke-width:4 }
 .room-selected .room-desk, .room-selected .room-landmark, .room-selected .room-door-gap { stroke:var(--sol-blue); stroke-width:4 }
 .room-selected .room-island { stroke:var(--sol-blue) }
 .room-guide { stroke:var(--sol-blue); stroke-width:1.5; stroke-dasharray:5 4; opacity:.8 }

@@ -1,7 +1,7 @@
 {% extends 'research/base.html' %}
-{% block page_assets %}<link rel="stylesheet" href="{{ url_for('research.static', filename='rooms.css', v='rooms-1') }}">
-<script src="{{ url_for('research.static', filename='room-drawing.js', v='rooms-1') }}" defer></script>
-<script src="{{ url_for('research.static', filename='room-editor.js', v='rooms-1') }}" defer></script>{% endblock %}
+{% block page_assets %}<link rel="stylesheet" href="{{ url_for('research.static', filename='rooms.css', v='rooms-2') }}">
+<script src="{{ url_for('research.static', filename='room-drawing.js', v='rooms-2') }}" defer></script>
+<script src="{{ url_for('research.static', filename='room-editor.js', v='rooms-2') }}" defer></script>{% endblock %}
 {% block content %}
 <div class="rooms-workspace">
   <div class="rooms-heading"><h1>{{ t('rooms_heading') }}</h1><p class="muted">{{ t('rooms_intro') }}</p></div>

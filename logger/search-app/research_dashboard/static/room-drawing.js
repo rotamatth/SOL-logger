@@ -83,6 +83,14 @@
       return names[piece.id] || '';
     }
 
+    // A landmark's word, turned the right way up when its piece is turned past a quarter turn.
+    function mark(group, piece, x, y, text) {
+      var turn = ((piece.rotation || 0) % 360 + 360) % 360;
+      var attrs = { 'class': 'room-mark', x: x, y: y, 'text-anchor': 'middle' };
+      if (turn > 90 && turn <= 270) { attrs.transform = 'rotate(180 ' + x + ' ' + (y - 4) + ')'; }
+      return make('text', attrs, group, text);
+    }
+
     function drawPiece(layer, piece, options, names) {
       var size = sizeOf(piece);
       var group = make('g', { 'class': 'room-piece room-kind-' + piece.kind, 'data-piece': piece.id,
@@ -113,12 +121,12 @@
         make('rect', { 'class': 'room-door-gap', x: -size[0] / 2, y: -size[1] / 2, width: size[0], height: size[1] }, group);
         make('path', { 'class': 'room-door-swing', d: 'M ' + (-size[0] / 2) + ' ' + (size[1] / 2) + ' L ' + (-size[0] / 2) + ' ' + (size[1] / 2 + size[0]) +
                        ' A ' + size[0] + ' ' + size[0] + ' 0 0 0 ' + (size[0] / 2) + ' ' + (size[1] / 2) }, group);
-        make('text', { 'class': 'room-mark', x: 0, y: size[1] / 2 + 26, 'text-anchor': 'middle' }, group, t('rooms_mark_door'));
+        mark(group, piece, 0, size[1] / 2 + 26, t('rooms_mark_door'));
       } else {
         make('rect', { 'class': 'room-landmark room-landmark-' + piece.kind, x: -size[0] / 2, y: -size[1] / 2, width: size[0], height: size[1],
                        rx: piece.kind === 'teacher' ? 6 : 2 }, group);
         var labelY = piece.kind === 'teacher' ? 5 : size[1] / 2 + 22;
-        make('text', { 'class': 'room-mark', x: 0, y: labelY, 'text-anchor': 'middle' }, group, t('rooms_mark_' + piece.kind));
+        mark(group, piece, 0, labelY, t('rooms_mark_' + piece.kind));
       }
       return group;
     }
