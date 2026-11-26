@@ -65,6 +65,36 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Add the tablets, the reset, the test IDs, the topic word and the practice question to the guide
+
+**Commit:** pending · **Type:** content · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/research_dashboard/guide_i18n.py` — five new steps (session topic, set up each tablet, reset a tablet, test IDs, practice question) and a new part "In class, with the tablets"; the live view step names the tablet's status and the "call an adult" notice; a child's step names the recap PDF
+- `logger/search-app/research_dashboard/guide_views.py`, `templates/research/guide.html` — the parts and their steps come from `GUIDE_GROUPS`, numbered in order (13 steps instead of 8)
+- `logger/search-app/research_dashboard/static/guide/{en,it}/` — new `topic`, `tablet`, `reset`, `test`, `practice` pictures; `questions`, `ids`, `live`, `child` taken again (the demo topic is now `spazio`, and a child's page has had one card per question since November)
+- `logger/search-app/tools/capture_guide_screens.py` — starts `search_app.py` itself, with a stand-in search, instead of the dashboard alone, so it can photograph the tablet pages, the topic line and the practice settings
+- `logger/search-app/tests/test_guide.py` — the parts hold every step once and in order; the topic step names every topic word the app knows; the test step names every test ID; the reset step gives the logo and `/welcome?reset=1`
+- `logger/docs/research_dashboard.md` — the guide's parts, and what to do when a topic or test ID is added
+- `logger/docs/production_readiness.md` — the practice comes after the ID; without its engine the ID page starts the run itself (both lines still described the order before #48)
+
+**What changed for the participant**
+No change for children. A researcher opening **Guide** now also learns how to set up a tablet, how to reset it (the logo for three seconds, or `/welcome?reset=1`), how to try the app with a test ID, that the session's topic must be one of the app's words (the 26 November sessions had a longer title, which would have stopped every search), and where the practice question is set.
+
+**How it works**
+The page loops over `GUIDE_GROUPS`; each step is still a title, a text, a detail and a picture in each language. The tablet pictures are the children's Italian pages in both languages: a test run of `TEST-costellazioni` through the practice, and `/fine` for the last page.
+
+**If something looks wrong after this, check**
+- A step without its picture, or a broken image → run the tool again; `test_every_step_has_wording_and_a_picture_in_each_language`.
+- The tool fails at start → `stand_in_search()` lacks something `search_app.py` now asks of `search_backend`.
+- The guide names a topic word or a test ID the app no longer has, or misses a new one → `guide_topic_text` / `guide_test_text`.
+
+**Left alone**
+The guide's cookie, its first-sign-in rule and the Guide button; the other steps' wording; the pages the guide shows.
+
+**Verified**
+All 1338 tests pass apart from the browser tests that fail on and off with the CDN "reading 'fn'" error on the children's pages; those passed when run again. The guide's own tests, browser ones included at 1365, 768, 390 and 320 px, pass. Every new picture was looked at in both languages.
+
 ## 2026-11-26 — Swap TEST-costellazioni's first two questions, so each sits in the box of its picture
 
 **Commit:** pending · **Type:** content · **Area:** task-flow, tests

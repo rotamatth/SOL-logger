@@ -125,15 +125,15 @@ A session's topic is the "Tema della sessione" typed in the dashboard: `spazio`,
 Constellations and muscles have pictures instead of clips; which question gets which picture is in
 `research_dashboard.md`, "Session topic".
 
-The practice question before the ID searches an engine of its own, on a topic no class studies
-(volcanoes at first). Add its two values too:
+The practice question, which each group tries after an adult has set the tablet's ID, searches an
+engine of its own, on a topic no class studies (volcanoes at first). Add its two values too:
 
 ```
 VERTEX_PROVA_ENGINE_ID=<GOOGLE_ENGINE_ID of the practice engine>
 VERTEX_PROVA_DATA_STORE_ID=<GOOGLE_DATASTORE_ID of the practice engine>
 ```
 
-Until both are set, Inizia leads straight to the ID page. The practice engine never changes which
+Until both are set, the ID page starts the run itself, with no practice. The practice engine never changes which
 engine a class searches; Settings › Practice question shows whether it is set and can try a search.
 
 Each run searches the engine of its question set's theme, frozen when it starts. Once

@@ -18,18 +18,14 @@
     <p class="guide-lead">{{ t('guide_lead') }}</p>
     <p class="small muted">{{ t('guide_demo_note') }}</p>
   </header>
-  <section class="guide-group" aria-labelledby="guide-prepare">
-    <h2 id="guide-prepare">{{ t('guide_group_prepare') }}</h2>
-    {{ step('sessions', 1) }}{{ step('create', 2) }}{{ step('ids', 3) }}{{ step('questions', 4) }}
+  {% set count = namespace(done=0) %}
+  {% for group, keys in groups %}
+  <section class="guide-group" aria-labelledby="guide-group-{{ group }}">
+    <h2 id="guide-group-{{ group }}">{{ t('guide_group_' ~ group) }}</h2>
+    {% for key in keys %}{{ step(key, count.done + loop.index) }}{% endfor %}
   </section>
-  <section class="guide-group" aria-labelledby="guide-follow">
-    <h2 id="guide-follow">{{ t('guide_group_follow') }}</h2>
-    {{ step('live', 5) }}{{ step('data', 6) }}{{ step('child', 7) }}
-  </section>
-  <section class="guide-group" aria-labelledby="guide-settings-group">
-    <h2 id="guide-settings-group">{{ t('guide_group_settings') }}</h2>
-    {{ step('settings', 8) }}
-  </section>
+  {% set count.done = count.done + keys|length %}
+  {% endfor %}
   <footer class="guide-closing">
     <p class="muted">{{ t('guide_closing') }}</p>
     <a class="button primary" href="{{ u('sessions_page') }}">{{ t('guide_go_to_sessions') }} &rarr;</a>

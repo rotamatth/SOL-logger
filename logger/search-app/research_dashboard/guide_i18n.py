@@ -10,6 +10,7 @@ GUIDE_TEXT = {
     'guide_closing': ('You can come back here at any time with the Guide button at the top of every page.',
                       'Puoi tornare qui in qualsiasi momento con il pulsante Guida in alto in ogni pagina.'),
     'guide_group_prepare': ('Prepare a session', 'Preparare una sessione'),
+    'guide_group_class': ('In class, with the tablets', 'In classe, con i tablet'),
     'guide_group_follow': ('On the day and afterwards', 'Il giorno stesso e dopo'),
     'guide_group_settings': ('Once in a while', 'Ogni tanto'),
 
@@ -41,11 +42,42 @@ GUIDE_TEXT = {
     'guide_questions_alt': ('Step 3 of a session, with three approved questions and the preview button.',
                             'Il passo 3 di una sessione, con tre domande approvate e il pulsante di anteprima.'),
 
+    'guide_topic_title': ('Type the session’s topic', 'Scrivere il tema della sessione'),
+    'guide_topic_text': ('The Session theme decides which search engine the children use and the pictures after each question. Type one of the words the app knows, spazio, orecchio, costellazioni or muscoli, not a longer title. Children never see it.',
+                         'Il Tema della sessione decide quale motore di ricerca usano i bambini e le immagini dopo ogni domanda. Scrivi una delle parole che l’app conosce, spazio, orecchio, costellazioni o muscoli, non un titolo più lungo. I bambini non lo vedono.'),
+    'guide_topic_detail': ('After saving, the line under it must say “Recognised topic”: a yellow warning means the children’s search would fail. With costellazioni and muscoli, questions 1, 2 and 3 each have their own picture, so put each question in the place that fits it.',
+                           'Dopo il salvataggio, sotto deve comparire “Tema riconosciuto”: un avviso giallo significa che la ricerca dei bambini non funzionerebbe. Con costellazioni e muscoli le domande 1, 2 e 3 hanno ciascuna la sua immagine: metti ogni domanda al posto giusto.'),
+    'guide_topic_alt': ('A session’s questions page, with the session theme and “Recognised topic” under it.',
+                        'La pagina delle domande di una sessione, con il tema e “Tema riconosciuto” sotto.'),
+
+    'guide_tablet_title': ('Set up each tablet', 'Preparare ogni tablet'),
+    'guide_tablet_text': ('Open the app, tap Inizia and choose the number written on the back of the tablet, then hand it to the group. They begin with a practice question, which saves nothing; their session starts after it.',
+                          'Apri l’app, tocca Inizia e scegli il numero scritto dietro al tablet, poi consegnalo al gruppo. Il gruppo comincia con una domanda di prova, che non salva nulla; la sessione parte dopo.'),
+    'guide_tablet_detail': ('A number with no session today is refused at once, while you still hold the tablet. A number that has already started today goes back to where it was, without the practice.',
+                            'Un numero senza sessione oggi viene rifiutato subito, mentre hai ancora il tablet in mano. Un numero già iniziato oggi riprende da dove era, senza la prova.'),
+    'guide_tablet_alt': ('The first page on the tablet: choose the number written on the back of the tablet.',
+                         'La prima pagina sul tablet: scegliere il numero scritto dietro al tablet.'),
+
+    'guide_reset_title': ('Reset a tablet', 'Azzerare un tablet'),
+    'guide_reset_text': ('When a group has finished, the tablet asks them to raise their hand and stays on that page. Hold the SOL logo there for three seconds to make the tablet ready for the next group.',
+                         'Quando un gruppo ha finito, il tablet chiede di alzare la mano e resta su quella pagina. Tieni premuto il logo SOL per tre secondi per preparare il tablet al gruppo successivo.'),
+    'guide_reset_detail': ('After a wrong number, or for a tablet that is not on that page (for example between two classes), open /welcome?reset=1 in its browser. It worked if Inizia shows the list of numbers.',
+                           'Dopo un numero sbagliato, o per un tablet che non è su quella pagina (per esempio tra due classi), apri /welcome?reset=1 nel suo browser. Ha funzionato se Inizia mostra l’elenco dei numeri.'),
+    'guide_reset_alt': ('The last page on the tablet, “Alzate la mano”, with the SOL logo to hold.',
+                        'L’ultima pagina sul tablet, “Alzate la mano”, con il logo SOL da tenere premuto.'),
+
+    'guide_test_title': ('Try it first with a test ID', 'Provare prima con un ID di prova'),
+    'guide_test_text': ('The IDs at the end of the list, TEST-spazio, TEST-orecchio, TEST-costellazioni and TEST-muscoli, run the whole app on any day with the real search, and never count for the study. Their pages show a red PROVA banner.',
+                        'Gli ID in fondo all’elenco, TEST-spazio, TEST-orecchio, TEST-costellazioni e TEST-muscoli, fanno provare tutta l’app in qualsiasi giorno con la ricerca vera, e non contano mai per lo studio. Le loro pagine mostrano una fascia rossa PROVA.'),
+    'guide_test_detail': ('Ricomincia in the banner starts again. Their questions are fixed in the app: a developer copies each class’s questions into them.',
+                          'Ricomincia nella fascia fa ripartire da capo. Le loro domande sono fisse nell’app: uno sviluppatore ci copia le domande di ogni classe.'),
+    'guide_test_alt': ('A test ID’s page, with the red PROVA banner at the top.', 'La pagina di un ID di prova, con la fascia rossa PROVA in alto.'),
+
     'guide_live_title': ('On the day: the live view', 'Il giorno stesso: la vista in diretta'),
-    'guide_live_text': ('Open Live from today’s session to see who has started, which question each child is on and who has finished. Open a child to see the figures of each finished question.',
-                        'Apri In diretta dalla sessione di oggi per vedere chi ha iniziato, a quale domanda è ogni bambino e chi ha finito. Apri un bambino per vedere i dati di ogni domanda completata.'),
-    'guide_live_detail': ('Logs arrive when a child changes page and at least once a minute, so a child with no recent update may still be working.',
-                          'I log arrivano quando un bambino cambia pagina e almeno una volta al minuto: un bambino senza aggiornamenti recenti può stare ancora lavorando.'),
+    'guide_live_text': ('Open Live from today’s session to see who has started, which question each child is on and who has finished. A row also says when a tablet has left the app (Off the page) or stopped sending a signal (No signal). Open a child to see the figures of each finished question.',
+                        'Apri In diretta dalla sessione di oggi per vedere chi ha iniziato, a quale domanda è ogni bambino e chi ha finito. Una riga dice anche quando un tablet ha lasciato l’app (Fuori dalla pagina) o non manda più segnale (Nessun segnale). Apri un bambino per vedere i dati di ogni domanda completata.'),
+    'guide_live_detail': ('Logs arrive when a child changes page and at least once a minute, so a child with no recent update may still be working. When the connection fails, the tablet asks the group to call an adult.',
+                          'I log arrivano quando un bambino cambia pagina e almeno una volta al minuto: un bambino senza aggiornamenti recenti può stare ancora lavorando. Se il collegamento non funziona, il tablet chiede al gruppo di chiamare un adulto.'),
     'guide_live_alt': ('The live view, with class totals and one row per child.', 'La vista in diretta, con i totali della classe e una riga per bambino.'),
 
     'guide_data_title': ('Data and history', 'Dati e storico'),
@@ -56,8 +88,8 @@ GUIDE_TEXT = {
                        'Dati e storico di una sessione, con una tabella della classe per domanda.'),
 
     'guide_child_title': ('One child over time', 'Un bambino nel tempo'),
-    'guide_child_text': ('A child’s page shows, for each question, the time, logged events, searches, results opened and any difficulty signals, and how the totals change from one session to the next.',
-                         'La pagina di un bambino mostra, per ogni domanda, il tempo, gli eventi registrati, le ricerche, i risultati aperti e gli eventuali segnali di difficoltà, e come cambiano i totali da una sessione all’altra.'),
+    'guide_child_text': ('A child’s page shows, for each question, the time, logged events, searches, results opened and any difficulty signals, and how the totals change from one session to the next. Each saved session has its final recap as a PDF.',
+                         'La pagina di un bambino mostra, per ogni domanda, il tempo, gli eventi registrati, le ricerche, i risultati aperti e gli eventuali segnali di difficoltà, e come cambiano i totali da una sessione all’altra. Ogni sessione salvata ha il suo riepilogo finale in PDF.'),
     'guide_child_detail': ('A dash means there was nothing to measure, which is different from 0.', 'Un trattino significa che non c’era nulla da misurare, che è diverso da 0.'),
     'guide_child_alt': ('A child’s page, with small charts and a table across sessions.', 'La pagina di un bambino, con piccoli grafici e una tabella tra le sessioni.'),
 
@@ -67,4 +99,12 @@ GUIDE_TEXT = {
     'guide_settings_detail': ('A deactivated child cannot start new sessions. Their data stays.', 'Un bambino disattivato non può iniziare nuove sessioni. I suoi dati restano.'),
     'guide_settings_alt': ('The list of permanent participants, with checkboxes to select children.',
                            'L’elenco dei partecipanti permanenti, con le caselle per selezionare i bambini.'),
+
+    'guide_practice_title': ('The practice question', 'La domanda di prova'),
+    'guide_practice_text': ('Settings › Practice question holds the question every group tries first, its topic and an on/off switch. Try a search checks that its search engine answers about that topic.',
+                            'Impostazioni › Domanda di prova contiene la domanda che ogni gruppo prova per prima, il suo argomento e un interruttore. Prova una ricerca controlla che il suo motore di ricerca risponda su quell’argomento.'),
+    'guide_practice_detail': ('Keep it on a topic no class studies. The volcano picture at its end is fixed in the app: a new topic needs a developer.',
+                              'Tienila su un argomento che nessuna classe studia. L’immagine del vulcano alla fine è fissa nell’app: un nuovo argomento richiede uno sviluppatore.'),
+    'guide_practice_alt': ('Settings › Practice question, with the topic, the question, the switch and Try a search.',
+                           'Impostazioni › Domanda di prova, con l’argomento, la domanda, l’interruttore e Prova una ricerca.'),
 }
