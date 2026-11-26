@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Store classrooms drawn to scale: double desks, islands, landmarks and tablet spots
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests
+
+**Files**
+- `logger/search-app/research_dashboard/rooms.py` — new: rooms in centimetres (width, depth, double desks, islands of 2 or 4 desks, teacher's desk, board, doors, windows), one or two tablet spots per desk, revisions; each session's copy with the spot of each ID, brought up to date from its room only on request, keeping the IDs whose spot still exists; one ID placed or removed at a time
+- `logger/search-app/tests/test_rooms.py` — new
+
+**What changed for the participant**
+No visible change yet: nothing uses the new store. It is the first step of the classroom map's redesign (the Rooms page and the new map follow).
+
+**How it works**
+Sizes are fixed per kind (a double desk is 130 × 50 cm) and spots are named piece.desk.seat, so an ID keeps its desk when the room is edited around it. Rooms and sessions' copies live in `rooms.sqlite3` in new tables (`room_plans`, `session_rooms`), next to the first version's, which stay untouched until the map moves over.
+
+**If something looks wrong after this, check**
+- Nothing should: the module is not wired in yet.
+
+**Left alone**
+The first version's `room_maps.py`, its endpoints and the live map; monitoring.
+
+**Verified**
+18 new tests: validation, listing, revisions and conflicts, placing and moving IDs, a spot taken meanwhile, a room edited later and brought in, a deleted room.
+
 ## 2026-11-26 — Explain the classroom map: rooms, placing IDs, colours, timing, sound and what it cannot know
 
 **Commit:** pending · **Type:** content · **Area:** docs
