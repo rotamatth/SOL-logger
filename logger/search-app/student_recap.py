@@ -45,12 +45,14 @@ RECAP_ARROWS = {
     "ear": {"1": _arrow((45, 200), (22, 265), (40, 340), (55, 420), (95, 486)),
             "2": _arrow((470, 200), (468, 270), (480, 340), (500, 420), (520, 486)),
             "3": _arrow((862, 130), (975, 160), (958, 340), (945, 440), (925, 486))},
-    "constellations": {"1": _arrow((118, 430), (112, 455), (125, 477), (140, 500), (144, 534)),
-                       "2": _arrow((390, 430), (388, 455), (405, 477), (422, 500), (428, 534)),
-                       "3": _arrow((850, 430), (848, 455), (860, 477), (872, 500), (874, 534))},
-    "muscles": {"1": _arrow((205, 235), (183, 290), (205, 350), (228, 440), (165, 494)),
-                "2": _arrow((365, 534), (385, 452), (482, 446), (580, 452), (603, 534)),
-                "3": _arrow((850, 424), (848, 450), (860, 473), (872, 498), (874, 534))},
+    # From under the first answer's smallest card, through the magnifier between the two rows, to above the final one.
+    "constellations": {"1": _arrow((138, 428), (136, 455), (154, 479), (172, 503), (170, 541)),
+                       "2": _arrow((475, 428), (473, 455), (496, 479), (518, 503), (516, 541)),
+                       "3": _arrow((812, 428), (810, 455), (839, 479), (868, 503), (866, 541))},
+    # Muscles: the rows almost touch, so the arrow goes down the left of the final answer, through the magnifier there.
+    "muscles": {"1": _arrow((44, 494), (40, 525), (44, 562), (50, 600), (72, 612)),
+                "2": _arrow((381, 494), (377, 525), (381, 562), (387, 600), (409, 612)),
+                "3": _arrow((718, 494), (714, 525), (718, 562), (724, 600), (746, 612))},
 }
 SAVE_ERROR = "Salvataggio non disponibile. Riprova."
 CONFLICT_ERROR = "Le risposte sono cambiate in un'altra scheda. Riapri il riepilogo prima di riprovare."
@@ -109,13 +111,12 @@ def render_recap_pdf(columns, picture=None):
     picture_frame = Frame(36, 40, wide[0] - 72, wide[1] - 76, id="picture")
     text_frame = Frame(48, 48, A4[0] - 96, A4[1] - 88, id="text")
     document = BaseDocTemplate(pdf, pagesize=A4, title="SOL Search - Le tue risposte")
-    document.addPageTemplates([PageTemplate("picture", [picture_frame], pagesize=wide, onPage=footer),
+    # The picture page has only its title and the picture (Matthias, 26 November): no note, no page number.
+    document.addPageTemplates([PageTemplate("picture", [picture_frame], pagesize=wide),
                                PageTemplate("text", [text_frame], pagesize=A4, onPage=footer)])
-    width = min(picture_frame._width - 12, (picture_frame._height - 74) * PICTURE_RATIO)
+    width = min(picture_frame._width - 12, (picture_frame._height - 56) * PICTURE_RATIO)
     page_one = [Paragraph("SOL Search · Le risposte di oggi", styles["Title"]),
                 RecapPicture(picture["background"], picture["tasks"], picture["arrows"], width, picture["theme"]),
-                Spacer(1, 6),
-                Paragraph("Le risposte complete sono nelle pagine seguenti.", styles["BodyText"]),
                 NextPageTemplate("text"), PageBreak()]
     document.build(page_one + flow)
     return pdf.getvalue()

@@ -266,10 +266,18 @@ def test_the_recap_of_a_2_december_topic_fits_and_leaves_its_figures_in_sight(st
         figure = {"x": picture["x"] + left * picture["width"], "y": picture["y"] + top * picture["height"],
                   "width": (right - left) * picture["width"], "height": (bottom - top) * picture["height"]}
         assert not any(boxes_overlap(figure, box) for box in cards + labels), f"{name} is hidden"
-    # At least two whole lines of every answer show, and a longer one scrolls inside its card.
+    # As on 10 November: a column per question, the first answers in one row and the final answers in one row below.
+    before, after = all_boxes(page, ".recap-piece .review-before"), all_boxes(page, ".recap-piece .review-after")
+    assert max(box["y"] for box in before) - min(box["y"] for box in before) <= 1
+    assert (max(box["y"] + box["height"] for box in after) - min(box["y"] + box["height"] for box in after)) <= 1
+    assert max(box["y"] + box["height"] for box in before) < min(box["y"] for box in after)
+    assert [round(box["x"]) for box in sorted(before, key=lambda box: box["x"])] == sorted(round(box["x"]) for box in before)
+    # Three whole lines of every answer show on a tablet (Matthias, 26 November), two on the shortest screen, where the
+    # picture is under 500 px tall; a longer answer scrolls inside its card.
+    lines = 3 if picture["height"] >= 500 else 2
     for index in range(6):
         answer = page.locator(".recap-piece .review-card p").nth(index)
-        assert answer.evaluate("p => p.clientHeight >= 2 * parseFloat(getComputedStyle(p).lineHeight) - 1")
+        assert answer.evaluate(f"p => p.clientHeight >= {lines} * parseFloat(getComputedStyle(p).lineHeight) - 1"), index
         assert answer.evaluate("p => p.scrollHeight > p.clientHeight && getComputedStyle(p).overflowY === 'auto'")
 
 

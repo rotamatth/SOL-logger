@@ -1,5 +1,7 @@
 """The recap PDF opens with the recap picture as the tablet showed it; the text pages follow unchanged."""
+import base64
 import re
+import zlib
 from pathlib import Path
 
 import pytest
@@ -30,6 +32,27 @@ def columns():
                            "first_answer": {"text": "Prima", "outcome": "answered", "confidence": 2},
                            "recap_drafts": {}, "revisions": [], "final_answer": {"text": f"Dopo {n}"}}
                           for n in (1, 2, 3)]}}
+
+
+def drawn_text(pdf):
+    """The text each page draws, in page order. ReportLab keeps page contents ASCII85- and Flate-encoded."""
+    pages = []
+    for match in re.finditer(rb"/Filter \[ /ASCII85Decode /FlateDecode \] /Length (\d+)\s*>>\s*stream\r?\n", pdf):
+        raw = pdf[match.end():match.end() + int(match[1])]
+        content = zlib.decompress(base64.a85decode(raw.strip().removesuffix(b"~>"), adobe=False))
+        pages.append(b" ".join(re.findall(rb"\((.*?)\) Tj", content)).decode("latin-1"))
+    return pages
+
+
+@pytest.mark.parametrize("theme", ["space", "constellations", "muscles"])
+def test_the_picture_page_has_only_its_title_and_the_picture(theme):
+    """No note under the picture and no page number on it (Matthias, 26 November); the text pages keep theirs."""
+    picture = {"background": APP_ROOT / f"static/images/review/{theme}-recap.webp",
+               "tasks": [task(1, "1"), task(2, "2"), task(3, "3")], "arrows": RECAP_ARROWS[theme], "theme": theme}
+    first, *text = drawn_text(render_recap_pdf(columns(), picture))
+    assert first.startswith("SOL Search") and "Le risposte di oggi" in first and "Cosa sapevi prima" in first
+    assert "Pagina" not in first and "pagine seguenti" not in first
+    assert text and all("Pagina" in page for page in text)
 
 
 @pytest.mark.parametrize("theme", ["space", "ear", "constellations", "muscles"])
