@@ -30,11 +30,13 @@
     const value = text.value;
     dirty = false;
     saving = true;
+    let failure = 'network';  // For the classroom map (connection-watch.js): why this save was not confirmed.
     try {
       const response = await window.tryAgain(() => fetch(status.dataset.url, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({...scope, text: value, revision})
       }));
+      failure = response.status === 409 ? 'conflict' : response.ok ? 'unconfirmed' : 'server';
       if (!response.ok) throw new Error(response.status === 409
         ? 'La bozza è cambiata. Conserva il testo e ricarica la pagina per recuperarlo.'
         : 'Bozza non salvata. Il testo resta qui: riprova.');
@@ -46,8 +48,10 @@
       if (dirty) remember(); else forget();
       retry.hidden = true;
       status.textContent = '';
+      window.dispatchEvent(new CustomEvent('sol:save', {detail: {ok: true}}));
     } catch (error) {
       if (paused) return;
+      window.dispatchEvent(new CustomEvent('sol:save', {detail: {ok: false, reason: failure}}));
       dirty = true;
       blocked = true;
       remember();

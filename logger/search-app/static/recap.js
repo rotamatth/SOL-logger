@@ -35,13 +35,16 @@
         body: JSON.stringify({ attempt_id: attempt, csrf_token: recap.dataset.csrfToken, ...payload })
       }));
     } catch (_) {
-      throw new Error('Connessione non disponibile. Riprova.');
+      throw Object.assign(new Error('Connessione non disponibile. Riprova.'), { solReason: 'network' });
     }
     const data = await response.json().catch(() => ({}));
     if (response.status < 500 && !response.ok && !data.error && reopen()) {
       return new Promise(() => {});
     }
-    if (!response.ok) throw new Error(data.error || 'Salvataggio non disponibile. Riprova.');
+    if (!response.ok) {
+      throw Object.assign(new Error(data.error || 'Salvataggio non disponibile. Riprova.'),
+                          { solReason: response.status === 409 ? 'conflict' : 'server' });
+    }
     return data;
   }
 
@@ -70,12 +73,15 @@
         throw new Error('Salvataggio dei dati non disponibile. Riprova.');
       }
       const result = await post(button.dataset.url, { draft_revisions: draftRevisions });
+      window.dispatchEvent(new CustomEvent('sol:save', { detail: { ok: true } }));
       if (button.dataset.action === 'restart') {
         leave(result.welcome);
       } else {
         window.location.reload();
       }
     } catch (error) {
+      // For the classroom map (connection-watch.js): the group's answers are not confirmed yet.
+      window.dispatchEvent(new CustomEvent('sol:save', { detail: { ok: false, reason: error.solReason || 'network' } }));
       updateStatus(error.message, true);
       actions.forEach(control => { control.disabled = false; });
     }

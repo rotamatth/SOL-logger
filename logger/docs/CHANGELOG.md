@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Report every two seconds what the classroom map needs, saves the tablet could not confirm included
+
+**Commit:** pending · **Type:** feature · **Area:** logging, session, tests
+
+**Files**
+- `logger/search-app/static/connection-watch.js` — a report every 2 seconds instead of a signal every 15: page, visibility, full screen (capable and on, or unknown), a search not back yet, saves not confirmed, the last confirmed save; changes sent at once; one report at a time, given up after 2 seconds, timed from its start; an order that never goes back across pages; the children's notice after 10 seconds without an answer instead of two missed signals
+- `logger/search-app/static/first-answer.js`, `final-answer-draft.js`, `recap.js` — a `sol:save` event when a save is confirmed or not, with the reason (network, conflict, server, unconfirmed)
+- `logger/search-app/templates/*.html` — the four scripts at version `monitor-1`, so tablets load them again
+- `logger/search-app/tests/test_connection_watch_browser.py` — the notice after ten seconds; the report's content and order; a refused draft reported until a save goes through
+- `logger/docs/research_dashboard.md` — the 2-second signal and the 10-second notice
+
+**What changed for the participant**
+The "Il collegamento non funziona" notice now appears when the server has been silent for 10 seconds (it was 15 to 30), and goes away as before. Nothing else changes on screen.
+
+**How it works**
+Only the inner page reports; the full-screen host does not load the script, so one tablet sends one report at a time. Full screen is read from the host's document when the page lives in its frame. A refused save stays in this tab's storage until the matching success, so it survives a page change. The report carries no answer, query or other app's name.
+
+**If something looks wrong after this, check**
+- The notice too eager or too slow → `NOTICE_AFTER_MS`.
+- Too many requests on the server → `BEAT_MS` here and `BEAT_SECONDS` in `monitor.py` go together.
+
+**Left alone**
+The logs and their uploads, the logged connection and page events, the service worker, the answers' retry buttons and messages.
+
+**Verified**
+The connection watch tests in Chromium (seven), the first-answer and child-page browser tests. 1383 of 1386 tests pass; the other three are fullscreen browser tests failing on and off with the CDN "reading 'fn'" error, a different variant each run. Not yet on the classroom tablets in Brave over the VPN.
+
 ## 2026-11-26 — Register each tablet for the classroom map, from its ID to its reset
 
 **Commit:** pending · **Type:** feature · **Area:** session, logging, dashboard, tests

@@ -82,12 +82,12 @@ Each unfinished child's row also says where the tablet is now. **Fuori dalla pag
 page): the app has been hidden for more than a moment, because another app, the home screen or a
 locked screen is in front. **Nessun segnale da N s** (No signal for N s): the tablet has sent
 nothing for 30 seconds or more, so it is off, out of the network or stuck. Every child page sends a
-short signal every 15 seconds (`/presenza`, `static/connection-watch.js`), stored in
+short signal every 2 seconds (`/presenza`, `static/connection-watch.js`), stored in
 `presence.sqlite3` in the research state folder, apart from the logs and the progress database. If
 the signal fails, the rows show less and nothing else changes. A tablet that is visible and
 signalling adds nothing to its row.
 
-On the tablet, when the signal fails twice in a row or the tablet goes offline, a full-screen notice
+On the tablet, when the server has not answered for 10 seconds or the tablet goes offline, a full-screen notice
 says "Il collegamento non funziona. Alza la mano e chiama un adulto." and closes by itself when the
 server answers again. When a page cannot be loaded at all, a small service worker (`static/sw.js`)
 shows the same message instead of the browser's error. It handles only the children's GET page
