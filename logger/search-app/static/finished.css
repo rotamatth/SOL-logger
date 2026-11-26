@@ -1,0 +1,32 @@
+/* The end page, as in the Figma: white text on the blue screen, the logo between the two lines. */
+.finished-screen {
+  gap: clamp(28px, 7vh, 64px);
+  background: var(--sol-blue);
+  color: #fff;
+}
+
+.finished-title,
+.finished-hand {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.25rem, 3.6vh, 1.75rem);
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+/* The researchers' reset: a long press must not open the tablet's image menu or select anything. */
+.finished-logo {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: opacity 3s linear;
+}
+
+.finished-logo img {
+  pointer-events: none;
+}
+
+.finished-logo.is-holding {
+  opacity: 0.35;
+}

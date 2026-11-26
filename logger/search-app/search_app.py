@@ -31,6 +31,7 @@ from research_dashboard.log_store import LogStore, UploadConflict
 from research_dashboard.runtime import configure_runtime
 from research_dashboard.study_config import scheduled_assignment
 from study_progress import init_progress, SubmissionConflict
+from practice_question import PRACTICE_THEME, PracticeQuestion
 from student_progress import SessionUnavailable, StudentProgress
 from student_recap import StudentRecap
 
@@ -121,9 +122,11 @@ app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
                            lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw),
-                           test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt))
+                           test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt),
+                           start_unavailable=lambda: start_unavailable())
 app.config["SOL_RECAP_BACKGROUND"] = os.getenv("SOL_RECAP_BACKGROUND")
-RECAP = StudentRecap(app, PROGRESS)
+# The recap picture (drawing and theme) also goes into the recap PDF; the helpers are defined further down.
+RECAP = StudentRecap(app, PROGRESS, artwork=lambda progress: (review_illustration(progress), review_artwork_theme(progress)))
 
 
 @app.get('/health/ready')
@@ -151,6 +154,30 @@ def ready():
     except (OSError, ValueError, RuntimeError, sqlite3.Error):
         app.logger.exception("Collection readiness check failed")
         return jsonify(status="unavailable"), 503
+
+@app.post('/presenza')
+def child_presence():
+    """A tablet's light signal: which page is open and whether it is visible.
+
+    It feeds the live view only, through its own small database file: never the logs, the progress database
+    or the session, and it does not count as activity for the idle limit. It always answers quickly, also
+    before an ID is chosen, so the page can tell whether the server is reachable.
+    """
+    data = request.get_json(silent=True, force=True)
+    if session.get('user_id') and session.get('session_id') and isinstance(data, dict):
+        app.extensions["research"]["presence"].beat(session['session_id'], session['user_id'],
+                                                    data.get('page'), data.get('visible') is not False)
+    return "", 204
+
+
+@app.get('/sw.js')
+def service_worker():
+    """The children's service worker, served from the root so that it may look after the children's pages."""
+    response = app.send_static_file('sw.js')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Content-Type'] = 'text/javascript; charset=utf-8'
+    return response
+
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 # TEMPORARY TESTING FLAG - If API GOOGLE IS NOT AVAILABLE, SET TO TRUE TO ALLOW ANSWER SUBMISSION WITHOUT SEARCH RESULTS.
@@ -358,13 +385,21 @@ def idle_session_expired(*, touch=True):
     return False
 
 
+# The search pages' own links and requests. The practice question renders the same pages
+# with its own addresses (practice_question.PRACTICE_ROUTES), so nothing it does reaches a run's routes.
+CHILD_ROUTES = {"search": "search_page", "result": "result", "webpage": "webpage",
+                "autocomplete": "autocomplete", "iframe_check": "iframe_check", "end": "end_task"}
+
+
 @app.context_processor
 def base():
     form = SearchForm()
     return dict(
         form=form,
         allow_answer_without_results_for_testing=ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING,
-        session_id=session.get('session_id', '')
+        session_id=session.get('session_id', ''),
+        child_routes=CHILD_ROUTES,
+        practice=False,
     )
 
 @app.route("/")
@@ -380,6 +415,18 @@ def welcome():
     if current_phase() != 'pre_id':
         return redirect(phase_redirect_url())
     return render_template("welcome.html", show_search=False)
+
+
+@app.get("/fine")
+def finished_page():
+    """The end of the experiment: the group raises its hand and the tablet stays here.
+
+    The run is saved and its session already cleared by the recap's Chiudi; the older ending passes
+    reset=1 to clear it here. A researcher holds the logo to bring the tablet back to the welcome page.
+    """
+    if request.args.get('reset') == '1':
+        session.clear()
+    return render_template("finished.html")
 
 @app.route("/search")
 def search_page():
@@ -403,6 +450,58 @@ def search_page():
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
     return render_template(HOME_URL, form=form, show_search=True, reminder=reminder)
 
+def study_day():
+    return datetime.now(LOG_TIME_ZONE).date().isoformat()
+
+
+def id_page(val_ids, error=None, status=200):
+    """The list of numbers. With the practice, choosing one only sets the tablet (set_number)."""
+    return render_template('start.html', show_search=False, valid_ids=val_ids, start_error=error,
+                           setting_up=PRACTICE.offered()), status
+
+
+def run_start_page(number, error=None, status=200):
+    """Start the run of the number already set on this tablet, as the ID page starts it; Riprova after an error."""
+    return render_template('run_start.html', show_search=False, number=number, start_error=error), status
+
+
+def start_refused(val_ids, error, status):
+    setup = PRACTICE.setup()
+    if setup and setup['number'] == request.form.get('user_id'):
+        # The group is past the practice: it retries here, without the list and without a second practice.
+        return run_start_page(setup['number'], error, status)
+    return id_page(val_ids, error, status)
+
+
+def start_unavailable():
+    setup = PRACTICE.setup()
+    if setup is None:
+        return PROGRESS.unavailable()
+    return run_start_page(setup['number'], "Salvataggio non disponibile. Riprova o chiedi al ricercatore.", 503)
+
+
+def set_number(user_id, settings, val_ids):
+    """An adult sets the tablet's number. Nothing is recorded: the run starts when the practice is over.
+
+    What would stop the run is checked already here, while the adult still has the tablet.
+    """
+    if current_phase() != 'pre_id':
+        return redirect(phase_redirect_url())
+    is_test = is_test_participant(user_id)
+    under_way = not is_test and RESEARCH_STATE.progress_run_for_date(user_id, study_day()) is not None
+    assignment = None if is_test else scheduled_assignment(settings, user_id)
+    if not (is_test or under_way or assignment):
+        return id_page(val_ids, SESSION_UNAVAILABLE, 400)
+    # No practice for a number that comes back to its own run, or for a test run started again.
+    over = under_way or (is_test and bool(session.get('test_restart')))
+    PRACTICE.choose(user_id, over=over)
+    return redirect(url_for('start_page'), code=303)
+
+
+SESSION_UNAVAILABLE = ("La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, "
+                       "l’anno scolastico, la data e le domande.")
+
+
 @app.route('/start', methods=['GET', 'POST'])
 @PROGRESS.start_route
 def start_page():
@@ -410,6 +509,8 @@ def start_page():
     resumable = RESEARCH_STATE.progress_ids_for_date(datetime.now(LOG_TIME_ZONE).date().isoformat())
     val_ids = sorted({uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']}
                      | resumable, key=participant_sort_key) + list(TEST_EXPERIMENTS)
+    if request.method == 'POST' and request.form.get('setup') == '1':
+        return set_number(request.form.get('user_id'), enrollment_settings, val_ids)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         if untouched_run_for(user_id):
@@ -424,8 +525,7 @@ def start_page():
                 if admission_try:
                     session.clear()
                     session.update(previous_session)
-                return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                       start_error="La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
+                return start_refused(val_ids, SESSION_UNAVAILABLE, 400)
             session.clear()
             session['user_id'] = user_id
             session['task_config'] = deepcopy(assignment['topics'])
@@ -470,22 +570,27 @@ def start_page():
             if durable is None:
                 session.clear()
                 session.update(previous_session)
-                return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                       start_error="Impossibile avviare la sessione in sicurezza. Riprova o chiedi al ricercatore."), 503
+                return start_refused(val_ids, "Impossibile avviare la sessione in sicurezza. "
+                                              "Riprova o chiedi al ricercatore.", 503)
             break
 
         return redirect(url_for('task'))
 
     if current_phase() != 'pre_id':
         return redirect(phase_redirect_url())
-    
-    return render_template('start.html', show_search=False, valid_ids=val_ids)
+    setup = PRACTICE.setup()
+    if setup is None:
+        return id_page(val_ids)
+    if PRACTICE.comes_first(setup):
+        return redirect(url_for('practice_intro'))
+    return run_start_page(setup['number'])
 
 @app.get('/test-run/restart')
 def restart_test_run():
-    """Leave a test run, so a test ID can start again. A child's run is never left this way."""
+    """Leave a test run, so a test ID can start again, without the practice. A child's run is never left this way."""
     if session.get('progress_is_test'):
         session.clear()
+        session['test_restart'] = True
     return redirect(url_for('start_page'))
 
 
@@ -533,6 +638,20 @@ def result():
         return redirect(url_for('welcome'))
 
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
+    asked = request.form.get('query') if request.method == "POST" else (request.args.get("query") or session.get("query"))
+    if (asked or '').strip():
+        # Once a question has been searched, its "Non lo so" can no longer become a written answer.
+        PROGRESS.mark_searched()
+    return search_results_page(theme=run_theme(), reminder=reminder)
+
+
+def search_results_page(*, theme, reminder, routes=CHILD_ROUTES, **page_values):
+    """The results of a search, for a run's question or for the practice question.
+
+    The caller has already checked that this browser may search. `routes` names the endpoints the
+    page links to, and `page_values` go to every page rendered here.
+    """
+    page_values = {"child_routes": routes, **page_values}
     form = SearchForm()
     page = 1
 
@@ -550,7 +669,8 @@ def result():
                                form=form,
                                show_search=True,
                                reminder=reminder,
-                               search_error="Inserisci una domanda prima di cercare.")
+                               search_error="Inserisci una domanda prima di cercare.",
+                               **page_values)
 
     rpp = 10 # results per page; may be changed later
     query = sanitize_query(raw_query)
@@ -562,7 +682,8 @@ def result():
                                form=form,
                                show_search=True,
                                reminder=reminder,
-                               search_error="Inserisci una domanda prima di cercare.")
+                               search_error="Inserisci una domanda prima di cercare.",
+                               **page_values)
 
     # ---- Custom "Indietro" back-navigation history -----------------------
     # nav_stack: ordered list of {"q","page"} views the participant actually
@@ -591,8 +712,8 @@ def result():
         # Invariant: after record_view(), nav_stack[-1] is the current view.
         if len(nav_stack) >= 2:
             prev = nav_stack[-2]
-            return url_for('result', query=prev["q"], page=prev["page"], back=1)
-        return url_for('search_page')
+            return url_for(routes["result"], query=prev["q"], page=prev["page"], back=1)
+        return url_for(routes["search"])
 
     def cache_query_results(results, total_pages, no_results_message=None):
         results_by_query[query] = {
@@ -620,7 +741,8 @@ def result():
                                total_pages=0, show_search=True,
                                reminder=reminder,
                                no_results_message=message,
-                               back_url=back_url())
+                               back_url=back_url(),
+                               **page_values)
 
     def normalize_result(result):
         if not isinstance(result, dict):
@@ -650,14 +772,15 @@ def result():
     else:
         cached_no_results_message = None
         try:
-            corrected_query, raw_results, _, query_correction_source = search_backend.search(query, page, rpp, theme=run_theme())
+            corrected_query, raw_results, _, query_correction_source = search_backend.search(query, page, rpp, theme=theme)
         except Exception:
             if ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING:
                 return render_no_results("Modalità test: nessun risultato disponibile, ma puoi comunque scrivere una risposta.", query_correction_source=query_correction_source)
             return render_template(ERROR_URL, show_search=False,
                                    error_title="Ricerca non disponibile",
                                    error_message="Il motore di ricerca non risponde. Riprova tra poco.",
-                                   is_search_engine_error=True, search_error_log="Connection Error"), 503
+                                   is_search_engine_error=True, search_error_log="Connection Error",
+                                   **page_values), 503
 
         all_results = [normalize_result(r) for r in raw_results]
         session["search_results"] = all_results
@@ -685,7 +808,7 @@ def result():
                            corrected_query=corrected_query,
                            page=page, total_pages=total_pages,
                            show_search=True, reminder=reminder, query_correction_source=query_correction_source,
-                           back_url=back_url())
+                           back_url=back_url(), **page_values)
 
 @app.route("/webpage")
 def webpage():
@@ -773,7 +896,11 @@ def iframe_check():
     # Only a participant who is currently searching can make the server probe a URL.
     if current_phase() != 'searching':
         return jsonify({"blocked": None, "reason": "no-active-search"})
-    url = request.args.get("url", "")
+    return frame_check_response(request.args.get("url", ""))
+
+
+def frame_check_response(url):
+    """Whether a shown result can be embedded. The caller has checked that this browser is searching."""
     if not url:
         return jsonify({"blocked": None, "reason": "empty-url"})
     link = _shown_result_link(url)
@@ -806,9 +933,16 @@ def autocomplete():
     # Suggestions call the paid search API: only for a participant in a session.
     if not session.get('user_id') or len(query) < 3:
         return jsonify(empty_response)
+    return autocomplete_response(query, run_theme())
 
+
+def autocomplete_response(query, theme):
+    """Suggestions for a query of at least three characters. The caller has checked who may ask."""
+    empty_response = {"suggestions": [], "source": "none", "query_model": None}
+    if len(query) < 3:
+        return jsonify(empty_response)
     try:
-        suggestions, source = search_backend.autocomplete(query, theme=run_theme())
+        suggestions, source = search_backend.autocomplete(query, theme=theme)
         if not suggestions:
             return jsonify(empty_response)
         return jsonify({
@@ -1062,19 +1196,36 @@ def end_task():
     return redirect(url_for('next_task'))
 
 
-REVIEW_ARTWORK_THEMES = {
-    'spazio': 'space', 'tema spazio': 'space', 'sistema solare': 'space', 'space': 'space',
-    'corpo umano': 'ear', 'corpo umano (orecchio)': 'ear', 'tema corpo umano (orecchio)': 'ear',
-    'orecchio': 'ear', 'udito': 'ear',
+# The topics a session can have, by the words its "Tema della sessione" may be typed with in the dashboard; the first
+# word is the one to type. The topic picks the search engine (search_backend.VERTEX_THEME_SETTINGS), the intro line,
+# the pictures after each question and the recap drawing. Constellations (class 4) and muscles (class 5), for
+# 2 December 2026, have pictures instead of clips.
+TOPIC_NAMES = {
+    'space': ('spazio', 'tema spazio', 'sistema solare', 'space'),
+    'ear': ('orecchio', 'corpo umano', 'corpo umano (orecchio)', 'tema corpo umano (orecchio)', 'udito'),
+    'constellations': ('costellazioni', 'costellazione', 'tema costellazioni'),
+    'muscles': ('muscoli', 'muscolo', 'tema muscoli', 'corpo umano (muscoli)', 'tema corpo umano (muscoli)'),
 }
+REVIEW_ARTWORK_THEMES = {name: theme for theme, names in TOPIC_NAMES.items() for name in names}
 
 
 # The dashed arrow from the first answer to the final one, on the review page's 760 x 420 stage.
 _ARROW_LEFT = {"line": "M110 100 C 20 195, 124 318, 205 372", "tip": "M193 373 L205 372 L199 361", "x": 93, "y": 251}
 _ARROW_RIGHT = {"line": "M610 112 C 700 200, 680 330, 604 362", "tip": "M615 351 L604 362 L619 365", "x": 669, "y": 258}
 _ARROW_FAR_LEFT = {"line": "M165 100 C 80 190, 90 320, 168 360", "tip": "M156 362 L168 360 L161 349", "x": 105, "y": 249}
+_ARROW_FAR_RIGHT = {"line": "M705 108 C 748 180, 750 320, 720 370", "tip": "M723 355 L720 370 L734 364", "x": 740, "y": 247}
+_ARROW_EDGE_LEFT = {"line": "M70 100 C 22 180, 14 320, 52 368", "tip": "M38 362 L52 368 L50 353", "x": 29, "y": 246}
 REVIEW_ARROWS = {'space-1': _ARROW_LEFT, 'ear-1': _ARROW_LEFT, 'space-2': _ARROW_RIGHT, 'ear-2': _ARROW_RIGHT,
-                 'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT}
+                 'space-3': _ARROW_RIGHT, 'ear-3': _ARROW_FAR_LEFT,
+                 'constellations-1': _ARROW_EDGE_LEFT, 'constellations-2': _ARROW_FAR_RIGHT,
+                 'constellations-3': _ARROW_EDGE_LEFT,
+                 'muscles-1': _ARROW_FAR_LEFT, 'muscles-2': _ARROW_RIGHT, 'muscles-3': _ARROW_FAR_LEFT}
+# The topics with three pictures in static/images/review, left to right as on the recap drawing: a question's
+# place in the session (box 1, 2 or 3) picks its picture. A topic missing here shows its two answers alone.
+# Adding one also needs its pieces in study-review.css, recap.css, recap_picture.PLACES and the arrows.
+REVIEW_PICTURES = ('space', 'ear', 'constellations', 'muscles')
+# Of these, the topics whose pictures are the last frames of clips (made by tools/prepare_review_media.py), by clip name.
+REVIEW_CLIPS = {'space': 'Spazio', 'ear': 'Orecchio'}
 
 
 def known_theme(*labels):
@@ -1084,6 +1235,17 @@ def known_theme(*labels):
             if theme:
                 return theme
     return None
+
+
+def topic_search_status(text):
+    """For the dashboard, under a session's topic: the topic the text picks, and whether its runs can search."""
+    theme = known_theme(text)
+    return {'topic': TOPIC_NAMES[theme][0] if theme else None, 'searches': search_backend.theme_engine_ready(theme),
+            'setting': search_backend.VERTEX_THEME_SETTINGS.get(theme)}
+
+
+app.config['TOPIC_SEARCH_STATUS'] = topic_search_status
+app.config['TOPIC_WORDS'] = tuple(names[0] for names in TOPIC_NAMES.values())
 
 
 def review_artwork_theme(progress):
@@ -1114,11 +1276,11 @@ def task_review(number):
     theme = review_artwork_theme(progress)
     topic = str(task['snapshot']['topic_id'])
     animation = poster = piece = None
-    if theme and topic in ('1', '2', '3'):
-        prefix = 'Spazio' if theme == 'space' else 'Orecchio'
-        animation = f'videos/review/{prefix}_0{topic}.mp4'
-        poster = f'images/review/{theme}-{topic}.webp'
+    if theme in REVIEW_PICTURES and topic in ('1', '2', '3'):
         piece = f'{theme}-{topic}'
+        poster = f'images/review/{piece}.webp'
+        if theme in REVIEW_CLIPS:
+            animation = f'videos/review/{REVIEW_CLIPS[theme]}_0{topic}.mp4'
     return render_template('study_handoff.html', review_tasks=[task], review_only=True,
                            animation=animation, poster=poster, piece=piece, arrow=REVIEW_ARROWS.get(piece),
                            is_last=number == len(progress['tasks']))
@@ -1178,6 +1340,23 @@ def thank_you():
     return render_template('end.html', show_search=False,
                            total_tasks=total_tasks)
 
+
+def practice_engine_ready():
+    """The practice question searches only its own engine; a backend without one skips it."""
+    configured = getattr(search_backend, "practice_engine_configured", None)
+    return bool(configured and configured())
+
+
+PRACTICE = PracticeQuestion(
+    app, settings=RESEARCH_STATE.practice, engine_ready=practice_engine_ready, phase=current_phase,
+    resume_url=phase_redirect_url, search_results=search_results_page, frame_check=frame_check_response,
+    autocomplete=autocomplete_response, is_web_address=_is_web_address, today=study_day)
+app.config["PRACTICE_SEARCH"] = lambda query: search_backend.search(query, 1, 5, theme=PRACTICE_THEME)
+app.config["PRACTICE_ENGINE_STATUS"] = lambda: (search_backend.practice_engine_status()
+                                                if hasattr(search_backend, "practice_engine_status")
+                                                else {"configured": False, "shared_with_theme": False})
+
+
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template(ERROR_URL, show_search=False,
@@ -1187,8 +1366,8 @@ def page_not_found(e):
 @app.errorhandler(500)
 def internal_error(e):
     return render_template(ERROR_URL, show_search=False,
-                           error_title="Errore",
-                           error_message="Qualcosa non ha funzionato. Riprova o chiedi al ricercatore."), 500
+                           error_title="Qualcosa non ha funzionato!",
+                           error_message="Alza la mano e chiama un adulto."), 500
 
 if __name__ == '__main__':
     # Only for `python search_app.py` on a developer's machine: the container runs Gunicorn

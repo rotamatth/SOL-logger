@@ -37,13 +37,15 @@ def test_a_new_run_opens_with_cominciamo_then_the_question_then_the_form(site):
     welcome = client.get(start.location)
     assert "Cominciamo!" in welcome.text and "corpo umano" in welcome.text and "universo" not in welcome.text
     question = client.get(re.search(r'id="task-intro-continue"[^>]*href="([^"]+)"', welcome.text)[1].replace("&amp;", "&"))
-    assert "Prova a rispondere alla domanda:" in question.text and "#1" in question.text
+    assert "#1" in question.text and "Pensi di sapere la risposta?" in question.text
+    assert "Prova a rispondere" not in question.text, "the practice question owns the word prova"
     assert "Cominciamo!" not in question.text
     assert re.search(r'id="task-intro-continue"[^>]*href="/task"', question.text)
     assert 'id="first-answer-form"' in client.get("/task").text
 
 
 @pytest.mark.parametrize(("theme", "expected", "other"), [("spazio", "universo", "corpo umano"), ("Corpo umano (orecchio)", "corpo umano", "universo"),
+                                                          ("costellazioni", "universo", "sistema solare"), ("muscoli", "corpo umano", "orecchio"),
                                                           ("Another theme", "tante cose da imparare", "universo")])
 def test_cominciamo_speaks_of_the_sessions_own_theme(student_modules, theme, expected, other):
     module = student_modules()
@@ -78,7 +80,7 @@ def test_the_next_question_has_its_introduction_but_no_second_cominciamo(site):
     following = client.get("/next_task?review=1")
     assert following.location.endswith("/task/intro")
     page = client.get(following.location)
-    assert "Cominciamo!" not in page.text and "#2" in page.text and "Prova a rispondere" in page.text
+    assert "Cominciamo!" not in page.text and "#2" in page.text and "Pensi di sapere la risposta?" in page.text
 
 
 def test_back_from_an_introduction_does_not_start_the_question(site):
@@ -116,6 +118,17 @@ def test_the_review_page_is_the_figmas_with_the_right_clip_and_still(site):
     assert f"unlock--ear-{slot}" in page and "Avete sbloccato il primo riassunto delle vostre risposte!" in page
     assert "Prima Dopo" in page and "Dopo" in page
     assert "Rivedi la tua risposta" not in page and "controls" not in page
+
+
+def test_a_topic_without_clips_shows_the_two_answers_alone(student_modules, monkeypatch):
+    module = student_modules()
+    monkeypatch.setitem(module.REVIEW_ARTWORK_THEMES, "vulcani", "volcanoes")
+    schedule(module, {**question_set(), "theme": "vulcani"})
+    client = begin(module)
+    finish_question(client, "Dopo")
+    page = client.get("/task-review/1").text
+    assert "unlock--none" in page and "Prima Dopo" in page and "Cosa sai adesso" in page
+    assert "<video" not in page and "unlock-arrow" not in page and "/static/videos/review/" not in page
 
 
 @pytest.mark.parametrize(("theme", "clip"), [("space", "Spazio"), ("ear", "Orecchio")])

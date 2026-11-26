@@ -46,8 +46,8 @@ def indexed_participants(module):
 def test_the_test_ids_close_the_start_list(student_modules):
     module = student_modules()
     options = re.findall(r'<option value="([^"]+)">', module.app.test_client().get("/start").text)
-    assert options[-2:] == ["TEST-spazio", "TEST-orecchio"]
-    assert options[:-2] == [str(number) for number in range(1, len(options) - 1)]
+    assert options[-4:] == ["TEST-spazio", "TEST-orecchio", "TEST-costellazioni", "TEST-muscoli"]
+    assert options[:-4] == [str(number) for number in range(1, len(options) - 3)]
 
 
 @pytest.mark.parametrize(("uid", "theme", "clip"), [("TEST-spazio", "space", "Spazio_0"),
@@ -66,6 +66,32 @@ def test_a_test_id_needs_no_session_and_has_its_theme(student_modules, uid, them
     assert clip in client.get("/task-review/1").text or clip in client.get("/thank_you").text
 
 
+@pytest.mark.parametrize(("uid", "theme"), [("TEST-costellazioni", "constellations"), ("TEST-muscoli", "muscles")])
+def test_a_test_id_of_a_2_december_topic_searches_its_topic_and_shows_its_pictures(student_modules, uid, theme):
+    module = student_modules()
+    client = start(module, uid)
+    page = client.get("/task")
+    assert page.status_code == 200
+    assert "PROVA" in page.text
+    assert 'id="first-answer-form"' in page.text
+    with module.app.test_request_context():
+        from flask import session
+        session.update(run_state(client))
+        assert module.run_theme() == theme
+    complete_today(client)
+    review = client.get("/task-review/1").text
+    assert "videos/review/" not in review and f"images/review/{theme}-" in review
+
+
+def test_the_2_december_test_ids_have_three_questions_on_a_topic_the_app_knows(student_modules):
+    from research_dashboard.permanent_test import TEST_EXPERIMENTS
+    module = student_modules()
+    for uid, theme in (("TEST-costellazioni", "constellations"), ("TEST-muscoli", "muscles")):
+        question_set = TEST_EXPERIMENTS[uid]
+        assert module.known_theme(question_set["theme"]) == theme
+        assert len({item["question"] for item in question_set["questions"]}) == 3
+
+
 def test_the_test_ids_ask_the_questions_of_the_10_november_sessions():
     """TEST-spazio asks what the setup gave 4a spazio, TEST-orecchio what Diletta entered for 5a orecchio, in clip order."""
     from research_dashboard.permanent_test import TEST_EXPERIMENTS
@@ -82,6 +108,30 @@ def test_the_test_ids_ask_the_questions_of_the_10_november_sessions():
         ("Fact-finding -- Ossicini Orecchio", "Quali sono i 3 ossicini dentro al nostro orecchio?"),
         ("Multi-step -- Coclea", "Che forma ha la coclea e dove si trova?"),
         ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))
+
+
+def test_the_2_december_test_ids_ask_the_published_questions_of_4a_and_5a():
+    """Word for word from the server's settings revision 46 (26 November); 4a's first two swapped to fit their pictures."""
+    from research_dashboard.permanent_test import TEST_EXPERIMENTS
+
+    def rows(uid):
+        return tuple((item["topic"], item["question"]) for item in TEST_EXPERIMENTS[uid]["questions"])
+
+    assert rows("TEST-costellazioni") == (
+        ("Le stelle",
+         "Scrivete il nome della stella più vicina a noi dopo il Sole e scoprite in quale costellazione si trova."),
+        ("Tra la Terra e il Sole",
+         "Scrivete quanto tempo ci mette la luce del Sole ad arrivare fino al nostro pianeta Terra."),
+        ("Missioni Spaziali",
+         "Molte missioni spaziali hanno il nome di un personaggio mitologico. Indica almeno 3 nomi di queste missioni."))
+    assert rows("TEST-muscoli") == (
+        ("Tipologie di muscoli",
+         "I muscoli del nostro corpo si dividono in tre principali tipologie. Scrivi i nomi delle 3 tipologie."),
+        ("Animale dal sangue blu",
+         "In natura esiste un animale con 3 cuori e il sangue di colore blu. "
+         "Scrivete di che animale si tratta e che cosa rende il suo sangue blu."),
+        ("Muscoli del braccio", "Scrivete il nome di almeno 3 dei 4 muscoli principali presenti nel braccio."))
+    assert not any("Segnaposto" in topic for uid in TEST_EXPERIMENTS for topic, _ in rows(uid))
 
 
 def test_a_whole_test_run_stays_out_of_the_real_folder(student_modules, tmp_path):

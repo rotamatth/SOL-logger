@@ -316,3 +316,11 @@
   .first-answer-actions { flex-direction: row; width: 100%; }
   .first-answer-actions .app-btn { flex: 1; }
 }
+
+/* "Cambia la mia risposta" sits beside "Entra nel motore di ricerca" while a "Non lo so" can still change. */
+.first-answer-search {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}

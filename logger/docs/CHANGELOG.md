@@ -65,6 +65,1000 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Leave only the title and the picture on the recap PDF's first page
+
+**Commit:** pending · **Type:** content · **Area:** data, tests
+
+**Files**
+- `logger/search-app/student_recap.py` — the picture page loses "Le risposte complete sono nelle pagine seguenti." and its "Pagina 1"; the picture is a little larger in the room they leave
+- `logger/search-app/tests/test_recap_picture.py` — `drawn_text()` reads what each page draws; the picture page has the title and the cards, no note and no page number, and the text pages keep theirs
+
+**What changed for the participant**
+No change for children. The recap PDF's first page shows only "SOL Search · Le risposte di oggi" and the picture with the answers, a little larger. The pages after it, with every answer in full, are unchanged and still numbered (from "Pagina 2"). Matthias found the note and the number useless.
+
+**How it works**
+The picture page template has no footer, and the flow of page one is the title, the picture and the break to the text pages. The picture's height reserve for the title is 56 points instead of 74.
+
+**If something looks wrong after this, check**
+- The picture alone on a page and the title on another → the reserve in `render_recap_pdf` (`test_the_picture_is_a_landscape_first_page_before_the_text` counts the pages).
+
+**Left alone**
+The text pages, their numbers, the cards and their places, Salva, the redraw tool.
+
+**Verified**
+The recap PDF tests pass, with the new one; the page looked at by eye.
+
+## 2026-11-26 — Place the constellations and muscles recap cards as on 10 November
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, styling, data, tests
+
+**Files**
+- `logger/search-app/static/recap.css` — constellations and muscles: a column per question under its label, the first answers in one row, the final answers in one row below, moved down under the figures; muscles with taller cards, a slimmer title and the magnifier left of the final answer
+- `logger/search-app/recap_picture.py` — `PLACES` of both topics, the same places in the PDF
+- `logger/search-app/student_recap.py` — `RECAP_ARROWS` of both topics, from each first answer to its final one
+- `logger/search-app/templates/recap.html` — `recap.css` version `pictures-2`, so tablets load the new places
+- `logger/search-app/tests/test_child_pages_browser.py` — for both topics: the rows line up as on 10 November, and three lines of every answer show on a tablet (two on the shortest test screen)
+
+**What changed for the participant**
+On the recap of `costellazioni` and `muscoli` (tablet and PDF), the cards no longer sit in different places per question: as on 10 November, each question has its column under its "Domanda" label, "Cosa sapevi prima" above, "Cosa sai adesso" below, joined by the arrow through the magnifier. The rows sit below the figures, so the constellation, the sun, the rocket, the child at the telescope, the faces, the first boy's organs and the octopus's hearts stay in sight. Three lines of every answer show on a tablet (picture at least 500 px tall); the full answers stay in the PDF's text pages. Matthias's request, after seeing the muscles PDF: the 24 November places looked random.
+
+**How it works**
+The exact 10 November places would cover the faces, the sun and the rocket, so the same arrangement moves into the lower part of each drawing. Under the muscles' hearts there is less room: the two rows almost touch, the magnifier sits left of each final answer (still between the two answers), and the card title is the slimmer one short screens already used, which leaves three lines.
+
+**If something looks wrong after this, check**
+- A card over a face or a figure → `FIGURES` in `test_child_pages_browser.py`, and the places in `recap.css`.
+- The PDF and the tablet disagree → `recap_picture.PLACES` against `recap.css` (`test_the_pdf_places_cards_and_labels_where_the_tablet_does`).
+- The old places on a tablet → its cache: the stylesheet version must be `pictures-2`.
+
+**Left alone**
+Space and ear (10 November's places), the labels, the review pages after each question, the pictures, the text pages of the PDF.
+
+**Verified**
+1346 of 1349 tests pass; the other three are browser tests that fail on and off with the CDN "reading 'fn'" error, and they passed when run again. The recap browser tests at 1180×699, 1280×680 and 1024×520 with long answers: no card over a figure, a label, a magnifier or another card; rows aligned; three lines at the two tablet sizes, two at 1024×520. Both PDFs checked by eye.
+
+## 2026-11-26 — Keep the recap picture in the PDF as a JPEG, ten times smaller
+
+**Commit:** pending · **Type:** fix · **Area:** data, tests, docs
+
+**Files**
+- `logger/search-app/recap_picture.py` — `jpeg()`: the drawing is converted to JPEG (quality 85) before ReportLab draws it
+- `logger/search-app/tests/test_recap_picture.py` — every topic's PDF embeds a JPEG and stays under 1 MB
+- `logger/docs/research_dashboard.md` — "Recap PDF": the size
+
+**What changed for the participant**
+No visible change: the picture page looks the same, and the answers on it are text as before. A recap PDF now weighs 330–640 KB instead of 3–4.5 MB.
+
+**How it works**
+ReportLab stored the WebP drawing as raw pixels (about 5 MB, barely compressed); JPEG data it keeps as it is (`/DCTDecode`). Each PDF is saved in `progress_recap_exports` at Salva, so the progress database, on the server's small `/home`, and every deploy backup that zips it grew by 3–5 MB per group. Found while drawing the 10 November PDFs again: 18 groups would have added about 80 MB.
+
+**If something looks wrong after this, check**
+- A blurry or blocky picture in the PDF → the JPEG quality in `jpeg()`.
+- A PDF without its picture → Pillow missing from the image (it comes with ReportLab in `requirements.lock`).
+
+**Left alone**
+The card places, the text pages, the tablet's recap page, the WebP files.
+
+**Verified**
+Old and new picture pages compared side by side and close up: no visible difference. 1347 of 1349 tests pass; the other two are the fullscreen browser tests that fail on and off with the CDN "reading 'fn'" error, and they passed when run again.
+
+## 2026-11-26 — Draw the 10 November recap PDFs again, with the picture
+
+**Commit:** pending · **Type:** feature · **Area:** data, dashboard, docs, tests
+
+**Files**
+- `logger/search-app/tools/redraw_recap_pdfs.py` — new: draws again the saved recap PDFs of one day with the picture page, keeping the old ones in a zip first
+- `logger/search-app/student_recap.py` — `StudentRecap.pdf_with_picture()`: the PDF Salva makes now, or None when the session has no picture; the tool uses it, Salva does not
+- `logger/search-app/tests/test_redraw_recap_pdfs.py` — new: dry run changes nothing; `--write` gives the picture page, keeps the time of Salva and the old PDF in a 0600 zip; a second run, another day, test runs and topics without a picture are left alone; a PDF changed meanwhile stops everything
+- `logger/docs/research_dashboard.md` — "Recap PDF": how to run it
+
+**What changed for the participant**
+No change for children. After the tool runs on the server, the dashboard's "Scarica il riepilogo finale del bambino (PDF)" for a 10 November session gives a PDF that opens with the recap picture, as 2 December's will, instead of the text only.
+
+**How it works**
+The PDF is saved at "Salva l'attività"; before #42 (22 November) it had no picture page. The tool imports the app the server runs, finds the day's saved PDFs that have no image (`/Subtype /Image`), and renders each again from `recap_columns` with `pdf_with_picture`, which is Salva's own code. With `--write` it writes the old PDFs to a zip, reads the zip back, then updates `progress_recap_exports.pdf` in one `BEGIN IMMEDIATE` transaction, each row only if its PDF is still the one read (`WHERE pdf = ?`); any mismatch rolls back everything. `finished_at` is not touched.
+
+**If something looks wrong after this, check**
+- A 10 November PDF still without the picture → the tool was run without `--write`, or that session's topic is not a topic word.
+- A PDF to restore → the zip in `logger/research-state/` holds each old PDF as `<ID>_<attempt>.pdf`.
+
+**Left alone**
+Salva and the PDFs it makes, the dashboard's download, the answers, the logs, `finished_at`, test runs.
+
+**Verified**
+The new tests pass. On a scratch copy of the 10 November progress database (taken that afternoon, on my Mac only): 18 PDFs drawn again (10 spazio, 8 orecchio), `TEST-spazio` left out, the zip written, and a second run changed nothing.
+
+## 2026-11-26 — Add the tablets, the reset, the test IDs, the topic word and the practice question to the guide
+
+**Commit:** pending · **Type:** content · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/research_dashboard/guide_i18n.py` — five new steps (session topic, set up each tablet, reset a tablet, test IDs, practice question) and a new part "In class, with the tablets"; the live view step names the tablet's status and the "call an adult" notice; a child's step names the recap PDF
+- `logger/search-app/research_dashboard/guide_views.py`, `templates/research/guide.html` — the parts and their steps come from `GUIDE_GROUPS`, numbered in order (13 steps instead of 8)
+- `logger/search-app/research_dashboard/static/guide/{en,it}/` — new `topic`, `tablet`, `reset`, `test`, `practice` pictures; `questions`, `ids`, `live`, `child` taken again (the demo topic is now `spazio`, and a child's page has had one card per question since November)
+- `logger/search-app/tools/capture_guide_screens.py` — starts `search_app.py` itself, with a stand-in search, instead of the dashboard alone, so it can photograph the tablet pages, the topic line and the practice settings
+- `logger/search-app/tests/test_guide.py` — the parts hold every step once and in order; the topic step names every topic word the app knows; the test step names every test ID; the reset step gives the logo and `/welcome?reset=1`
+- `logger/docs/research_dashboard.md` — the guide's parts, and what to do when a topic or test ID is added
+- `logger/docs/production_readiness.md` — the practice comes after the ID; without its engine the ID page starts the run itself (both lines still described the order before #48)
+
+**What changed for the participant**
+No change for children. A researcher opening **Guide** now also learns how to set up a tablet, how to reset it (the logo for three seconds, or `/welcome?reset=1`), how to try the app with a test ID, that the session's topic must be one of the app's words (the 26 November sessions had a longer title, which would have stopped every search), and where the practice question is set.
+
+**How it works**
+The page loops over `GUIDE_GROUPS`; each step is still a title, a text, a detail and a picture in each language. The tablet pictures are the children's Italian pages in both languages: a test run of `TEST-costellazioni` through the practice, and `/fine` for the last page.
+
+**If something looks wrong after this, check**
+- A step without its picture, or a broken image → run the tool again; `test_every_step_has_wording_and_a_picture_in_each_language`.
+- The tool fails at start → `stand_in_search()` lacks something `search_app.py` now asks of `search_backend`.
+- The guide names a topic word or a test ID the app no longer has, or misses a new one → `guide_topic_text` / `guide_test_text`.
+
+**Left alone**
+The guide's cookie, its first-sign-in rule and the Guide button; the other steps' wording; the pages the guide shows.
+
+**Verified**
+All 1338 tests pass apart from the browser tests that fail on and off with the CDN "reading 'fn'" error on the children's pages; those passed when run again. The guide's own tests, browser ones included at 1365, 768, 390 and 320 px, pass. Every new picture was looked at in both languages.
+
+## 2026-11-26 — Swap TEST-costellazioni's first two questions, so each sits in the box of its picture
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — "Le stelle" is now question 1 and "Tra la Terra e il Sole" question 2
+- `logger/search-app/tests/test_permanent_test_experiment.py` — the expected order follows
+
+**What changed for the participant**
+No change for children. In `TEST-costellazioni`, the nearest-star question now shows next to the constellation with the red star, and the sunlight question next to the Sun shining on the Earth. As published on 26 November, 4a had them the other way round. Matthias chose to swap them in the 4a session too, in the dashboard, so the test ID still asks what the class gets.
+
+**How it works**
+A question's box picks its picture (`research_dashboard.md`, "Session topic"). Only the order of two rows changed.
+
+**If something looks wrong after this, check**
+- The 4a session and `TEST-costellazioni` in a different order → the swap in the dashboard was not made, or not approved again.
+
+**Left alone**
+`TEST-muscoli`, whose order already fit its pictures. The pictures, their boxes, the texts.
+
+**Verified**
+The test IDs' tests pass.
+
+## 2026-11-26 — Give TEST-costellazioni and TEST-muscoli the published questions of 4a and 5a
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — the six "Segnaposto" questions replaced by the three of 4a (`grade-4-session-2`) and the three of 5a (`grade-5-session-2`), word for word and in the same boxes, as the server stored them on 26 November (settings revision 46)
+- `logger/search-app/tests/test_permanent_test_experiment.py` — a test that the two test IDs ask exactly those questions and that no "Segnaposto" is left
+- `logger/docs/research_dashboard.md` — the test IDs' paragraph says where their questions come from
+
+**What changed for the participant**
+No change for children. A researcher trying `TEST-costellazioni` or `TEST-muscoli` now meets the questions the classes get on 2 December ("Tra la Terra e il Sole", "Le stelle", "Missioni Spaziali"; "Tipologie di muscoli", "Animale dal sangue blu", "Muscoli del braccio") instead of the placeholders.
+
+**How it works**
+Only the question texts. The theme of each test ID stays `costellazioni` / `muscoli`, so it keeps its engine and its pictures. The published sessions' topic texts ("Costellazioni e Missioni Spaziali", "Il sistema muscolare") are not topic words the app knows; a test ID does not use them, so it cannot show whether a real run would search.
+
+**If something looks wrong after this, check**
+- A test ID asks other questions than its class → the session was edited in the dashboard after 26 November; the test ID keeps its own copy in `permanent_test.py`.
+- A question's picture does not fit it → the question's box in the session; the test ID copies the session's boxes.
+
+**Left alone**
+`TEST-spazio` and `TEST-orecchio`, the real sessions and their topic texts, `TOPIC_NAMES`, the pictures and their boxes, the intro lines.
+
+**Verified**
+The test IDs' server and browser tests pass, with the new test. Not yet tried on solar, which needs a redeploy for it.
+
+## 2026-11-26 — Call the way back from the change form "Non lo so", not "Annulla"
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests
+
+**Files**
+- `logger/search-app/templates/first_answer.html` — the change form's way back (`#first-answer-change-cancel`) reads "Non lo so" instead of "Annulla"
+- `logger/docs/research_dashboard.md` — the sentence on changing "Non lo so" names the button
+- `logger/search-app/tests/test_first_answer_change.py`, `test_practice_question.py` — the link reads "Non lo so", and "Annulla" is gone from the form
+- `logger/search-app/tests/test_first_answer_change_browser.py` — the test that keeps "Non lo so" taps the button by its new name (renamed from `test_annulla_keeps_non_lo_so`)
+
+**What changed for the participant**
+After "Cambia la mia risposta", the button beside "Conferma" reads "Non lo so", in the same place as the first form's "Non lo so". Tapping it goes back to "La tua prima risposta è: Non lo so", as "Annulla" did. Same in the prova. Matthias's request: "Annulla" was a new word for the children, and "Non lo so" says what they keep.
+
+**How it works**
+Only the label of the link. Its id, its look and its address (back to the question, or to `/prova/domanda`) are unchanged, so nothing is sent or logged when it is tapped.
+
+**If something looks wrong after this, check**
+- The button opens the "Non sai la risposta?" dialog → the page is the first form, not the change form (`change_mode` in `first_answer.html`).
+- A group's "Non lo so" changed after tapping it → it cannot from this link; look for an `OwnKnowledgeAnswerChanged` event, which only "Conferma" sends.
+
+**Left alone**
+The first form's "Non lo so" button and its dialog ("Torna alla risposta", "Confermo: non lo so"), "Cambia la mia risposta", the change itself and its logging, the search page's button, the dashboard's own "Annulla" buttons.
+
+**Verified**
+All 1308 server and browser tests pass. In Chromium, the change form of a real question and of the prova shows "Non lo so" beside "Conferma", and tapping it leaves "Non lo so" with no `OwnKnowledgeAnswerChanged` event. Not seen on a classroom tablet.
+
+## 2026-11-25 — Set the tablet's number before the prova, and start its run after it
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, session, logging, dashboard, docs, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — the number waits in the browser's session (`SETUP_KEY`) during the prova
+- `logger/search-app/search_app.py` — `/start`: `setup=1` only sets the number (`set_number`); the start after the prova and its errors (`run_start_page`, `start_refused`, `start_unavailable`); "Ricomincia" of a test ID skips the prova
+- `logger/search-app/student_progress.py` — setting the number takes no admission lock; a start that cannot be saved may show its own page
+- `logger/search-app/templates/run_start.html` — new: sends the number's start by itself; "Riprova" after an error
+- `logger/search-app/templates/start.html`, `welcome.html`, `layout.html` — Inizia opens the ID page, whose form before the prova only sets the number
+- `logger/search-app/research_dashboard/i18n.py` — the prova's texts say the new order
+- `logger/docs/research_dashboard.md`, `manual_logging_walkthrough.md`
+- `logger/search-app/tests/` — `test_practice_question.py`, `test_practice_question_browser.py`, `test_student_fullscreen_browser.py`, `test_practice_dashboard.py`
+
+**What changed for the participant**
+Inizia opens the ID page first. An adult sets the number and hands the tablet over at "Facciamo una prova!". Inizia on "Avete finito la prova!" leads straight to "Cominciamo!": the children no longer choose a number.
+
+**How it works**
+Choosing the number and starting the run are two steps. The ID page posts `setup=1` and only keeps `{number, date, over}` in the session, not `user_id`, so the run's routes and `/log_session` refuse the browser as before. Leaving the prova marks it `over`, and `/start` then shows `run_start.html`, which sends the old start request by itself through logger.js's `enter-id-form`. So `idSubmitted` and the clearing of the browser's storage happen when the run starts, as they did, and the ID page's form before the prova (`set-number-form`) records nothing. No database change.
+
+**If something looks wrong after this, check**
+- A log that begins long before its first question, or a stray `INCOMPLETE` fragment under an ID nobody used → the form on the ID page must be `set-number-form` while the prova is on.
+- A group's run is under another class's number → the tablet was not reset between the classes (`/welcome?reset=1`, or the end page's logo): Inizia must show the list of numbers.
+- A group stuck on "Un momento…" or "Riprova" → the server's log for "Could not admit a child" or "Could not publish research run metadata".
+- The children see the list of numbers after the prova → `setup` was lost from the session: the browser was closed, or the tablet was reset.
+
+**Left alone**
+logger.js, the start request and everything after it, the end page, the recap, the rules for two tablets with one number, the databases. With the prova off or without an engine the ID page starts the run itself, as before.
+
+**Verified**
+Server and browser tests: nothing is saved before the prova ends, the log's first event is later than the prova's end, a wrong number followed by a reset leaves nothing under it, a reload returns to the step, a failed start keeps the number and records it once. Not yet on a classroom tablet.
+
+## 2026-11-24 — Add the pictures of the constellations and muscles topics, and the prova's volcano
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, data, docs, tests
+
+**Files**
+- `logger/search-app/static/images/review/constellations-{1,2,3,recap}.webp`, `muscles-{1,2,3,recap}.webp` — new: the single pictures and the recap drawings
+- `logger/search-app/static/images/practice/volcano.webp` — new; the placeholder `volcano.svg` is gone
+- `logger/search-app/search_app.py` — `REVIEW_PICTURES`: topics with three pictures, with or without clips; the arrows of the new pieces
+- `logger/search-app/templates/study_handoff.html`, `static/study-review.js` — a picture where a topic has no clip; only a clip is played
+- `logger/search-app/static/study-review.css`, `static/recap.css`, `static/practice.css` — the places of the new pictures, cards and arrows
+- `logger/search-app/student_recap.py`, `recap_picture.py` — the recap arrows and, per topic, the card places in the PDF (`PLACES`)
+- `logger/docs/research_dashboard.md`, `production_readiness.md` — which question box gets which picture
+- `logger/search-app/tests/` — `test_class_topics.py`, `test_child_pages_browser.py`, `test_recap_picture.py`, `test_permanent_test_experiment.py`, `test_practice_question.py`
+
+**What changed for the participant**
+With `costellazioni` and `muscoli`, the page after each question shows the question's picture next to the two answers, and the recap is the topic's whole drawing, with the answers on it, as for space and ear. "Avete finito la prova!" shows the real volcano. The recap PDF of these topics opens with the drawing.
+
+**How it works**
+A question's box in the session (1, 2, 3) picks its picture, left to right as on the recap drawing: constellation, sun, rocket; boy from the side, octopus, boy flexing. The recap's cards have places of their own per topic, because the faces and the main figures sit where space and ear have their cards: constellations keeps both rows in the lower half, muscles a row along the bottom with the first answers of questions 1 and 3 beside the figures. On screens up to 600 px tall the cards are slimmer, so two lines of each answer show. The single pictures are the supplied crops without their white border. The sun's supplied crop had white eraser marks, so `constellations-2` is the same area cut from the whole drawing.
+
+**If something looks wrong after this, check**
+- The picture does not match the question → the question's box in the dashboard (`research_dashboard.md`, "Session topic").
+- A card hides a figure, or the PDF differs from the tablet → `recap.css` and `recap_picture.PLACES`, which a test compares.
+- An old picture or layout on a tablet → the version in the templates' links (`pictures-1`).
+
+**Left alone**
+Space and ear: their clips, places and arrows. The search, the logs, the question order, the intro lines, the placeholder questions of the test IDs.
+
+**Verified**
+Browser tests at three tablet sizes with long answers: every card stays inside the drawing, none overlaps, no magnifier is hidden, two lines of every answer show, and no card or label covers a face, the octopus's hearts, the first boy's organs, the red star, the rocket or the child at the telescope. Not yet seen on a real tablet.
+
+## 2026-11-24 — Retry fullscreen on the prova pages and the end page too
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/templates/practice_intro.html`, `practice_done.html`, `finished.html` — load `student-fullscreen.js`, as Samuele's change does on every other child page
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — the prova, its last page and the end page bring fullscreen back; a tap inside an open dialog keeps the dialog usable; every child page loads the script
+
+**What changed for the participant**
+After leaving fullscreen on "Facciamo una prova!", "Avete finito la prova!" or "Alzate la mano", the next tap brings it back, as on the other pages.
+
+**How it works**
+Samuele's change (#38) was written from `matthias-dev`, which has no prova and no end page. These three templates do not extend `layout.html`, so the merge alone left them without the script.
+
+**If something looks wrong after this, check**
+- A child page where a tap does not bring fullscreen back → whether it loads `student-fullscreen.js` (`test_every_child_page_loads_the_fullscreen_script`).
+
+**Left alone**
+`student-fullscreen.js` itself, the logger, the Back blocker, the connection watch. `offline.html` stays without the script: it must load without the server.
+
+**Verified**
+On the plain merge the two new page tests failed. With the script in the three pages they pass. The full run is in the pull request.
+
+## 2026-11-24 — Fix fullscreen quality checks and browser test setup
+
+**Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/static/student-fullscreen.js` — normalize synchronous errors and rejected promises through an async request and clear pending state in `finally`; use the existing promise catch for entry fallback.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — check that later interactions can retry after both synchronous throws and rejected promises.
+- `logger/search-app/tests/test_first_answer_flow_browser.py` — leave fullscreen before resizing the browser for responsive layout assertions.
+
+**What changed for the participant**
+No visible change: fullscreen requests still start during the trusted interaction,
+and a refused request never blocks the control's normal action or later retries.
+
+**How it works**
+Remove the two promise-related `try/catch` patterns reported by Sonar rule
+`javascript:S4822`. The async wrapper invokes the browser API before its first
+suspension and turns a synchronous throw into a rejection. The chained `finally`
+releases the request guard after either outcome.
+Fullscreen tests wait for the embedded page's deferred scripts before sending
+keyboard input. Responsive layout tests explicitly exit fullscreen before asking
+Chromium to resize its window; all layout and saved-answer assertions remain.
+
+**Verified**
+All 181 browser tests passed locally, including the GitHub regression; the focused
+fullscreen, first-answer flow and UI run passed all 28 tests. Ruff, JavaScript
+syntax and whitespace checks passed. SonarQube must reanalyse the next pushed commit.
+
+## 2026-11-24 — Retry student fullscreen from every page
+
+**Type:** fix · **Area:** task-flow, result-viewer
+
+**Files**
+- `logger/search-app/static/student-fullscreen.js` — retry on trusted taps, clicks and key presses; reuse the outer fullscreen host.
+- `logger/search-app/templates/` — load the shared fullscreen script on every student page and update its cache version.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — cover touch, mouse, keyboard, direct entry, refusal recovery and navigation.
+- `logger/search-app/tests/test_first_answer_ui.py` — allow the shared fullscreen script while retaining the legacy-script check.
+- `logger/docs/research_dashboard.md` — describe fullscreen recovery and external-frame limits.
+
+**What changed for the participant**
+After leaving fullscreen, the next interaction on any student page tries to enter
+fullscreen again. Returning to the welcome page is no longer required.
+
+**How it works**
+Capture listeners request fullscreen directly during trusted input, targeting the
+persistent outer host when present. Active fullscreen and pending requests are
+left alone. Failed requests do not cancel the control's action or disable retries.
+Escape can exit fullscreen; the following interaction retries. The original
+welcome entry and normal-navigation fallback remain available.
+
+**If something looks wrong after this, check**
+Check the tablet browser's fullscreen support and permission. Taps inside external
+websites' frames do not reach the app; its viewer controls still retry. Research
+dashboard pages do not load this script.
+
+## 2026-11-22 — Offer the change of "Non lo so" in the prova too, and in plain sight on the search page
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, search-bar, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — `can_change`, the change form (`/prova/domanda?change=1`) and `/prova/cambia`; the search page's values carry the change link until the first search
+- `logger/search-app/templates/search_first_answer.html` — while the change is possible, the button at the top right is "Cambia la mia risposta" and opens the change; the pop-up no longer carries its own change link
+- `logger/search-app/static/main.css` — the pop-up link's unused style removed
+- `logger/search-app/tests/test_practice_question.py`, `tests/test_first_answer_change.py`, `tests/test_search_first_answer.py`, `tests/test_first_answer_change_browser.py`, `tests/test_search_first_answer_browser.py` — the change in the prova, and the one button on the search page
+
+**What changed for the participant**
+In the prova, a confirmed "Non lo so" can now become a written answer before the first search, as in the real questions: "Cambia la mia risposta" beside "Entra nel motore di ricerca". On the search page, prova and real questions alike, the button at the top right reads "Cambia la mia risposta" while a confirmed "Non lo so" can still change, and opens the change directly. Before, it was "La mia prima risposta", and the change was inside its pop-up. After the first search, or once changed, the button is "La mia prima risposta" again, with its pop-up.
+
+**How it works**
+The real questions already allowed the change until the first search (`StudentProgress.can_change`, #41). The prova now has the same rule on its session state: a "Non lo so", not yet changed, with no search results in the session. The change stays in the browser session like the rest of the prova and is never recorded. `search_first_answer.html` shows the change link instead of the pop-up whenever `first_answer_change_url` is set, which happens only before a question's first search. The prova's results and web pages never set it, because they always follow a search.
+
+**If something looks wrong after this, check**
+- No "Cambia" in the prova → `PracticeQuestion.can_change` and `first_answer_change_url` in `page_values`.
+- "Cambia la mia risposta" still at the top right after a search → `results_by_query` in the session.
+- Fewer `firstAnswerOpened` events in a log → expected: before the first search, a "Non lo so" group sees the change button, not the pop-up.
+
+**Left alone**
+How a real question stores and logs the change (#41), the pop-up itself, the confirmed-answer page of real questions, and the rule "only before the first search".
+
+**Verified**
+New tests for the prova (change, once only, needs text, stars and the page's token, gone after a search, records nothing) and for the one button on the search page. All 1101 server tests pass, Ruff is clean, and the browser tests pass. Before/after pictures from the real pages.
+
+## 2026-11-22 — Restore two change log entries that the merges emptied
+
+**Commit:** pending · **Type:** infra · **Area:** docs
+
+**Files**
+- `logger/docs/CHANGELOG.md` — the text of "Say under a session's topic…" (#46) and "Enter fullscreen from the existing Inizia button" (#38), copied back from their own branches
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+Joining the branches into this one kept those two headings but dropped the text under them. The text is unchanged on `class-topics-2026-12-02` and `keep-children-in-app`; it is copied from there word for word.
+
+**If something looks wrong after this, check**
+- A heading with nothing under it → the same entry on the branch it came from.
+
+**Left alone**
+Every other entry, and all code.
+
+**Verified**
+Every entry under "# Entries" now has text, and each heading appears once.
+
+## 2026-11-22 — Add test IDs for the constellations and muscles topics
+
+**Commit:** pending · **Type:** feature · **Area:** session, tests, docs
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — `TEST-costellazioni` and `TEST-muscoli`, with placeholder questions
+- `logger/search-app/tests/test_permanent_test_experiment.py` — the start list ends with four test IDs; each new one runs on its topic without clips; their topics are words the app knows
+- `logger/docs/research_dashboard.md` — "Permanent test IDs"
+
+**What changed for the participant**
+No change for the children. The start page's list ends with two more test IDs, after `TEST-orecchio`. They run like the other two (red PROVA banner, any day, kept out of the results) and search the constellations and muscles engines, with three placeholder questions each.
+
+**How it works**
+Two more entries in `TEST_EXPERIMENTS`, with the topic words `costellazioni` and `muscoli`, so `known_theme` picks the new engines. Each run gets its own session, as before. The placeholders' topics start with "Segnaposto". When Diletta's questions for 4a costellazioni and 5a muscoli are in the dashboard, they replace the placeholders here, as `TEST-orecchio` got 5a orecchio's.
+
+**If something looks wrong after this, check**
+- A new test ID ends on the search error page → that topic's two env lines on the server, and `tools/check_search_engines.py`.
+- A new test ID shows a clip → `REVIEW_CLIPS` in `search_app.py` (it should list only spazio and orecchio).
+
+**Left alone**
+`TEST-spazio`, `TEST-orecchio`, and where test runs are written. The real sessions and their questions.
+
+**Verified**
+New tests for the start list, a whole run on each new test ID, and their topic words. The test ID and topic tests pass.
+
+## 2026-11-22 — Say under a session's topic what the app understood, and warn when the search would fail
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/search_backend.py` — `theme_engine_ready(theme)`: whether a run of that topic can search
+- `logger/search-app/search_app.py` — `topic_search_status(text)` and the four topic words, handed to the dashboard through `app.config`
+- `logger/search-app/research_dashboard/question_views.py`, `templates/research/session_questions.html`, `i18n.py` — the line under "Tema della sessione" and the suggestions in the field
+- `logger/docs/research_dashboard.md` — "Session topic"
+- `logger/search-app/tests/test_class_topics.py` — the line in its four states; `tests/backend_stub.py` — new, the stand-in search backend of the tests that load the whole app, now shared by three of them
+
+**What changed for the participant**
+No visible change for the children. On the dashboard's questions page, the topic field suggests `spazio`, `orecchio`, `costellazioni` and `muscoli`, and the line under it says "Tema riconosciuto: muscoli." or, in a yellow warning, that the children's search would show an error: the app does not know the word, or the topic has no engine on the server (naming the two env lines). An empty field says "Nessun tema. Scrivi uno di questi: …".
+
+**How it works**
+The topic is free text, and a typo used to show up only in class, as the search error page. `topic_search_status` runs the text through `known_theme` and asks `search_backend.theme_engine_ready`, which is true with no per-topic engines (every run uses the single engine) and otherwise only for a topic that has its own. The dashboard reads the function from `app.config["TOPIC_SEARCH_STATUS"]`, so a dashboard without the children's app (its own tests) shows no line. The line reflects the text as last saved, not as it is being typed.
+
+**If something looks wrong after this, check**
+- No line under the topic → `TOPIC_SEARCH_STATUS` in `app.config` (set at the end of the topic code in `search_app.py`).
+- A warning although the class searched fine → the topic text saved for the session, and `tools/check_search_engines.py` on the server.
+- A test that loads the whole app failing on `theme_engine_ready` → it needs `tests/backend_stub.py`.
+
+**Left alone**
+Saving and approving: a warning never blocks them. The engines, the topics and the children's pages.
+
+**Verified**
+New tests for the recognised topic, a topic without an engine, an unknown word, an empty field, a dashboard without the children's app, and the status function on the real backend with four, two and no engines. All 976 server tests and 165 browser tests pass. Creating both 2 December sessions in the Italian dashboard, on a copy of the 10 November setup, gives Session 2 with the right ten IDs, the recognised topic and "Pubblicata".
+
+## 2026-11-22 — Join the 26 November changes where they meet
+
+**Commit:** pending · **Type:** infra · **Area:** task-flow, infra, tests
+
+**Files**
+- `logger/search-app/templates/practice_intro.html`, `practice_done.html`, `finished.html` — load `connection-watch.js`, like every other child page
+- `logger/search-app/tests/test_connection_watch.py` — lists the practice and end pages among the child pages
+- `logger/search-app/tests/test_practice_question_browser.py` — refuses fullscreen, so the app stays in the top page this test reads
+- `logger/docker-compose.local.yml` — mounts `student_progress.py`, `practice_question.py` and `recap_picture.py` for local UI work
+
+**What changed for the participant**
+The practice pages and the end page also show "Il collegamento non funziona" when the connection drops.
+
+**How it works**
+The merge of #44, #40, #41, #39, #42 and #38 kept every side of each conflict. `/result` notes the first search (#41) before calling the shared results function (#44), so the practice never notes one. The welcome page is Samuele's fullscreen page (#38) with Inizia leading to `/prova` (#44), so the practice runs inside the fullscreen frame. The welcome page itself stays without the connection watch: it hosts the frame, whose pages send the signal.
+
+**If something looks wrong after this, check**
+- A page without the notice → whether it loads `connection-watch.js` (`test_every_child_page_watches_the_connection`).
+
+**Left alone**
+Everything the six PRs do on their own.
+
+**Verified**
+All 1058 server tests passed, and 184 of 185 browser tests in the full run. The other was the practice browser test, which needed the fullscreen refusal above; it passed with Samuele's fullscreen tests afterwards.
+
+## 2026-11-20 — Enter fullscreen from the existing Inizia button
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, docs, tests
+
+**Files**
+- `logger/search-app/templates/welcome.html` — standalone welcome/fullscreen host.
+- `logger/search-app/static/student-fullscreen.js` — user-triggered entry and browser fallback.
+- `logger/search-app/static/student-fullscreen.css` — full-height student frame and keyboard focus.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — entry, navigation, fallback and exit regressions.
+- `logger/docs/research_dashboard.md` — setup and browser/device limits.
+
+**What changed for the participant**
+Tapping Inizia enters fullscreen when the browser permits it. The child can move
+through the study without each page load leaving fullscreen. A refused request
+still opens the usual ID page.
+
+**How it works**
+The trusted click requests fullscreen on the welcome document, then opens the
+student app in one same-origin iframe. Only the inner student app runs its logger
+and Back guard. Returning to welcome inside the frame reuses that host.
+
+**If something looks wrong after this, check**
+- No fullscreen → browser support, fullscreen policy and whether Inizia was tapped.
+- Frame too short → `student-fullscreen.css` and the tablet's viewport/rotation.
+- Route appears unchanged → the address bar retains the welcome host's URL.
+
+**Left alone**
+Student routes, saved answers, logging contracts, the shared Back guard and the
+research dashboard. No installation, device lock or automatic fullscreen on load.
+
+**Verified**
+947 server tests and all 174 Chromium browser regressions passed, including nine
+fullscreen cases. Ruff and syntax checks for all 12 production JavaScript files
+passed. Welcome and fullscreen results screenshots were visually inspected.
+No physical classroom tablet is connected for iPad/Safari or Android acceptance.
+
+## 2026-11-22 — Put the recap picture in the recap PDF
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, docs, tests
+
+**Files**
+- `logger/search-app/recap_picture.py` — new: `RecapPicture`, the recap picture drawn with ReportLab at the positions of `recap.css`
+- `logger/search-app/student_recap.py` — `render_recap_pdf(columns, picture=None)`: with a picture, a landscape first page before the unchanged text pages; `StudentRecap` takes `artwork` and builds the picture at Salva from the committed answers
+- `logger/search-app/search_app.py` — passes the session's drawing and theme to `StudentRecap`
+- `logger/search-app/Dockerfile` — copies `recap_picture.py`
+- `logger/docs/research_dashboard.md` — "Recap PDF"
+- `logger/search-app/tests/test_recap_picture.py` — new
+
+**What changed for the participant**
+No visible change on the tablet. The recap PDF that researchers download now opens with the picture the group saw: the theme's drawing with "Domanda N", the first answers and their stars, the final answers and the arrows (Diletta's point 9). On 10 November these pictures had to be rebuilt by hand, because the server kept only the text.
+
+**How it works**
+At "Salva l'attività" the commit hands the PDF function the committed answers. `StudentRecap._picture` takes today's session from them, as the recap page does, with the drawing and theme of the session (from `review_illustration` and `review_artwork_theme`). `RecapPicture` draws the drawing, then the arrows (the quadratic curves of `RECAP_ARROWS` as cubic ones, white halo under a dashed black line), the labels, the cards and the stars, at the shares of the picture in `recap.css`. Text the standard PDF fonts cannot show (emoji, other scripts) is left out of the cards only. A card holds the lines that fit and ends with "…"; the text pages keep every answer in full. Without a picture (unknown theme, a missing drawing, a question without its part) the PDF is the text only, as before. No browser runs on the server and nothing comes from the tablet.
+
+**If something looks wrong after this, check**
+- A card in the wrong place in the PDF → `recap_picture.py` against `recap.css` (`test_the_pdf_places_cards_and_labels_where_the_tablet_does`).
+- Salva failing with "Salvataggio non disponibile" → the PDF's drawing: `_pdf_for_finish` turns any error into the existing 503, so nothing is saved half.
+- No picture in the PDF → the session's theme is not spazio or orecchio, or its drawing is missing.
+
+**Left alone**
+The tablet's recap, its text pages, what Salva saves and logs, and the dashboard's download.
+
+**Verified**
+`tests/test_recap_picture.py`: a landscape picture page before the portrait text page for both themes, the text-only PDF without a picture, cut and broken lines, emoji left out of cards, a long answer noted as cut, the positions matching `recap.css`, and Salva in the app keeping the picture for spazio and orecchio and not for an unknown theme. The full server suite passed. Both themes' first pages were checked as images.
+## 2026-11-22 — Mark the connection watch's background signals as such
+
+**Commit:** pending · **Type:** fix · **Area:** infra
+
+**Files**
+- `logger/search-app/static/connection-watch.js` — `void beat()` where a signal starts from an event
+- `logger/search-app/templates/layout.html`, `first_answer.html`, `task_intro.html`, `study_handoff.html`, `recap.html` — cache version `watch-2`
+
+**What changed for the participant**
+No visible change.
+
+**How it works**
+SonarCloud's reliability rule S9383 failed the quality gate of PR #39 on two calls of `beat()` whose promise nobody waited for. `beat()` never rejects (it counts every failure itself), so the calls are now marked as deliberately not awaited.
+
+**If something looks wrong after this, check**
+- The notice or the signal behaving differently → nothing in the logic changed; compare `connection-watch.js` with the previous entry.
+
+**Left alone**
+Everything else in the connection watch.
+
+**Verified**
+The connection-watch server and browser tests passed.
+
+## 2026-11-22 — Ask the group to call an adult when the connection drops
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, logging, infra, docs, tests
+
+**Files**
+- `logger/search-app/static/connection-watch.js` — new: the signal every 15 seconds, the "chiama un adulto" notice, the page-left and connection events, and the service worker's registration
+- `logger/search-app/static/sw.js`, `static/offline.html` — new: when a children's page cannot be loaded at all, the same message instead of the browser's error
+- `logger/search-app/search_app.py` — `GET /sw.js` from the root; the server-error page says "Qualcosa non ha funzionato! Alza la mano e chiama un adulto."
+- `logger/search-app/templates/layout.html`, `first_answer.html`, `task_intro.html`, `study_handoff.html`, `recap.html` — load `connection-watch.js`
+- `logger/docs/research_dashboard.md`, `logger/docs/manual_logging_walkthrough.md` — the statuses, the notice, the service worker and the four new events
+- `logger/search-app/tests/test_connection_watch.py`, `tests/test_connection_watch_browser.py` — new
+- `logger/search-app/tests/conftest.py`, `tests/test_background_upload_browser.py` — the `no_service_worker` marker; `tests/test_final_answer_draft_browser.py` uses it for its faked page load
+- `logger/search-app/tests/ui_fixture.py`, `tests/test_student_navigation_browser.py` — their small test apps answer `/presenza`
+- `logger/search-app/tests/test_first_answer_ui.py`, `tests/test_manual_logging_walkthrough.py` — know the new script and events
+
+**What changed for the participant**
+When the tablet loses the network, or the server stops answering for about two signals, the page shows "Il collegamento non funziona. Alza la mano e chiama un adulto." over everything, and it closes by itself when the server answers again. A page that cannot load at all shows the same message. A server error says "Qualcosa non ha funzionato! Alza la mano e chiama un adulto." (Diletta's point 10).
+
+**How it works**
+`connection-watch.js` posts `{page, visible}` to `/presenza` every 15 seconds while the page is visible, and every 5 seconds while the notice is shown. Two failed signals in a row, or the browser's `offline` event, show the notice and log `connectionLost` (`reason: no-answer` or `offline`); the next answered signal hides it and logs `connectionBack` with `lostSeconds`. When the page is hidden for more than 1.5 seconds it sends `visible: false` (beacon) and logs `pageHidden`; back on the page it logs `pageVisible` with `hiddenSeconds`. Moving to the next page hides a page only for an instant, so it does not count. Events go through the page's logger as any other, so they wait in its buffer while offline. The service worker handles only GET page loads of the children's app, from the network, and caches one file, `offline.html`, which needs nothing from the server and reloads itself when `/presenza` answers again. Form submissions, the logs, every other request and the dashboard never pass through it. It registers only in a secure context.
+
+**If something looks wrong after this, check**
+- The notice appearing while the tablet works → its `/presenza` requests failing (two in a row), or the browser reporting offline.
+- A page load misbehaving → `sw.js`; to retire it, serve a version that unregisters itself.
+- A test that fakes a page with `page.route()` failing → mark it `no_service_worker`: a service worker's own requests bypass Playwright's routing.
+
+**Left alone**
+`logger.js`, the uploads, every existing event, the Back blocker, form submissions and the dashboard's pages.
+
+**Verified**
+All 961 server tests and 169 of 170 browser tests passed. The other, `test_original_is_read_only_across_search_results_viewer_and_navigation`, timed out once in the full run, as it also did once on #41; it passed six times in a row alone. New in Chromium: offline shows and online hides the notice, two unanswered signals (on a fake clock) show it and an answer hides it, leaving the app is logged and signalled while a brief hide is not, the offline page while a load fails and the real page once back, and the dashboard left to the browser. Not checked on a classroom tablet yet.
+
+## 2026-11-22 — Show in the live view when a tablet is off the page or silent
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, infra, tests
+
+**Files**
+- `logger/search-app/research_dashboard/presence.py` — new: `Presence`, one row per run in `presence.sqlite3`
+- `logger/search-app/research_dashboard/__init__.py` — creates it in the research state folder (`app.extensions["research"]["presence"]`)
+- `logger/search-app/search_app.py` — `POST /presenza`: a tablet's page and visibility, stored only for a browser with a run; always answers 204
+- `logger/search-app/research_dashboard/live.py`, `live_views.py` — each unfinished child's row gets `presence` (hidden or silent)
+- `logger/search-app/research_dashboard/templates/research/session_live_row.html`, `stats_i18n.py`, `static/stats.css` — the badges "Fuori dalla pagina" and "Nessun segnale da N s"
+- `logger/search-app/tests/test_presence.py` — new
+
+**What changed for the participant**
+No visible change. In the live view, an unfinished child's row says "Fuori dalla pagina" when the tablet's app is hidden, and "Nessun segnale da N s" when nothing has arrived for 30 seconds (Diletta's point 10). The tablets start sending the signal in the next commit.
+
+**How it works**
+`/presenza` writes the run's latest signal (`technical_session_id`, participant, page, visible, time) to its own SQLite file with a 0.5-second timeout, apart from the logs, the progress database and the research database. Write errors are swallowed, so the signal can never fail a page or hold a lock that saving a log waits on. The route reads the session but never writes it and never touches `last_active`, so it is not activity for the 60-minute limit. The live view reads the rows of the unfinished children's latest runs; finished and not-started children get no badge, and a visible tablet adds nothing.
+
+**If something looks wrong after this, check**
+- No badges although tablets are off → `presence.sqlite3` in the research state folder, and whether the tablets load `connection-watch.js` (next commit).
+- "Nessun segnale" for a working tablet → its requests to `/presenza`, and `SILENT_AFTER_SECONDS` (30).
+
+**Left alone**
+The logs, the progress and research databases, the live view's other figures and its 5-second refresh.
+
+**Verified**
+`tests/test_presence.py`: nothing stored before an ID, a run's page and visibility stored, the session untouched and no log written, malformed signals ignored, a corrupt file never raising, the three states, and the badges in the live view in English and Italian.
+## 2026-11-22 — Show a changed "Non lo so" in the dashboard
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, tests
+
+**Files**
+- `logger/search-app/research_dashboard/index.py` — reads `OwnKnowledgeAnswerChanged`; a question's first answer is then the written one, with `changed_from_unknown`
+- `logger/search-app/research_dashboard/templates/research/task_stats.html` — the note beside such an answer
+- `logger/search-app/research_dashboard/stats_i18n.py` — "first “Non lo so”, changed before searching" / "prima “Non lo so”, cambiata prima della ricerca"
+- `logger/search-app/tests/test_first_answer_change_dashboard.py` — new
+
+**What changed for the participant**
+No visible change. On a participant's page, "Before searching" shows the written answer and its stars, followed by the note, when the group replaced "Non lo so" before searching.
+
+**How it works**
+The index collects `OwnKnowledgeAnswerChanged` per question beside `OwnKnowledgeAnswerSubmitted`. When the submitted answer is "Non lo so" and a change exists, `_task_figures` gives the change as the first answer and adds `changed_from_unknown: True`. Answers that never changed keep exactly the figure they had, so cached and older runs are unaffected.
+
+**If something looks wrong after this, check**
+- A changed answer shown as "Don't know" → the run's log lacks `OwnKnowledgeAnswerChanged`, or the event has no text.
+
+**Left alone**
+The index version, the final answers, exports (the raw logs carry both events) and every other figure.
+
+**Verified**
+`tests/test_first_answer_change_dashboard.py` in English and Italian, with the dashboard answer tests and the full server suite.
+
+## 2026-11-22 — Let a confirmed "Non lo so" become a written answer before the first search
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, data, logging, docs, tests
+
+**Files**
+- `logger/search-app/study_progress.py` — tables `progress_first_answer_changes` and `progress_first_searches`; `change_first_answer()`, `mark_first_search()`; the attempt snapshot shows a changed answer (with `changed_from`) and each question's `searched`
+- `logger/search-app/student_progress.py` — `/first-answer/change`; `can_change()`; `mark_searched()`; `/task?change=1` shows the form for a written answer; uploads drop a tablet's own `OwnKnowledgeAnswerChanged`
+- `logger/search-app/search_app.py` — `/result` notes the question's first search before searching
+- `logger/search-app/templates/first_answer.html` — "Cambia la mia risposta" beside "Entra nel motore di ricerca"; the change form has "Annulla" instead of "Non lo so"
+- `logger/search-app/templates/search_first_answer.html` — the same button in the "La mia prima risposta" pop-up, until the first search
+- `logger/search-app/static/first-answer.js`, `static/first-answer.css`, `static/main.css` — the form without "Non lo so"; the buttons' spacing; cache versions `change-answer-1`
+- `logger/docs/manual_logging_walkthrough.md`, `logger/docs/research_dashboard.md` — the new event and the rule
+- `logger/search-app/tests/test_first_answer_change.py`, `tests/test_first_answer_change_browser.py` — new; `tests/test_manual_logging_walkthrough.py` — knows the new server event
+
+**What changed for the participant**
+After confirming "Non lo so", a group can tap "Cambia la mia risposta", write an answer and choose its stars, once, as long as it has not searched yet for that question (Diletta's point 11). The button is on the confirmed answer and in the search page's "La mia prima risposta" pop-up; it disappears with the first search. "Annulla" keeps "Non lo so".
+
+**How it works**
+Nothing is overwritten. The original "Non lo so" stays in `progress_first_answers` and its `OwnKnowledgeAnswerSubmitted` stays in the log. The written answer goes to `progress_first_answer_changes` and the outbox as `OwnKnowledgeAnswerChanged` (`answer`, `confidence`, `outcome: answered`, `previousOutcome: unknown`, `answerPhase: pre-search`), published like the other server events. `/result` notes the question's first search in `progress_first_searches` before searching, so the change closes even if the browser's session is lost; the session's search keys close it too. `change_first_answer` refuses a written first answer, a second change, a searched question and a question no longer current, and returns the saved change on an identical retry. The attempt snapshot then gives the written answer as the first answer, so the recap shows it. The two tables need no new schema version: the store accepts versions up to 7 and refuses others, so a version change would stop an older image after a rollback.
+
+**If something looks wrong after this, check**
+- "Cambia la mia risposta" missing after "Non lo so" → `can_change()`: a search already noted for the question (`progress_first_searches`), or search keys in the session.
+- Two different first answers in a log → expected after a change: `OwnKnowledgeAnswerSubmitted` (unknown) then `OwnKnowledgeAnswerChanged`.
+- An error in the change form → `first-answer.js` expects no "Non lo so" button there.
+
+**Left alone**
+A written first answer, the "Non lo so" confirmation dialog, the final answer, the schema version and the earlier events.
+
+**Verified**
+All 963 server tests passed, and 166 of 167 browser tests in the full run. The other, `test_original_is_read_only_across_search_results_viewer_and_navigation`, timed out once right after the full run; it uses a written answer, where none of this shows, and passed in 13 runs in a row afterwards. New: the change and its refusals (searched, written, second change, token, missing text or stars), the search note surviving a lost session, both events, a forged upload dropped, the recap's answer, schema version 7, and in Chromium the whole change and "Annulla".
+## 2026-11-22 — End the experiment on an "Alzate la mano" page
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, styling, docs, tests
+
+**Files**
+- `logger/search-app/templates/welcome.html` — standalone welcome/fullscreen host.
+- `logger/search-app/static/student-fullscreen.js` — user-triggered entry and browser fallback.
+- `logger/search-app/static/student-fullscreen.css` — full-height student frame and keyboard focus.
+- `logger/search-app/tests/test_student_fullscreen_browser.py` — entry, navigation, fallback and exit regressions.
+- `logger/docs/research_dashboard.md` — setup and browser/device limits.
+
+**What changed for the participant**
+Tapping Inizia enters fullscreen when the browser permits it. The child can move
+through the study without each page load leaving fullscreen. A refused request
+still opens the usual ID page.
+
+**How it works**
+The trusted click requests fullscreen on the welcome document, then opens the
+student app in one same-origin iframe. Only the inner student app runs its logger
+and Back guard. Returning to welcome inside the frame reuses that host.
+
+**If something looks wrong after this, check**
+- No fullscreen → browser support, fullscreen policy and whether Inizia was tapped.
+- Frame too short → `student-fullscreen.css` and the tablet's viewport/rotation.
+- Route appears unchanged → the address bar retains the welcome host's URL.
+
+**Left alone**
+Student routes, saved answers, logging contracts, the shared Back guard and the
+research dashboard. No installation, device lock or automatic fullscreen on load.
+
+**Verified**
+947 server tests and all 174 Chromium browser regressions passed, including nine
+fullscreen cases. Ruff and syntax checks for all 12 production JavaScript files
+passed. Welcome and fullscreen results screenshots were visually inspected.
+No physical classroom tablet is connected for iPad/Safari or Android acceptance.
+- `logger/search-app/search_app.py` — new route `/fine` (`finished_page`); `reset=1` clears the session there
+- `logger/search-app/templates/finished.html`, `static/finished.css`, `static/finished.js` — new: the end page and the researchers' three-second hold on the logo
+- `logger/search-app/student_recap.py` — the recap's Chiudi now sends the tablet to `/fine` instead of the welcome page
+- `logger/search-app/templates/study_handoff.html` — "Chiudi l'attività" goes to `/fine?reset=1`
+- `logger/docs/research_dashboard.md` — "End of the experiment"
+- `logger/search-app/tests/test_finished_page.py`, `tests/test_finished_page_browser.py` — new
+- `logger/search-app/tests/test_editable_recap.py`, `tests/test_first_answer_flow_browser.py` — expect `/fine` after Chiudi
+
+**What changed for the participant**
+After "Salva l'attività" and "Chiudi", the tablet no longer returns to the welcome page: it shows "Complimenti! Siete arrivati alla fine!", the SOL logo and "Alzate la mano per dire che avete finito!", on the blue screen of Diletta's Figma (point 8). It stays there. A researcher holds the logo for three seconds to bring the welcome page back for the next group.
+
+**How it works**
+The recap's restart saves and clears the session exactly as before, then returns `/fine` as the address to open. The end page has the Back blocker and no logger, since the run is closed. `finished.js` starts a three-second timer on `pointerdown` over the logo and cancels it on `pointerup`, `pointerleave` or `pointercancel`; when it runs out it opens `/welcome?reset=1`. The logo fades while held, and the CSS turns off the tablet's long-press menu and selection on it.
+
+**If something looks wrong after this, check**
+- The tablet back on the welcome page after Chiudi → the `welcome` value returned by `/recap/restart` in `student_recap.py`.
+- The hold not working on a tablet → `finished.js` and the `touch-action`/`-webkit-touch-callout` rules in `finished.css`.
+
+**Left alone**
+What Salva and Chiudi save and log, the legacy `end.html` page of runs without progress saving, and the welcome page.
+
+**Verified**
+All 951 server tests and all 168 browser tests passed, including the new ones: the page's texts and links, the reset only with `reset=1`, a tap or a 1.2-second press keeping the page, a 3-second hold opening the welcome page, and Back staying on the end page. Not checked on a classroom tablet yet.
+
+## 2026-11-22 — Drop "Prova a rispondere alla domanda:" from the question introduction
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/templates/task_intro.html` — the line is gone
+- `logger/search-app/tests/test_child_pages.py` — checks the page without it
+
+**What changed for the participant**
+The page before each question shows "#1", the question, "Pensi di sapere la risposta?" and Inizia, as in Diletta's Figma. The word "prova" now belongs to the practice question before the ID (PR #44), so the real questions no longer use it (Diletta's point 12).
+
+**How it works**
+One paragraph removed from the template.
+
+**If something looks wrong after this, check**
+- The question's introduction missing a line → `task_intro.html`.
+
+**Left alone**
+"Cominciamo!" and its texts per theme, the answer form and every logged event.
+
+**Verified**
+`test_child_pages.py` passed, with the full suites (see the next entry).
+## 2026-11-22 — Pass the practice engine's IDs to the app on the server
+
+**Commit:** pending · **Type:** fix · **Area:** infra, docs, tests
+
+**Files**
+- `logger/docker-compose.yml` — passes `VERTEX_PROVA_ENGINE_ID` and `VERTEX_PROVA_DATA_STORE_ID`
+- `logger/docs/production_readiness.md` — the two lines for `logger/.env`
+- `logger/search-app/tests/test_practice_engine.py` — the compose file passes both
+
+**What changed for the participant**
+No visible change until the IDs are set on the server; then the practice question appears after Inizia.
+
+**How it works**
+`docker-compose.yml` hands the app only the variables it names. Without these two lines the IDs written in the server's `logger/.env` would never reach the app, and the practice would stay off.
+
+**If something looks wrong after this, check**
+- The dashboard saying "No search engine is set" although `.env` has both IDs → the container was not recreated after the change (`docker compose up -d`), or one value is empty.
+
+**Left alone**
+The other engines' variables.
+
+**Verified**
+`test_practice_engine.py` passed.
+
+## 2026-11-21 — Set the practice question in the dashboard
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, docs, tests
+
+**Files**
+- `logger/search-app/search_backend.py` — `theme_engine_ready(theme)`: whether a run of that topic can search
+- `logger/search-app/search_app.py` — `topic_search_status(text)` and the four topic words, handed to the dashboard through `app.config`
+- `logger/search-app/research_dashboard/question_views.py`, `templates/research/session_questions.html`, `i18n.py` — the line under "Tema della sessione" and the suggestions in the field
+- `logger/docs/research_dashboard.md` — "Session topic"
+- `logger/search-app/tests/test_class_topics.py` — the line in its four states; `tests/backend_stub.py` — new, the stand-in search backend of the tests that load the whole app, now shared by three of them
+
+**What changed for the participant**
+No visible change for the children. On the dashboard's questions page, the topic field suggests `spazio`, `orecchio`, `costellazioni` and `muscoli`, and the line under it says "Tema riconosciuto: muscoli." or, in a yellow warning, that the children's search would show an error: the app does not know the word, or the topic has no engine on the server (naming the two env lines). An empty field says "Nessun tema. Scrivi uno di questi: …".
+
+**How it works**
+The topic is free text, and a typo used to show up only in class, as the search error page. `topic_search_status` runs the text through `known_theme` and asks `search_backend.theme_engine_ready`, which is true with no per-topic engines (every run uses the single engine) and otherwise only for a topic that has its own. The dashboard reads the function from `app.config["TOPIC_SEARCH_STATUS"]`, so a dashboard without the children's app (its own tests) shows no line. The line reflects the text as last saved, not as it is being typed.
+
+**If something looks wrong after this, check**
+- No line under the topic → `TOPIC_SEARCH_STATUS` in `app.config` (set at the end of the topic code in `search_app.py`).
+- A warning although the class searched fine → the topic text saved for the session, and `tools/check_search_engines.py` on the server.
+- A test that loads the whole app failing on `theme_engine_ready` → it needs `tests/backend_stub.py`.
+
+**Left alone**
+Saving and approving: a warning never blocks them. The engines, the topics and the children's pages.
+
+**Verified**
+New tests for the recognised topic, a topic without an engine, an unknown word, an empty field, a dashboard without the children's app, and the status function on the real backend with four, two and no engines. All 976 server tests and 165 browser tests pass. Creating both 2 December sessions in the Italian dashboard, on a copy of the 10 November setup, gives Session 2 with the right ten IDs, the recognised topic and "Pubblicata".
+
+## 2026-11-22 — Add the constellations and muscles topics, each with its own search engine
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, serp, autocomplete, infra, docs, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `TOPIC_NAMES`: the words a session's topic may be typed with, now also `costellazioni` and `muscoli`; `REVIEW_ARTWORK_THEMES` is built from it
+- `logger/search-app/search_backend.py` — `VERTEX_THEME_SETTINGS` gains `COSTELLAZIONI` and `MUSCOLI`
+- `logger/search-app/student_progress.py` — intro lines for both topics
+- `logger/search-app/tools/check_search_engines.py` — asks the two new engines too, and names a topic without an engine instead of failing on it
+- `logger/docker-compose.yml` — passes `VERTEX_COSTELLAZIONI_*` and `VERTEX_MUSCOLI_*` to the app
+- `logger/docs/production_readiness.md` — "Search engines per theme": the four topics and the words to type
+- `logger/search-app/tests/test_class_topics.py` — new; `test_child_pages.py`, `test_search_by_theme.py` — the new topics in the existing cases
+
+**What changed for the participant**
+On 2 December class 4 searches constellations and class 5 muscles, each in its own dataset (Google apps `SOL-app-constellations` and `SOL-app-muscles`). The "Cominciamo!" page says "In classe state studiando le curiosità dell'universo." (constellations) or "… del corpo umano." (muscles), then "Ma ci sono ancora tante cose da imparare!": Diletta will write the line about the topic itself. There are no clips or recap drawing for these topics yet, so the page after each question shows the two answers alone and the recap has its plain layout; the recap PDF is text only.
+
+**How it works**
+A session's topic is the free text "Tema della sessione" in the dashboard. `known_theme` matches it, ignoring case and extra spaces, against `TOPIC_NAMES` and gives `constellations` or `muscles`. `search_backend` then reads `VERTEX_COSTELLAZIONI_ENGINE_ID` / `_DATA_STORE_ID` or `VERTEX_MUSCOLI_*`. As for spazio and orecchio, once any topic has its own engine, a run whose topic has none gets the search error page and never searches another topic's dataset. `corpo umano` alone still means orecchio, as before, so the muscles topic is typed `muscoli` or `corpo umano (muscoli)`.
+
+**If something looks wrong after this, check**
+- Search error page for a constellations or muscles class → the two lines of that topic in the server's `logger/.env`, then `docker compose up -d --wait search_app` and `tools/check_search_engines.py`.
+- A class searching the wrong dataset → the topic typed for its session in the dashboard (`corpo umano` is orecchio).
+- An orecchio clip on a new topic → `REVIEW_CLIPS` (previous entry).
+
+**Left alone**
+Spazio and orecchio: their engines, words, clips, drawings and test IDs. The prova's engine. No test IDs for the new topics yet: they need the real questions.
+
+**Verified**
+New tests: each new topic searches and completes on its own engine and never on an old one; the dashboard words pick the topic; the intro lines; a full run on each topic ends on the plain recap with no clip; the engine check with four and with two engines; compose passes the four variables. The topic, search, child page and test-ID tests pass.
+
+## 2026-11-22 — Show a question's clip only for a topic that has clips
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `REVIEW_CLIPS`, the topics with clips by clip name; `task_review` shows a clip only for those
+- `logger/search-app/tests/test_child_pages.py` — a topic without clips
+
+**What changed for the participant**
+No visible change for spazio and orecchio. A topic without clips now shows its two answers alone on the page after each question, instead of an orecchio clip.
+
+**How it works**
+`task_review` chose the clip with `'Spazio' if theme == 'space' else 'Orecchio'`, so every other known topic got the orecchio clips, stills and arrows. It now looks the topic up in `REVIEW_CLIPS` and leaves `animation`, `poster` and `piece` empty when the topic is not there; the template then shows its `unlock--none` layout, the two cards side by side.
+
+**If something looks wrong after this, check**
+- A spazio or orecchio review without its clip → `REVIEW_CLIPS` and `test_the_review_page_is_the_figmas_with_the_right_clip_and_still`.
+
+**Left alone**
+The clips, stills, arrows and `study-review.css`; the recap picture, which already falls back to the plain layout for a topic without a drawing.
+
+**Verified**
+The new test fails before the change (an orecchio clip on a "vulcani" review) and passes after it; all child page tests pass.
+- `logger/search-app/research_dashboard/practice_views.py` — new: `/dashboard/settings/practice`, saving the practice and trying a search on its engine
+- `logger/search-app/research_dashboard/templates/research/practice.html` — new: the page
+- `logger/search-app/research_dashboard/templates/research/settings_navigation.html` — a third tab, "Practice question"
+- `logger/search-app/research_dashboard/__init__.py` — registers the page
+- `logger/search-app/research_dashboard/i18n.py` — the page's English and Italian texts
+- `logger/search-app/research_dashboard/static/research.css` — the switch, text area and test results of the page
+- `logger/docs/research_dashboard.md` — new section "Practice question"
+- `logger/search-app/tests/test_practice_dashboard.py` — new
+
+**What changed for the participant**
+No visible change. Researchers get Settings › Practice question.
+
+**How it works**
+The page edits the practice's topic, question and switch through `State.save_practice`, with the revision of the form, so a save from an older page is refused. It shows the engine's state from `practice_engine_status` (set, missing, or also used by a class) and whether children will see the practice. **Try a search** runs the practice engine with the words given and lists the first five titles and sites; it saves nothing and shows no provider message, which could hold credentials. The topic's field says that the last page's volcano is fixed in the app.
+
+**If something looks wrong after this, check**
+- The tab missing → `settings_navigation.html` and `register_practice_routes` in `__init__.py`.
+- "No search engine is set" although the env file has the IDs → the app was not restarted after the change, or one of the two IDs is empty.
+
+**Left alone**
+The study settings page and its forms, the session and ID pages, and the practice's child pages.
+
+**Verified**
+`tests/test_practice_dashboard.py` (tab, default, every engine state, save, conflict, refused values, token, sign-in, test search and its failures, both languages), the full server suite (1011 passed) and the dashboard browser tests (51 passed).
+
+## 2026-11-21 — Add the practice question before the ID
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, serp, search-bar, autocomplete, result-viewer, logging, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — new: the practice routes under `/prova`, their guards and the practice state in the session
+- `logger/search-app/search_app.py` — registers the practice; `practice_engine_ready()`; `practice=False` in the template context; the dashboard's test search and engine status in `app.config`
+- `logger/search-app/static/practice-page.js` — new: loaded instead of `logger.js`; a logger stand-in that keeps, stores and sends nothing, plus the "?" and "La mia prima risposta" pop-ups without events
+- `logger/search-app/templates/practice_intro.html`, `practice_done.html` — new: "Facciamo una prova!" and "Avete finito la prova!"
+- `logger/search-app/static/practice.css`, `static/images/practice/volcano.svg` — new: the last page's layout and a placeholder volcano until Diletta's picture
+- `logger/search-app/templates/welcome.html` — Inizia opens `/prova`
+- `logger/search-app/templates/first_answer.html` — practice mode: no question number, the Back blocker without the logger
+- `logger/search-app/templates/layout.html` — practice mode: `practice-page.js` instead of `logger.js`, the final answer sent with the end request, and `clearClientData` that clears nothing
+- `logger/search-app/Dockerfile` — copies `practice_question.py`
+- `logger/search-app/tests/test_practice_question.py`, `tests/test_practice_question_browser.py` — new
+
+**What changed for the participant**
+After Inizia, a group first does one practice question on volcanoes: "Facciamo una prova!", the question with a first answer (stars or "Non lo so"), the search, a page, the final answer, then "Avete finito la prova!" with both answers next to a volcano. "Inizia" there leads to the ID page, and the experiment goes on as before. When the practice is off in the dashboard, or its engine is not set, Inizia leads straight to the ID page as before.
+
+**How it works**
+The practice comes before the ID, so the browser has no participant, run or log yet. Every practice route refuses once a run exists (it sends the browser back to its run), and the run's own routes keep refusing a browser without a run. The practice pages are the real templates with the practice's own endpoints (`PRACTICE_ROUTES`) and `practice=True`. They load `practice-page.js` instead of `logger.js`, so no event is kept, written to the browser's storage or sent, and the tablet's stored data (an earlier group's unsent run, for instance) is never cleared. The answers stay in the server-side session of this browser only, to draw the last page, and leave it when the group goes on to the ID (choosing an ID clears the session too). The question is the dashboard's at the moment the practice begins; a later edit does not change a practice under way. Searches use the practice engine (`theme="practice"`).
+
+**If something looks wrong after this, check**
+- A log, progress row or study record appearing for a practice → nothing should write one: `test_a_whole_practice_records_nothing`.
+- Inizia going straight to the ID page → the practice is off in the dashboard, or `VERTEX_PROVA_*` is not set on the server.
+- A pop-up not opening on the practice's search page → `practice-page.js`, which copies those two blocks from the end of `logger.js`.
+- The volcano missing on the last page → `static/images/practice/volcano.svg`.
+
+**Left alone**
+`logger.js`, every logged event, the run's routes and their guards, the start page, the questions, reviews and recap of the run, and the session numbering.
+
+**Verified**
+All 993 server tests and all 166 browser tests passed, including the practice tests: the whole flow, every refused step and token, that a whole practice leaves no log file, progress row or study record, that a browser with a run never enters the practice, and in Chromium that the practice sends nothing to `/log_session`, leaves the stored data unchanged and the real question empty. Not checked on a classroom tablet yet.
+
+## 2026-11-21 — Let the practice question share the search pages' code
+
+**Commit:** pending · **Type:** infra · **Area:** serp, search-bar, autocomplete, result-viewer, tests
+
+**Files**
+- `logger/search-app/search_app.py` — `CHILD_ROUTES` and `child_routes` in the template context; the body of `/result` moved into `search_results_page()`, the probe of `/iframe_check` into `frame_check_response()` and the call of `/autocomplete` into `autocomplete_response()`
+- `logger/search-app/templates/home.html`, `search.html`, `webpage.html`, `layout.html` — links, forms and requests name their endpoint through `child_routes` instead of a fixed address
+- `logger/search-app/tests/test_child_routes.py` — new: a run's pages keep `/result`, `/webpage`, `/search`, `/autocomplete`, `/iframe_check` and `/end`
+- `logger/search-app/tests/ui_fixture.py`, `tests/test_student_navigation_browser.py` — their small test apps provide `child_routes` (and an `/end` route) like the real app
+
+**What changed for the participant**
+No visible change. A run's pages render the same addresses as before.
+
+**How it works**
+The practice question (PR #44) shows the same search, results and viewer pages, so it must not get copies that drift apart. The real routes keep their guards (the run's phase, the idle limit) and then call the shared function, which does exactly what the route did before. The templates take the endpoint names from `child_routes`, which the app sets to the run's routes for every page; the practice question will pass its own names.
+
+**If something looks wrong after this, check**
+- A run's search, page or answer going to a wrong address → `CHILD_ROUTES` in `search_app.py` and `test_child_routes.py`.
+- `'child_routes' is undefined` in a page → a Flask app that renders these templates without `search_app`'s context processor (test fixtures included).
+
+**Left alone**
+`logger.js`, every logged event, the guards of the run's routes, the session keys of the search, and the result cache.
+
+**Verified**
+All 971 server tests and all 165 browser tests passed. The 13 browser tests that first failed did so because their own test apps lacked `child_routes`, fixed in the fixtures.
+
+## 2026-11-21 — Store the practice question apart from the study settings
+
+**Commit:** pending · **Type:** feature · **Area:** data, dashboard, tests
+
+**Files**
+- `logger/search-app/research_dashboard/practice_settings.py` — new: the default (volcano question, on) and validation
+- `logger/search-app/research_dashboard/state.py` — table `practice_question`; `State.practice()` and `State.save_practice()`
+- `logger/search-app/tests/test_practice_settings.py` — new
+
+**What changed for the participant**
+No visible change yet (PR #44).
+
+**How it works**
+The practice question's topic, text and on/off switch get a table of their own in `research.sqlite3`, with their own revisions. Saving them never writes the study settings, so it cannot move a session, an ID or the settings revision that admission checks before letting a child in. A save from a form opened before someone else's save is refused (`practice_changed`). Before the first save the default applies: on, topic "Vulcani", question "Le eruzioni vulcaniche possono essere di diversi tipi. Sapete elencarne 3?". The table is created with `CREATE TABLE IF NOT EXISTS` and the schema version stays 2, so an older image opens the same database after a rollback and ignores it. Nothing a child does in the practice is stored here or anywhere else.
+
+**If something looks wrong after this, check**
+- The dashboard showing the default question after a save → the `practice_question` table in `research.sqlite3`.
+- "Saved by someone else" on the practice form → `practice_changed`, raised by `save_practice`.
+
+**Left alone**
+The study settings document, its revisions and `SETTING_FIELDS`, the schema version and the migrations.
+
+**Verified**
+`tests/test_practice_settings.py` (default, save and read back, conflict, every refused value, study settings unchanged, schema version 2, reopening), with the settings, backup and start-and-recovery tests: all passed.
+
+## 2026-11-21 — Give the practice question its own search engine
+
+**Commit:** pending · **Type:** feature · **Area:** search-bar, autocomplete, infra, tests
+
+**Files**
+- `logger/search-app/search_backend.py` — `PRACTICE_THEME`, `load_practice_config`, `practice_engine_status`, `practice_engine_configured`; `vertex_config_for("practice")` returns that engine
+- `logger/search-app/tools/check_search_engines.py` — asks the practice engine too when it is set; `--prova-query` for a topic other than volcanoes
+- `logger/search-app/tests/test_practice_engine.py` — new
+
+**What changed for the participant**
+No visible change yet. This prepares the practice question that comes before the ID (Diletta's point 7, PR #44).
+
+**How it works**
+The practice question is on a topic no class studies (volcanoes for now), so it cannot search the spazio or orecchio engine. It has its own slot in the env file, `VERTEX_PROVA_ENGINE_ID` and `VERTEX_PROVA_DATA_STORE_ID`, in the same Google project and with the same credentials as the others. The slot is kept apart from the theme engines (`_theme_configs`): setting it never turns on "each run searches only its theme's engine", and it never changes which engine a run searches. With only one of the two IDs, or none, the practice engine counts as missing and nothing searches in its place. `practice_engine_status` tells the dashboard whether it is set and whether it is an engine a class also searches, without returning any ID.
+
+**If something looks wrong after this, check**
+- A run searching the wrong engine → `vertex_config_for`: only the theme `"practice"` reaches `_practice_config`.
+- The engine check printing "the practice question is skipped" → both `VERTEX_PROVA_*` values in the server's env file.
+
+**Left alone**
+The theme engines, the single engine, autocomplete's SerpAPI fallback, and every route of the app.
+
+**Verified**
+`tests/test_practice_engine.py` (practice searches and completes on its own engine; a half-set or missing engine never falls back; a run's engine is unchanged with and without theme engines; the check tool), with `test_search_by_theme.py` and `test_backend_privacy.py`: all passed.
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra

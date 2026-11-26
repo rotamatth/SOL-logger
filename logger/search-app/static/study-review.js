@@ -3,7 +3,8 @@ window.addEventListener("pagehide", event => {
     if (event.persisted) document.querySelector(".study-review").hidden = true;
 });
 
-const animation = document.querySelector(".review-animation");
+// A topic with pictures instead of clips has nothing to play.
+const animation = document.querySelector("video.review-animation");
 if (animation) {
     animation.controls = false;
 

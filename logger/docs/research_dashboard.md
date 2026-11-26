@@ -15,6 +15,39 @@ highlights follow the selected section and grade, with text labels for status. W
 use their own orange-red colour and a triangle icon so they stand out from the yellow
 interface.
 
+## Student fullscreen entry
+
+Open the student site at `/` or `/welcome`, then tap **Inizia**. On a browser
+that supports and allows fullscreen, this existing button enters fullscreen and
+opens the ID page. Keyboard users can focus the link and press Enter. There is
+no installation step and no additional fullscreen button. Browsers require this
+interaction: opening the URL alone cannot force fullscreen.
+
+The welcome document then hosts the student app in a same-origin frame, keeping
+fullscreen active while the child moves between questions, answers, results and
+the viewer. The student routes retain their existing logger and Back protection.
+The address bar keeps the outer welcome URL; the active student route is inside
+the frame. Research dashboard pages must still be opened separately.
+
+If fullscreen is unavailable, disabled or refused, **Inizia** opens the usual ID
+page in the browser. This includes older browsers that only offer a prefixed
+fullscreen API. Leaving fullscreen with Escape or the browser's own control
+keeps the app usable. Every student page now retries fullscreen on each tap,
+click or key press when it is not already active, including answers, search,
+the viewer controls and the final recap. Inside the persistent host, the request
+targets the outer document so navigation continues in fullscreen. Escape itself
+does not trigger re-entry. A refusal never blocks the control's normal action,
+and the next interaction can retry. Directly opened student pages also retry,
+so returning to **Inizia** is unnecessary. Interactions inside an external
+website's embedded frame cannot be observed by the app; use the viewer's own
+controls to re-enter fullscreen.
+Reloading the top-level page exits fullscreen and follows the existing server-side
+session recovery; the next interaction on the recovered page retries fullscreen.
+Fullscreen does not lock the device to this app. Check the actual classroom
+tablet/browser before the session, including keyboard, rotation, result previews,
+Back gestures and exiting fullscreen. Chromium tests do not replace an iPad/Safari
+or Android hardware acceptance check.
+
 ## Sessions, live view, statistics and guide
 
 **Sessions** is where the dashboard opens. **View and manage** lists the sessions of a
@@ -45,6 +78,22 @@ when a child changes page and at least once a minute, so a child with no recent 
 be working. A visible live page keeps the researcher signed in; the 8-hour limit still applies.
 It says when it is reconnecting and when the researcher has been signed out.
 
+Each unfinished child's row also says where the tablet is now. **Fuori dalla pagina** (Off the
+page): the app has been hidden for more than a moment, because another app, the home screen or a
+locked screen is in front. **Nessun segnale da N s** (No signal for N s): the tablet has sent
+nothing for 30 seconds or more, so it is off, out of the network or stuck. Every child page sends a
+short signal every 15 seconds (`/presenza`, `static/connection-watch.js`), stored in
+`presence.sqlite3` in the research state folder, apart from the logs and the progress database. If
+the signal fails, the rows show less and nothing else changes. A tablet that is visible and
+signalling adds nothing to its row.
+
+On the tablet, when the signal fails twice in a row or the tablet goes offline, a full-screen notice
+says "Il collegamento non funziona. Alza la mano e chiama un adulto." and closes by itself when the
+server answers again. When a page cannot be loaded at all, a small service worker (`static/sw.js`)
+shows the same message instead of the browser's error. It handles only the children's GET page
+loads, never answers, logs or the dashboard. To retire it, serve a `sw.js` that unregisters itself.
+The log records `pageHidden`, `pageVisible`, `connectionLost` and `connectionBack`.
+
 **Task statistics** come from the logged events:
 
 | Figure | How it is worked out |
@@ -64,9 +113,14 @@ run that finished it, and "typical" is the median. The figures are not added to 
 
 The **guide** at `/dashboard/guide` opens by itself on the first sign-in in a browser, unless
 the sign-in was on its way to a specific page, and the **Guide** button brings it back. Sign-ins
-are shared, so this is remembered per browser. After changing a page the guide shows, run
-`python tools/capture_guide_screens.py` from `search-app` (needs `requirements.lock` and `requirements-browser-test.txt`)
-and commit the pictures. They show demo data only.
+are shared, so this is remembered per browser. It has four parts: preparing a session (with the
+session's topic word), in class with the tablets (setting a tablet's number, resetting it, the test
+IDs), on the day and afterwards, and the settings (with the practice question). After changing a page
+the guide shows, run `python tools/capture_guide_screens.py` from `search-app` (needs `requirements.lock`
+and `requirements-browser-test.txt`) and commit the pictures. It starts the whole app with a stand-in
+search, so it also photographs the tablet pages, which are in Italian in both languages. The pictures
+show demo data only. When a topic word or a test ID is added, the guide's topic and test steps must
+name it; `tests/test_guide.py` checks.
 
 On the participant list, **Deactivate selected** deactivates several children after one review, in
 one transaction. Reactivating is one child at a time with **Edit enrollment**.
@@ -245,6 +299,37 @@ access either: every student page and script is same-origin.
   the search backend logs neither corrected queries nor autocomplete suggestions.
 - Malformed result addresses are refused like any other non-web address.
 
+### End of the experiment
+
+After **Salva l'attività** and **Chiudi** on the recap, the tablet shows "Complimenti! Siete
+arrivati alla fine! … Alzate la mano per dire che avete finito!" and stays there, so the group
+knows it has finished. The run is already saved and closed. A tap does nothing; to prepare the
+tablet for the next group, a researcher **holds the SOL logo for three seconds** (it fades while
+held) and the welcome page opens with a fresh session.
+
+### Recap PDF
+
+When a group presses **Salva l'attività**, the server keeps a PDF of the session, downloadable from
+the participant's page; the tablet keeps nothing. Its first page is the recap picture as the tablet
+showed it: the theme's drawing, "Domanda N" in the order the group met the questions, the first
+answers with their stars and the final answers on their cards, and the arrows. It is drawn on the
+server with ReportLab (`recap_picture.py`), at the card positions of `recap.css`, so a change of the
+recap's layout needs the same change there (a test compares them). The drawing goes into the PDF as a
+JPEG, so a PDF weighs 300–650 KB instead of 3–5 MB of raw pixels. A card holds what fits; the text
+pages that follow keep every answer in full, as before. A session without a recap picture (an
+unknown theme) keeps the text pages only.
+
+PDFs saved before the picture page existed (22 November 2026), such as those of 10 November, can be
+drawn again from the saved answers, with the code Salva uses now:
+
+    docker compose exec search_app python tools/redraw_recap_pdfs.py --date 2026-11-10          # shows, changes nothing
+    docker compose exec search_app python tools/redraw_recap_pdfs.py --date 2026-11-10 --write  # backup, then replace
+
+With `--write` it first keeps the old PDFs in `recap-pdfs-before-redraw-<date>-<time>.zip` in the
+research state folder (`logger/research-state/` on the server), then replaces them in one transaction,
+each only if nobody changed it meanwhile. Test runs, topics without a picture and PDFs that already
+have one are left alone, and the time of Salva stays. It prints IDs and topics, never answers.
+
 ## Research interpretation
 
 - A **study session** is the configured grade/date classroom experiment. It is
@@ -300,9 +385,10 @@ access either: every student page and script is same-origin.
   are used with a visible warning. Differences between full/task copies are flagged;
   originals remain available in exports. Fallback file order is deterministic, not
   a claim about global event chronology.
-- Metadata is written at run start; interaction logs still upload at task submission
-  and experiment finish. No periodic browser upload or live activity tracking was
-  added. Answers existing only in browser storage are not available to researchers.
+- Metadata is written at run start; interaction logs upload while the child works and at
+  task submission and experiment finish. The tablets' presence signal (see the live view) is
+  not study data and is kept apart. Answers existing only in browser storage are not
+  available to researchers.
 
 ## Index and data quality
 
@@ -494,11 +580,40 @@ work that needs the actual experiment's details. The grade, session and download
 controls are dropdowns so they can accept more choices without adding more tabs
 or header buttons.
 
+## Session topic
+
+The **Tema della sessione** on a session's questions page decides what the children's app does
+with that session: the search engine the children search, the line on "Cominciamo!", the clip or
+picture after each question and the recap drawing. The app knows four topics, typed `spazio`,
+`orecchio`, `costellazioni` and `muscoli`; case and extra spaces do not matter, and the other
+accepted words are in `TOPIC_NAMES` in `search_app.py`. The field suggests the four words. Once
+the page is saved, the line under it says what the app understood:
+
+- "Tema riconosciuto: muscoli." Check that it names the topic you meant: `corpo umano` alone
+  means orecchio.
+- A warning that the children's search would show an error: either the app does not know the
+  word (a typo), or the topic has no engine in the server's env file (`production_readiness.md`,
+  "Search engines per theme").
+
+Constellations and muscles have pictures instead of clips. **The question's box picks its picture**,
+left to right as on the recap drawing, so a question must sit in the box of its picture:
+
+| Tema | Domanda 1 | Domanda 2 | Domanda 3 |
+|---|---|---|---|
+| `costellazioni` | the constellation with the red star | the sun shining on the Earth | the rocket |
+| `muscoli` | the boy seen from the side, with heart and intestine | the octopus with its hearts | the boy flexing his arm |
+
+The children still meet the three questions in a random order; the picture follows its question.
+
 ## Permanent test IDs
 
-`TEST-spazio` and `TEST-orecchio` close the list on the children's start page. Each is an
-experiment with one participant, itself, for developers to try the whole app on the real
-server: it searches its theme's engine and plays its theme's animations. It works on any day
+`TEST-spazio`, `TEST-orecchio`, `TEST-costellazioni` and `TEST-muscoli` close the list on the
+children's start page. Each is an experiment with one participant, itself, for developers to try
+the whole app on the real server: it searches its topic's engine and plays its topic's animations,
+when the topic has them. `TEST-spazio` and `TEST-orecchio` ask the questions of the 10 November
+sessions, `TEST-costellazioni` and `TEST-muscoli` those of the 2 December sessions (4a and 5a, as
+published on 26 November). Their theme stays the topic word, so they search the right engine even
+when a session's topic text is longer. It works on any day
 and needs no session, class or enrollment. Every start is a new attempt; **Ricomincia** in the
 red PROVA banner leaves the current one. Test pages show that banner, so a wrong choice on a
 child's tablet is noticed at once. A double tap on the start page still gives one attempt.
@@ -512,6 +627,47 @@ child's unsent events that reach a test browser stay with the child. To read the
 
     docker compose exec search_app ls -la /app/logs/test-runs
     docker compose cp search_app:/app/logs/test-runs ./test-runs-copy
+
+## Practice question
+
+An adult opens the app, taps **Inizia**, sets the tablet's ID and hands the tablet over at "Facciamo
+una prova!". Each group then tries the app once with one practice question on a topic no class
+studies (volcanoes at first): the question with a first answer, the search, a page, the final
+answer, and "Avete finito la prova!" with both answers next to a volcano. **Inizia** there starts
+the run of that ID, and the experiment goes on as usual with "Cominciamo!".
+
+**Nothing is saved.** Setting the ID does not start a run: the ID waits in the tablet's browser
+session, so during the practice there is no participant, run or log. The practice's pages do not
+load the logger, its answers stay in the browser's session until it ends, and it never appears in
+Data and history, the live view, exports, recaps or session numbers. A screen recording is its only
+record. The log, with `idSubmitted` first, begins when the practice is over.
+
+**The ID on the tablet.** An ID without an approved session today is refused on the ID page, while the
+adult still has the tablet. An ID that already has a run today continues it without the practice. If
+the start fails after the practice, the group sees **Riprova** and keeps its ID. The test IDs'
+**Ricomincia** skips the practice.
+
+**A wrong ID, and between two classes:** reset the tablet, or it keeps its ID until its run is finished.
+Hold the logo of the end page for three seconds, or open `/welcome?reset=1`. It worked if **Inizia** then
+shows the list of IDs. An ID left from another day is forgotten by itself.
+
+**Settings › Practice question** holds the topic, the question and an on/off switch, stored apart
+from the study settings. A practice already under way keeps the question it began with. The page
+shows whether the practice's search engine is set, and **Try a search** asks it a question as a
+child would, to check that it answers about the topic. The picture on the last page is a volcano,
+fixed in the app: a new topic needs a new picture from a developer
+(`static/images/practice/volcano.webp`).
+
+**Its search engine** is its own, in the same Google project and with the same credentials as the
+others. The server's env file names it:
+
+    VERTEX_PROVA_ENGINE_ID=…
+    VERTEX_PROVA_DATA_STORE_ID=…
+
+With either missing, or with the switch off, the run starts as soon as the ID is chosen. To
+change the topic: create the new engine, change the two lines, restart the app, enter the new
+question in the dashboard, and check it with **Try a search** or
+`docker compose exec search_app python tools/check_search_engines.py --prova-query "…"`.
 
 ## Historical grade and school-year setup
 
@@ -681,6 +837,8 @@ sign-out notifies other editors and invalidates their recovery claims.
 For each question, typing a nonblank first answer immediately shows “Secondo te, quanto è giusta la tua risposta?” with “Poco giusta”, “Abbastanza giusta” and “Giustissima”. There is no default. A typed answer requires a choice to confirm; clearing the text clears the choice. Confirmed “Non lo so” needs no assessment.
 
 SQLite stores confidence as 1, 2 or 3 alongside the original first answer, or null for confirmed unknown and historical answers collected before this field existed. First-answer drafts save text and confidence together under the same revision and resume across browsers/workers. Search remains locked until confirmation. The canonical `OwnKnowledgeAnswerSubmitted` event includes `confidence`, `outcome`, `answerPhase: pre-search` and the existing attempt/session/task context. Identical retries do not duplicate the answer/event; a different confidence conflicts. Database upgrades do not infer historical confidence or rewrite previously queued/published events.
+
+**Changing "Non lo so" (November 2026).** After confirming "Non lo so", a group can still choose **Cambia la mia risposta** and write an answer with its stars, once, until the question's first search. On that form the button beside **Conferma** reads **Non lo so**, as on the first form, and goes back keeping it. It is offered on the confirmed answer and in the search page's "La mia prima risposta" pop-up, and disappears with the first search. Nothing is overwritten: the original row in `progress_first_answers` and its `OwnKnowledgeAnswerSubmitted` event stay as they were. The written answer is stored beside them in `progress_first_answer_changes` and logged as `OwnKnowledgeAnswerChanged` (`previousOutcome: unknown`). The first search of each question is noted in `progress_first_searches`. From then on the written answer is the first answer on the recap and in the dashboard, which marks it "first “Non lo so”, changed before searching". Neither table changes the schema version, so an older image still opens the database.
 
 The current progress schema is 6. It also provides internal storage for recap drafts/revisions and source-snapshot repeats, with the UI and authorization controls left to #9/#15. Reward assets no longer affect question-set eligibility. See [Issue #6 handover](issue6_handover.md) for the API contracts and acceptance boundaries.
 

@@ -1,0 +1,17 @@
+body.fullscreen-session {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+#student-session-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.welcome-start-btn:focus-visible {
+    outline: 3px solid white;
+    outline-offset: 4px;
+}

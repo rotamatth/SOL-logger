@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <script src="{{ url_for('static', filename='student-fullscreen.js', v='2') }}" defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Avete finito!</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='finished.css', v='end-1') }}">
+  {# The run is saved and closed: the Back blocker keeps the group here, and there is no logger. #}
+  <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='finished.js', v='end-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='connection-watch.js', v='watch-2') }}" defer></script>
+</head>
+<body data-sol-step-page>
+  <main class="app-blue-screen finished-screen">
+    <h1 class="finished-title">Complimenti!<br>Siete arrivati alla fine!</h1>
+    {# Researchers hold the logo for three seconds to bring the tablet back to the welcome page for the next group. #}
+    <div id="finished-logo" class="finished-logo" data-reset-url="{{ url_for('welcome', reset=1) }}">
+      <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="Cerca con SOL" class="welcome-logo-img" draggable="false">
+    </div>
+    <p class="finished-hand">Alzate la mano per dire che avete finito!</p>
+  </main>
+</body>
+</html>

@@ -1,4 +1,8 @@
-{% if search_first_answer %}
+{% if search_first_answer and first_answer_change_url %}
+{# Until the first search a "Non lo so" can still become a written answer. The one button at the top right says so
+   and opens the change; after the first search it is "La mia prima risposta" again, with its pop-up. #}
+<a id="search-change-answer" class="app-btn app-btn-back search-first-answer-trigger" href="{{ first_answer_change_url }}">Cambia la mia risposta</a>
+{% elif search_first_answer %}
 <button type="button" id="search-first-answer-btn" class="app-btn app-btn-back search-first-answer-trigger"
         aria-haspopup="dialog" aria-controls="search-first-answer-dialog"
         data-outcome="{{ search_first_answer.outcome }}">La mia prima risposta</button>

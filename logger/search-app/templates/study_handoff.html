@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <script src="{{ url_for('static', filename='student-fullscreen.js', v='2') }}" defer></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ 'Il tuo riassunto' if review_only else 'Le tue risposte' }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='child-pages-3') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='child-pages-2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='study-review.css', v='pictures-1') }}">
   {% if review_tasks %}
-  <script src="{{ url_for('static', filename='study-review.js', v='strict-back-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='study-review.js', v='pictures-1') }}" defer></script>
   {% endif %}
   <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}" defer></script>
+  <script src="{{ url_for('static', filename='connection-watch.js', v='watch-2') }}" defer></script>
 </head>
 <body class="study-review-page" data-sol-step-page>
 {% include "test_run_banner.html" %}
@@ -22,6 +24,10 @@
         <video class="review-animation" src="{{ url_for('static', filename=animation, v='child-pages-1') }}"
                poster="{{ url_for('static', filename=poster, v='child-pages-1') }}" aria-label="Animazione della domanda {{ task.number }}"
                muted playsinline preload="auto"></video>
+        {% elif poster %}
+        <img class="review-animation" src="{{ url_for('static', filename=poster, v='pictures-1') }}" alt="">
+        {% endif %}
+        {% if piece %}
         <svg class="unlock-arrow" viewBox="0 0 760 420" aria-hidden="true">
           <path d="{{ arrow.line }}" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="5 5"/>
           <path d="{{ arrow.tip }}" fill="none" stroke="#111" stroke-width="2"/>
@@ -51,7 +57,7 @@
     <h1 id="review-heading">Hai risposto alle tre domande</h1>
     <p>Le tue risposte sono salvate. Attendi le indicazioni del ricercatore per continuare.</p>
     <div class="review-actions">
-      <a class="review-button review-close" href="{{ url_for('welcome', reset=1, finished=1) }}">Chiudi l’attività</a>
+      <a class="review-button review-close" href="{{ url_for('finished_page', reset=1) }}">Chiudi l’attività</a>
     </div>
     {% endif %}
   </main>

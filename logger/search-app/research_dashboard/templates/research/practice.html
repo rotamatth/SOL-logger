@@ -1,0 +1,56 @@
+{% extends 'research/base.html' %}
+{% block content %}
+<div class="settings-workspace">
+  <div class="settings-page-heading">
+    <div><a class="settings-back" href="{{ u('sessions_page') }}">&larr; {{ t('back_to_sessions') }}</a><h1>{{ t('settings') }}</h1><p class="muted">{{ t('settings_workspace_hint') }}</p></div>
+  </div>
+  {% include 'research/settings_navigation.html' %}
+  {% if request.args.get('saved') == '1' %}<p class="notice success settings-notice" role="status">{{ t('practice_saved') }}</p>{% endif %}
+  {% if error %}<p class="notice warning" role="alert">{{ t(error) }}</p>{% endif %}
+  {% if error == 'practice_changed' %}<p><a class="button" href="{{ u('practice_page') }}">{{ t('reload_saved_settings') }}</a></p>{% endif %}
+
+  <section class="panel settings-card practice-card" id="practice-question" aria-labelledby="practice-heading">
+    <div class="settings-section-heading"><h2 id="practice-heading">{{ t('practice_question') }}</h2><p class="muted">{{ t('practice_explanation') }}</p></div>
+
+    <h3>{{ t('practice_engine') }}</h3>
+    {% if not engine.configured %}
+    <p id="practice-engine-status" class="notice warning" role="status">{{ t('practice_engine_missing') }}</p>
+    {% elif engine.shared_with_theme %}
+    <p id="practice-engine-status" class="notice warning" role="status">{{ t('practice_engine_shared') }}</p>
+    {% elif not practice.enabled %}
+    <p id="practice-engine-status" class="notice" role="status">{{ t('practice_engine_off') }}</p>
+    {% else %}
+    <p id="practice-engine-status" class="notice success" role="status">{{ t('practice_engine_ready') }}</p>
+    {% endif %}
+
+    <form method="post" data-guard {% if error %}data-unsaved{% endif %} action="{{ u('practice_page') }}">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="revision" value="{{ revision }}"><input type="hidden" name="action" value="save">
+      <label class="practice-switch"><input type="checkbox" name="enabled" value="1" id="practice-enabled" {% if practice.enabled %}checked{% endif %}> {{ t('practice_enabled') }}</label>
+      <label for="practice-topic">{{ t('practice_topic') }}</label>
+      <input id="practice-topic" name="topic" value="{{ practice.topic }}" maxlength="80" required aria-describedby="practice-topic-hint">
+      <p class="small muted practice-hint" id="practice-topic-hint">{{ t('practice_topic_hint') }}</p>
+      <label for="practice-question-text">{{ t('practice_question_label') }}</label>
+      <textarea id="practice-question-text" name="question" rows="3" maxlength="300" required aria-describedby="practice-question-hint">{{ practice.question }}</textarea>
+      <p class="small muted practice-hint" id="practice-question-hint">{{ t('practice_question_hint') }}</p>
+      <button class="primary" type="submit">{{ t('save_practice') }}</button>
+    </form>
+
+    <h3>{{ t('practice_test_search') }}</h3>
+    <p class="small muted">{{ t('practice_test_hint') }}</p>
+    <form method="post" action="{{ u('practice_page') }}#practice-test">
+      <input type="hidden" name="csrf" value="{{ auth.csrf }}"><input type="hidden" name="action" value="test">
+      <label for="practice-test-query">{{ t('practice_test_query') }}</label>
+      <input id="practice-test-query" name="test_query" value="{{ test.query if test else practice.topic }}" maxlength="200">
+      <button type="submit">{{ t('practice_test_search') }}</button>
+    </form>
+    {% if test %}
+    <div id="practice-test" aria-live="polite">
+      {% if test.problem %}<p class="notice warning">{{ t(test.problem) }}</p>
+      {% else %}<p class="small"><strong>{{ t('practice_test_results') }}</strong></p>
+      <ol class="practice-test-results">{% for result in test.results %}<li>{{ result.title }} <span class="muted">({{ result.domain }})</span></li>{% endfor %}</ol>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

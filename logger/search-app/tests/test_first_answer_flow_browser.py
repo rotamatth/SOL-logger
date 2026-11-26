@@ -20,6 +20,13 @@ def wait_for_draft_ack(page, phase):
     assert page.locator(f"#{phase}-answer-draft-status").inner_text() == ""
 
 
+def resize_viewport(page, size):
+    # Chromium cannot resize a fullscreen window. A preceding tap can now enter
+    # fullscreen on any student page, including the manual animation control.
+    page.evaluate("document.fullscreenElement ? document.exitFullscreen() : undefined")
+    page.set_viewport_size(size)
+
+
 def test_autosaved_first_draft_resumes_in_another_browser_without_search_access(student_site):
     page, base, root = student_site
     open_first(page, base)
@@ -72,7 +79,7 @@ def test_failed_draft_save_survives_reload_and_can_retry(student_site):
                          indirect=["student_site"])
 def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(student_site, clip_prefix, artwork):
     page, base, root = student_site
-    page.set_viewport_size({"width": 768, "height": 1024})
+    resize_viewport(page, {"width": 768, "height": 1024})
     reduced_motion = clip_prefix == "Orecchio"
     if reduced_motion:
         page.emulate_media(reduced_motion="reduce")
@@ -122,12 +129,12 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
         page.wait_for_function("document.querySelector('.review-task video')?.currentTime > 0")
         assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
         if number == 1:
-            page.set_viewport_size({"width": 320, "height": 700})
+            resize_viewport(page, {"width": 320, "height": 700})
             before = page.get_by_role("heading", name="Cosa sapevi prima").bounding_box()
             after = page.get_by_role("heading", name="Cosa sai adesso").bounding_box()
             assert before["x"] == after["x"] and before["y"] < after["y"]
             assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
-            page.set_viewport_size({"width": 768, "height": 1024})
+            resize_viewport(page, {"width": 768, "height": 1024})
         if number < 3:
             page.get_by_role("link", name="Prossima domanda").click()
             through_intro(page)
@@ -146,7 +153,7 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
                 assert recap.get_by_text(f"Risposta finale {index}", exact=True).is_visible()
             assert recap.locator("textarea").count() == 0 and page.get_by_text("Sessione").count() == 0
             assert page.get_by_role("button", name="Salva modifiche").count() == 0
-            page.set_viewport_size({"width": 1024, "height": 768})
+            resize_viewport(page, {"width": 1024, "height": 768})
             labels = [recap.get_by_role("heading", name=f"Domanda {index}", exact=True).bounding_box() for index in range(1, 4)]
             assert len({round(label["y"]) for label in labels}) == 1 and len({round(label["x"]) for label in labels}) == 3
             assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
@@ -164,7 +171,8 @@ def test_three_questions_and_lost_final_ack_preserve_one_original_per_question(s
             assert page.get_by_role("link", name="Scarica PDF").count() == 0 and page.locator("a[download]").count() == 0
             assert page.locator("#recap [data-action]").count() == 1
             page.get_by_role("button", name="Chiudi", exact=True).click()
-            page.wait_for_url("**/welcome")
+            page.wait_for_url("**/fine")
+            page.get_by_text("Alzate la mano per dire che avete finito!").wait_for()
         assert page.evaluate("sessionStorage.getItem('solFirstDraft:another-attempt:1')") == "An unrelated draft"
         assert not page.evaluate("JSON.parse(localStorage.getItem('browserHistory') || '[]').some(url => url.includes('/result'))")
     events = saved(root, "1")

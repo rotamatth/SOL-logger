@@ -137,24 +137,28 @@ def test_an_english_tablet_still_warns_in_italian(student_site):
     page.locator("a#first-answer-search").wait_for()
 
 
+def answer_question(page, number, first, final):
+    through_intro(page)
+    page.fill("#first-answer-text", first)
+    page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
+    page.get_by_role("button", name="Conferma", exact=True).click()
+    page.locator("a#first-answer-search").wait_for()
+    page.click("a#first-answer-search")
+    page.wait_for_url("**/search")
+    search(page, "api miele")
+    page.click("#end-task-btn")
+    page.fill("#textarea_feedback", final)
+    page.click("#feedback-btn")
+    page.click("#yes-end-btn")
+    page.wait_for_url(f"**/task-review/{number}")
+    page.locator("a.review-button").wait_for()
+
+
 def reach_recap(page, base, first="Laika", final="Una cagnolina russa"):
     reach_review(page, base, first, final)
     for number in (2, 3):
         page.click("a.review-button")
-        through_intro(page)
-        page.fill("#first-answer-text", first)
-        page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
-        page.get_by_role("button", name="Conferma", exact=True).click()
-        page.locator("a#first-answer-search").wait_for()
-        page.click("a#first-answer-search")
-        page.wait_for_url("**/search")
-        search(page, "api miele")
-        page.click("#end-task-btn")
-        page.fill("#textarea_feedback", final)
-        page.click("#feedback-btn")
-        page.click("#yes-end-btn")
-        page.wait_for_url(f"**/task-review/{number}")
-        page.locator("a.review-button").wait_for()
+        answer_question(page, number, first, final)
     page.click("a.review-button")
     page.get_by_role("button", name="Salva l’attività").wait_for()
     page.wait_for_function("!document.querySelector('[data-action=finish]').disabled")
@@ -217,6 +221,64 @@ def test_the_recap_fits_a_short_tablet_even_with_long_answers(student_site, size
         if button == "finish":
             page.get_by_role("button", name="Salva l’attività").click()
             page.get_by_text("La sessione è salvata.").wait_for()
+
+
+# What the recap of a 2 December topic must leave in sight, as shares of the drawing (left, top, right, bottom).
+FIGURES = {"costellazioni": {"the red star": (0.072, 0.39, 0.1, 0.44), "the sun's face": (0.37, 0.16, 0.53, 0.385),
+                             "the rocket": (0.755, 0.135, 0.97, 0.44), "the child at the telescope": (0.65, 0.69, 0.738, 0.87)},
+           "muscoli": {"the first boy's face": (0.1, 0.105, 0.165, 0.19), "his organs": (0.11, 0.28, 0.17, 0.54),
+                       "the octopus's face": (0.455, 0.19, 0.57, 0.32), "its hearts": (0.4, 0.43, 0.55, 0.58),
+                       "the second boy's face": (0.785, 0.1, 0.885, 0.24), "his arm": (0.91, 0.15, 0.99, 0.35)}}
+
+
+@pytest.mark.parametrize("student_site", ["costellazioni", "muscoli"], indirect=True)
+@pytest.mark.parametrize("size", SIZES)
+def test_the_recap_of_a_2_december_topic_fits_and_leaves_its_figures_in_sight(student_site, size, request):
+    page, base, _ = student_site
+    page.set_viewport_size({"width": size[0], "height": size[1]})
+    reach_review(page, base, LONG[:160], LONG)
+    # A picture instead of a clip: nothing to play, so no button for it.
+    assert page.evaluate("document.querySelector('img.review-animation').naturalWidth") > 0
+    assert page.locator("video").count() == 0 and page.locator(".review-animation-start").count() == 0
+    fits(page, "a.review-button")
+    for number in (2, 3):
+        page.click("a.review-button")
+        answer_question(page, number, LONG[:160], LONG)
+    page.click("a.review-button")
+    page.get_by_role("button", name="Salva l’attività").wait_for()
+    page.wait_for_function("[...document.images].every(image => image.complete && image.naturalWidth)")
+    fits(page, "[data-action=finish]")
+    assert page.evaluate("document.documentElement.scrollWidth === innerWidth")
+    cards, labels = all_boxes(page, ".recap-piece .review-card"), all_boxes(page, ".recap-piece .review-number")
+    picture = page.locator(".recap-picture").bounding_box()
+    assert len(cards) == 6 and len(labels) == 3
+    for index, box in enumerate(cards):
+        assert (picture["x"] <= box["x"] and box["x"] + box["width"] <= picture["x"] + picture["width"]
+                and picture["y"] <= box["y"] and box["y"] + box["height"] <= picture["y"] + picture["height"] + 1), \
+            f"card {index} leaves the picture"
+        assert not any(boxes_overlap(box, other) for other in cards[index + 1:] + labels), "cards or labels overlap"
+    magnifiers = all_boxes(page, ".recap-arrow circle[r='17']")
+    assert len(magnifiers) == 3
+    assert not any(boxes_overlap(card, glass) for card in cards for glass in magnifiers), "a card hides a magnifier"
+    stars = all_boxes(page, ".recap-confidence")
+    assert not any(boxes_overlap(star, label) for star in stars for label in labels)
+    for name, (left, top, right, bottom) in FIGURES[request.node.callspec.params["student_site"]].items():
+        figure = {"x": picture["x"] + left * picture["width"], "y": picture["y"] + top * picture["height"],
+                  "width": (right - left) * picture["width"], "height": (bottom - top) * picture["height"]}
+        assert not any(boxes_overlap(figure, box) for box in cards + labels), f"{name} is hidden"
+    # As on 10 November: a column per question, the first answers in one row and the final answers in one row below.
+    before, after = all_boxes(page, ".recap-piece .review-before"), all_boxes(page, ".recap-piece .review-after")
+    assert max(box["y"] for box in before) - min(box["y"] for box in before) <= 1
+    assert (max(box["y"] + box["height"] for box in after) - min(box["y"] + box["height"] for box in after)) <= 1
+    assert max(box["y"] + box["height"] for box in before) < min(box["y"] for box in after)
+    assert [round(box["x"]) for box in sorted(before, key=lambda box: box["x"])] == sorted(round(box["x"]) for box in before)
+    # Three whole lines of every answer show on a tablet (Matthias, 26 November), two on the shortest screen, where the
+    # picture is under 500 px tall; a longer answer scrolls inside its card.
+    lines = 3 if picture["height"] >= 500 else 2
+    for index in range(6):
+        answer = page.locator(".recap-piece .review-card p").nth(index)
+        assert answer.evaluate(f"p => p.clientHeight >= {lines} * parseFloat(getComputedStyle(p).lineHeight) - 1"), index
+        assert answer.evaluate("p => p.scrollHeight > p.clientHeight && getComputedStyle(p).overflowY === 'auto'")
 
 
 @pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)

@@ -27,11 +27,16 @@ DYNAMIC_LOG_EVENTS = {
     "webpageLoadSucceeded",
     "webpageLoadFailed",
     "webpageLoadCheckUnknown",
+    # connection-watch.js logs these through a small helper that receives the name.
+    "pageHidden",
+    "pageVisible",
+    "connectionLost",
+    "connectionBack",
 }
 
 SERVER_LOG_EVENTS = {
-    "OwnKnowledgeAnswerSubmitted", "TaskStarted", "TaskEnded", "sessionCompleted", "experimentFinished",
-    "RecapAnswerEdited", "studySessionFinished",
+    "OwnKnowledgeAnswerSubmitted", "OwnKnowledgeAnswerChanged", "TaskStarted", "TaskEnded", "sessionCompleted",
+    "experimentFinished", "RecapAnswerEdited", "studySessionFinished",
 }
 
 # Frozen pre-migration non-reward inventory: editing the walkthrough cannot

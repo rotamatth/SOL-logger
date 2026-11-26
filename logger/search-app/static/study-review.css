@@ -125,6 +125,26 @@
 .unlock--ear-3 .review-before { left: 19.5%; top: 8%; }
 .unlock--ear-3 .review-after { left: 22%; bottom: 6%; }
 
+/* Constellations and muscles: rectangular pictures, except the constellation, placed so the cards leave faces,
+   hearts, rocket and telescope in sight. */
+.unlock--constellations-1 .review-animation { left: 32.7%; aspect-ratio: 475 / 391; }
+.unlock--constellations-2 .review-animation { left: 4%; aspect-ratio: 1156 / 960; border-radius: 16px; }
+.unlock--constellations-3 .review-animation { top: 9%; left: 25.5%; height: 82%; aspect-ratio: 865 / 526; border-radius: 16px; }
+.unlock--muscles-1 .review-animation { left: 62%; aspect-ratio: 309 / 967; border-radius: 16px; }
+.unlock--muscles-2 .review-animation { left: 8%; aspect-ratio: 860 / 895; border-radius: 16px; }
+.unlock--muscles-3 .review-animation { left: 62%; aspect-ratio: 474 / 957; border-radius: 16px; }
+
+.unlock--constellations-1 .review-before { left: 6%; top: 3%; }
+.unlock--constellations-1 .review-after { left: 8%; bottom: 3%; }
+.unlock--constellations-2 .review-before { left: 62%; top: 7%; }
+.unlock--constellations-2 .review-after { left: 60%; bottom: 4%; }
+.unlock--constellations-3 .review-before { left: 3%; top: 2%; }
+.unlock--constellations-3 .review-after { left: 8%; bottom: 3%; }
+.unlock--muscles-2 .review-before { left: 52.5%; top: 7%; }
+.unlock--muscles-2 .review-after { left: 47.5%; bottom: 4%; }
+.unlock--muscles-1 .review-before, .unlock--muscles-3 .review-before { left: 19.5%; top: 8%; }
+.unlock--muscles-1 .review-after, .unlock--muscles-3 .review-after { left: 22%; bottom: 6%; }
+
 /* A theme without artwork: the two answers side by side. */
 .unlock--none {
   display: grid;
@@ -146,7 +166,7 @@
     height: auto;
   }
 
-  .review-animation {
+  .unlock .review-animation {
     position: static;
     display: block;
     width: auto;

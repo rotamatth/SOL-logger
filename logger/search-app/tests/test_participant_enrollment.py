@@ -5,7 +5,6 @@ from zoneinfo import ZoneInfo
 import importlib.util
 import json
 import sys
-import types
 
 from .enrollment_helpers import enroll_initial_roster, school_year
 
@@ -16,6 +15,7 @@ from .test_research_dashboard import APP_ROOT, PASSWORD, app, csrf, login
 from research_dashboard.student_config import eligible_students, task_catalog
 from research_dashboard.collection import record_run
 from .test_study_enrollment import question_set
+from .backend_stub import search_backend_stub
 
 
 def configure_session_questions(app, grades=("4", "5")):
@@ -170,7 +170,7 @@ def student_app(tmp_path, monkeypatch):
     monkeypatch.setenv("SOL_LOG_DIR", str(tmp_path / "v2"))
     monkeypatch.setenv("RESEARCH_LEGACY_LOG_DIR", str(tmp_path / "legacy"))
     monkeypatch.setenv("RESEARCH_STATE_DIR", str(tmp_path / "state"))
-    monkeypatch.setitem(sys.modules, "search_backend", types.ModuleType("search_backend"))
+    monkeypatch.setitem(sys.modules, "search_backend", search_backend_stub())
     import flask_session
     original = flask_session.Session
     def isolated_session(app):

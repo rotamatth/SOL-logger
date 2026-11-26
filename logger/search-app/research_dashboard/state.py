@@ -9,6 +9,7 @@ import secrets
 import sqlite3
 import time
 
+from .practice_settings import PRACTICE_DEFAULT, validate_practice
 from .student_config import validate_topics
 from .study_config import scheduled_assignment, validate_question_set
 from .question_versions import validate_question_drafts
@@ -243,6 +244,9 @@ class State:
                     participant_id TEXT NOT NULL, metadata TEXT NOT NULL,
                     published INTEGER NOT NULL DEFAULT 0);
                 CREATE INDEX IF NOT EXISTS study_attempt_session ON study_attempts(study_session_id);
+                CREATE TABLE IF NOT EXISTS practice_question (
+                    revision INTEGER PRIMARY KEY AUTOINCREMENT, updated_at TEXT NOT NULL,
+                    body TEXT NOT NULL);
             """)
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version > identities.SCHEMA_VERSION:
@@ -282,6 +286,25 @@ class State:
             value = validate_settings(json.loads(row["body"]))
             registry = identities.projection(db)
         return {**value, **registry, "revision": row["revision"], "updated_at": row["updated_at"]}
+
+    def practice(self):
+        """The practice question as last saved, or the default before the first save (revision 0)."""
+        with self.connect() as db:
+            row = db.execute("SELECT * FROM practice_question ORDER BY revision DESC LIMIT 1").fetchone()
+        if row is None:
+            return {**PRACTICE_DEFAULT, "revision": 0, "updated_at": None}
+        return {**validate_practice(json.loads(row["body"])), "revision": row["revision"], "updated_at": row["updated_at"]}
+
+    def save_practice(self, value, expected_revision):
+        """Save a new revision; refused with practice_changed when someone saved since the form opened."""
+        value = validate_practice(value)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            revision = db.execute("SELECT COALESCE(MAX(revision), 0) FROM practice_question").fetchone()[0]
+            if revision != expected_revision:
+                raise ValueError("practice_changed")
+            return db.execute("INSERT INTO practice_question(updated_at, body) VALUES (?, ?)",
+                              (utc_now(), json.dumps(value))).lastrowid
 
     def settings_body(self, revision):
         """The stored settings document of an earlier revision, or None. Revisions are never deleted."""

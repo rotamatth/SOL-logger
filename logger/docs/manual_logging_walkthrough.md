@@ -12,9 +12,10 @@ the saved log therefore grows while the task is still open.
 
 ### Session and task flow
 
-- `idSubmitted`: emitted when the participant ID form is submitted.
+- `idSubmitted`: emitted when the run of an ID is started: after the practice question, or on the ID page when there is no practice. Setting the ID before the practice emits nothing.
 - `TaskStarted`: emitted once when the first-answer screen is first shown for an attempt/question.
 - `OwnKnowledgeAnswerSubmitted`: emitted once with the confirmed original first answer, outcome, confidence and `answerPhase: pre-search`.
+- `OwnKnowledgeAnswerChanged`: emitted at most once per question, by the server, when a confirmed "Non lo so" is replaced with a written answer before the question's first search. It carries the new `answer`, `confidence`, `outcome: answered`, `previousOutcome: unknown` and `answerPhase: pre-search`; the original `OwnKnowledgeAnswerSubmitted` stays in the log.
 - `ClickedOnSendAndTerminateTask`: emitted when the answer box is opened from the task button.
 - `OpenedAnswerBox`: emitted whenever the answer modal is shown.
 - `AnswerBoxClosed`: emitted when the answer modal is closed with the x button or by continuing search.
@@ -84,10 +85,22 @@ the saved log therefore grows while the task is still open.
 
 - `searchError`: emitted when the search error page is rendered for a search-engine error.
 
+### Tablet and connection (connection-watch.js)
+
+- `pageHidden`: the app stayed hidden for more than 1.5 seconds (another app, the home screen, a locked screen). Moving to the next page does not count. Carries `page`.
+- `pageVisible`: the app is visible again after `pageHidden`. Carries `page` and `hiddenSeconds`.
+- `connectionLost`: the tablet's signal to the server failed twice in a row (`reason: no-answer`) or the tablet went offline (`reason: offline`); the page shows "Il collegamento non funziona. Alza la mano e chiama un adulto." Carries `page` and `reason`.
+- `connectionBack`: the server answered again and the notice closed. Carries `page` and `lostSeconds`.
+
 ## Event inventory
 
 <!-- event-inventory:start -->
+- `connectionBack`
+- `connectionLost`
+- `pageHidden`
+- `pageVisible`
 - `OwnKnowledgeAnswerSubmitted`
+- `OwnKnowledgeAnswerChanged`
 - `autocompleteSuggestionsShown`
 - `AnswerBoxClosed`
 - `ClickedEndTaskConfirmation`

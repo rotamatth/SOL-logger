@@ -8,9 +8,12 @@ from xml.sax.saxutils import escape
 
 from flask import abort, jsonify, render_template, request, session, url_for
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import (BaseDocTemplate, Frame, NextPageTemplate, PageBreak, PageTemplate, Paragraph,
+                                SimpleDocTemplate, Spacer)
+
+from recap_picture import PICTURE_RATIO, RecapPicture
 
 from student_progress import ZONE
 from study_progress import AttemptNotFound, DraftConflict, SubmissionConflict
@@ -32,8 +35,9 @@ def _arrow(start, bend_in, magnifier, bend_out, end):
 
 
 # Each question's arrow, by theme and by the question's part of the picture: from under its first answer,
-# through the magnifier, to its final answer. The cards sit in the same places for both themes (recap.css),
-# and every magnifier is between 266 and 413, where even a card with a long answer never reaches.
+# through the magnifier, to its final answer. Every magnifier is where even a card with a long answer never
+# reaches: between 266 and 413 for space and ear, whose cards sit in the same places, and in the gap that
+# recap.css keeps between the cards for constellations and muscles.
 RECAP_ARROWS = {
     "space": {"1": _arrow((45, 200), (22, 265), (40, 340), (55, 420), (95, 486)),
               "2": _arrow((372, 200), (366, 275), (376, 345), (392, 430), (440, 486)),
@@ -41,6 +45,14 @@ RECAP_ARROWS = {
     "ear": {"1": _arrow((45, 200), (22, 265), (40, 340), (55, 420), (95, 486)),
             "2": _arrow((470, 200), (468, 270), (480, 340), (500, 420), (520, 486)),
             "3": _arrow((862, 130), (975, 160), (958, 340), (945, 440), (925, 486))},
+    # From under the first answer's smallest card, through the magnifier between the two rows, to above the final one.
+    "constellations": {"1": _arrow((138, 428), (136, 455), (154, 479), (172, 503), (170, 541)),
+                       "2": _arrow((475, 428), (473, 455), (496, 479), (518, 503), (516, 541)),
+                       "3": _arrow((812, 428), (810, 455), (839, 479), (868, 503), (866, 541))},
+    # Muscles: the rows almost touch, so the arrow goes down the left of the final answer, through the magnifier there.
+    "muscles": {"1": _arrow((44, 494), (40, 525), (44, 562), (50, 600), (72, 612)),
+                "2": _arrow((381, 494), (377, 525), (381, 562), (387, 600), (409, 612)),
+                "3": _arrow((718, 494), (714, 525), (718, 562), (724, 600), (746, 612))},
 }
 SAVE_ERROR = "Salvataggio non disponibile. Riprova."
 CONFLICT_ERROR = "Le risposte sono cambiate in un'altra scheda. Riapri il riepilogo prima di riprovare."
@@ -56,7 +68,9 @@ def latest_final(task):
     return revision["after_text"] if revision else task["final_answer"]["text"]
 
 
-def render_recap_pdf(columns):
+def render_recap_pdf(columns, picture=None):
+    """The recap PDF the server keeps. With `picture` (background, tasks, arrows, theme) its first page is the recap
+    picture as the tablet showed it; the text pages follow unchanged, with every answer in full."""
     styles = getSampleStyleSheet()
     styles["Title"].textColor = colors.HexColor("#173769")
     styles["Heading2"].textColor = colors.HexColor("#235b9e")
@@ -85,19 +99,35 @@ def render_recap_pdf(columns):
     def footer(canvas, doc):
         canvas.setFillColor(colors.HexColor("#52647b"))
         canvas.setFont("Helvetica", 9)
-        canvas.drawRightString(A4[0] - 48, 26, f"Pagina {doc.page}")
+        canvas.drawRightString(canvas._pagesize[0] - 48, 26, f"Pagina {doc.page}")
 
     pdf = BytesIO()
-    SimpleDocTemplate(pdf, pagesize=A4, leftMargin=48, rightMargin=48, topMargin=40,
-                      bottomMargin=48, title="SOL Search - Le tue risposte").build(
-                          flow, onFirstPage=footer, onLaterPages=footer)
+    if picture is None:
+        SimpleDocTemplate(pdf, pagesize=A4, leftMargin=48, rightMargin=48, topMargin=40,
+                          bottomMargin=48, title="SOL Search - Le tue risposte").build(
+                              flow, onFirstPage=footer, onLaterPages=footer)
+        return pdf.getvalue()
+    wide = landscape(A4)
+    picture_frame = Frame(36, 40, wide[0] - 72, wide[1] - 76, id="picture")
+    text_frame = Frame(48, 48, A4[0] - 96, A4[1] - 88, id="text")
+    document = BaseDocTemplate(pdf, pagesize=A4, title="SOL Search - Le tue risposte")
+    # The picture page has only its title and the picture (Matthias, 26 November): no note, no page number.
+    document.addPageTemplates([PageTemplate("picture", [picture_frame], pagesize=wide),
+                               PageTemplate("text", [text_frame], pagesize=A4, onPage=footer)])
+    width = min(picture_frame._width - 12, (picture_frame._height - 56) * PICTURE_RATIO)
+    page_one = [Paragraph("SOL Search · Le risposte di oggi", styles["Title"]),
+                RecapPicture(picture["background"], picture["tasks"], picture["arrows"], width, picture["theme"]),
+                NextPageTemplate("text"), PageBreak()]
+    document.build(page_one + flow)
     return pdf.getvalue()
 
 
 class StudentRecap:
     render_pdf = staticmethod(render_recap_pdf)
 
-    def __init__(self, app, progress):
+    def __init__(self, app, progress, artwork=None):
+        # attempt -> (illustration, theme): the recap picture of the session, for its page in the PDF.
+        self.artwork = artwork
         self.app = app
         self.progress = progress
         self.store = progress.store
@@ -188,9 +218,31 @@ class StudentRecap:
         except (OSError, sqlite3.Error):
             return jsonify(error=SAVE_ERROR), 503
 
-    def _pdf_for_finish(self, states):
+    def _picture(self, attempt, states):
+        """The recap picture as the tablet showed it at Salva, or None when the session has no picture."""
+        if self.artwork is None:
+            return None
+        illustration, theme = self.artwork(attempt)
+        number = attempt["metadata"]["study_session_snapshot"]["number"]
+        tasks = sorted((self._piece(task) for task in states.get(number, {}).get("tasks", [])),
+                       key=lambda task: task["slot"])
+        background = self._background(illustration)
+        if (theme not in RECAP_ARROWS or [task["slot"] for task in tasks] != ["1", "2", "3"]
+                or background == RECAP_PLACEHOLDER):
+            return None
+        return {"background": Path(self.app.static_folder) / background, "tasks": tasks,
+                "arrows": RECAP_ARROWS[theme], "theme": theme}
+
+    def pdf_with_picture(self, attempt, states):
+        """The PDF Salva makes now, opening with the recap picture, or None when the session has no picture.
+        For drawing again a PDF saved before the picture page existed (tools/redraw_recap_pdfs.py)."""
+        picture = self._picture(attempt, states)
+        return None if picture is None else self.render_pdf(states, picture)
+
+    def _pdf_for_finish(self, states, attempt=None):
         try:
-            return self.render_pdf(states)
+            picture = self._picture(attempt, states) if attempt is not None else None
+            return self.render_pdf(states, picture) if picture is not None else self.render_pdf(states)
         except Exception as error:
             raise OSError("Could not create recap PDF") from error
 
@@ -199,7 +251,7 @@ class StudentRecap:
         try:
             self.store.commit_recap(self.progress.key(attempt["metadata"]), attempt["attempt_id"],
                                    data.get("draft_revisions"),
-                                   self._pdf_for_finish if finish else None)
+                                   (lambda states: self._pdf_for_finish(states, attempt)) if finish else None)
             if not self.progress.publish(attempt):
                 return jsonify(error=SAVE_ERROR), 503
             return jsonify(saved=True)
@@ -223,4 +275,5 @@ class StudentRecap:
         if not self.progress.publish(attempt):
             return jsonify(error=SAVE_ERROR), 503
         session.clear()
-        return jsonify(welcome=url_for("welcome"))
+        # The group stays on the end page until a researcher resets the tablet for the next class.
+        return jsonify(welcome=url_for("finished_page"))

@@ -1,22 +1,26 @@
-"""Regenerate the guide's screenshots from a throwaway dashboard with demo data.
+"""Regenerate the guide's screenshots from a throwaway copy of the app with demo data.
 
 Run after changing a page the guide shows:
 
     python tools/capture_guide_screens.py
 
-It needs Playwright with Chromium (requirements-browser-test.txt). Everything it creates lives
-in a temporary folder and is deleted afterwards, and every name and question says DEMO. No real
-study data is involved. Only the pictures in research_dashboard/static/guide/ are written.
+It needs Playwright with Chromium (requirements-browser-test.txt). It starts the whole app, the
+children's pages and the dashboard, as on the server, with a stand-in search that never calls Google.
+Everything it creates lives in a temporary folder and is deleted afterwards, and every name and
+question says DEMO. No real study data is involved. Only the pictures in
+research_dashboard/static/guide/ are written. The children's pages are in Italian in both languages.
 """
+import importlib.util
 import json
+import os
 from pathlib import Path
 import random
 import secrets
 import sys
 import tempfile
 import threading
+import types
 
-from flask import Flask
 from playwright.sync_api import sync_playwright
 from werkzeug.security import generate_password_hash
 from werkzeug.serving import make_server
@@ -24,7 +28,7 @@ from werkzeug.serving import make_server
 APP_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP_ROOT))
 
-from research_dashboard import init_dashboard, live_views, preparation_views, session_views  # noqa: E402
+from research_dashboard import live_views, preparation_views, session_views  # noqa: E402
 from research_dashboard.guide_views import GUIDE_IMAGE_SIZE, GUIDE_STEPS  # noqa: E402
 from research_dashboard.state import SETTING_FIELDS, identity  # noqa: E402
 
@@ -47,7 +51,8 @@ TODAY_SESSION = "grade-4-session-3"
 
 
 def question_set():
-    return {"approved": True, "theme": "DEMO",
+    # A topic word the app knows, so the questions page shows "Recognised topic".
+    return {"approved": True, "theme": "spazio",
             "questions": [{"id": key, "topic": topic, "question": text} for key, topic, text in QUESTIONS]}
 
 
@@ -136,6 +141,49 @@ def add_demo_data(state, root):
         add_run(state, settings, root, generator, str(child), sessions[TODAY_SESSION], 3 if child < 7 else child % 3)
 
 
+def tablet_pages(browser, base, target):
+    """The pages an adult sees on a tablet: the number, a test ID's banner and the last page."""
+    width, height = GUIDE_IMAGE_SIZE
+    context = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=1.5)
+    # Without fullscreen the app stays in the top page instead of its fullscreen frame, as a picture should.
+    context.add_init_script("Element.prototype.requestFullscreen = () => Promise.reject(new Error('picture'));")
+    page = context.new_page()
+
+    def shot(key):
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(150)
+        page.screenshot(path=str(target / f"{key}.jpg"), type="jpeg", quality=70)
+
+    page.goto(f"{base}/welcome?reset=1")
+    page.click(".welcome-start-btn")
+    page.wait_for_url("**/start")
+    shot("tablet")
+    page.select_option("#id-box", "TEST-costellazioni")
+    page.click("#continue-btn")
+    page.wait_for_url("**/prova")
+    page.click("#practice-intro-continue")
+    page.wait_for_url("**/prova/domanda")
+    page.fill("#first-answer-text", "DEMO")
+    page.get_by_role("radio", name="Abbastanza giusta", exact=True).check()
+    page.click("#first-answer-confirm")
+    page.click("a#first-answer-search")
+    page.wait_for_url("**/prova/cerca")
+    page.fill("#search-box", "DEMO")
+    page.click("#submit-box")
+    page.wait_for_url("**/prova/risultati**")
+    page.click("#end-task-btn")
+    page.fill("#textarea_feedback", "DEMO")
+    page.click("#feedback-btn")
+    page.click("#yes-end-btn")
+    page.wait_for_url("**/prova/finita")
+    page.click("#practice-done-continue")
+    page.wait_for_url("**/task/intro")
+    shot("test")
+    page.goto(f"{base}/fine?reset=1")
+    shot("reset")
+    context.close()
+
+
 def capture(base, language, target):
     with sync_playwright() as runner:
         browser = runner.chromium.launch()
@@ -151,12 +199,14 @@ def capture(base, language, target):
             "create": ("/dashboard/sessions/new?grade=4", None),
             "ids": (f"/dashboard/prepare?grade=4&year={YEAR}&session=grade-4-session-4", ".session-status-summary"),
             "questions": (f"/dashboard/prepare?grade=4&year={YEAR}&session=grade-4-session-4", "#prepare-questions"),
+            "topic": ("/dashboard/settings/questions/grade-4-session-4", "label[for=question-theme]"),
             "live": (f"/dashboard/sessions/{TODAY_SESSION}/live", None),
             "data": (f"/dashboard?collection=study&grade=4&school_year={YEAR}&session=grade-4-session-1", "#class-stats-heading"),
             "child": (child_page, "#trend-heading"),
             "settings": (f"/dashboard/settings/enrollment?year={YEAR}&grade=4", ".enrollment-filter-panel"),
+            "practice": ("/dashboard/settings/practice", "#practice-question h3 >> nth=0"),
         }
-        assert set(shots) == set(GUIDE_STEPS)
+        assert set(shots) | {"tablet", "test", "reset"} == set(GUIDE_STEPS)
         for key, (path, anchor) in shots.items():
             page.goto(base + path + ("&" if "?" in path else "?") + f"lang={language}")
             page.wait_for_load_state("networkidle")
@@ -166,7 +216,39 @@ def capture(base, language, target):
                 page.locator(anchor).evaluate("element => window.scrollTo(0, element.getBoundingClientRect().top + scrollY - 16)")
             page.wait_for_timeout(150)
             page.screenshot(path=str(target / f"{key}.jpg"), type="jpeg", quality=70)
+        tablet_pages(browser, base, target)
         browser.close()
+
+
+def stand_in_search():
+    """Two DEMO results for every search, and every engine set. Google is never called."""
+    backend = types.ModuleType("search_backend")
+    results = [{"docid": f"demo-{n}", "title": f"DEMO risultato {n}", "snippet": f"DEMO testo {n}.",
+                "link": f"https://example.org/demo-{n}", "displayed_link": "example.org"} for n in (1, 2)]
+    backend.search = lambda query, page, rpp, theme=None: (query, [dict(item) for item in results], len(results), "none")
+    backend.autocomplete = lambda query, theme=None: ([], "none")
+    backend.autocomplete_query_model = lambda: None
+    backend.VERTEX_THEME_SETTINGS = {"space": "SPAZIO", "ear": "ORECCHIO", "constellations": "COSTELLAZIONI",
+                                     "muscles": "MUSCOLI"}
+    backend.theme_engine_ready = lambda theme: True
+    backend.PRACTICE_THEME = "practice"
+    backend.practice_engine_configured = lambda: True
+    backend.practice_engine_status = lambda: {"configured": True, "shared_with_theme": False}
+    return backend
+
+
+def start_app(folder):
+    """search_app.py, the app the server runs, with its folders in the temporary one."""
+    os.environ.update(SOL_LOG_DIR=str(folder / "v2"), RESEARCH_STATE_DIR=str(folder / "state"),
+                      RESEARCH_LEGACY_LOG_DIR=str(folder / "legacy"), SOL_SESSION_DIR=str(folder / "sessions"),
+                      SOL_ENV="development", FLASK_SECRET_KEY=secrets.token_hex(32), RESEARCH_PASSWORD_HASH_FILE="",
+                      RESEARCH_PASSWORD_HASH=generate_password_hash(PASSWORD, method="pbkdf2:sha256:1000"))
+    sys.modules["search_backend"] = stand_in_search()
+    os.chdir(APP_ROOT)  # The app reads its data files from its own folder.
+    spec = importlib.util.spec_from_file_location("search_app", APP_ROOT / "search_app.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def main():
@@ -174,17 +256,12 @@ def main():
         module.zurich_today = lambda: TODAY  # Fixed, so a session is "today" whenever this runs.
     with tempfile.TemporaryDirectory(prefix="sol-guide-") as temporary:
         folder = Path(temporary)
-        for name in ("state", "v2", "legacy"):
+        for name in ("state", "v2", "legacy", "sessions"):
             (folder / name).mkdir()
         # A throwaway server on 127.0.0.1, and the dashboard checks its own CSRF token.
-        app = Flask(__name__)  # NOSONAR
-        app.config.update(SECRET_KEY=secrets.token_hex(32), RESEARCH_STATE_DIR=str(folder / "state"),
-                          RESEARCH_LOG_DIR=str(folder / "v2"), RESEARCH_LEGACY_LOG_DIR=str(folder / "legacy"),
-                          RESEARCH_PASSWORD_HASH=generate_password_hash(PASSWORD, method="pbkdf2:sha256:1000"),
-                          RESEARCH_PASSWORD_HASH_FILE="")
-        state = init_dashboard(app)
-        add_demo_data(state, folder / "v2")
-        server = make_server("127.0.0.1", 0, app, threaded=True)
+        site = start_app(folder)
+        add_demo_data(site.RESEARCH_STATE, folder / "v2")
+        server = make_server("127.0.0.1", 0, site.app, threaded=True)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
             for language in ("en", "it"):

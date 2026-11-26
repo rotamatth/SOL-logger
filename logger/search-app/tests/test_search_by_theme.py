@@ -56,7 +56,8 @@ def test_a_theme_without_its_engine_never_answers_from_another_dataset(backend, 
 
 
 @pytest.mark.parametrize(("label", "theme"), [("spazio", "space"), (" Spazio ", "space"), ("orecchio", "ear"),
-                                              ("Corpo umano (orecchio)", "ear"), ("Another theme", None)])
+                                              ("Corpo umano (orecchio)", "ear"), ("Costellazioni", "constellations"),
+                                              ("muscoli", "muscles"), ("Another theme", None)])
 def test_a_run_asks_for_the_engine_of_its_question_set_also_after_resuming(student_modules, label, theme):
     module = student_modules()
     schedule(module, {**question_set(), "theme": label})

@@ -4,7 +4,7 @@
 
 <div class="app-page webpage-page">
   <div class="app-toolbar">
-    <a href="{{ url_for('result', query=query, page=page) }}" id="viewer-back-btn" class="app-btn app-btn-back">
+    <a href="{{ url_for(child_routes.result, query=query, page=page) }}" id="viewer-back-btn" class="app-btn app-btn-back">
         &larr; Indietro
     </a>
     {% include "search_first_answer.html" %}
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
         windowLocation: windowLocationAtOpen
     });
 
-    fetch("/iframe_check?url=" + encodeURIComponent(viewedUrl))
+    fetch({{ url_for(child_routes.iframe_check)|tojson }} + "?url=" + encodeURIComponent(viewedUrl))
         .then(r => r.json())
         .then(d => {
             if (!window.studyLogger) return;
