@@ -660,12 +660,12 @@
         window.PRACTICE_CSRF = {{ practice_csrf|tojson }};{% endif %}
     </script>
     <script src="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}"></script>
-    <script src="{{ url_for('static', filename='connection-watch.js', v='watch-2') }}"></script>
+    <script src="{{ url_for('static', filename='connection-watch.js', v='monitor-1') }}"></script>
     {% if practice %}<script src="{{ url_for('static', filename='practice-page.js', v='prova-1') }}"></script>
     {% else %}<script src="{{ url_for('static', filename='logger.js', v='strict-back-1') }}"></script>{% endif %}
     <script src="{{ url_for('static', filename='interface.js') }}?v=20261022"></script>
     {% if final_answer_draft %}<script src="{{ url_for('static', filename='try-again.js', v='child-pages-2') }}"></script>
-    <script src="{{ url_for('static', filename='final-answer-draft.js', v='child-pages-2') }}"></script>{% endif %}
+    <script src="{{ url_for('static', filename='final-answer-draft.js', v='monitor-1') }}"></script>{% endif %}
 
     <script>
     (function () {

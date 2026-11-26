@@ -65,6 +65,138 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Explain the classroom map: rooms, placing IDs, colours, timing, sound and what it cannot know
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/research_dashboard.md` — "Classroom map": rooms and their copies, editing, colours and reasons, the summary and details, timing and its constants, the limits (hidden pages, Wi-Fi versus VPN, the map's own feed), sound, the lifecycle, the files, and the checks to make on the classroom tablets
+- `logger/docs/production_readiness.md` — the live view's operational files in `research-state`, in the same backup
+- `logger/search-app/research_dashboard/guide_i18n.py` — the guide's live view step mentions the map, rooms and sound
+
+**What changed for the participant**
+No change for children. Researchers can read how the map works in the guide and the documentation.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+- The docs and the app disagree on a timing → the constants named in "Classroom map".
+
+**Left alone**
+Everything else in the guide; its pictures (the live view opens on the list until a session has a layout).
+
+**Verified**
+The guide's tests pass. The deploy's backup tool, run on a state folder with `monitor.sqlite3`, `rooms.sqlite3` and `room-images/`, created and verified the backup.
+
+## 2026-11-26 — Show the class as a map in the live view: tables, one circle per tablet, and what needs an adult
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests
+
+**Files**
+- `logger/search-app/research_dashboard/templates/research/session_live.html`, `session_live_map.html` (new), `session_live_row.html` — a Map / List switch; the map's toolbar, problem summary, canvas, tray and details panel; a state chip on each list row
+- `logger/search-app/research_dashboard/static/live-map.js`, `live-map.css` — new: the map drawn from `map.json`, editing (tables added, moved, resized, rotated, duplicated, removed; IDs dragged onto tables, anywhere, or back to the tray; arrow keys and a "Place on" menu as alternatives), explicit saves with their revision, rooms (start from a copy, save as new, update), the floor plan; `health.json` every 2 seconds, timed from its start and given up after 2; colours with a ring, an icon and a reason; a gentle pulse, steady with reduced motion; the whole map marked not current when the feed fails or the researcher is signed out; sound off until switched on, once per new problem
+- `logger/search-app/research_dashboard/live_map_i18n.py` (new), `i18n.py`, `live_views.py` — English and Italian copy; the script's words passed as data (no inline script)
+- `logger/search-app/tests/test_live_map_browser.py` — new
+
+**What changed for the participant**
+No change for children. Researchers see the class as a classroom: a large ID per tablet, grey (not connected yet), green, amber (late signal, SOL page hidden, out of full screen, search not back, two tablets with one ID) or red (no contact, search refused, save not confirmed), a count of tablets needing attention, and a click for details and recent history. The list stays, with the same state next to each ID.
+
+**How it works**
+The layout and the health come from two separate requests: polling repaints the circles only, so a drag or an unsaved arrangement is never overwritten, and others' saves are fetched every 15 seconds only while nothing is being edited. The list opens first until the session has a layout, then the map, unless the researcher chose otherwise in this browser. IDs outside the roster that register appear by themselves. Details read progress from the list's own rows, so the panel invents no run before one exists.
+
+**If something looks wrong after this, check**
+- Circles all faded with "Monitoring unavailable" → `health.json` is failing (network, server, or `monitor.sqlite3`).
+- A save that says someone else saved → another dashboard saved the map; their version is shown.
+- No beep → sound is off by default; the browser needs a click on "Sound alerts" to allow audio.
+
+**Left alone**
+The list's own polling and rows, the totals and question figures, participant links, the children's pages.
+
+**Verified**
+The new browser tests: the list first without a layout, every state with its ring, icon and reason, the summary ordered by severity, details and history opened from the summary and kept through polling, the list's chips, dragging an ID onto a table and saving, a conflicting save, the health feed failing and recovering, signing out, sound once per new problem and never per poll, and a phone width without sideways scrolling. Not yet on the researcher's own device during a class.
+
+## 2026-11-26 — Keep classroom layouts for the map, and each tablet's health a request away
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests
+
+**Files**
+- `logger/search-app/research_dashboard/room_maps.py` — new: `rooms.sqlite3` and `room-images/` in the research state folder; named rooms (tables and an optional floor plan, never IDs), each session's own map (a copy of a room plus where each ID sits), revisions, validation on a fixed 1000 × 700 canvas, floor plans checked by their content (PNG, JPEG or WebP, at most 8 MB and 25 megapixels)
+- `logger/search-app/research_dashboard/map_views.py` — new: `GET /dashboard/sessions/<id>/map.json`, `POST …/map`, `POST …/map/room` (start from a room's copy), `POST …/map/image`, `POST /dashboard/rooms` and `/dashboard/rooms/<id>` (explicitly save a session's geometry as a room), `GET /dashboard/room-images/<name>`, and `GET …/health.json`, light enough for every two seconds
+- `logger/search-app/research_dashboard/__init__.py`, `dashboard.py`, `security.py` — the routes, their JSON errors, and a 9 MB limit for the floor plan's form only
+- `logger/search-app/tests/test_room_maps.py` — new
+
+**What changed for the participant**
+No change for children. Researchers' map data has a place to live (the next commit shows the map).
+
+**How it works**
+Every change is a POST with the CSRF token and the revision it was based on; a stale one gets 409 and the current version back. A session's map starts as a copy of a room with no ID placed, so another class's IDs never come along, and a session changes a room only through the explicit "save as room" or "update room". Placing an ID is a display choice, never an admission rule. The health feed reads the settings' roster and `monitor.sqlite3`, nothing else; when that database cannot be read it says monitoring is unavailable rather than reporting every tablet as lost.
+
+**If something looks wrong after this, check**
+- A map that will not save → its revision (409: someone else saved) or `invalid_map` (a table outside the canvas, an ID placed on a missing table).
+- A floor plan refused → `invalid_image`: not a real PNG, JPEG or WebP, or too large.
+
+**Left alone**
+The live view's existing JSON and page, the logs, the study's settings and enrollment, admission.
+
+**Verified**
+The new tests: exact string IDs, a bad map refused whole, revisions, a room copied without IDs and left alone by the session, explicit room updates with their own revision, two named rooms, real and fake pictures, the routes' authentication, CSRF, 409s, the served image's headers, the health feed and its unavailable case, and reads that write nothing. All server tests pass.
+
+## 2026-11-26 — Report every two seconds what the classroom map needs, saves the tablet could not confirm included
+
+**Commit:** pending · **Type:** feature · **Area:** logging, session, tests
+
+**Files**
+- `logger/search-app/static/connection-watch.js` — a report every 2 seconds instead of a signal every 15: page, visibility, full screen (capable and on, or unknown), a search not back yet, saves not confirmed, the last confirmed save; changes sent at once; one report at a time, given up after 2 seconds, timed from its start; an order that never goes back across pages; the children's notice after 10 seconds without an answer instead of two missed signals
+- `logger/search-app/static/first-answer.js`, `final-answer-draft.js`, `recap.js` — a `sol:save` event when a save is confirmed or not, with the reason (network, conflict, server, unconfirmed)
+- `logger/search-app/templates/*.html` — the four scripts at version `monitor-1`, so tablets load them again
+- `logger/search-app/tests/test_connection_watch_browser.py` — the notice after ten seconds; the report's content and order; a refused draft reported until a save goes through
+- `logger/docs/research_dashboard.md` — the 2-second signal and the 10-second notice
+
+**What changed for the participant**
+The "Il collegamento non funziona" notice now appears when the server has been silent for 10 seconds (it was 15 to 30), and goes away as before. Nothing else changes on screen.
+
+**How it works**
+Only the inner page reports; the full-screen host does not load the script, so one tablet sends one report at a time. Full screen is read from the host's document when the page lives in its frame. A refused save stays in this tab's storage until the matching success, so it survives a page change. The report carries no answer, query or other app's name.
+
+**If something looks wrong after this, check**
+- The notice too eager or too slow → `NOTICE_AFTER_MS`.
+- Too many requests on the server → `BEAT_MS` here and `BEAT_SECONDS` in `monitor.py` go together.
+
+**Left alone**
+The logs and their uploads, the logged connection and page events, the service worker, the answers' retry buttons and messages.
+
+**Verified**
+The connection watch tests in Chromium (seven), the first-answer and child-page browser tests. 1383 of 1386 tests pass; the other three are fullscreen browser tests failing on and off with the CDN "reading 'fn'" error, a different variant each run. Not yet on the classroom tablets in Brave over the VPN.
+
+## 2026-11-26 — Register each tablet for the classroom map, from its ID to its reset
+
+**Commit:** pending · **Type:** feature · **Area:** session, logging, dashboard, tests
+
+**Files**
+- `logger/search-app/research_dashboard/monitor.py` — new: `monitor.sqlite3` in the research state folder; registrations per study session and participant ID, each tablet's latest report, search and save incidents, a bounded history, and how a tablet's colour and reasons are worked out from the server's clock
+- `logger/search-app/research_dashboard/monitoring.py` — new: the children's side; the `sol_monitor` cookie, registering at the ID, retiring at the reset, and the server-seen save failures (`SAVE_ENDPOINTS`)
+- `logger/search-app/research_dashboard/__init__.py` — the monitor next to the presence store
+- `logger/search-app/search_app.py` — `MONITORING`; `/presenza` passes the report on; the ID page's `set_number` registers the tablet; `/welcome?reset=1` retires it; the engine's refusal and answer mark and clear a failed search
+- `logger/search-app/tests/test_classroom_monitor.py` — new
+
+**What changed for the participant**
+No visible change. A tablet whose ID an adult has chosen is now registered for the classroom map (the next commits show it), before the practice and with no run, log or answer created.
+
+**How it works**
+The registration lives in its own cookie, so it outlives the run's browser session that Salva clears, and the last page is still heard from. A run under way re-registers its tablet after a reload or a lost cookie. Only `/welcome?reset=1` (the logo's long press, or the address typed by an adult) retires it, or another ID chosen on the same tablet. Reports are ordered by the tablet's own counter, so a late one never overwrites a newer one; ages come from the server's clock. Incidents keep their start time until the matching success: a heartbeat never clears a failed search or a save the server refused. Test IDs are not registered.
+
+**If something looks wrong after this, check**
+- A circle that stays grey → the tablet never reported: the cookie was refused, or the ID was chosen before this was deployed.
+- An ID the tablet no longer has → `/welcome?reset=1` was not used between classes.
+- `monitor.sqlite3` unreadable → the map shows monitoring unavailable; nothing else changes.
+
+**Left alone**
+Admission, the practice's no-data rule, the run's session, the logs, the progress database, answers and their retries, exports, the presence store and the list's badges.
+
+**Verified**
+The new tests: registration and reassignment, exact string IDs, freshness at 3.9, 4, 5.9 and 6 seconds, a hidden page going silent, reports out of order, full screen only where expected and supported, a failed search and a refused save staying red through heartbeats until the next success, a stalled search, the history of a silence, two tablets with one ID, the expiry, the bounded history, an unreadable database; and through the app, the ID before the practice with nothing recorded, the last page after Salva, the reset, a new ID, test IDs, a refused search and a refused save. All 1179 server tests pass.
+
 ## 2026-11-26 — Leave only the title and the picture on the recap PDF's first page
 
 **Commit:** pending · **Type:** content · **Area:** data, tests

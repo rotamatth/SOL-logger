@@ -28,6 +28,7 @@ from research_dashboard.permanent_test import (TEST_EXPERIMENTS, TEST_RUNS_FOLDE
 from research_dashboard import init_dashboard
 from research_dashboard.collection import record_run, publish_metadata
 from research_dashboard.log_store import LogStore, UploadConflict
+from research_dashboard.monitoring import Monitoring
 from research_dashboard.runtime import configure_runtime
 from research_dashboard.study_config import scheduled_assignment
 from study_progress import init_progress, SubmissionConflict
@@ -120,6 +121,8 @@ def load_user_topics(filepath='data/user_topics.csv'):
 USER_TOPICS = load_user_topics()
 app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
+# The classroom map's view of each tablet, from its ID until it is reset (research_dashboard/monitoring.py).
+MONITORING = Monitoring(app, app.extensions["research"]["monitor"], is_test_participant)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
                            lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw),
                            test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt),
@@ -167,6 +170,9 @@ def child_presence():
     if session.get('user_id') and session.get('session_id') and isinstance(data, dict):
         app.extensions["research"]["presence"].beat(session['session_id'], session['user_id'],
                                                     data.get('page'), data.get('visible') is not False)
+    if isinstance(data, dict):
+        # The classroom map: from the ID's choice to the reset, also in the practice and on the last page.
+        MONITORING.beat(data)
     return "", 204
 
 
@@ -411,6 +417,7 @@ def welcome():
     """Splash page — SOL Search logo + Start button."""
     if request.args.get('reset') == '1':
         session.clear()
+        MONITORING.detach()
         return render_template("welcome.html", show_search=False)
     if current_phase() != 'pre_id':
         return redirect(phase_redirect_url())
@@ -488,13 +495,17 @@ def set_number(user_id, settings, val_ids):
     if current_phase() != 'pre_id':
         return redirect(phase_redirect_url())
     is_test = is_test_participant(user_id)
-    under_way = not is_test and RESEARCH_STATE.progress_run_for_date(user_id, study_day()) is not None
+    run_today = None if is_test else RESEARCH_STATE.progress_run_for_date(user_id, study_day())
+    under_way = run_today is not None
     assignment = None if is_test else scheduled_assignment(settings, user_id)
     if not (is_test or under_way or assignment):
         return id_page(val_ids, SESSION_UNAVAILABLE, 400)
     # No practice for a number that comes back to its own run, or for a test run started again.
     over = under_way or (is_test and bool(session.get('test_restart')))
     PRACTICE.choose(user_id, over=over)
+    if not is_test:
+        # The classroom map hears from this tablet from now on, before the practice and before any run exists.
+        MONITORING.attach(run_today['study_session_at_collection'] if under_way else assignment['session']['id'], user_id)
     return redirect(url_for('start_page'), code=303)
 
 
@@ -774,6 +785,7 @@ def search_results_page(*, theme, reminder, routes=CHILD_ROUTES, **page_values):
         try:
             corrected_query, raw_results, _, query_correction_source = search_backend.search(query, page, rpp, theme=theme)
         except Exception:
+            MONITORING.search(False)
             if ALLOW_ANSWER_WITHOUT_RESULTS_FOR_TESTING:
                 return render_no_results("Modalità test: nessun risultato disponibile, ma puoi comunque scrivere una risposta.", query_correction_source=query_correction_source)
             return render_template(ERROR_URL, show_search=False,
@@ -782,6 +794,7 @@ def search_results_page(*, theme, reminder, routes=CHILD_ROUTES, **page_values):
                                    is_search_engine_error=True, search_error_log="Connection Error",
                                    **page_values), 503
 
+        MONITORING.search(True)  # No results is a fine answer too.
         all_results = [normalize_result(r) for r in raw_results]
         session["search_results"] = all_results
         session["query"] = query

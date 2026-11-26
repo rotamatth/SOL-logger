@@ -1,34 +1,86 @@
 /*
  * Is this tablet still here, and can it reach the server?
  *
- * - Every 15 seconds, while the page is visible, a short signal tells the server which page is open
- *   (/presenza). The live view uses it to show "fuori dalla pagina" and "nessun segnale". The signal is
- *   separate from saving the logs: if it fails, no log is touched.
- * - When the signal fails twice in a row, or the tablet says it is offline, a full-screen notice asks the
- *   group to raise a hand and call an adult. It goes away by itself as soon as the server answers again.
+ * - Every 2 seconds, while the page is visible, a short report tells the server which page is open, whether
+ *   it is visible, whether full screen is on, and saves this tablet could not confirm (/presenza). The live
+ *   view's list and its classroom map use it. It is separate from saving the logs: if it fails, no log is
+ *   touched. Changes (the page hidden or shown again, full screen left, a save refused) are sent at once.
+ * - When the server has not answered for 10 seconds, or the tablet says it is offline, a full-screen notice
+ *   asks the group to raise a hand and call an adult. It goes away by itself as soon as the server answers.
  * - The log records when the page was really left (hidden for more than a moment, so moving to the next
  *   page does not count) and when the connection dropped and came back, through the page's own logger.
  * - A small service worker shows the same notice when a page cannot be loaded at all (sw.js).
+ *
+ * Inside the full-screen host only the inner page runs this: the host page itself does not load it, so a
+ * tablet sends one report at a time. A report says nothing of other apps, answers or searches' words.
  */
 (() => {
     if (window.__solConnectionWatch) return;
     window.__solConnectionWatch = true;
 
-    const BEAT_MS = 15000;
-    const RETRY_MS = 5000;
+    const BEAT_MS = 2000;           // research_dashboard/monitor.py BEAT_SECONDS
+    const TIMEOUT_MS = 2000;        // A report that hangs is given up, so the next one can go.
+    const NOTICE_AFTER_MS = 10000;  // The children's notice: the server silent this long, or the tablet offline.
     const HIDDEN_AFTER_MS = 1500;
-    const FAILURES_BEFORE_NOTICE = 2;
+    const SAVE_KEY = "solMonitorSave";
+    const LAST_SAVE_KEY = "solMonitorLastSave";
+    const ORDER_KEY = "solMonitorOrder";
     const page = () => window.location.pathname;
     const log = (type, details) => {
         try { if (window.studyLogger) window.studyLogger.logEvent(type, { page: page(), ...details }); } catch (_) {}
     };
+    const stored = (key) => { try { return JSON.parse(window.sessionStorage.getItem(key) || "null"); } catch (_) { return null; } };
+    const store = (key, value) => {
+        try {
+            if (value === null) window.sessionStorage.removeItem(key);
+            else window.sessionStorage.setItem(key, JSON.stringify(value));
+        } catch (_) { /* Private mode or full storage: the server's own view remains. */ }
+    };
 
+    let lastSuccess = Date.now();
     let failures = 0;
     let lostAt = null;
     let timer = null;
     let hiddenTimer = null;
     let hiddenAt = null;
     let notice = null;
+    let inFlight = false;
+    let again = false;
+    let searchSince = null;
+
+    // The full screen that matters is the host's, when this page lives in its frame.
+    const fullscreenDocument = (() => {
+        try {
+            if (window.top !== window.self && window.top.document.getElementById("student-session-frame")) return window.top.document;
+        } catch (_) { /* A page embedded elsewhere reports its own document. */ }
+        return document;
+    })();
+
+    function fullscreen() {
+        const enabled = fullscreenDocument.fullscreenEnabled;
+        return {
+            capable: enabled === undefined ? null : Boolean(enabled && fullscreenDocument.documentElement.requestFullscreen),
+            active: enabled === undefined ? null : Boolean(fullscreenDocument.fullscreenElement)
+        };
+    }
+
+    // The server keeps the newest report: the order never goes back, across this tab's pages too.
+    function nextOrder() {
+        const order = Math.max(Date.now(), (Number(stored(ORDER_KEY)) || 0) + 1);
+        store(ORDER_KEY, order);
+        return order;
+    }
+
+    function report(visible) {
+        const save = stored(SAVE_KEY);
+        const lastSave = stored(LAST_SAVE_KEY);
+        return {
+            order: nextOrder(), page: page(), visible, fullscreen: fullscreen(),
+            searchPendingFor: searchSince === null ? null : (Date.now() - searchSince) / 1000,
+            incidents: save ? [{ code: "save_unconfirmed", reason: save.reason, for: (Date.now() - save.since) / 1000 }] : [],
+            lastSaveFor: lastSave ? (Date.now() - lastSave) / 1000 : null
+        };
+    }
 
     function showNotice(reason) {
         if (lostAt === null) {
@@ -60,34 +112,48 @@
 
     function schedule(delay) {
         window.clearTimeout(timer);
-        if (document.visibilityState === "visible") timer = window.setTimeout(beat, delay);
+        if (document.visibilityState === "visible") timer = window.setTimeout(beat, Math.max(0, delay));
     }
 
-    // Never rejects: every failure is counted inside, so callers start it with `void`.
+    // One report at a time; a change during one is sent right after it. Never rejects.
     async function beat() {
+        if (inFlight) { again = true; return; }
+        inFlight = true;
+        again = false;
+        const started = Date.now();
+        const controller = window.AbortController ? new AbortController() : null;
+        const abort = window.setTimeout(() => { if (controller) controller.abort(); }, TIMEOUT_MS);
         let reached = false;
         try {
             const response = await fetch("/presenza", {
                 method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
-                cache: "no-store", keepalive: true, body: JSON.stringify({ page: page(), visible: true })
+                cache: "no-store", keepalive: true, body: JSON.stringify(report(true)),
+                signal: controller ? controller.signal : undefined
             });
             reached = response.ok;
         } catch (_) {
             reached = false;
+        } finally {
+            window.clearTimeout(abort);
+            inFlight = false;
         }
         if (reached) {
             failures = 0;
+            lastSuccess = Date.now();
             hideNotice();
-        } else if (++failures >= FAILURES_BEFORE_NOTICE || navigator.onLine === false) {
-            showNotice(navigator.onLine === false ? "offline" : "no-answer");
+        } else {
+            failures += 1;
+            if (navigator.onLine === false) showNotice("offline");
+            else if (failures >= 2 && Date.now() - lastSuccess >= NOTICE_AFTER_MS) showNotice("no-answer");
         }
-        schedule(lostAt === null ? BEAT_MS : RETRY_MS);
+        // The next report is due two seconds after this one started, not after it ended.
+        schedule(again ? 0 : BEAT_MS - (Date.now() - started));
     }
 
     function leftPage() {
         hiddenAt = Date.now();
         log("pageHidden", {});
-        const body = JSON.stringify({ page: page(), visible: false });
+        const body = JSON.stringify(report(false));
         try {
             if (!navigator.sendBeacon || !navigator.sendBeacon("/presenza", new Blob([body], { type: "application/json" }))) {
                 fetch("/presenza", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -110,8 +176,25 @@
         }
         void beat();
     });
+    fullscreenDocument.addEventListener("fullscreenchange", () => { void beat(); });
+    // A search that has not come back yet: the old page keeps reporting while the next one loads.
+    document.addEventListener("submit", event => {
+        const action = event.target && event.target.getAttribute ? event.target.getAttribute("action") || "" : "";
+        if (/\/(prova\/)?risultati|\/result/.test(action) || event.target.querySelector("#search-box")) searchSince = Date.now();
+    }, true);
+    // The children's scripts say when a save is confirmed or not (first-answer.js, final-answer-draft.js, recap.js).
+    window.addEventListener("sol:save", event => {
+        const detail = event.detail || {};
+        if (detail.ok) {
+            store(SAVE_KEY, null);
+            store(LAST_SAVE_KEY, Date.now());
+        } else if (!stored(SAVE_KEY)) {
+            store(SAVE_KEY, { reason: detail.reason || "unconfirmed", since: Date.now() });
+        }
+        void beat();
+    });
     window.addEventListener("pageshow", event => { if (event.persisted) void beat(); });
-    window.addEventListener("offline", () => { failures = FAILURES_BEFORE_NOTICE; showNotice("offline"); schedule(RETRY_MS); });
+    window.addEventListener("offline", () => { showNotice("offline"); schedule(BEAT_MS); });
     window.addEventListener("online", () => { void beat(); });
 
     const style = document.createElement("style");

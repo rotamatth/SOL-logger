@@ -2,9 +2,11 @@
 from datetime import datetime
 import json
 
-from flask import jsonify, render_template
+from flask import g, jsonify, render_template
 
+from .i18n import translate
 from .live import ZURICH, session_progress
+from .live_map_i18n import LIVE_MAP_TEXT
 from .preparation_views import preparation_session, zurich_today
 from .state import identity
 
@@ -32,7 +34,10 @@ def register_live_routes(dash):
     def session_live(session_id):
         data = snapshot(session_id)
         study_session = data["study_session"]
-        return page("session_live", research_area="sessions", **data,
+        # The map's script gets its own words in the page's language (CSP: no inline script).
+        strings = {key[len("map_js_"):]: translate(key, g.get("research_lang", "en"))
+                   for key in LIVE_MAP_TEXT if key.startswith("map_js_")}
+        return page("session_live", research_area="sessions", map_strings=strings, **data,
                     study_context={"grade": study_session["grade"], "school_year": study_session.get("school_year") or None,
                                    "id": study_session["id"]})
 
