@@ -6,14 +6,20 @@ from .dashboard import PREFIX
 GUIDE_COOKIE = "sol_guide_seen"
 GUIDE_COOKIE_SECONDS = 365 * 24 * 3600
 # (screenshot and wording key). The images are demo data, made by tools/capture_guide_screens.py.
-GUIDE_STEPS = ("sessions", "create", "ids", "questions", "live", "data", "child", "settings")
+GUIDE_STEPS = ("sessions", "create", "ids", "questions", "topic", "tablet", "reset", "test", "live", "data", "child",
+               "settings", "practice")
+# The steps of each part of the page, in order; together they are GUIDE_STEPS.
+GUIDE_GROUPS = (("prepare", ("sessions", "create", "ids", "questions", "topic")),
+                ("class", ("tablet", "reset", "test")),
+                ("follow", ("live", "data", "child")),
+                ("settings", ("settings", "practice")))
 GUIDE_IMAGE_SIZE = (1200, 800)
 
 
 def register_guide_routes(dash):
     @dash.bp.get("/guide")
     def guide_page():
-        response = make_response(dash.page("guide", steps=GUIDE_STEPS, image_size=GUIDE_IMAGE_SIZE,
+        response = make_response(dash.page("guide", groups=GUIDE_GROUPS, image_size=GUIDE_IMAGE_SIZE,
                                            research_area="guide"))
         # A shared login has no person to remember, so "seen" belongs to the browser.
         response.set_cookie(GUIDE_COOKIE, "1", max_age=GUIDE_COOKIE_SECONDS, path=PREFIX, httponly=True,

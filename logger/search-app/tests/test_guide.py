@@ -5,7 +5,10 @@ import re
 import pytest
 
 from .test_research_dashboard import PASSWORD, app, configure, csrf, login  # noqa: F401
-from research_dashboard.guide_views import GUIDE_COOKIE, GUIDE_IMAGE_SIZE, GUIDE_STEPS
+from .test_study_enrollment import student_modules  # noqa: F401
+from research_dashboard.guide_i18n import GUIDE_TEXT
+from research_dashboard.guide_views import GUIDE_COOKIE, GUIDE_GROUPS, GUIDE_IMAGE_SIZE, GUIDE_STEPS
+from research_dashboard.permanent_test import TEST_EXPERIMENTS
 
 STATIC = Path(__file__).resolve().parents[1] / "research_dashboard" / "static" / "guide"
 
@@ -106,3 +109,30 @@ def test_pages_without_a_study_scope_survive_the_student_apps_empty_context(app,
     client = app.test_client()
     login(client)
     assert client.get(path).status_code == status
+
+
+def test_the_parts_of_the_page_hold_every_step_once_in_order(app):
+    assert tuple(key for _, keys in GUIDE_GROUPS for key in keys) == GUIDE_STEPS
+    client = app.test_client()
+    login(client)
+    page = client.get("/dashboard/guide?lang=it").text
+    numbers = re.findall(r'<span class="preparation-number">(\d+)</span>', page)
+    assert numbers == [str(number) for number in range(1, len(GUIDE_STEPS) + 1)]
+    assert "In classe, con i tablet" in page
+
+
+def test_the_topic_step_names_every_topic_word_the_app_knows(student_modules):
+    words = student_modules().app.config["TOPIC_WORDS"]
+    for text in GUIDE_TEXT["guide_topic_text"]:
+        assert all(word in text for word in words), (words, text)
+
+
+def test_the_test_id_step_names_every_test_id():
+    for text in GUIDE_TEXT["guide_test_text"]:
+        assert all(uid in text for uid in TEST_EXPERIMENTS), text
+
+
+def test_the_reset_step_gives_both_ways_to_reset_a_tablet():
+    english, italian = GUIDE_TEXT["guide_reset_text"]
+    assert "three seconds" in english and "tre secondi" in italian
+    assert all("/welcome?reset=1" in text and "Inizia" in text for text in GUIDE_TEXT["guide_reset_detail"])

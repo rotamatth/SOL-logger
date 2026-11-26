@@ -113,9 +113,14 @@ run that finished it, and "typical" is the median. The figures are not added to 
 
 The **guide** at `/dashboard/guide` opens by itself on the first sign-in in a browser, unless
 the sign-in was on its way to a specific page, and the **Guide** button brings it back. Sign-ins
-are shared, so this is remembered per browser. After changing a page the guide shows, run
-`python tools/capture_guide_screens.py` from `search-app` (needs `requirements.lock` and `requirements-browser-test.txt`)
-and commit the pictures. They show demo data only.
+are shared, so this is remembered per browser. It has four parts: preparing a session (with the
+session's topic word), in class with the tablets (setting a tablet's number, resetting it, the test
+IDs), on the day and afterwards, and the settings (with the practice question). After changing a page
+the guide shows, run `python tools/capture_guide_screens.py` from `search-app` (needs `requirements.lock`
+and `requirements-browser-test.txt`) and commit the pictures. It starts the whole app with a stand-in
+search, so it also photographs the tablet pages, which are in Italian in both languages. The pictures
+show demo data only. When a topic word or a test ID is added, the guide's topic and test steps must
+name it; `tests/test_guide.py` checks.
 
 On the participant list, **Deactivate selected** deactivates several children after one review, in
 one transaction. Reactivating is one child at a time with **Edit enrollment**.
