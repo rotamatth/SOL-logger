@@ -65,6 +65,34 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Register each tablet for the classroom map, from its ID to its reset
+
+**Commit:** pending · **Type:** feature · **Area:** session, logging, dashboard, tests
+
+**Files**
+- `logger/search-app/research_dashboard/monitor.py` — new: `monitor.sqlite3` in the research state folder; registrations per study session and participant ID, each tablet's latest report, search and save incidents, a bounded history, and how a tablet's colour and reasons are worked out from the server's clock
+- `logger/search-app/research_dashboard/monitoring.py` — new: the children's side; the `sol_monitor` cookie, registering at the ID, retiring at the reset, and the server-seen save failures (`SAVE_ENDPOINTS`)
+- `logger/search-app/research_dashboard/__init__.py` — the monitor next to the presence store
+- `logger/search-app/search_app.py` — `MONITORING`; `/presenza` passes the report on; the ID page's `set_number` registers the tablet; `/welcome?reset=1` retires it; the engine's refusal and answer mark and clear a failed search
+- `logger/search-app/tests/test_classroom_monitor.py` — new
+
+**What changed for the participant**
+No visible change. A tablet whose ID an adult has chosen is now registered for the classroom map (the next commits show it), before the practice and with no run, log or answer created.
+
+**How it works**
+The registration lives in its own cookie, so it outlives the run's browser session that Salva clears, and the last page is still heard from. A run under way re-registers its tablet after a reload or a lost cookie. Only `/welcome?reset=1` (the logo's long press, or the address typed by an adult) retires it, or another ID chosen on the same tablet. Reports are ordered by the tablet's own counter, so a late one never overwrites a newer one; ages come from the server's clock. Incidents keep their start time until the matching success: a heartbeat never clears a failed search or a save the server refused. Test IDs are not registered.
+
+**If something looks wrong after this, check**
+- A circle that stays grey → the tablet never reported: the cookie was refused, or the ID was chosen before this was deployed.
+- An ID the tablet no longer has → `/welcome?reset=1` was not used between classes.
+- `monitor.sqlite3` unreadable → the map shows monitoring unavailable; nothing else changes.
+
+**Left alone**
+Admission, the practice's no-data rule, the run's session, the logs, the progress database, answers and their retries, exports, the presence store and the list's badges.
+
+**Verified**
+The new tests: registration and reassignment, exact string IDs, freshness at 3.9, 4, 5.9 and 6 seconds, a hidden page going silent, reports out of order, full screen only where expected and supported, a failed search and a refused save staying red through heartbeats until the next success, a stalled search, the history of a silence, two tablets with one ID, the expiry, the bounded history, an unreadable database; and through the app, the ID before the practice with nothing recorded, the last page after Salva, the reset, a new ID, test IDs, a refused search and a refused save. All 1179 server tests pass.
+
 ## 2026-11-26 — Leave only the title and the picture on the recap PDF's first page
 
 **Commit:** pending · **Type:** content · **Area:** data, tests
