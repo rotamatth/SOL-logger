@@ -96,28 +96,42 @@ The log records `pageHidden`, `pageVisible`, `connectionLost` and `connectionBac
 
 ### Classroom map
 
-**Map** next to **List** shows the class as a classroom: tables, and one circle per tablet with the ID written on
-its sticker. The list opens first until the session has a layout; afterwards the map, unless this browser last
-chose the list.
+**Map** next to **List** shows the class in its classroom, drawn to scale: the desks, the board, the teacher's
+desk, doors and windows, and one circle per tablet, on its desk, with the ID written on its sticker. The list opens
+first until the session has a room; afterwards the map, unless this browser last chose the list. In the map one
+slim bar holds **Map / List**, the room, whether monitoring is live, **Sound alerts** and a link to the Rooms page;
+the four counters become one line, the tablets that need an adult sit in a banner above the room, and a tablet's
+details open beside it.
 
-**Rooms.** Morning and afternoon happen in different classrooms, so layouts are saved as named rooms and reused.
-Choose a room and **Start from this room**: the session gets a copy of its tables and floor plan, with every ID in
-**Not placed**. Changing the session's copy never changes the room or another session; **Update the room** (or
-**Save as a new room**) is the only way a session's tables go back into a room. Rooms never keep IDs, so another
-class's places never come along.
+**Rooms page.** Morning and afternoon happen in different classrooms, so each classroom is drawn once on
+**Rooms** (in the menu, between Sessions and Data and history) and reused. Type the room's width and depth in
+metres; the floor shows 50 cm squares with a darker line every metre. Add pieces from the left, by a click (in
+the middle) or by dragging them onto the room: a **double desk** (130 × 50 cm), an **island of 2 or 4 desks** pushed
+together face to face, which moves and turns as one, the **teacher's desk**, the **board**, a **door** (its swing
+follows its rotation) and a **window**. Drag a piece to move it: it moves by 10 cm and lines up with other pieces
+nearby (a blue line shows it), Alt moves it freely. The round handle turns it 15° at a time, Shift for any angle;
+the panel on the right takes an exact angle. Each desk has one tablet spot, because two children share a tablet;
+**Tablets on each desk: 2** adds a second spot for when every child has a device. Keyboard: arrows move by 10 cm
+(Shift: 50 cm), R / Shift+R turn by 15°, Ctrl/⌘ D duplicates, Delete removes, Ctrl/⌘ Z and Shift+Z undo and redo.
+Nothing is sent until **Save the room**; if someone else saved that room meanwhile, the save is refused and their
+version is shown. **Duplicate this room** starts a new room from a copy; **Delete this room** removes it from the
+list (sessions keep their copy). Rooms never keep IDs, so another class never comes along.
 
-**Editing.** **Edit layout** shows the tools: add a table, move it (drag, or arrow keys; Shift for longer steps),
-resize it by its corner, rotate, make it bigger or smaller, duplicate, remove; upload a floor plan (PNG, JPEG or
-WebP, at most 8 MB) or remove it. Drag an ID onto a table (it then moves with the table), anywhere on the
-floor, or back to **Not placed**; the details panel's **Place on** menu does the same without dragging.
-**Save map** keeps the arrangement. While editing, clicking a circle still opens its details, and the tablets'
-colours keep updating without touching the unsaved arrangement. If someone else saved the map meanwhile, the
-save is refused and their version is shown. An ID left in **Not placed** is still monitored and can still start:
-placing is a display choice, never an admission or attendance rule. Coordinates live on a fixed 1000 × 700
-canvas, so a layout looks the same at any size.
+**A session's room.** In the map, choose the room: the session gets its own copy. The live view never changes the
+room's shape. If the room is edited later on the Rooms page, the map says **The room ... was changed** until
+someone presses **Use the new version**; the IDs whose desk still exists stay where they were, the others go back
+to **Not placed**.
 
-**Colours.** Each circle keeps its large ID and adds a thick ring, an icon and a short reason, so colour is never
-alone; amber and red pulse gently (steadily with reduced motion) until the problem actually recovers.
+**Placing IDs.** Tap an empty spot **+** on a desk and choose the ID among those not placed yet, or drag an ID from
+**Not placed**, under the room, onto a spot. A tap on a tablet only opens its details: to move it, use **Move** in
+the details and tap the new spot (Esc cancels); **Take off the desk** puts it back among **Not placed**. Each
+placement is saved at once and changes only that ID, so two researchers placing IDs at the same time do not undo
+each other; a spot someone else took meanwhile is refused and the map catches up. An ID in **Not placed** is still
+monitored and can still start: placing is a display choice, never an admission or attendance rule.
+
+**Colours.** Each circle keeps its large ID, upright whatever the desk's angle, and adds a thick ring and an icon
+(✓, !, ✕, ?); its desk turns amber or red too, and the banner and the details say the reason in words, so colour is
+never alone. Amber and red pulse gently (steadily with reduced motion) until the problem actually recovers.
 
 | Colour | Means |
 | --- | --- |
@@ -126,9 +140,10 @@ alone; amber and red pulse gently (steadily with reduced motion) until the probl
 | Amber | **Signal late** (4 s), **SOL page not visible**, **Silent while hidden**, **Out of full screen** (only where the browser has full screen), **Search not back** (20 s), **Two tablets, one ID** |
 | Red | **No contact** (6 s), **Search unavailable** (the engine refused; a search with no results is fine), **Save not confirmed** (the server refused or could not store an answer, or the tablet got no confirmation after its own retries) |
 
-Above the map, **N tablets need attention** lists every amber and red tablet, the worst first; a click opens its
-details. The list shows the same state next to each ID. A click on a circle opens its details: the current
-problems with how long they have lasted, the last contact, where the tablet is (ID chosen before the practice,
+Above the map, **N tablets need attention** lists every amber and red tablet, the worst first, with how long the
+problem has lasted; a click opens its details. The list shows the same state next to each ID. A click on a circle
+opens its details: its desk in the room (for example **Island 1 · desk 2**), the current problems with how long
+they have lasted, the last contact, where the tablet is (ID chosen before the practice,
 practice, experiment, recap, finished), the SOL page, full screen, the last confirmed save, the list's progress
 (nothing before a run exists), and the last ten problems with when they began and recovered.
 
@@ -154,8 +169,8 @@ stays registered through the practice, the run and the last page (it has its own
 Salva does not clear). `/welcome?reset=1`, the logo's long press or a new ID chosen on the same tablet retires
 it; a registration also ends after 16 hours. Test IDs are not registered. Everything lives apart from the study:
 `research-state/monitor.sqlite3` (registrations, latest report, incidents, the last 400 history entries per
-session, none older than 30 days), `research-state/rooms.sqlite3` and `research-state/room-images/` (rooms,
-sessions' maps, floor plans). No answer text, query, screenshot or app name is ever stored, and no log, attempt,
+session, none older than 30 days) and `research-state/rooms.sqlite3` (rooms, and each session's copy with its
+IDs' spots). No answer text, query, screenshot or app name is ever stored, and no log, attempt,
 export or count reads these files. A monitoring failure never fails a page, a save or an admission.
 
 **Before relying on it in class**, check on the real tablets in Brave over the VPN: 10 tablets prepared at once

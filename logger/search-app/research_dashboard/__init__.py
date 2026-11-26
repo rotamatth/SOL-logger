@@ -31,7 +31,8 @@ from .index import Index
 from .live_views import register_live_routes
 from .map_views import register_map_routes
 from .monitor import Monitor
-from .room_maps import RoomMaps
+from .rooms import Rooms
+from .rooms_views import register_room_routes
 from .practice_views import register_practice_routes
 from .preparation_views import register_preparation_routes
 from .presence import Presence
@@ -68,13 +69,15 @@ def init_dashboard(app):
     app.extensions["research"] = {"state": state, "index": index,
                                   "credential_ready": lambda: bool(dash.password_hash()),
                                   "presence": Presence(app.config["RESEARCH_STATE_DIR"]),
-                                  "monitor": Monitor(app.config["RESEARCH_STATE_DIR"])}
+                                  "monitor": Monitor(app.config["RESEARCH_STATE_DIR"]),
+                                  "rooms": Rooms(app.config["RESEARCH_STATE_DIR"])}
     register_security(dash)
     register_template_context(dash)
     register_editor_routes(dash)
     register_session_routes(dash)
     register_live_routes(dash)
-    register_map_routes(dash, RoomMaps(app.config["RESEARCH_STATE_DIR"]), app.extensions["research"]["monitor"])
+    register_map_routes(dash, app.extensions["research"]["rooms"], app.extensions["research"]["monitor"])
+    register_room_routes(dash, app.extensions["research"]["rooms"])
     register_guide_routes(dash)
     register_preparation_routes(dash)
     register_question_routes(dash)

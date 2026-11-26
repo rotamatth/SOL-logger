@@ -23,7 +23,7 @@ def test_header_puts_language_before_logout_and_trash_moves_to_data_and_history(
     assert header.index('class="languages"') < header.index("header-separator") < header.index("data-clears-editor-recovery")
     assert header.index('data-section="settings"') < header.index('class="languages"')
     primary = page.text.split('class="header-primary"')[1].split("</nav>")[0]
-    assert re.findall(r'data-section="(\w+)"', primary) == ["sessions", "history"]
+    assert re.findall(r'data-section="(\w+)"', primary) == ["sessions", "rooms", "history"]
     assert '<a class="header-logo" href="/dashboard/sessions' in header
     overview = client.get("/dashboard?collection=study&grade=4&lang=it")
     trash = next(link for link in Controls(overview).links if link["text"] == "Cestino")

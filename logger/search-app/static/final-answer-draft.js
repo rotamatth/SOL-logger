@@ -51,7 +51,8 @@
       window.dispatchEvent(new CustomEvent('sol:save', {detail: {ok: true}}));
     } catch (error) {
       if (paused) return;
-      window.dispatchEvent(new CustomEvent('sol:save', {detail: {ok: false, reason: failure}}));
+      // A draft refused as stale (409) came after the answer moved on: nothing is lost, the map is not told.
+      if (failure !== 'conflict') window.dispatchEvent(new CustomEvent('sol:save', {detail: {ok: false, reason: failure}}));
       dirty = true;
       blocked = true;
       remember();

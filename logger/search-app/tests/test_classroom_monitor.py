@@ -273,3 +273,22 @@ def test_a_save_the_server_refuses_shows_until_a_save_goes_through(site, monkeyp
     assert client.post("/first-answer/draft", json=draft).status_code == 200
     item = monitor_of(site).health(SESSION)["1"]
     assert item["status"] == "green" and item["last_save"] is not None
+
+
+def test_a_draft_refused_as_stale_after_conferma_is_not_a_failed_save(site):
+    """Found in the rehearsal of 26 November: the autosave that lands just after Conferma is refused (409). The
+    answer itself is saved, so the map must not turn the class red for it; a refused answer still would."""
+    client = site.app.test_client()
+    set_number(client, "1")
+    through_practice(client)
+    client.post("/start", data={"user_id": "1"})
+    beat(client, 1, page="/task")
+    fields = HiddenFields(client.get("/task").text).values
+    draft = {key: fields[key] for key in ("csrf_token", "attempt_id")}
+    draft.update(question_number=int(fields["question_number"]), text="Un cane", revision=0)
+    assert client.post("/first-answer/draft", json=draft).status_code == 200
+    assert client.post("/first-answer", data={**fields, "outcome": "answered", "confidence": "2", "text": "Un cane"}).status_code == 303
+    stale = client.post("/first-answer/draft", json={**draft, "text": "Un cane nero", "revision": 1})  # After Conferma.
+    assert stale.status_code == 409
+    item = monitor_of(site).health(SESSION)["1"]
+    assert item["status"] == "green" and "save_failed" not in codes(item)

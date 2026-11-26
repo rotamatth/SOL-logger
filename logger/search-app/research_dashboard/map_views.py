@@ -1,20 +1,22 @@
-"""The live view's classroom map: its layout (rooms and the session's own copy) and each tablet's health.
+"""The live view's classroom map: the session's copy of a room, where each ID sits, and each tablet's health.
 
-Reads are GETs and never write. Every change is an explicit POST with the dashboard's CSRF token and the revision
-it was based on; a stale one gets 409 and the current version back. The health feed is light enough to ask every
-two seconds: the roster from the settings and one small database, no log, index or file system scan.
+Reads are GETs and never write. Choosing or refreshing the room and placing an ID are explicit POSTs with the
+dashboard's CSRF token: the room copy carries the revision it was based on, and placing an ID is one change
+applied to the current map (a spot someone else took meanwhile gets 409 and the current map back). The health
+feed is light enough to ask every two seconds: the roster from the settings and one small database, no log,
+index or file system scan.
 """
 from datetime import datetime
-import json
 import time
 
-from flask import g, jsonify, request, send_file
+from flask import g, jsonify, request
 
 from .live import ZURICH
 from .monitor import BEAT_SECONDS, LATE_AFTER, LOST_AFTER
 from .preparation_views import preparation_session
-from .room_maps import CANVAS, IMAGE_BYTES, Conflict
+from .rooms import Conflict
 from .study_config import roster
+
 
 def _revision():
     try:
@@ -33,86 +35,39 @@ def register_map_routes(dash, rooms, monitor):
         return jsonify(error=key, **values), code
 
     def map_reply(session_map):
-        return jsonify(map=session_map, rooms=rooms.rooms(), canvas=CANVAS, csrf=g.research_auth["csrf"])
+        source = rooms.room(session_map["room_id"]) if session_map["room_id"] else None
+        return jsonify(map=session_map, rooms=rooms.rooms(), csrf=g.research_auth["csrf"],
+                       room_changed=bool(source and source["revision"] != session_map["room_revision"]))
 
-    @bp.get("/sessions/<session_id>/map.json")
-    def session_map_data(session_id):
+    @bp.get("/sessions/<session_id>/classroom.json")
+    def session_classroom_data(session_id):
         study_session(session_id)
         return map_reply(rooms.session_map(session_id))
 
-    @bp.post("/sessions/<session_id>/map")
-    def session_map_save(session_id):
+    @bp.post("/sessions/<session_id>/classroom/room")
+    def session_classroom_room(session_id):
+        """Copy a room into this session, or bring its newer version in; IDs keep the spots that still exist."""
         study_session(session_id)
         revision = _revision()
-        try:
-            body = json.loads(request.form.get("map", ""))
-        except ValueError:
-            return problem("invalid_map")
         if revision is None:
-            return problem("invalid_map")
+            return problem("invalid_room")
         try:
-            return map_reply(rooms.save_session_map(session_id, revision, body))
+            return map_reply(rooms.use_room(session_id, request.form.get("room_id", ""), revision))
         except Conflict as conflict:
             return problem("map_changed", 409, map=conflict.current)
         except ValueError as error:
             return problem(str(error))
 
-    @bp.post("/sessions/<session_id>/map/room")
-    def session_map_room(session_id):
-        """Start this session's map from a copy of a room: its tables and plan, none of another class's IDs."""
+    @bp.post("/sessions/<session_id>/classroom/place")
+    def session_classroom_place(session_id):
+        """One ID onto a spot, or off the map with an empty spot."""
         study_session(session_id)
-        revision = _revision()
-        if revision is None:
-            return problem("invalid_map")
         try:
-            return map_reply(rooms.start_from_room(session_id, request.form.get("room_id", ""), revision))
+            return map_reply(rooms.place(session_id, request.form.get("participant"), request.form.get("spot", "")))
         except Conflict as conflict:
-            return problem("map_changed", 409, map=conflict.current)
+            return problem("spot_taken", 409, map=conflict.current)
         except ValueError as error:
             return problem(str(error))
-
-    @bp.post("/sessions/<session_id>/map/image")
-    def session_map_image(session_id):
-        """A floor plan under the tables. The picture is checked by its content, never by its name."""
-        study_session(session_id)
-        upload = request.files.get("image")
-        try:
-            name = rooms.save_image(upload.read(IMAGE_BYTES + 1) if upload else b"")
-        except ValueError as error:
-            return problem(str(error))
-        return jsonify(image=name)
-
-    @bp.post("/rooms")
-    def room_create():
-        """A new reusable room from this session's tables and plan. IDs are not copied."""
-        source = rooms.session_map(study_session(request.form.get("session_id", ""))["id"])
-        try:
-            room = rooms.create_room(request.form.get("name"), source)
-        except ValueError as error:
-            return problem(str(error))
-        return jsonify(room=room, rooms=rooms.rooms())
-
-    @bp.post("/rooms/<room_id>")
-    def room_update(room_id):
-        """Explicitly replace a room's geometry with this session's: the only way a session changes a room."""
-        source = rooms.session_map(study_session(request.form.get("session_id", ""))["id"])
-        revision = _revision()
-        if revision is None:
-            return problem("invalid_map")
-        try:
-            room = rooms.update_room(room_id, revision, source, name=request.form.get("name") or None)
-        except Conflict as conflict:
-            return problem("room_changed", 409, room=conflict.current)
-        except ValueError as error:
-            return problem(str(error))
-        return jsonify(room=room, rooms=rooms.rooms())
-
-    @bp.get("/room-images/<name>")
-    def room_image(name):
-        found = rooms.image_file(name)
-        if found is None:
-            return problem("not_found", 404)
-        return send_file(found[0], mimetype=found[1], max_age=0)
 
     @bp.get("/sessions/<session_id>/health.json")
     def session_health(session_id):

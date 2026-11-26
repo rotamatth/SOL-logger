@@ -655,6 +655,7 @@ from .editor_i18n import EDITOR_TEXT
 from .stats_i18n import STATS_TEXT
 from .guide_i18n import GUIDE_TEXT
 from .live_map_i18n import LIVE_MAP_TEXT
+from .rooms_i18n import ROOMS_TEXT
 
 TEXT.update(WORKFLOW_TEXT)
 TEXT.update(HISTORY_TEXT)
@@ -662,6 +663,7 @@ TEXT.update(EDITOR_TEXT)
 TEXT.update(STATS_TEXT)
 TEXT.update(GUIDE_TEXT)
 TEXT.update(LIVE_MAP_TEXT)
+TEXT.update(ROOMS_TEXT)
 
 
 def translate(key, language):

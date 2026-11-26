@@ -65,6 +65,164 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Stop turning the class red for the draft refused just after Conferma
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, logging, tests
+
+**Files**
+- `logger/search-app/research_dashboard/monitoring.py` — a 409 on a draft (`first_answer_draft`, `final_answer_draft`, `recap_draft`) is no longer a failed save; 5xx on a draft, and any refusal of an answer itself, still are
+- `logger/search-app/static/first-answer.js`, `final-answer-draft.js` — a draft refused as stale (409) is not reported to the map; the child's own message is unchanged
+- `logger/search-app/templates/first_answer.html`, `layout.html` — the two scripts reloaded (`monitor-2`)
+- `logger/search-app/tests/test_classroom_monitor.py`, `test_connection_watch_browser.py` — the case found in the rehearsal, on the server and in the browser
+
+**What changed for the participant**
+No change for children. In the live map, a tablet no longer turns red with "Salvataggio non confermato" after every first answer.
+
+**How it works**
+The first answer's autosave often lands just after Conferma; the server refuses it (409) because the answer has moved on, which loses nothing. In the rehearsal of 26 November, with 20 groups, 36 such refusals turned almost the whole class red for about a minute while every answer was saved.
+
+**If something looks wrong after this, check**
+- A real failed save not shown → a 5xx on any save, or a 409 on a submitted answer or the recap, still shows red; the reason is in the tablet's details.
+
+**Left alone**
+The drafts' own behaviour and messages on the tablet; the end of a question, the recap's save and their reports.
+
+**Verified**
+The two new tests fail without the change and pass with it; the monitor, signal and map tests pass. Rehearsal rerun with the production image, see the notes.
+
+## 2026-11-26 — Keep a turned door's word upright and show the selected piece in blue only
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, styling
+
+**Files**
+- `logger/search-app/research_dashboard/static/room-drawing.js` — a landmark's word (door, board, teacher's desk, window) turns the right way up when its piece is turned past a quarter turn
+- `logger/search-app/research_dashboard/static/rooms.css` — no orange focus outline on a piece: the selected piece is the focused one, shown by its blue outline and handle
+- `logger/search-app/research_dashboard/templates/research/rooms.html`, `session_live.html` — the drawing's files reloaded (`rooms-2`)
+
+**What changed for the participant**
+No change for children. A door on the far wall reads "PORTA", not upside down; a selected desk is outlined in blue only.
+
+**How it works**
+The word gets a half turn of its own when the piece's angle is between 90° and 270°.
+
+**If something looks wrong after this, check**
+- A word upside down → the piece's rotation in the Rooms page's panel.
+
+**Left alone**
+The pieces' geometry and everything else on both pages.
+
+**Verified**
+The 18 map and Rooms page browser tests pass; checked on the demo class.
+
+## 2026-11-26 — Explain the Rooms page and the map's new layout
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/research_dashboard.md` — "Classroom map": the slim bar and banner; the Rooms page (size in metres, pieces, moving, lining up, turning, tablets per desk, keyboard, saving); a session's copy and "Use the new version"; placing IDs by tap, drag, Move and Take off the desk; colours with the desk tinted; `rooms.sqlite3` only
+- `logger/docs/production_readiness.md` — `room-images/` gone from the operational files
+- `logger/search-app/research_dashboard/guide_i18n.py` — the guide's live view step: the banner, the Rooms page, the + spots
+
+**What changed for the participant**
+No change for children. The documentation and the guide describe the redesigned map.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+- The docs and the app disagree on a size or a step → `rooms.py` (sizes) and `room-editor.js` (10 cm, 15°).
+
+**Left alone**
+The guide's pictures (the live view still opens on the list until a session has a room); the timing and limits sections.
+
+**Verified**
+The guide's tests pass; no tracked file still mentions the first version's floor plans or canvas.
+
+## 2026-11-26 — Show the class on its room drawn to scale, with the tablets that need an adult above it
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests
+
+**Files**
+- `logger/search-app/research_dashboard/map_views.py` — the session's copy of a room (`classroom.json`), choosing a room or bringing its newer version in, placing one ID on a spot or off the map (a spot taken meanwhile gets 409 and the current map); `health.json` unchanged
+- `logger/search-app/research_dashboard/templates/research/session_live.html`, `session_live_map.html` — one slim bar (Map / List, the room, whether monitoring is live, sound, a link to the Rooms page); the problems banner above the map; the room; the "room changed" notice; the picker for an empty spot; the IDs not placed under the map; the details beside it
+- `logger/search-app/research_dashboard/static/live-map.js` — rewritten: the room drawn by `room-drawing.js`, each ID upright on its desk's spot with a ring, a badge and its words for screen readers, the desk tinted when its tablet needs an adult; tap a tablet for its details, tap an empty spot to choose its ID, drag an ID from the strip onto a spot, "Move" and "Take off the desk" in the details; health polling, the not-current states, the list's chips and sound as before
+- `logger/search-app/research_dashboard/static/live-map.css` — rewritten: the bar, the banner, the room, circles and spots, the strip, the picker, the details; the four counters become one line in the map
+- `logger/search-app/research_dashboard/live_map_i18n.py`, `live_views.py` — the new copy in English and Italian; the room's sizes and words passed to the page
+- `logger/search-app/research_dashboard/__init__.py`, `dashboard.py`, `security.py` — the map uses the new rooms; the first version's endpoints and the floor plan's upload limit removed (`security.py` is as before #53)
+- `logger/search-app/research_dashboard/room_maps.py`, `tests/test_room_maps.py` — removed: tables in canvas pixels, the floor-plan pictures and `room-images/`
+- `logger/search-app/tests/test_live_classroom.py` (new), `test_live_map_browser.py` — the endpoints and the health feed; the map in Chromium
+
+**What changed for the participant**
+No change for children. Researchers see the classroom as it is: the room to scale, each ID on its desk, the tablets to check in a banner above, details beside the map. Rooms are drawn on the Rooms page; the live view only chooses one and places the IDs.
+
+**How it works**
+A session still works on a copy of its room. Placing an ID changes only that ID, so two researchers placing IDs at once do not undo each other. The room's shape changes on the Rooms page, and a session shows "The room ... was changed" until someone brings the new version in, keeping the IDs whose desk still exists. A tap on a tablet never moves it: moving is "Move" in its details, or a drag from the strip for an ID not placed yet.
+
+**If something looks wrong after this, check**
+- "Someone else put an ID on that spot" → another dashboard placed an ID there first; the map shows it.
+- A map that does not match the Rooms page → the session's copy is older: use the notice above the map.
+- Circles faded with "Monitoring unavailable" → `health.json` is failing, as before.
+
+**Left alone**
+Monitoring (the tablets' signal, `monitor.sqlite3`, timings, reasons), the List view and its rows, the Rooms page.
+
+**Verified**
+6 endpoint tests and 12 browser tests (the list first without a room, choosing one; every colour with its icon, words and desk; the banner opening details and history; the list's chips; placing by tap, moving, taking off; a drag from the strip; a spot taken meanwhile; a changed room brought in; the feed failing; signed out; sound; a phone's width). Full suite: 1428 passed; the 3 children's browser tests that failed did so with the CDN's `reading 'fn'` error, unrelated. Tried by hand on a demo class with ten simulated tablets.
+
+## 2026-11-26 — Draw classrooms to scale on a new Rooms page
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests
+
+**Files**
+- `logger/search-app/research_dashboard/rooms_views.py` — new: the Rooms page (`/dashboard/classrooms`) and its JSON (list, one room, create, change, delete; changes carry their revision, a stale one gets 409 with the current room)
+- `logger/search-app/research_dashboard/templates/research/rooms.html` — new: saved rooms, the pieces to add, the name and size, undo/redo/save, the room, the selected piece's panel
+- `logger/search-app/research_dashboard/static/room-drawing.js` — new: draws a room to scale in an SVG in centimetres (walls, 50 cm squares, metre marks, desks, islands, landmarks, tablet spots, desk names); the live map will use it too
+- `logger/search-app/research_dashboard/static/room-editor.js` — new: add by click or by dragging from the palette, move (10 cm steps, lining up with nearby pieces, Alt for free), turn with the round handle (15° steps, Shift for any angle), arrow keys, R / Shift+R, duplicate, remove, tablets per desk 1/2, desks per island 2/4, undo/redo, explicit save, a question before leaving unsaved changes
+- `logger/search-app/research_dashboard/static/rooms.css` — new: the drawing's look (shared with the live map later) and the page's layout
+- `logger/search-app/research_dashboard/rooms_i18n.py` (new), `i18n.py` — English and Italian copy
+- `logger/search-app/research_dashboard/rooms.py` — the 10 cm step and the default 8 × 6 m size, given to the page from one place
+- `logger/search-app/research_dashboard/__init__.py`, `dashboard.py`, `templates/research/base.html` — the store and the routes registered, their JSON errors, and "Rooms" in the menu between Sessions and Data and history
+- `logger/search-app/tests/test_rooms.py`, `test_room_editor_browser.py` (new), `test_dashboard_feedback.py` — the endpoints; the editor in Chromium; the menu now has three sections
+
+**What changed for the participant**
+No change for children. Researchers get a "Rooms" page to draw each classroom once, in metres, and reuse it. The live view does not use it yet.
+
+**How it works**
+Every size comes from `rooms.py` and reaches the scripts as data, so the drawing and the server's checks agree. Nothing is sent until "Save the room"; the save carries the revision it started from.
+
+**If something looks wrong after this, check**
+- A save that says someone else saved → another dashboard saved that room first; their version is on screen.
+- Pieces that do not move where expected → the 10 cm step and the lining up (hold Alt to move freely).
+
+**Left alone**
+The live view and its first-version map, `room_maps.py`, monitoring.
+
+**Verified**
+21 store and endpoint tests and 6 browser tests (a first room drawn, named and saved; lining up and turning by handle and keyboard; undo and redo; a drop from the palette; a save after someone else's; leaving with unsaved changes). Full suite: 1446 passed; the 3 full-screen browser tests that failed did so with the CDN's `reading 'fn'` error, unrelated.
+
+## 2026-11-26 — Store classrooms drawn to scale: double desks, islands, landmarks and tablet spots
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests
+
+**Files**
+- `logger/search-app/research_dashboard/rooms.py` — new: rooms in centimetres (width, depth, double desks, islands of 2 or 4 desks, teacher's desk, board, doors, windows), one or two tablet spots per desk, revisions; each session's copy with the spot of each ID, brought up to date from its room only on request, keeping the IDs whose spot still exists; one ID placed or removed at a time
+- `logger/search-app/tests/test_rooms.py` — new
+
+**What changed for the participant**
+No visible change yet: nothing uses the new store. It is the first step of the classroom map's redesign (the Rooms page and the new map follow).
+
+**How it works**
+Sizes are fixed per kind (a double desk is 130 × 50 cm) and spots are named piece.desk.seat, so an ID keeps its desk when the room is edited around it. Rooms and sessions' copies live in `rooms.sqlite3` in new tables (`room_plans`, `session_rooms`), next to the first version's, which stay untouched until the map moves over.
+
+**If something looks wrong after this, check**
+- Nothing should: the module is not wired in yet.
+
+**Left alone**
+The first version's `room_maps.py`, its endpoints and the live map; monitoring.
+
+**Verified**
+18 new tests: validation, listing, revisions and conflicts, placing and moving IDs, a spot taken meanwhile, a room edited later and brought in, a deleted room.
+
 ## 2026-11-26 — Explain the classroom map: rooms, placing IDs, colours, timing, sound and what it cannot know
 
 **Commit:** pending · **Type:** content · **Area:** docs
