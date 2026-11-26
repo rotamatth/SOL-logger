@@ -318,6 +318,17 @@ recap's layout needs the same change there (a test compares them). A card holds 
 pages that follow keep every answer in full, as before. A session without a recap picture (an
 unknown theme) keeps the text pages only.
 
+PDFs saved before the picture page existed (22 November 2026), such as those of 10 November, can be
+drawn again from the saved answers, with the code Salva uses now:
+
+    docker compose exec search_app python tools/redraw_recap_pdfs.py --date 2026-11-10          # shows, changes nothing
+    docker compose exec search_app python tools/redraw_recap_pdfs.py --date 2026-11-10 --write  # backup, then replace
+
+With `--write` it first keeps the old PDFs in `recap-pdfs-before-redraw-<date>-<time>.zip` in the
+research state folder (`logger/research-state/` on the server), then replaces them in one transaction,
+each only if nobody changed it meanwhile. Test runs, topics without a picture and PDFs that already
+have one are left alone, and the time of Salva stays. It prints IDs and topics, never answers.
+
 ## Research interpretation
 
 - A **study session** is the configured grade/date classroom experiment. It is

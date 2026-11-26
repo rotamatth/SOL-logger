@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Draw the 10 November recap PDFs again, with the picture
+
+**Commit:** pending · **Type:** feature · **Area:** data, dashboard, docs, tests
+
+**Files**
+- `logger/search-app/tools/redraw_recap_pdfs.py` — new: draws again the saved recap PDFs of one day with the picture page, keeping the old ones in a zip first
+- `logger/search-app/student_recap.py` — `StudentRecap.pdf_with_picture()`: the PDF Salva makes now, or None when the session has no picture; the tool uses it, Salva does not
+- `logger/search-app/tests/test_redraw_recap_pdfs.py` — new: dry run changes nothing; `--write` gives the picture page, keeps the time of Salva and the old PDF in a 0600 zip; a second run, another day, test runs and topics without a picture are left alone; a PDF changed meanwhile stops everything
+- `logger/docs/research_dashboard.md` — "Recap PDF": how to run it
+
+**What changed for the participant**
+No change for children. After the tool runs on the server, the dashboard's "Scarica il riepilogo finale del bambino (PDF)" for a 10 November session gives a PDF that opens with the recap picture, as 2 December's will, instead of the text only.
+
+**How it works**
+The PDF is saved at "Salva l'attività"; before #42 (22 November) it had no picture page. The tool imports the app the server runs, finds the day's saved PDFs that have no image (`/Subtype /Image`), and renders each again from `recap_columns` with `pdf_with_picture`, which is Salva's own code. With `--write` it writes the old PDFs to a zip, reads the zip back, then updates `progress_recap_exports.pdf` in one `BEGIN IMMEDIATE` transaction, each row only if its PDF is still the one read (`WHERE pdf = ?`); any mismatch rolls back everything. `finished_at` is not touched.
+
+**If something looks wrong after this, check**
+- A 10 November PDF still without the picture → the tool was run without `--write`, or that session's topic is not a topic word.
+- A PDF to restore → the zip in `logger/research-state/` holds each old PDF as `<ID>_<attempt>.pdf`.
+
+**Left alone**
+Salva and the PDFs it makes, the dashboard's download, the answers, the logs, `finished_at`, test runs.
+
+**Verified**
+The new tests pass. On a scratch copy of the 10 November progress database (taken that afternoon, on my Mac only): 18 PDFs drawn again (10 spazio, 8 orecchio), `TEST-spazio` left out, the zip written, and a second run changed nothing.
+
 ## 2026-11-26 — Add the tablets, the reset, the test IDs, the topic word and the practice question to the guide
 
 **Commit:** pending · **Type:** content · **Area:** dashboard, docs, tests
