@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Give TEST-costellazioni and TEST-muscoli the published questions of 4a and 5a
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — the six "Segnaposto" questions replaced by the three of 4a (`grade-4-session-2`) and the three of 5a (`grade-5-session-2`), word for word and in the same boxes, as the server stored them on 26 November (settings revision 46)
+- `logger/search-app/tests/test_permanent_test_experiment.py` — a test that the two test IDs ask exactly those questions and that no "Segnaposto" is left
+- `logger/docs/research_dashboard.md` — the test IDs' paragraph says where their questions come from
+
+**What changed for the participant**
+No change for children. A researcher trying `TEST-costellazioni` or `TEST-muscoli` now meets the questions the classes get on 2 December ("Tra la Terra e il Sole", "Le stelle", "Missioni Spaziali"; "Tipologie di muscoli", "Animale dal sangue blu", "Muscoli del braccio") instead of the placeholders.
+
+**How it works**
+Only the question texts. The theme of each test ID stays `costellazioni` / `muscoli`, so it keeps its engine and its pictures. The published sessions' topic texts ("Costellazioni e Missioni Spaziali", "Il sistema muscolare") are not topic words the app knows; a test ID does not use them, so it cannot show whether a real run would search.
+
+**If something looks wrong after this, check**
+- A test ID asks other questions than its class → the session was edited in the dashboard after 26 November; the test ID keeps its own copy in `permanent_test.py`.
+- A question's picture does not fit it → the question's box in the session; the test ID copies the session's boxes.
+
+**Left alone**
+`TEST-spazio` and `TEST-orecchio`, the real sessions and their topic texts, `TOPIC_NAMES`, the pictures and their boxes, the intro lines.
+
+**Verified**
+The test IDs' server and browser tests pass, with the new test. Not yet tried on solar, which needs a redeploy for it.
+
 ## 2026-11-26 — Call the way back from the change form "Non lo so", not "Annulla"
 
 **Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests

@@ -33,16 +33,23 @@ TEST_EXPERIMENTS = {
         ("Fact-finding -- Ossicini Orecchio", "Quali sono i 3 ossicini dentro al nostro orecchio?"),
         ("Multi-step -- Coclea", "Che forma ha la coclea e dove si trova?"),
         ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))),
-    # The 2 December 2026 topics. Placeholders until Diletta's questions for 4a costellazioni and 5a muscoli
-    # are in: then these become those questions, as for the two above, in the order of their pictures.
+    # The 2 December 2026 sessions, 4a and 5a, as the server stored them on 26 November (settings revision 46),
+    # in the same boxes. The theme stays the topic word the app knows, whatever the session's topic text says.
     "TEST-costellazioni": _question_set("costellazioni", (
-        ("Segnaposto -- Stella polare", "In quale costellazione si trova la Stella Polare?"),
-        ("Segnaposto -- Orione", "Quali sono le tre stelle della cintura di Orione?"),
-        ("Segnaposto -- Zodiaco", "Quante sono le costellazioni dello zodiaco?"))),
+        ("Tra la Terra e il Sole",
+         "Scrivete quanto tempo ci mette la luce del Sole ad arrivare fino al nostro pianeta Terra."),
+        ("Le stelle",
+         "Scrivete il nome della stella più vicina a noi dopo il Sole e scoprite in quale costellazione si trova."),
+        ("Missioni Spaziali",
+         "Molte missioni spaziali hanno il nome di un personaggio mitologico. Indica almeno 3 nomi di queste missioni."))),
     "TEST-muscoli": _question_set("muscoli", (
-        ("Segnaposto -- Muscolo più grande", "Qual è il muscolo più grande del corpo umano?"),
-        ("Segnaposto -- Cuore", "Perché il cuore è un muscolo speciale?"),
-        ("Segnaposto -- Sorriso", "Quanti muscoli usiamo per sorridere?"))),
+        ("Tipologie di muscoli",
+         "I muscoli del nostro corpo si dividono in tre principali tipologie. Scrivi i nomi delle 3 tipologie."),
+        ("Animale dal sangue blu",
+         "In natura esiste un animale con 3 cuori e il sangue di colore blu. "
+         "Scrivete di che animale si tratta e che cosa rende il suo sangue blu."),
+        ("Muscoli del braccio",
+         "Scrivete il nome di almeno 3 dei 4 muscoli principali presenti nel braccio."))),
 }
 
 

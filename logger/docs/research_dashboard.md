@@ -594,8 +594,9 @@ The children still meet the three questions in a random order; the picture follo
 children's start page. Each is an experiment with one participant, itself, for developers to try
 the whole app on the real server: it searches its topic's engine and plays its topic's animations,
 when the topic has them. `TEST-spazio` and `TEST-orecchio` ask the questions of the 10 November
-sessions. `TEST-costellazioni` and `TEST-muscoli` ask placeholder questions (their topics start with
-"Segnaposto") until the 2 December questions are in. It works on any day
+sessions, `TEST-costellazioni` and `TEST-muscoli` those of the 2 December sessions (4a and 5a, as
+published on 26 November). Their theme stays the topic word, so they search the right engine even
+when a session's topic text is longer. It works on any day
 and needs no session, class or enrollment. Every start is a new attempt; **Ricomincia** in the
 red PROVA banner leaves the current one. Test pages show that banner, so a wrong choice on a
 child's tablet is noticed at once. A double tap on the start page still gives one attempt.

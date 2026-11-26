@@ -110,6 +110,30 @@ def test_the_test_ids_ask_the_questions_of_the_10_november_sessions():
         ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))
 
 
+def test_the_2_december_test_ids_ask_the_published_questions_of_4a_and_5a():
+    """Copied word for word from the server's settings revision 46 (26 November), in the sessions' boxes."""
+    from research_dashboard.permanent_test import TEST_EXPERIMENTS
+
+    def rows(uid):
+        return tuple((item["topic"], item["question"]) for item in TEST_EXPERIMENTS[uid]["questions"])
+
+    assert rows("TEST-costellazioni") == (
+        ("Tra la Terra e il Sole",
+         "Scrivete quanto tempo ci mette la luce del Sole ad arrivare fino al nostro pianeta Terra."),
+        ("Le stelle",
+         "Scrivete il nome della stella più vicina a noi dopo il Sole e scoprite in quale costellazione si trova."),
+        ("Missioni Spaziali",
+         "Molte missioni spaziali hanno il nome di un personaggio mitologico. Indica almeno 3 nomi di queste missioni."))
+    assert rows("TEST-muscoli") == (
+        ("Tipologie di muscoli",
+         "I muscoli del nostro corpo si dividono in tre principali tipologie. Scrivi i nomi delle 3 tipologie."),
+        ("Animale dal sangue blu",
+         "In natura esiste un animale con 3 cuori e il sangue di colore blu. "
+         "Scrivete di che animale si tratta e che cosa rende il suo sangue blu."),
+        ("Muscoli del braccio", "Scrivete il nome di almeno 3 dei 4 muscoli principali presenti nel braccio."))
+    assert not any("Segnaposto" in topic for uid in TEST_EXPERIMENTS for topic, _ in rows(uid))
+
+
 def test_a_whole_test_run_stays_out_of_the_real_folder(student_modules, tmp_path):
     module = student_modules()
     client = start(module)
