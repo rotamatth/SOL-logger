@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Leave only the title and the picture on the recap PDF's first page
+
+**Commit:** pending · **Type:** content · **Area:** data, tests
+
+**Files**
+- `logger/search-app/student_recap.py` — the picture page loses "Le risposte complete sono nelle pagine seguenti." and its "Pagina 1"; the picture is a little larger in the room they leave
+- `logger/search-app/tests/test_recap_picture.py` — `drawn_text()` reads what each page draws; the picture page has the title and the cards, no note and no page number, and the text pages keep theirs
+
+**What changed for the participant**
+No change for children. The recap PDF's first page shows only "SOL Search · Le risposte di oggi" and the picture with the answers, a little larger. The pages after it, with every answer in full, are unchanged and still numbered (from "Pagina 2"). Matthias found the note and the number useless.
+
+**How it works**
+The picture page template has no footer, and the flow of page one is the title, the picture and the break to the text pages. The picture's height reserve for the title is 56 points instead of 74.
+
+**If something looks wrong after this, check**
+- The picture alone on a page and the title on another → the reserve in `render_recap_pdf` (`test_the_picture_is_a_landscape_first_page_before_the_text` counts the pages).
+
+**Left alone**
+The text pages, their numbers, the cards and their places, Salva, the redraw tool.
+
+**Verified**
+The recap PDF tests pass, with the new one; the page looked at by eye.
+
 ## 2026-11-26 — Place the constellations and muscles recap cards as on 10 November
 
 **Commit:** pending · **Type:** fix · **Area:** task-flow, styling, data, tests

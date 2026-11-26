@@ -111,13 +111,12 @@ def render_recap_pdf(columns, picture=None):
     picture_frame = Frame(36, 40, wide[0] - 72, wide[1] - 76, id="picture")
     text_frame = Frame(48, 48, A4[0] - 96, A4[1] - 88, id="text")
     document = BaseDocTemplate(pdf, pagesize=A4, title="SOL Search - Le tue risposte")
-    document.addPageTemplates([PageTemplate("picture", [picture_frame], pagesize=wide, onPage=footer),
+    # The picture page has only its title and the picture (Matthias, 26 November): no note, no page number.
+    document.addPageTemplates([PageTemplate("picture", [picture_frame], pagesize=wide),
                                PageTemplate("text", [text_frame], pagesize=A4, onPage=footer)])
-    width = min(picture_frame._width - 12, (picture_frame._height - 74) * PICTURE_RATIO)
+    width = min(picture_frame._width - 12, (picture_frame._height - 56) * PICTURE_RATIO)
     page_one = [Paragraph("SOL Search · Le risposte di oggi", styles["Title"]),
                 RecapPicture(picture["background"], picture["tasks"], picture["arrows"], width, picture["theme"]),
-                Spacer(1, 6),
-                Paragraph("Le risposte complete sono nelle pagine seguenti.", styles["BodyText"]),
                 NextPageTemplate("text"), PageBreak()]
     document.build(page_one + flow)
     return pdf.getvalue()
