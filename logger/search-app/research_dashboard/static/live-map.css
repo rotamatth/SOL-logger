@@ -1,0 +1,109 @@
+/* The live view's classroom map. Colour is never alone: each state also has a ring, an icon and a short reason. */
+.visually-hidden { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0 }
+
+.live-view-switch { display:flex; gap:6px; margin:12px 0 }
+.live-view-switch [aria-pressed=true] { background:var(--accent); border-color:var(--accent); color:var(--white) }
+.live-map[hidden], #live-list-view[hidden], .live-map [hidden] { display:none !important }
+
+.live-map { margin:8px 0 18px }
+.live-map-toolbar, .live-map-editbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 }
+.live-map-room { display:flex; align-items:center; gap:6px; font-weight:600; font-size:13px }
+.live-map-room select { min-width:180px }
+.live-map-editbar { padding:8px; border:1px dashed var(--accent); border-radius:8px; background:var(--white) }
+.live-map-table-tools { display:inline-flex; flex-wrap:wrap; gap:6px; padding-left:8px; border-left:1px solid var(--line) }
+.live-map-upload { position:relative }
+#live-map-edit[aria-pressed=true], #live-map-sound[aria-pressed=true] { background:var(--accent); border-color:var(--accent); color:var(--white) }
+.live-map-message { min-height:1.2em; margin:4px 0; font-size:13px }
+.live-map-message.live-map-problem { color:var(--warning-ink); font-weight:600 }
+.live-map-monitor { margin:4px 0; font-size:13px; color:var(--muted) }
+.live-map-monitor.live-map-problem { padding:8px 10px; border:2px solid var(--warning-line); border-radius:8px; background:var(--warning-soft); color:var(--warning-ink); font-weight:700 }
+
+.live-map-problems { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:6px 0 10px; font-weight:700 }
+.live-map-problems button { min-height:32px; padding:4px 10px; font-size:13px }
+.live-map-problems .map-red { border:2px solid #b42318; background:#fde8e6; color:#7a1610 }
+.live-map-problems .map-amber { border:2px solid #b45309; background:#fff3d6; color:#6b3a00 }
+
+.live-map-body { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:14px; align-items:start }
+.live-map-stage { position:relative; min-width:0 }
+.live-map-canvas { position:relative; width:100%; aspect-ratio:1000 / 700; overflow:hidden; border:1px solid var(--line);
+  border-radius:10px; background:var(--white) repeating-linear-gradient(0deg, transparent 0 49px, #f4efe3 49px 50px),
+  repeating-linear-gradient(90deg, transparent 0 49px, #f4efe3 49px 50px); touch-action:pan-y }
+.live-map.editing .live-map-canvas { border:2px dashed var(--accent); touch-action:none }
+.live-map-plan { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:.55; pointer-events:none; user-select:none }
+.live-map-empty { margin:8px 0 }
+
+.map-table { position:absolute; box-sizing:border-box; border:2px solid #a08a5b; border-radius:6px; background:#f6ead1;
+  color:#6b5a35; font-size:11px; font-weight:700; display:flex; align-items:flex-start; justify-content:flex-start; padding:2px 4px }
+.live-map.editing .map-table { cursor:move; touch-action:none }
+.map-table.selected { outline:3px solid var(--sol-blue); outline-offset:2px }
+.map-table.occupied .map-table-label { visibility:hidden }
+.map-table:focus-visible { outline:3px solid var(--sol-blue); outline-offset:2px }
+.map-table-resize { position:absolute; right:-7px; bottom:-7px; width:14px; height:14px; border-radius:3px; background:var(--sol-blue); cursor:nwse-resize; touch-action:none }
+
+/* A tablet: the large ID, a ring and an icon for its state, and its reason underneath. */
+.map-tablet { position:absolute; z-index:2; transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center;
+  gap:2px; min-height:0; padding:0; border:0; background:none; cursor:pointer }
+.live-map-tray .map-tablet { position:relative; transform:none }
+.live-map-tray .map-tablet-circle { width:44px; height:44px; font-size:17px }
+.map-tablet:hover { background:none }
+.map-tablet-circle { position:relative; display:flex; align-items:center; justify-content:center; width:58px; height:58px; box-sizing:border-box;
+  border-radius:50%; border:4px solid #9aa0a6; background:#eef0f2; color:#30343a; font-size:22px; font-weight:800; line-height:1 }
+.map-tablet-icon { position:absolute; top:-6px; right:-8px; display:flex; align-items:center; justify-content:center; width:22px; height:22px;
+  border-radius:50%; border:2px solid var(--white); font-size:13px; font-weight:900; color:var(--white); background:#6b7280 }
+.map-tablet-reason { max-width:120px; padding:1px 6px; border-radius:6px; background:rgb(255 255 255 / 92%); color:#30343a;
+  font-size:11px; font-weight:700; line-height:1.25; text-align:center; white-space:normal }
+.map-tablet:focus-visible .map-tablet-circle, .map-tablet.selected .map-tablet-circle { outline:3px solid var(--sol-blue); outline-offset:3px }
+.live-map.editing .map-tablet { cursor:grab; touch-action:none }
+.map-tablet.dragging { z-index:5; opacity:.85; cursor:grabbing }
+
+.map-green .map-tablet-circle { border-color:#1e7b34; background:#e6f4ea }
+.map-green .map-tablet-icon { background:#1e7b34 }
+.map-amber .map-tablet-circle { border:6px solid #b45309; background:#fff3d6 }
+.map-amber .map-tablet-icon { background:#b45309 }
+.map-amber .map-tablet-reason { background:#fff3d6; color:#6b3a00; border:1px solid #b45309 }
+.map-red .map-tablet-circle { border:7px solid #b42318; background:#fde8e6 }
+.map-red .map-tablet-icon { background:#b42318 }
+.map-red .map-tablet-reason { background:#b42318; color:var(--white) }
+.map-grey .map-tablet-circle { border-style:dashed }
+
+/* A gentle pulse until the problem recovers; a steady thick ring instead when motion is reduced. */
+@keyframes map-attention { 0%, 100% { box-shadow:0 0 0 0 rgb(180 35 24 / 0%) } 50% { box-shadow:0 0 0 10px rgb(180 35 24 / 22%) } }
+@keyframes map-attention-amber { 0%, 100% { box-shadow:0 0 0 0 rgb(180 83 9 / 0%) } 50% { box-shadow:0 0 0 9px rgb(180 83 9 / 22%) } }
+.map-red .map-tablet-circle { animation:map-attention 1.6s ease-in-out infinite }
+.map-amber .map-tablet-circle { animation:map-attention-amber 2.2s ease-in-out infinite }
+@media (prefers-reduced-motion: reduce) {
+  .map-red .map-tablet-circle, .map-amber .map-tablet-circle { animation:none; box-shadow:0 0 0 5px rgb(0 0 0 / 12%) }
+}
+
+/* Monitoring itself unavailable: the last known states stay readable, visibly not current. */
+.live-map.monitor-stale .map-tablet { filter:grayscale(.85); opacity:.7 }
+.live-map.monitor-stale .map-tablet-circle { animation:none }
+
+.live-map-side { display:flex; flex-direction:column; gap:12px; min-width:0 }
+.live-map-tray-box, .live-map-details { padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--white) }
+.live-map-tray-box h3, .live-map-details h3 { margin:0 0 4px; font-size:15px }
+.live-map-tray { display:flex; flex-wrap:wrap; gap:10px 8px; min-height:64px; padding:6px; border-radius:8px }
+.live-map.editing .live-map-tray { border:2px dashed #c9bfa8 }
+.live-map-tray.drop-target, .map-table.drop-target { outline:3px dashed var(--sol-blue); outline-offset:2px }
+.live-map-details-head { display:flex; justify-content:space-between; align-items:center; gap:8px }
+.live-map-details-head h3 { font-size:22px }
+.live-map-details dl { margin:8px 0; font-size:13px }
+.live-map-details dt { margin-top:6px; color:var(--muted); font-size:12px }
+.live-map-details dd { margin:0; font-weight:600; overflow-wrap:anywhere }
+.live-map-details ul { margin:4px 0 8px; padding-left:18px; font-size:13px }
+.live-map-details li { margin:3px 0 }
+.live-map-details .map-reason-red { color:#7a1610; font-weight:700 }
+.live-map-details .map-reason-amber { color:#6b3a00; font-weight:700 }
+.live-map-details h4 { margin:10px 0 2px; font-size:13px }
+.live-map-details select { max-width:100% }
+
+.live-monitor { margin-left:4px }
+.live-monitor.map-red { border:2px solid #b42318; background:#fde8e6; color:#7a1610 }
+.live-monitor.map-amber { border:2px solid #b45309; background:#fff3d6; color:#6b3a00 }
+.live-monitor.map-green { border-color:#1e7b34; background:#e6f4ea; color:#14532d }
+
+@media (max-width: 900px) {
+  .live-map-body { grid-template-columns:minmax(0, 1fr) }
+  .map-tablet-circle { width:44px; height:44px; font-size:17px }
+  .map-tablet-reason { max-width:90px; font-size:10px }
+}

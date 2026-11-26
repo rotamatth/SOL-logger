@@ -654,12 +654,14 @@ from .history_i18n import TEXT as HISTORY_TEXT
 from .editor_i18n import EDITOR_TEXT
 from .stats_i18n import STATS_TEXT
 from .guide_i18n import GUIDE_TEXT
+from .live_map_i18n import LIVE_MAP_TEXT
 
 TEXT.update(WORKFLOW_TEXT)
 TEXT.update(HISTORY_TEXT)
 TEXT.update(EDITOR_TEXT)
 TEXT.update(STATS_TEXT)
 TEXT.update(GUIDE_TEXT)
+TEXT.update(LIVE_MAP_TEXT)
 
 
 def translate(key, language):

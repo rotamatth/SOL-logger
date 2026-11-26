@@ -1,6 +1,7 @@
 <details class="live-child live-{{ child.status }}" data-child="{{ child.id }}" data-digest="{{ child.digest }}">
   <summary>
     <strong class="live-child-id">{{ child.id }}</strong>
+    <span class="live-monitor" data-monitor-for="{{ child.id }}" hidden></span>
     <span class="badge {{ 'completed' if child.status == 'completed' else 'incomplete' if child.status == 'in_progress' else 'no_data' }}">{{ t('live_' ~ child.status) }}</span>
     {% if child.presence %}{% set seconds = child.presence.seconds %}
     <span class="badge live-presence live-presence-{{ child.presence.state }}" role="status">{% if child.presence.state == 'hidden' %}{{ t('live_off_page') }}{% else %}{{ t('live_no_signal') }} {% if seconds < 120 %}{{ seconds }} s{% else %}{{ seconds // 60 }} min{% endif %}{% endif %}</span>

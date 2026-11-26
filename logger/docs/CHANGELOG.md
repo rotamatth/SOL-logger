@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Show the class as a map in the live view: tables, one circle per tablet, and what needs an adult
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests
+
+**Files**
+- `logger/search-app/research_dashboard/templates/research/session_live.html`, `session_live_map.html` (new), `session_live_row.html` — a Map / List switch; the map's toolbar, problem summary, canvas, tray and details panel; a state chip on each list row
+- `logger/search-app/research_dashboard/static/live-map.js`, `live-map.css` — new: the map drawn from `map.json`, editing (tables added, moved, resized, rotated, duplicated, removed; IDs dragged onto tables, anywhere, or back to the tray; arrow keys and a "Place on" menu as alternatives), explicit saves with their revision, rooms (start from a copy, save as new, update), the floor plan; `health.json` every 2 seconds, timed from its start and given up after 2; colours with a ring, an icon and a reason; a gentle pulse, steady with reduced motion; the whole map marked not current when the feed fails or the researcher is signed out; sound off until switched on, once per new problem
+- `logger/search-app/research_dashboard/live_map_i18n.py` (new), `i18n.py`, `live_views.py` — English and Italian copy; the script's words passed as data (no inline script)
+- `logger/search-app/tests/test_live_map_browser.py` — new
+
+**What changed for the participant**
+No change for children. Researchers see the class as a classroom: a large ID per tablet, grey (not connected yet), green, amber (late signal, SOL page hidden, out of full screen, search not back, two tablets with one ID) or red (no contact, search refused, save not confirmed), a count of tablets needing attention, and a click for details and recent history. The list stays, with the same state next to each ID.
+
+**How it works**
+The layout and the health come from two separate requests: polling repaints the circles only, so a drag or an unsaved arrangement is never overwritten, and others' saves are fetched every 15 seconds only while nothing is being edited. The list opens first until the session has a layout, then the map, unless the researcher chose otherwise in this browser. IDs outside the roster that register appear by themselves. Details read progress from the list's own rows, so the panel invents no run before one exists.
+
+**If something looks wrong after this, check**
+- Circles all faded with "Monitoring unavailable" → `health.json` is failing (network, server, or `monitor.sqlite3`).
+- A save that says someone else saved → another dashboard saved the map; their version is shown.
+- No beep → sound is off by default; the browser needs a click on "Sound alerts" to allow audio.
+
+**Left alone**
+The list's own polling and rows, the totals and question figures, participant links, the children's pages.
+
+**Verified**
+The new browser tests: the list first without a layout, every state with its ring, icon and reason, the summary ordered by severity, details and history opened from the summary and kept through polling, the list's chips, dragging an ID onto a table and saving, a conflicting save, the health feed failing and recovering, signing out, sound once per new problem and never per poll, and a phone width without sideways scrolling. Not yet on the researcher's own device during a class.
+
 ## 2026-11-26 — Keep classroom layouts for the map, and each tablet's health a request away
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests

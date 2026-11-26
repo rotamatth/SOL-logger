@@ -1,5 +1,7 @@
 {% extends 'research/base.html' %}
-{% block page_assets %}<script src="{{ url_for('research.static', filename='live.js', v='dashboard-v2-20261105') }}" defer></script>{% endblock %}
+{% block page_assets %}<script src="{{ url_for('research.static', filename='live.js', v='dashboard-v2-20261105') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('research.static', filename='live-map.css', v='map-1') }}">
+<script src="{{ url_for('research.static', filename='live-map.js', v='map-1') }}" defer></script>{% endblock %}
 {% block content %}
 <div class="sessions-workspace live-workspace"{% if running %} data-live-url="{{ u('session_live_data', session_id=study_session.id) }}" data-login-url="{{ u('login', next=request.full_path.rstrip('?')) }}"{% endif %}>
   <a class="session-back" href="{{ u('sessions_page', year=study_session.school_year or None, _anchor=study_session.id) }}">&larr; {{ t('back_to_sessions') }}</a>
@@ -8,11 +10,18 @@
   </div>
   {% if not running %}<p class="notice" role="status">{{ t('live_not_today') }}</p>{% endif %}
   <dl class="live-totals" id="live-totals">{% include 'research/session_live_totals.html' %}</dl>
+  <div class="live-view-switch" role="group" aria-label="{{ t('map_views_label') }}">
+    <button type="button" class="button compact" data-live-view="map" aria-pressed="false">{{ t('map_view') }}</button>
+    <button type="button" class="button compact" data-live-view="list" aria-pressed="true">{{ t('list_view') }}</button>
+  </div>
+  {% include 'research/session_live_map.html' %}
+  <div id="live-list-view">
   <p class="live-status" id="live-status" role="status" data-updated-label="{{ t('live_updated') }}" data-reconnecting="{{ t('live_reconnecting') }}" data-signed-out="{{ t('live_signed_out') }}"><span id="live-status-text">{{ t('live_updated') }} {{ updated }}</span> <a id="live-refresh" href="{{ request.full_path.rstrip('?') }}">{{ t('live_refresh') }}</a></p>
   <p class="small muted">{{ t('live_hint') }} {{ t('live_saved_note') }}</p>
   <section class="live-children" id="live-children" aria-label="{{ t('participant_ids') }}">
     {% for child in children %}{% include 'research/session_live_row.html' %}{% else %}<p class="muted">{{ t('no_enrolled_ids') }}</p>{% endfor %}
   </section>
+  </div>
   <details class="panel stats-panel live-questions" open>
     <summary>{{ t('stats_class_heading') }}</summary>
     <div id="live-questions">{% include 'research/session_live_questions.html' %}</div>
