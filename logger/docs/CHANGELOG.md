@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Explain the Rooms page and the map's new layout
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/research_dashboard.md` — "Classroom map": the slim bar and banner; the Rooms page (size in metres, pieces, moving, lining up, turning, tablets per desk, keyboard, saving); a session's copy and "Use the new version"; placing IDs by tap, drag, Move and Take off the desk; colours with the desk tinted; `rooms.sqlite3` only
+- `logger/docs/production_readiness.md` — `room-images/` gone from the operational files
+- `logger/search-app/research_dashboard/guide_i18n.py` — the guide's live view step: the banner, the Rooms page, the + spots
+
+**What changed for the participant**
+No change for children. The documentation and the guide describe the redesigned map.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+- The docs and the app disagree on a size or a step → `rooms.py` (sizes) and `room-editor.js` (10 cm, 15°).
+
+**Left alone**
+The guide's pictures (the live view still opens on the list until a session has a room); the timing and limits sections.
+
+**Verified**
+The guide's tests pass; no tracked file still mentions the first version's floor plans or canvas.
+
 ## 2026-11-26 — Show the class on its room drawn to scale, with the tablets that need an adult above it
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests
