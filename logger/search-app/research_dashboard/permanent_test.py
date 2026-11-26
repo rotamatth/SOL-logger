@@ -33,13 +33,15 @@ TEST_EXPERIMENTS = {
         ("Fact-finding -- Ossicini Orecchio", "Quali sono i 3 ossicini dentro al nostro orecchio?"),
         ("Multi-step -- Coclea", "Che forma ha la coclea e dove si trova?"),
         ("Open-ended -- animali", "Quali sono 5 animali con l'udito più sviluppato al mondo?"))),
-    # The 2 December 2026 sessions, 4a and 5a, as the server stored them on 26 November (settings revision 46),
-    # in the same boxes. The theme stays the topic word the app knows, whatever the session's topic text says.
+    # The 2 December 2026 sessions, 4a and 5a, as the server stored them on 26 November (settings revision 46).
+    # 4a's first two are swapped, as Matthias chose for the session too, so each sits in the box of its picture:
+    # 1 the constellation with the red star, 2 the Sun's light on the Earth, 3 the rocket. The theme stays the
+    # topic word the app knows, whatever the session's topic text says.
     "TEST-costellazioni": _question_set("costellazioni", (
-        ("Tra la Terra e il Sole",
-         "Scrivete quanto tempo ci mette la luce del Sole ad arrivare fino al nostro pianeta Terra."),
         ("Le stelle",
          "Scrivete il nome della stella più vicina a noi dopo il Sole e scoprite in quale costellazione si trova."),
+        ("Tra la Terra e il Sole",
+         "Scrivete quanto tempo ci mette la luce del Sole ad arrivare fino al nostro pianeta Terra."),
         ("Missioni Spaziali",
          "Molte missioni spaziali hanno il nome di un personaggio mitologico. Indica almeno 3 nomi di queste missioni."))),
     "TEST-muscoli": _question_set("muscoli", (

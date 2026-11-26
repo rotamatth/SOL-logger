@@ -111,17 +111,17 @@ def test_the_test_ids_ask_the_questions_of_the_10_november_sessions():
 
 
 def test_the_2_december_test_ids_ask_the_published_questions_of_4a_and_5a():
-    """Copied word for word from the server's settings revision 46 (26 November), in the sessions' boxes."""
+    """Word for word from the server's settings revision 46 (26 November); 4a's first two swapped to fit their pictures."""
     from research_dashboard.permanent_test import TEST_EXPERIMENTS
 
     def rows(uid):
         return tuple((item["topic"], item["question"]) for item in TEST_EXPERIMENTS[uid]["questions"])
 
     assert rows("TEST-costellazioni") == (
-        ("Tra la Terra e il Sole",
-         "Scrivete quanto tempo ci mette la luce del Sole ad arrivare fino al nostro pianeta Terra."),
         ("Le stelle",
          "Scrivete il nome della stella più vicina a noi dopo il Sole e scoprite in quale costellazione si trova."),
+        ("Tra la Terra e il Sole",
+         "Scrivete quanto tempo ci mette la luce del Sole ad arrivare fino al nostro pianeta Terra."),
         ("Missioni Spaziali",
          "Molte missioni spaziali hanno il nome di un personaggio mitologico. Indica almeno 3 nomi di queste missioni."))
     assert rows("TEST-muscoli") == (

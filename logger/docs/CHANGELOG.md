@@ -65,6 +65,29 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Swap TEST-costellazioni's first two questions, so each sits in the box of its picture
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — "Le stelle" is now question 1 and "Tra la Terra e il Sole" question 2
+- `logger/search-app/tests/test_permanent_test_experiment.py` — the expected order follows
+
+**What changed for the participant**
+No change for children. In `TEST-costellazioni`, the nearest-star question now shows next to the constellation with the red star, and the sunlight question next to the Sun shining on the Earth. As published on 26 November, 4a had them the other way round. Matthias chose to swap them in the 4a session too, in the dashboard, so the test ID still asks what the class gets.
+
+**How it works**
+A question's box picks its picture (`research_dashboard.md`, "Session topic"). Only the order of two rows changed.
+
+**If something looks wrong after this, check**
+- The 4a session and `TEST-costellazioni` in a different order → the swap in the dashboard was not made, or not approved again.
+
+**Left alone**
+`TEST-muscoli`, whose order already fit its pictures. The pictures, their boxes, the texts.
+
+**Verified**
+The test IDs' tests pass.
+
 ## 2026-11-26 — Give TEST-costellazioni and TEST-muscoli the published questions of 4a and 5a
 
 **Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests
