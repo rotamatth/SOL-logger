@@ -594,8 +594,9 @@ The children still meet the three questions in a random order; the picture follo
 children's start page. Each is an experiment with one participant, itself, for developers to try
 the whole app on the real server: it searches its topic's engine and plays its topic's animations,
 when the topic has them. `TEST-spazio` and `TEST-orecchio` ask the questions of the 10 November
-sessions. `TEST-costellazioni` and `TEST-muscoli` ask placeholder questions (their topics start with
-"Segnaposto") until the 2 December questions are in. It works on any day
+sessions, `TEST-costellazioni` and `TEST-muscoli` those of the 2 December sessions (4a and 5a, as
+published on 26 November). Their theme stays the topic word, so they search the right engine even
+when a session's topic text is longer. It works on any day
 and needs no session, class or enrollment. Every start is a new attempt; **Ricomincia** in the
 red PROVA banner leaves the current one. Test pages show that banner, so a wrong choice on a
 child's tablet is noticed at once. A double tap on the start page still gives one attempt.
@@ -820,7 +821,7 @@ For each question, typing a nonblank first answer immediately shows “Secondo t
 
 SQLite stores confidence as 1, 2 or 3 alongside the original first answer, or null for confirmed unknown and historical answers collected before this field existed. First-answer drafts save text and confidence together under the same revision and resume across browsers/workers. Search remains locked until confirmation. The canonical `OwnKnowledgeAnswerSubmitted` event includes `confidence`, `outcome`, `answerPhase: pre-search` and the existing attempt/session/task context. Identical retries do not duplicate the answer/event; a different confidence conflicts. Database upgrades do not infer historical confidence or rewrite previously queued/published events.
 
-**Changing "Non lo so" (November 2026).** After confirming "Non lo so", a group can still choose **Cambia la mia risposta** and write an answer with its stars, once, until the question's first search. It is offered on the confirmed answer and in the search page's "La mia prima risposta" pop-up, and disappears with the first search. Nothing is overwritten: the original row in `progress_first_answers` and its `OwnKnowledgeAnswerSubmitted` event stay as they were. The written answer is stored beside them in `progress_first_answer_changes` and logged as `OwnKnowledgeAnswerChanged` (`previousOutcome: unknown`). The first search of each question is noted in `progress_first_searches`. From then on the written answer is the first answer on the recap and in the dashboard, which marks it "first “Non lo so”, changed before searching". Neither table changes the schema version, so an older image still opens the database.
+**Changing "Non lo so" (November 2026).** After confirming "Non lo so", a group can still choose **Cambia la mia risposta** and write an answer with its stars, once, until the question's first search. On that form the button beside **Conferma** reads **Non lo so**, as on the first form, and goes back keeping it. It is offered on the confirmed answer and in the search page's "La mia prima risposta" pop-up, and disappears with the first search. Nothing is overwritten: the original row in `progress_first_answers` and its `OwnKnowledgeAnswerSubmitted` event stay as they were. The written answer is stored beside them in `progress_first_answer_changes` and logged as `OwnKnowledgeAnswerChanged` (`previousOutcome: unknown`). The first search of each question is noted in `progress_first_searches`. From then on the written answer is the first answer on the recap and in the dashboard, which marks it "first “Non lo so”, changed before searching". Neither table changes the schema version, so an older image still opens the database.
 
 The current progress schema is 6. It also provides internal storage for recap drafts/revisions and source-snapshot repeats, with the UI and authorization controls left to #9/#15. Reward assets no longer affect question-set eligibility. See [Issue #6 handover](issue6_handover.md) for the API contracts and acceptance boundaries.
 
