@@ -18,7 +18,9 @@ EDITOR_COOKIE = "sol_research_editor"
 JSON_ENDPOINTS = ("research.editor_recovery", "research.session_check", "research.editor_logout_check",
                   "research.session_live_data", "research.session_map_data", "research.session_map_save",
                   "research.session_map_room", "research.session_map_image", "research.room_create",
-                  "research.room_update", "research.session_health", "research.room_image")
+                  "research.room_update", "research.session_health", "research.room_image",
+                  "research.rooms_data", "research.room_data", "research.room_new", "research.room_save",
+                  "research.room_remove")
 
 
 def is_dashboard_path(path):

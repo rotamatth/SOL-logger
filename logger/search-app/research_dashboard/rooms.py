@@ -19,7 +19,9 @@ import secrets
 import sqlite3
 import time
 
-GRID_CM = 50
+GRID_CM = 50                       # the squares drawn on the floor
+SNAP_CM = 10                       # how far a piece moves at a time in the editor
+DEFAULT_ROOM_CM = (800, 600)
 ROOM_CM = (200, 3000)
 DESK_CM = (130, 50)
 SEAT_CM = 32                       # each of a desk's two tablet spots, from its centre along its length

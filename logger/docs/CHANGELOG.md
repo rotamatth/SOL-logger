@@ -65,6 +65,37 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Draw classrooms to scale on a new Rooms page
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests
+
+**Files**
+- `logger/search-app/research_dashboard/rooms_views.py` — new: the Rooms page (`/dashboard/classrooms`) and its JSON (list, one room, create, change, delete; changes carry their revision, a stale one gets 409 with the current room)
+- `logger/search-app/research_dashboard/templates/research/rooms.html` — new: saved rooms, the pieces to add, the name and size, undo/redo/save, the room, the selected piece's panel
+- `logger/search-app/research_dashboard/static/room-drawing.js` — new: draws a room to scale in an SVG in centimetres (walls, 50 cm squares, metre marks, desks, islands, landmarks, tablet spots, desk names); the live map will use it too
+- `logger/search-app/research_dashboard/static/room-editor.js` — new: add by click or by dragging from the palette, move (10 cm steps, lining up with nearby pieces, Alt for free), turn with the round handle (15° steps, Shift for any angle), arrow keys, R / Shift+R, duplicate, remove, tablets per desk 1/2, desks per island 2/4, undo/redo, explicit save, a question before leaving unsaved changes
+- `logger/search-app/research_dashboard/static/rooms.css` — new: the drawing's look (shared with the live map later) and the page's layout
+- `logger/search-app/research_dashboard/rooms_i18n.py` (new), `i18n.py` — English and Italian copy
+- `logger/search-app/research_dashboard/rooms.py` — the 10 cm step and the default 8 × 6 m size, given to the page from one place
+- `logger/search-app/research_dashboard/__init__.py`, `dashboard.py`, `templates/research/base.html` — the store and the routes registered, their JSON errors, and "Rooms" in the menu between Sessions and Data and history
+- `logger/search-app/tests/test_rooms.py`, `test_room_editor_browser.py` (new), `test_dashboard_feedback.py` — the endpoints; the editor in Chromium; the menu now has three sections
+
+**What changed for the participant**
+No change for children. Researchers get a "Rooms" page to draw each classroom once, in metres, and reuse it. The live view does not use it yet.
+
+**How it works**
+Every size comes from `rooms.py` and reaches the scripts as data, so the drawing and the server's checks agree. Nothing is sent until "Save the room"; the save carries the revision it started from.
+
+**If something looks wrong after this, check**
+- A save that says someone else saved → another dashboard saved that room first; their version is on screen.
+- Pieces that do not move where expected → the 10 cm step and the lining up (hold Alt to move freely).
+
+**Left alone**
+The live view and its first-version map, `room_maps.py`, monitoring.
+
+**Verified**
+21 store and endpoint tests and 6 browser tests (a first room drawn, named and saved; lining up and turning by handle and keyboard; undo and redo; a drop from the palette; a save after someone else's; leaving with unsaved changes). Full suite: 1446 passed; the 3 full-screen browser tests that failed did so with the CDN's `reading 'fn'` error, unrelated.
+
 ## 2026-11-26 — Store classrooms drawn to scale: double desks, islands, landmarks and tablet spots
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests

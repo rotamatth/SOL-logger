@@ -1,0 +1,54 @@
+{% extends 'research/base.html' %}
+{% block page_assets %}<link rel="stylesheet" href="{{ url_for('research.static', filename='rooms.css', v='rooms-1') }}">
+<script src="{{ url_for('research.static', filename='room-drawing.js', v='rooms-1') }}" defer></script>
+<script src="{{ url_for('research.static', filename='room-editor.js', v='rooms-1') }}" defer></script>{% endblock %}
+{% block content %}
+<div class="rooms-workspace">
+  <div class="rooms-heading"><h1>{{ t('rooms_heading') }}</h1><p class="muted">{{ t('rooms_intro') }}</p></div>
+  <div class="room-editor" id="room-editor"
+       data-list-url="{{ u('rooms_data') }}"
+       data-room-url="{{ u('room_data', room_id='ROOM') }}"
+       data-new-url="{{ u('room_new') }}"
+       data-save-url="{{ u('room_save', room_id='ROOM') }}"
+       data-delete-url="{{ u('room_remove', room_id='ROOM') }}"
+       data-csrf="{{ auth.csrf }}"
+       data-config='{{ room_config|tojson }}'
+       data-strings='{{ room_strings|tojson }}'>
+    <aside class="room-side">
+      <section class="room-card" aria-labelledby="room-list-heading">
+        <h2 id="room-list-heading">{{ t('rooms_saved_heading') }}</h2>
+        <ul class="room-list" id="room-list"></ul>
+        <button type="button" class="button compact room-new" id="room-new">{{ t('rooms_new') }}</button>
+      </section>
+      <section class="room-card" aria-labelledby="room-palette-heading">
+        <h2 id="room-palette-heading">{{ t('rooms_add_heading') }}</h2>
+        <p class="small muted">{{ t('rooms_add_hint') }}</p>
+        <div class="room-palette" id="room-palette">
+          {% for kind, desks, label in [('desk', 0, 'rooms_kind_desk'), ('island', 2, 'rooms_kind_island2'), ('island', 4, 'rooms_kind_island4'), ('teacher', 0, 'rooms_kind_teacher'), ('board', 0, 'rooms_kind_board'), ('door', 0, 'rooms_kind_door'), ('window', 0, 'rooms_kind_window')] %}
+          <button type="button" class="room-piece-button" data-kind="{{ kind }}" data-desks="{{ desks }}"><span class="room-piece-icon room-piece-icon-{{ kind }}{{ desks or '' }}" aria-hidden="true"></span>{{ t(label) }}</button>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+    <section class="room-main" aria-label="{{ t('rooms_floor_label') }}">
+      <div class="room-toolbar">
+        <label class="room-field room-field-name">{{ t('rooms_name') }} <input type="text" id="room-name" maxlength="80" placeholder="{{ t('rooms_name_placeholder') }}" autocomplete="off"></label>
+        <label class="room-field">{{ t('rooms_width') }} <input type="number" id="room-width" min="2" max="30" step="0.1" inputmode="decimal"></label>
+        <label class="room-field">{{ t('rooms_depth') }} <input type="number" id="room-depth" min="2" max="30" step="0.1" inputmode="decimal"></label>
+        <span class="room-toolbar-gap"></span>
+        <button type="button" class="button compact" id="room-undo" title="Ctrl/⌘ Z">↶ {{ t('rooms_undo') }}</button>
+        <button type="button" class="button compact" id="room-redo" title="Ctrl/⌘ ⇧ Z">↷ {{ t('rooms_redo') }}</button>
+        <button type="button" class="button primary" id="room-save">{{ t('rooms_save') }}</button>
+      </div>
+      <p class="room-message" id="room-message" role="status"></p>
+      <div class="room-floor-card">
+        <svg class="room-floor" id="room-floor" role="application" aria-label="{{ t('rooms_floor_label') }}" tabindex="0"></svg>
+        <div class="room-floor-foot"><span class="small muted">{{ t('rooms_foot') }}</span>
+          <span class="room-floor-actions"><button type="button" class="quiet" id="room-duplicate">{{ t('rooms_duplicate_room') }}</button>
+          <button type="button" class="quiet" id="room-delete">{{ t('rooms_delete_room') }}</button></span></div>
+      </div>
+    </section>
+    <aside class="room-card room-props" id="room-props" aria-live="polite"></aside>
+  </div>
+</div>
+{% endblock %}

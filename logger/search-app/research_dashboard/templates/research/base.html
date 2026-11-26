@@ -42,6 +42,7 @@
       {% if auth and auth.authenticated %}
       <nav class="header-primary" aria-label="{{ t('primary_navigation') }}">
       <a data-section="sessions" href="{{ u('sessions_page',year=(study_context.get('preparation_year') or study_context.school_year or None) if study_context is defined else None,_anchor=study_context.get('id') if study_context is defined else None) }}" {% if research_area|default('') == 'sessions' %}aria-current="page"{% endif %}>{{ t('sessions') }}</a>
+      <a data-section="rooms" href="{{ u('rooms_page') }}" {% if research_area|default('') == 'rooms' %}aria-current="page"{% endif %}>{{ t('rooms_nav') }}</a>
       <a data-section="history" href="{{ u('overview',collection='study',grade=study_context.grade if study_context is defined and study_context.grade in grades else 'all',school_year=study_context.school_year if study_context is defined else None,session=study_context.get('id') if study_context is defined and study_context.grade in grades else None) }}" {% if research_area|default('') == 'history' %}aria-current="page"{% endif %}>{{ t('data_and_history') }}</a>
       </nav>
       {% endif %}
