@@ -379,3 +379,33 @@ def test_a_lost_reply_to_a_draft_is_no_conflict(student_site):
     page.wait_for_timeout(200)
     assert page.locator("#first-answer-draft-status").inner_text() == ""
     assert page.locator("#first-answer-retry-draft").is_hidden()
+
+
+@pytest.mark.parametrize("student_site", ["Spazio"], indirect=True)
+def test_a_busy_moment_before_the_recap_waits_and_opens_the_recap_by_itself(student_site, monkeypatch):
+    """Found in the rehearsal of 26 November: the end of the session could not be recorded for a moment when the
+    recap opened. The child sees "Un momento…" with Riprova, and the recap opens by itself a few seconds later."""
+    import student_progress
+    original = student_progress.StudentProgress.session_event
+    refused = []
+
+    def busy_once(self, attempt, event_type):
+        if event_type == "sessionCompleted" and not refused:
+            refused.append(event_type)
+            return False
+        return original(self, attempt, event_type)
+    monkeypatch.setattr(student_progress.StudentProgress, "session_event", busy_once)
+    page, base, _ = student_site
+    statuses = []
+    page.on("response", lambda response: statuses.append(response.status) if response.url.endswith("/thank_you") else None)
+    reach_review(page, base)
+    for number in (2, 3):
+        page.click("a.review-button")
+        answer_question(page, number, "Laika", "Una cagnolina russa")
+    page.click("a.review-button")
+    page.get_by_text("Un momento…").wait_for()
+    assert "Le tue risposte sono salvate" in page.inner_text("#busy-retry")
+    assert page.get_by_role("link", name="Riprova").is_visible() and page.get_by_text("Torna alla ricerca").count() == 0
+    page.get_by_role("button", name="Salva l’attività").wait_for(timeout=10000)
+    assert statuses[:2] == [503, 200], "tried again by itself, once"
+    assert page.url.endswith("/thank_you")

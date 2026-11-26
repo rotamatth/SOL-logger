@@ -202,8 +202,13 @@ class StudentProgress:
 
     @staticmethod
     def unavailable():
-        return render_template("error.html", show_search=False, error_title="Salvataggio non disponibile",
-                               error_message="Riprova o chiedi al ricercatore. I progressi salvati restano disponibili."), 503
+        """The server could not record the next step, usually for a busy moment. On a page load the answers are
+        already saved: the page tries again by itself (and Riprova does the same) instead of sending the child to
+        the search. A start that could not be admitted saves nothing yet: Riprova goes back to the ID page."""
+        if request.method == "GET":
+            return render_template("busy.html", show_search=False, saved=True,
+                                   retry_url=request.full_path.rstrip("?")), 503
+        return render_template("busy.html", show_search=False, saved=False, retry_url=url_for("start_page")), 503
 
     def publish(self, attempt):
         """An outbox ID is also the log receipt ID: lost acknowledgements cannot duplicate events."""
