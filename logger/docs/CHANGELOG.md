@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Stop turning the class red for the draft refused just after Conferma
+
+**Commit:** pending · **Type:** fix · **Area:** dashboard, logging, tests
+
+**Files**
+- `logger/search-app/research_dashboard/monitoring.py` — a 409 on a draft (`first_answer_draft`, `final_answer_draft`, `recap_draft`) is no longer a failed save; 5xx on a draft, and any refusal of an answer itself, still are
+- `logger/search-app/static/first-answer.js`, `final-answer-draft.js` — a draft refused as stale (409) is not reported to the map; the child's own message is unchanged
+- `logger/search-app/templates/first_answer.html`, `layout.html` — the two scripts reloaded (`monitor-2`)
+- `logger/search-app/tests/test_classroom_monitor.py`, `test_connection_watch_browser.py` — the case found in the rehearsal, on the server and in the browser
+
+**What changed for the participant**
+No change for children. In the live map, a tablet no longer turns red with "Salvataggio non confermato" after every first answer.
+
+**How it works**
+The first answer's autosave often lands just after Conferma; the server refuses it (409) because the answer has moved on, which loses nothing. In the rehearsal of 26 November, with 20 groups, 36 such refusals turned almost the whole class red for about a minute while every answer was saved.
+
+**If something looks wrong after this, check**
+- A real failed save not shown → a 5xx on any save, or a 409 on a submitted answer or the recap, still shows red; the reason is in the tablet's details.
+
+**Left alone**
+The drafts' own behaviour and messages on the tablet; the end of a question, the recap's save and their reports.
+
+**Verified**
+The two new tests fail without the change and pass with it; the monitor, signal and map tests pass. Rehearsal rerun with the production image, see the notes.
+
 ## 2026-11-26 — Keep a turned door's word upright and show the selected piece in blue only
 
 **Commit:** pending · **Type:** fix · **Area:** dashboard, styling

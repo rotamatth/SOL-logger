@@ -140,3 +140,20 @@ def test_a_refused_draft_is_reported_until_a_save_goes_through(student_site):
     page.locator("#first-answer-retry-draft").wait_for(state="hidden")
     page.wait_for_timeout(500)
     assert sent[-1]["incidents"] == [] and sent[-1]["lastSaveFor"] is not None and sent[-1]["lastSaveFor"] < 5
+
+
+def test_a_draft_refused_as_stale_is_not_reported_to_the_map(student_site):
+    """The autosave that lands after the answer moved on is refused (409): nothing is lost, so no incident."""
+    from .progress_helpers import through_intro
+    page, base, _ = student_site
+    page.goto(base + "/start")
+    page.select_option("#id-box", "1")
+    page.click("#continue-btn")
+    through_intro(page)
+    page.route("**/first-answer/draft", lambda route: route.fulfill(status=409, content_type="application/json",
+                                                                  body='{"error": "stale"}'))
+    sent = reports(page)
+    page.fill("#first-answer-text", "Un cane")
+    page.locator("#first-answer-retry-draft").wait_for(state="visible", timeout=15000)
+    page.wait_for_timeout(2500)
+    assert sent and not any(item.get("incidents") for item in sent)

@@ -13,6 +13,9 @@ COOKIE = "sol_monitor"
 # the same tablet's next save goes through. The practice saves nothing, so its routes are not here.
 SAVE_ENDPOINTS = frozenset(("first_answer", "first_answer_draft", "first_answer_change", "final_answer_draft",
                             "recap_draft", "recap_save", "recap_finish", "end"))
+# A draft is never the answer itself. One refused with 409 arrived after the answer moved on (typically the
+# autosave that lands just after Conferma): nothing is lost, so it is not a failed save.
+DRAFT_ENDPOINTS = frozenset(("first_answer_draft", "final_answer_draft", "recap_draft"))
 
 
 class Monitoring:
@@ -60,7 +63,8 @@ class Monitoring:
         if request.path.startswith(("/dashboard", "/static")):
             return response
         try:
-            if request.method == "POST" and request.endpoint in SAVE_ENDPOINTS:
+            stale_draft = request.endpoint in DRAFT_ENDPOINTS and response.status_code == 409
+            if request.method == "POST" and request.endpoint in SAVE_ENDPOINTS and not stale_draft:
                 if response.status_code >= 500 or response.status_code == 409:
                     reason = "conflict" if response.status_code == 409 else "server"
                     self.monitor.server_incident(self.token(), "save_failed", True, reason if reason in SAVE_REASONS else None)
