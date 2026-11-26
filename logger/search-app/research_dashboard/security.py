@@ -20,9 +20,6 @@ SESSION_SECONDS = 28800
 LARGE_FORM_ENDPOINTS = ("research.session_questions", "research.editor_recovery")
 LARGE_FORM_BYTES = 4 * 1024 * 1024
 FORM_BYTES = 64 * 1024
-# A classroom's floor plan for the live view's map (room_maps.IMAGE_BYTES, plus the form around it).
-IMAGE_FORM_ENDPOINTS = ("research.session_map_image",)
-IMAGE_FORM_BYTES = 9 * 1024 * 1024
 
 
 def _editor_owner_cookie():
@@ -61,8 +58,7 @@ def register_security(dash):
         g.research_auth = None
         g.research_cookie = request.cookies.get(COOKIE, "")
         g.research_editor_owner = _editor_owner_cookie()
-        request.max_content_length = (IMAGE_FORM_BYTES if request.endpoint in IMAGE_FORM_ENDPOINTS
-                                      else LARGE_FORM_BYTES if request.endpoint in LARGE_FORM_ENDPOINTS else FORM_BYTES)
+        request.max_content_length = LARGE_FORM_BYTES if request.endpoint in LARGE_FORM_ENDPOINTS else FORM_BYTES
         if request.endpoint == "research.static":
             return None
         g.research_hash = dash.password_hash()

@@ -1,18 +1,27 @@
 {% extends 'research/base.html' %}
 {% block page_assets %}<script src="{{ url_for('research.static', filename='live.js', v='dashboard-v2-20261105') }}" defer></script>
-<link rel="stylesheet" href="{{ url_for('research.static', filename='live-map.css', v='map-1') }}">
-<script src="{{ url_for('research.static', filename='live-map.js', v='map-1') }}" defer></script>{% endblock %}
+<link rel="stylesheet" href="{{ url_for('research.static', filename='rooms.css', v='rooms-1') }}">
+<link rel="stylesheet" href="{{ url_for('research.static', filename='live-map.css', v='map-2') }}">
+<script src="{{ url_for('research.static', filename='room-drawing.js', v='rooms-1') }}" defer></script>
+<script src="{{ url_for('research.static', filename='live-map.js', v='map-2') }}" defer></script>{% endblock %}
 {% block content %}
-<div class="sessions-workspace live-workspace"{% if running %} data-live-url="{{ u('session_live_data', session_id=study_session.id) }}" data-login-url="{{ u('login', next=request.full_path.rstrip('?')) }}"{% endif %}>
+<div class="sessions-workspace live-workspace" id="live-workspace"{% if running %} data-live-url="{{ u('session_live_data', session_id=study_session.id) }}" data-login-url="{{ u('login', next=request.full_path.rstrip('?')) }}"{% endif %}>
   <a class="session-back" href="{{ u('sessions_page', year=study_session.school_year or None, _anchor=study_session.id) }}">&larr; {{ t('back_to_sessions') }}</a>
   <div class="preparation-heading"><div><h1>{{ study_session.name or (t('session') ~ ' ' ~ study_session.number) }}</h1><p class="muted">{{ t('live_heading') }} · {{ t('grade_' ~ study_session.grade) }} · {{ study_session.date or t('date_not_set') }}</p></div>
     <a class="button" href="{{ u('prepare_page', grade=study_session.grade, year=study_session.school_year or None, session=study_session.id) }}">{{ t('open_session') }}</a>
   </div>
   {% if not running %}<p class="notice" role="status">{{ t('live_not_today') }}</p>{% endif %}
   <dl class="live-totals" id="live-totals">{% include 'research/session_live_totals.html' %}</dl>
-  <div class="live-view-switch" role="group" aria-label="{{ t('map_views_label') }}">
-    <button type="button" class="button compact" data-live-view="map" aria-pressed="false">{{ t('map_view') }}</button>
-    <button type="button" class="button compact" data-live-view="list" aria-pressed="true">{{ t('list_view') }}</button>
+  <div class="live-bar" id="live-bar">
+    <div class="live-tabs" role="group" aria-label="{{ t('map_views_label') }}">
+      <button type="button" data-live-view="map" aria-pressed="false">{{ t('map_view') }}</button>
+      <button type="button" data-live-view="list" aria-pressed="true">{{ t('list_view') }}</button>
+    </div>
+    <label class="live-bar-room live-map-only" hidden>{{ t('map_room_label') }} <select id="live-map-rooms"></select></label>
+    <span class="live-bar-gap"></span>
+    <span class="live-map-monitor live-map-only" id="live-map-monitor" role="status" hidden></span>
+    <button type="button" class="button compact live-map-only" id="live-map-sound" aria-pressed="false" hidden>{{ t('map_sound') }}</button>
+    <a class="button compact live-map-only" id="live-map-rooms-link" href="{{ u('rooms_page') }}" hidden>{{ t('map_rooms_link') }} &#8599;</a>
   </div>
   {% include 'research/session_live_map.html' %}
   <div id="live-list-view">

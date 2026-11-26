@@ -1,109 +1,154 @@
-/* The live view's classroom map. Colour is never alone: each state also has a ring, an icon and a short reason. */
+/* The live view's classroom map. Colour is never alone: each state also has a ring, an icon and words. */
 .visually-hidden { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0 }
+.live-map[hidden], #live-list-view[hidden], .live-map [hidden], .live-bar [hidden] { display:none !important }
 
-.live-view-switch { display:flex; gap:6px; margin:12px 0 }
-.live-view-switch [aria-pressed=true] { background:var(--accent); border-color:var(--accent); color:var(--white) }
-.live-map[hidden], #live-list-view[hidden], .live-map [hidden] { display:none !important }
+/* In the map, the four counters become one line, so the room starts higher up. */
+.live-mode-map .live-totals { display:flex; flex-wrap:wrap; gap:4px 18px; margin:0 0 4px }
+.live-mode-map .live-totals > div { display:flex; flex-direction:row-reverse; align-items:baseline; gap:6px; padding:0; border:0; background:none }
+.live-mode-map .live-totals dd { margin:0; font-size:16px }
+.live-mode-map .live-totals dt { font-size:14px }
 
-.live-map { margin:8px 0 18px }
-.live-map-toolbar, .live-map-editbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 }
-.live-map-room { display:flex; align-items:center; gap:6px; font-weight:600; font-size:13px }
-.live-map-room select { min-width:180px }
-.live-map-editbar { padding:8px; border:1px dashed var(--accent); border-radius:8px; background:var(--white) }
-.live-map-table-tools { display:inline-flex; flex-wrap:wrap; gap:6px; padding-left:8px; border-left:1px solid var(--line) }
-.live-map-upload { position:relative }
-#live-map-edit[aria-pressed=true], #live-map-sound[aria-pressed=true] { background:var(--accent); border-color:var(--accent); color:var(--white) }
-.live-map-message { min-height:1.2em; margin:4px 0; font-size:13px }
-.live-map-message.live-map-problem { color:var(--warning-ink); font-weight:600 }
-.live-map-monitor { margin:4px 0; font-size:13px; color:var(--muted) }
-.live-map-monitor.live-map-problem { padding:8px 10px; border:2px solid var(--warning-line); border-radius:8px; background:var(--warning-soft); color:var(--warning-ink); font-weight:700 }
+/* One slim bar: the two views, the room, whether monitoring is live, sound and the Rooms page. */
+.live-bar { position:sticky; top:0; z-index:6; display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:10px 0 8px; padding:8px 10px;
+  border:1px solid var(--line); border-radius:12px; background:var(--white); box-shadow:0 3px 12px #182d3608 }
+.live-tabs { display:inline-flex; padding:3px; border-radius:9px; background:#f4efe3 }
+.live-tabs button { min-height:32px; padding:4px 14px; border:0; border-radius:7px; background:none; color:var(--muted); font-size:14px }
+.live-tabs button[aria-pressed=true] { background:var(--white); color:var(--ink); box-shadow:0 1px 3px #0000001f }
+.live-bar-room { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--muted) }
+.live-bar-room select { min-width:170px; min-height:34px; padding:4px 8px; border:1px solid #d9d1bf; border-radius:8px; background:var(--white); color:var(--ink); font-weight:600 }
+.live-bar-gap { flex:1 }
+.live-map-monitor { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--muted) }
+.live-map-monitor.live-map-ok::before { content:""; width:9px; height:9px; border-radius:50%; background:var(--map-green); box-shadow:0 0 0 3px #1e7b3426 }
+.live-map-monitor.live-map-problem { padding:4px 10px; border:2px solid var(--warning-line); border-radius:8px; background:var(--warning-soft); color:var(--warning-ink); font-weight:700 }
+#live-map-sound[aria-pressed=true] { background:var(--accent); border-color:var(--accent); color:var(--white) }
 
-.live-map-problems { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:6px 0 10px; font-weight:700 }
-.live-map-problems button { min-height:32px; padding:4px 10px; font-size:13px }
-.live-map-problems .map-red { border:2px solid #b42318; background:#fde8e6; color:#7a1610 }
-.live-map-problems .map-amber { border:2px solid #b45309; background:#fff3d6; color:#6b3a00 }
+.live-map { margin:0 0 18px }
+.live-map-message { min-height:0; margin:0 0 6px; font-size:13px; font-weight:600; color:var(--accent) }
+.live-map-message:empty { display:none }
+.live-map-message.live-map-problem { color:var(--warning-ink) }
+.live-map-notice { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:0 0 8px; padding:8px 12px; border-left:4px solid var(--logo);
+  border-radius:8px; background:#fff8ea; font-size:14px }
 
-.live-map-body { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:14px; align-items:start }
-.live-map-stage { position:relative; min-width:0 }
-.live-map-canvas { position:relative; width:100%; aspect-ratio:1000 / 700; overflow:hidden; border:1px solid var(--line);
-  border-radius:10px; background:var(--white) repeating-linear-gradient(0deg, transparent 0 49px, #f4efe3 49px 50px),
-  repeating-linear-gradient(90deg, transparent 0 49px, #f4efe3 49px 50px); touch-action:pan-y }
-.live-map.editing .live-map-canvas { border:2px dashed var(--accent); touch-action:none }
-.live-map-plan { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:.55; pointer-events:none; user-select:none }
-.live-map-empty { margin:8px 0 }
+/* The tablets that need an adult, worst first, above the map. */
+.live-map-problems { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:0 0 10px; padding:7px 10px; border:1px solid var(--line); border-radius:12px; background:var(--white) }
+.live-map-problems:empty { display:none }
+.live-map-problems h3 { margin:0 6px 0 0; font-size:15px }
+.live-map-problems-green h3 { color:var(--map-green); font-weight:600; font-size:14px }
+.live-map-problems-green h3::before { content:"✓ " }
+.live-map-problems-red { border:2px solid var(--map-red); background:var(--map-red-soft) }
+.live-map-problems-red h3 { color:var(--map-red-ink) }
+.live-map-problems-amber { border:2px solid var(--map-amber); background:var(--map-amber-soft) }
+.live-map-problems-amber h3 { color:var(--map-amber-ink) }
+.map-problem { gap:6px; min-height:30px; padding:3px 10px 3px 4px; border:2px solid; border-radius:999px; background:var(--white); font-size:13px; font-weight:700 }
+.map-problem small { font-weight:500; color:var(--muted) }
+.map-problem-icon { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; color:var(--white); font-size:12px }
+.map-problem.map-red { border-color:var(--map-red); color:var(--map-red-ink) }
+.map-problem.map-red .map-problem-icon { background:var(--map-red) }
+.map-problem.map-amber { border-color:var(--map-amber); color:var(--map-amber-ink) }
+.map-problem.map-amber .map-problem-icon { background:var(--map-amber) }
+.map-problem.selected { outline:3px solid var(--sol-blue); outline-offset:1px }
 
-.map-table { position:absolute; box-sizing:border-box; border:2px solid #a08a5b; border-radius:6px; background:#f6ead1;
-  color:#6b5a35; font-size:11px; font-weight:700; display:flex; align-items:flex-start; justify-content:flex-start; padding:2px 4px }
-.live-map.editing .map-table { cursor:move; touch-action:none }
-.map-table.selected { outline:3px solid var(--sol-blue); outline-offset:2px }
-.map-table.occupied .map-table-label { visibility:hidden }
-.map-table:focus-visible { outline:3px solid var(--sol-blue); outline-offset:2px }
-.map-table-resize { position:absolute; right:-7px; bottom:-7px; width:14px; height:14px; border-radius:3px; background:var(--sol-blue); cursor:nwse-resize; touch-action:none }
+/* The room and the details beside it. */
+.live-map-stage { display:grid; grid-template-columns:minmax(0, 1fr); gap:14px; align-items:start }
+.live-map-stage.with-details { grid-template-columns:minmax(0, 1fr) 330px }
+.live-map-floor-card { position:relative; padding:10px; border:1px solid var(--line); border-radius:12px; background:var(--white) }
+.live-map-floor { display:block; width:100%; height:auto; max-height:calc(100vh - 190px); margin:0 auto; user-select:none }
+.live-map-empty { padding:28px 16px; text-align:center }
+.live-map-empty p { margin:0 0 12px; color:var(--muted) }
 
-/* A tablet: the large ID, a ring and an icon for its state, and its reason underneath. */
-.map-tablet { position:absolute; z-index:2; transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center;
-  gap:2px; min-height:0; padding:0; border:0; background:none; cursor:pointer }
-.live-map-tray .map-tablet { position:relative; transform:none }
-.live-map-tray .map-tablet-circle { width:44px; height:44px; font-size:17px }
-.map-tablet:hover { background:none }
-.map-tablet-circle { position:relative; display:flex; align-items:center; justify-content:center; width:58px; height:58px; box-sizing:border-box;
-  border-radius:50%; border:4px solid #9aa0a6; background:#eef0f2; color:#30343a; font-size:22px; font-weight:800; line-height:1 }
-.map-tablet-icon { position:absolute; top:-6px; right:-8px; display:flex; align-items:center; justify-content:center; width:22px; height:22px;
-  border-radius:50%; border:2px solid var(--white); font-size:13px; font-weight:900; color:var(--white); background:#6b7280 }
-.map-tablet-reason { max-width:120px; padding:1px 6px; border-radius:6px; background:rgb(255 255 255 / 92%); color:#30343a;
-  font-size:11px; font-weight:700; line-height:1.25; text-align:center; white-space:normal }
-.map-tablet:focus-visible .map-tablet-circle, .map-tablet.selected .map-tablet-circle { outline:3px solid var(--sol-blue); outline-offset:3px }
-.live-map.editing .map-tablet { cursor:grab; touch-action:none }
-.map-tablet.dragging { z-index:5; opacity:.85; cursor:grabbing }
+/* A tablet on its desk: the large ID, a ring and a badge for its state. Upright whatever the desk's angle. */
+.map-node { cursor:pointer }
+.map-node:focus { outline:none }
+.map-ring { stroke-width:4.5; fill:var(--map-grey-soft); stroke:var(--map-grey); stroke-dasharray:5 4 }
+.map-id { font-size:19px; font-weight:800; fill:var(--ink); text-anchor:middle; dominant-baseline:central; pointer-events:none }
+.map-badge { stroke:var(--white); stroke-width:2.5; fill:#6b7280 }
+.map-badge-icon { font-size:11px; font-weight:900; fill:var(--white); text-anchor:middle; dominant-baseline:central; pointer-events:none }
+.map-green .map-ring { fill:var(--map-green-soft); stroke:var(--map-green); stroke-dasharray:none }
+.map-green .map-badge { fill:var(--map-green) }
+.map-amber .map-ring { fill:var(--map-amber-soft); stroke:var(--map-amber); stroke-width:6; stroke-dasharray:none }
+.map-amber .map-badge { fill:var(--map-amber) }
+.map-red .map-ring { fill:var(--map-red-soft); stroke:var(--map-red); stroke-width:7; stroke-dasharray:none }
+.map-red .map-badge { fill:var(--map-red) }
+.map-focus-ring { fill:none; stroke:var(--sol-blue); stroke-width:3.5 }
+.map-node:focus-visible .map-ring { stroke:#de9b34 }
+.map-node.moving .map-ring { stroke-dasharray:4 3 }
+.room-desk.room-desk-red { fill:var(--map-red-soft); stroke:var(--map-red); stroke-width:4 }
+.room-desk.room-desk-amber { fill:var(--map-amber-soft); stroke:var(--map-amber); stroke-width:3.5 }
 
-.map-green .map-tablet-circle { border-color:#1e7b34; background:#e6f4ea }
-.map-green .map-tablet-icon { background:#1e7b34 }
-.map-amber .map-tablet-circle { border:6px solid #b45309; background:#fff3d6 }
-.map-amber .map-tablet-icon { background:#b45309 }
-.map-amber .map-tablet-reason { background:#fff3d6; color:#6b3a00; border:1px solid #b45309 }
-.map-red .map-tablet-circle { border:7px solid #b42318; background:#fde8e6 }
-.map-red .map-tablet-icon { background:#b42318 }
-.map-red .map-tablet-reason { background:#b42318; color:var(--white) }
-.map-grey .map-tablet-circle { border-style:dashed }
+/* A gentle pulse until the problem recovers; a steady halo instead when motion is reduced. */
+.map-pulse { fill:none; stroke-width:5; transform-box:fill-box; transform-origin:center; animation:map-pulse 1.6s ease-out infinite }
+.map-red .map-pulse { stroke:var(--map-red) }
+.map-amber .map-pulse { stroke:var(--map-amber); animation-duration:2.2s }
+@keyframes map-pulse { 0% { opacity:.55; transform:scale(1) } 100% { opacity:0; transform:scale(1.7) } }
+@media (prefers-reduced-motion: reduce) { .map-pulse { animation:none; opacity:.25 } }
 
-/* A gentle pulse until the problem recovers; a steady thick ring instead when motion is reduced. */
-@keyframes map-attention { 0%, 100% { box-shadow:0 0 0 0 rgb(180 35 24 / 0%) } 50% { box-shadow:0 0 0 10px rgb(180 35 24 / 22%) } }
-@keyframes map-attention-amber { 0%, 100% { box-shadow:0 0 0 0 rgb(180 83 9 / 0%) } 50% { box-shadow:0 0 0 9px rgb(180 83 9 / 22%) } }
-.map-red .map-tablet-circle { animation:map-attention 1.6s ease-in-out infinite }
-.map-amber .map-tablet-circle { animation:map-attention-amber 2.2s ease-in-out infinite }
-@media (prefers-reduced-motion: reduce) {
-  .map-red .map-tablet-circle, .map-amber .map-tablet-circle { animation:none; box-shadow:0 0 0 5px rgb(0 0 0 / 12%) }
-}
+/* An empty spot on a desk: tap it to put an ID there. */
+.map-spot { cursor:pointer }
+.map-spot:focus { outline:none }
+.map-spot-circle { fill:#fbf6ea; stroke:#b9ad92; stroke-width:2; stroke-dasharray:4 4 }
+.map-spot-plus { font-size:20px; font-weight:700; fill:#9a8d70; text-anchor:middle; dominant-baseline:central; pointer-events:none }
+.map-spot:hover .map-spot-circle, .map-spot:focus-visible .map-spot-circle, .map-spot.target .map-spot-circle { stroke:var(--sol-blue); stroke-dasharray:none; stroke-width:3 }
+.map-spot.open .map-spot-circle, .map-spot.hover .map-spot-circle { stroke:var(--sol-blue); stroke-width:4; fill:#4285f41f; stroke-dasharray:none }
 
 /* Monitoring itself unavailable: the last known states stay readable, visibly not current. */
-.live-map.monitor-stale .map-tablet { filter:grayscale(.85); opacity:.7 }
-.live-map.monitor-stale .map-tablet-circle { animation:none }
+.live-map.monitor-stale .map-node, .live-map.monitor-stale .map-chip { filter:grayscale(.85); opacity:.7 }
+.live-map.monitor-stale .map-pulse { animation:none; opacity:0 }
 
-.live-map-side { display:flex; flex-direction:column; gap:12px; min-width:0 }
-.live-map-tray-box, .live-map-details { padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--white) }
-.live-map-tray-box h3, .live-map-details h3 { margin:0 0 4px; font-size:15px }
-.live-map-tray { display:flex; flex-wrap:wrap; gap:10px 8px; min-height:64px; padding:6px; border-radius:8px }
-.live-map.editing .live-map-tray { border:2px dashed #c9bfa8 }
-.live-map-tray.drop-target, .map-table.drop-target { outline:3px dashed var(--sol-blue); outline-offset:2px }
-.live-map-details-head { display:flex; justify-content:space-between; align-items:center; gap:8px }
-.live-map-details-head h3 { font-size:22px }
-.live-map-details dl { margin:8px 0; font-size:13px }
-.live-map-details dt { margin-top:6px; color:var(--muted); font-size:12px }
+/* IDs not on a desk, under the map. */
+.live-map-strip { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-size:13px }
+.live-map-tray { display:flex; flex-wrap:wrap; gap:6px; flex:1 1 auto }
+.live-map-tray-hint { flex:1 1 260px; text-align:right }
+.map-chip { position:relative; gap:0; min-width:38px; min-height:38px; padding:0 8px; border:2px dashed var(--map-grey); border-radius:999px; background:var(--map-grey-soft);
+  color:var(--ink); font-size:14px; font-weight:800; touch-action:none; cursor:grab }
+.map-chip-icon { position:absolute; top:-6px; right:-6px; display:grid; place-items:center; width:17px; height:17px; border:2px solid var(--white);
+  border-radius:50%; background:#6b7280; color:var(--white); font-size:9px }
+.map-chip.map-green { border:2px solid var(--map-green); background:var(--map-green-soft) }
+.map-chip.map-green .map-chip-icon { background:var(--map-green) }
+.map-chip.map-amber { border:3px solid var(--map-amber); background:var(--map-amber-soft) }
+.map-chip.map-amber .map-chip-icon { background:var(--map-amber) }
+.map-chip.map-red { border:3px solid var(--map-red); background:var(--map-red-soft) }
+.map-chip.map-red .map-chip-icon { background:var(--map-red) }
+.map-chip.selected { outline:3px solid var(--sol-blue); outline-offset:2px }
+.map-ghost { position:fixed; z-index:30; display:grid; place-items:center; width:44px; height:44px; transform:translate(-50%, -50%); border:3px solid var(--sol-blue);
+  border-radius:50%; background:var(--white); font-weight:800; pointer-events:none; box-shadow:0 6px 18px #0000002e }
+
+/* Choosing the ID for an empty spot. */
+.live-map-picker { position:absolute; z-index:8; width:260px; padding:12px; border:1px solid #d9d1bf; border-radius:12px; background:var(--white); box-shadow:0 10px 30px #00000024 }
+.live-map-picker h3 { margin:0 0 2px; font-size:15px }
+.live-map-picker p { margin:0 0 8px }
+.live-map-picker-ids { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px }
+.live-map-picker-ids .map-chip { cursor:pointer }
+
+/* One tablet's details. */
+.live-map-details { overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--white); box-shadow:-6px 0 24px #0000000d }
+.live-map-details-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line) }
+.live-map-details-head h3 { margin:0; font-size:22px }
+.live-map-details-head p { margin:0; color:var(--muted) }
+.live-map-details.map-red .live-map-details-head { background:var(--map-red-soft) }
+.live-map-details.map-amber .live-map-details-head { background:var(--map-amber-soft) }
+.live-map-details.map-green .live-map-details-head { background:var(--map-green-soft) }
+.live-map-details-body { padding:12px 14px; font-size:14px }
+.live-map-now p { margin:0 0 8px; padding:8px 10px; border-radius:10px }
+.live-map-now p strong { display:block }
+.live-map-now .map-reason-red { background:var(--map-red-soft); color:var(--map-red-ink) }
+.live-map-now .map-reason-amber { background:var(--map-amber-soft); color:var(--map-amber-ink) }
+.live-map-details dl { display:grid; grid-template-columns:auto 1fr; gap:5px 12px; margin:12px 0 }
+.live-map-details dt { color:var(--muted) }
 .live-map-details dd { margin:0; font-weight:600; overflow-wrap:anywhere }
-.live-map-details ul { margin:4px 0 8px; padding-left:18px; font-size:13px }
-.live-map-details li { margin:3px 0 }
-.live-map-details .map-reason-red { color:#7a1610; font-weight:700 }
-.live-map-details .map-reason-amber { color:#6b3a00; font-weight:700 }
-.live-map-details h4 { margin:10px 0 2px; font-size:13px }
-.live-map-details select { max-width:100% }
+.live-map-details h4 { margin:12px 0 4px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em }
+.live-map-details ul { margin:0; padding-left:18px; font-size:13px }
+.live-map-details-actions { display:flex; flex-wrap:wrap; gap:8px; padding:12px 14px; border-top:1px solid var(--line) }
 
 .live-monitor { margin-left:4px }
-.live-monitor.map-red { border:2px solid #b42318; background:#fde8e6; color:#7a1610 }
-.live-monitor.map-amber { border:2px solid #b45309; background:#fff3d6; color:#6b3a00 }
-.live-monitor.map-green { border-color:#1e7b34; background:#e6f4ea; color:#14532d }
+.live-monitor.map-red { border:2px solid var(--map-red); background:var(--map-red-soft); color:var(--map-red-ink) }
+.live-monitor.map-amber { border:2px solid var(--map-amber); background:var(--map-amber-soft); color:var(--map-amber-ink) }
+.live-monitor.map-green { border-color:var(--map-green); background:var(--map-green-soft); color:#14532d }
 
-@media (max-width: 900px) {
-  .live-map-body { grid-template-columns:minmax(0, 1fr) }
-  .map-tablet-circle { width:44px; height:44px; font-size:17px }
-  .map-tablet-reason { max-width:90px; font-size:10px }
+@media (max-width: 1000px) {
+  .live-map-stage.with-details { grid-template-columns:minmax(0, 1fr) }
+  .live-bar { position:static }
+}
+@media (max-width: 600px) {
+  .live-map-tray-hint { text-align:left }
+  .live-bar-room select { min-width:0; max-width:52vw }
 }

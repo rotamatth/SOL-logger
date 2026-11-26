@@ -65,6 +65,37 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Show the class on its room drawn to scale, with the tablets that need an adult above it
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests
+
+**Files**
+- `logger/search-app/research_dashboard/map_views.py` — the session's copy of a room (`classroom.json`), choosing a room or bringing its newer version in, placing one ID on a spot or off the map (a spot taken meanwhile gets 409 and the current map); `health.json` unchanged
+- `logger/search-app/research_dashboard/templates/research/session_live.html`, `session_live_map.html` — one slim bar (Map / List, the room, whether monitoring is live, sound, a link to the Rooms page); the problems banner above the map; the room; the "room changed" notice; the picker for an empty spot; the IDs not placed under the map; the details beside it
+- `logger/search-app/research_dashboard/static/live-map.js` — rewritten: the room drawn by `room-drawing.js`, each ID upright on its desk's spot with a ring, a badge and its words for screen readers, the desk tinted when its tablet needs an adult; tap a tablet for its details, tap an empty spot to choose its ID, drag an ID from the strip onto a spot, "Move" and "Take off the desk" in the details; health polling, the not-current states, the list's chips and sound as before
+- `logger/search-app/research_dashboard/static/live-map.css` — rewritten: the bar, the banner, the room, circles and spots, the strip, the picker, the details; the four counters become one line in the map
+- `logger/search-app/research_dashboard/live_map_i18n.py`, `live_views.py` — the new copy in English and Italian; the room's sizes and words passed to the page
+- `logger/search-app/research_dashboard/__init__.py`, `dashboard.py`, `security.py` — the map uses the new rooms; the first version's endpoints and the floor plan's upload limit removed (`security.py` is as before #53)
+- `logger/search-app/research_dashboard/room_maps.py`, `tests/test_room_maps.py` — removed: tables in canvas pixels, the floor-plan pictures and `room-images/`
+- `logger/search-app/tests/test_live_classroom.py` (new), `test_live_map_browser.py` — the endpoints and the health feed; the map in Chromium
+
+**What changed for the participant**
+No change for children. Researchers see the classroom as it is: the room to scale, each ID on its desk, the tablets to check in a banner above, details beside the map. Rooms are drawn on the Rooms page; the live view only chooses one and places the IDs.
+
+**How it works**
+A session still works on a copy of its room. Placing an ID changes only that ID, so two researchers placing IDs at once do not undo each other. The room's shape changes on the Rooms page, and a session shows "The room ... was changed" until someone brings the new version in, keeping the IDs whose desk still exists. A tap on a tablet never moves it: moving is "Move" in its details, or a drag from the strip for an ID not placed yet.
+
+**If something looks wrong after this, check**
+- "Someone else put an ID on that spot" → another dashboard placed an ID there first; the map shows it.
+- A map that does not match the Rooms page → the session's copy is older: use the notice above the map.
+- Circles faded with "Monitoring unavailable" → `health.json` is failing, as before.
+
+**Left alone**
+Monitoring (the tablets' signal, `monitor.sqlite3`, timings, reasons), the List view and its rows, the Rooms page.
+
+**Verified**
+6 endpoint tests and 12 browser tests (the list first without a room, choosing one; every colour with its icon, words and desk; the banner opening details and history; the list's chips; placing by tap, moving, taking off; a drag from the strip; a spot taken meanwhile; a changed room brought in; the feed failing; signed out; sound; a phone's width). Full suite: 1428 passed; the 3 children's browser tests that failed did so with the CDN's `reading 'fn'` error, unrelated. Tried by hand on a demo class with ten simulated tablets.
+
 ## 2026-11-26 — Draw classrooms to scale on a new Rooms page
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests

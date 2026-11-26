@@ -1,53 +1,40 @@
-{# The classroom map: drawn by live-map.js from the session's map and the tablets' health, both fetched as JSON. #}
+{# The classroom map: the session's copy of a room, drawn by room-drawing.js, with each tablet's health on its desk. #}
 <section class="live-map" id="live-map" aria-labelledby="live-map-heading" hidden
-         data-map-url="{{ u('session_map_data', session_id=study_session.id) }}"
-         data-save-url="{{ u('session_map_save', session_id=study_session.id) }}"
-         data-room-url="{{ u('session_map_room', session_id=study_session.id) }}"
-         data-image-upload-url="{{ u('session_map_image', session_id=study_session.id) }}"
-         data-image-url="{{ u('room_image', name='NAME') }}"
-         data-rooms-url="{{ u('room_create') }}"
-         data-room-update-url="{{ u('room_update', room_id='ROOM') }}"
+         data-map-url="{{ u('session_classroom_data', session_id=study_session.id) }}"
+         data-room-url="{{ u('session_classroom_room', session_id=study_session.id) }}"
+         data-place-url="{{ u('session_classroom_place', session_id=study_session.id) }}"
          data-health-url="{{ u('session_health', session_id=study_session.id) }}"
-         data-session-id="{{ study_session.id }}"
+         data-rooms-page="{{ u('rooms_page') }}"
          data-login-url="{{ u('login', next=request.full_path.rstrip('?')) }}"
-         data-strings='{{ map_strings|tojson }}'>
+         data-strings='{{ map_strings|tojson }}'
+         data-room-strings='{{ room_strings|tojson }}'
+         data-config='{{ room_config|tojson }}'>
   <h2 id="live-map-heading" class="visually-hidden">{{ t('map_heading') }}</h2>
-  <p class="small muted">{{ t('map_hint') }}</p>
-  <div class="live-map-toolbar">
-    <label class="live-map-room">{{ t('map_room_label') }}
-      <select id="live-map-rooms"></select></label>
-    <button type="button" class="button compact" id="live-map-use-room">{{ t('map_use_room') }}</button>
-    <button type="button" class="button compact" id="live-map-edit" aria-pressed="false">{{ t('map_edit') }}</button>
-    <button type="button" class="button compact" id="live-map-sound" aria-pressed="false">{{ t('map_sound') }}</button>
-  </div>
-  <div class="live-map-editbar" id="live-map-editbar" hidden>
-    <button type="button" class="button compact" id="live-map-add-table">{{ t('map_add_table') }}</button>
-    <label class="button compact live-map-upload">{{ t('map_upload_plan') }}<input type="file" id="live-map-plan" accept="image/png,image/jpeg,image/webp" class="visually-hidden"></label>
-    <button type="button" class="button compact" id="live-map-remove-plan">{{ t('map_remove_plan') }}</button>
-    <span class="live-map-table-tools" id="live-map-table-tools" hidden></span>
-    <button type="button" class="button compact primary" id="live-map-save">{{ t('map_save') }}</button>
-    <button type="button" class="button compact" id="live-map-save-room">{{ t('map_save_room') }}</button>
-    <button type="button" class="button compact" id="live-map-update-room" hidden>{{ t('map_update_room') }}</button>
-  </div>
+  <div class="live-map-notice" id="live-map-room-changed" role="status" hidden><span id="live-map-room-changed-text"></span>
+    <button type="button" class="button compact" id="live-map-room-update"></button></div>
   <p class="live-map-message" id="live-map-message" role="status"></p>
-  <p class="live-map-monitor" id="live-map-monitor" role="status"></p>
   <div class="live-map-problems" id="live-map-problems" aria-live="polite"></div>
-  <div class="live-map-body">
-    <div class="live-map-stage">
-      <div class="live-map-canvas" id="live-map-canvas" role="group" aria-label="{{ t('map_canvas_label') }}"></div>
-      <p class="small muted live-map-empty" id="live-map-empty" hidden></p>
+  <div class="live-map-stage" id="live-map-stage">
+    <div class="live-map-floor-card" id="live-map-floor-card">
+      <svg class="room-floor live-map-floor" id="live-map-floor" role="group" aria-label="{{ t('map_canvas_label') }}"></svg>
+      <div class="live-map-empty" id="live-map-empty" hidden><p id="live-map-empty-text"></p><a class="button compact" href="{{ u('rooms_page') }}" id="live-map-empty-link"></a></div>
+      <div class="live-map-picker" id="live-map-picker" role="dialog" aria-labelledby="live-map-picker-title" hidden>
+        <h3 id="live-map-picker-title"></h3>
+        <p class="small muted" id="live-map-picker-hint"></p>
+        <div class="live-map-picker-ids" id="live-map-picker-ids"></div>
+        <button type="button" class="button compact" id="live-map-picker-cancel"></button>
+      </div>
+      <div class="live-map-strip">
+        <strong id="live-map-tray-heading">{{ t('map_tray') }}</strong>
+        <div class="live-map-tray" id="live-map-tray" role="group" aria-labelledby="live-map-tray-heading"></div>
+        <span class="small muted live-map-tray-hint" id="live-map-tray-hint"></span>
+      </div>
     </div>
-    <aside class="live-map-side">
-      <section class="live-map-details" id="live-map-details" hidden aria-live="polite">
-        <div class="live-map-details-head"><h3 id="live-map-details-id"></h3>
-          <button type="button" class="button compact" id="live-map-details-close">{{ t('map_details_close') }}</button></div>
-        <div id="live-map-details-body"></div>
-      </section>
-      <section class="live-map-tray-box" aria-labelledby="live-map-tray-heading">
-        <h3 id="live-map-tray-heading">{{ t('map_tray') }}</h3>
-        <p class="small muted">{{ t('map_tray_hint') }}</p>
-        <div class="live-map-tray" id="live-map-tray"></div>
-      </section>
+    <aside class="live-map-details" id="live-map-details" hidden aria-live="polite">
+      <div class="live-map-details-head"><div><h3 id="live-map-details-id"></h3><p class="small" id="live-map-details-place"></p></div>
+        <button type="button" class="button compact" id="live-map-details-close" aria-label="{{ t('map_details_close') }}">&#10005;</button></div>
+      <div class="live-map-details-body" id="live-map-details-body"></div>
+      <div class="live-map-details-actions" id="live-map-details-actions"></div>
     </aside>
   </div>
 </section>
