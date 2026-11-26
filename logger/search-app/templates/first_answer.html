@@ -40,8 +40,9 @@
 {{ draft_text }}</textarea>
         <div class="first-answer-actions">
           {% if change_mode %}
-          {# Replacing a confirmed "Non lo so": only a written answer, or back to the saved one. #}
-          <a id="first-answer-change-cancel" class="app-btn first-answer-outline" href="{{ back_url }}">Annulla</a>
+          {# Replacing a confirmed "Non lo so": only a written answer, or back to the saved one. The way back reads
+             "Non lo so", the answer it keeps, in the place of the first form's own "Non lo so" button. #}
+          <a id="first-answer-change-cancel" class="app-btn first-answer-outline" href="{{ back_url }}">Non lo so</a>
           {% else %}
           <button id="first-answer-unknown" class="app-btn first-answer-outline" type="button"
                   aria-haspopup="dialog" aria-controls="first-answer-unknown-dialog">Non lo so</button>

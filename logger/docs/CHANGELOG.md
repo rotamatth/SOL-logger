@@ -65,6 +65,112 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Swap TEST-costellazioni's first two questions, so each sits in the box of its picture
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, tests
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — "Le stelle" is now question 1 and "Tra la Terra e il Sole" question 2
+- `logger/search-app/tests/test_permanent_test_experiment.py` — the expected order follows
+
+**What changed for the participant**
+No change for children. In `TEST-costellazioni`, the nearest-star question now shows next to the constellation with the red star, and the sunlight question next to the Sun shining on the Earth. As published on 26 November, 4a had them the other way round. Matthias chose to swap them in the 4a session too, in the dashboard, so the test ID still asks what the class gets.
+
+**How it works**
+A question's box picks its picture (`research_dashboard.md`, "Session topic"). Only the order of two rows changed.
+
+**If something looks wrong after this, check**
+- The 4a session and `TEST-costellazioni` in a different order → the swap in the dashboard was not made, or not approved again.
+
+**Left alone**
+`TEST-muscoli`, whose order already fit its pictures. The pictures, their boxes, the texts.
+
+**Verified**
+The test IDs' tests pass.
+
+## 2026-11-26 — Give TEST-costellazioni and TEST-muscoli the published questions of 4a and 5a
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests
+
+**Files**
+- `logger/search-app/research_dashboard/permanent_test.py` — the six "Segnaposto" questions replaced by the three of 4a (`grade-4-session-2`) and the three of 5a (`grade-5-session-2`), word for word and in the same boxes, as the server stored them on 26 November (settings revision 46)
+- `logger/search-app/tests/test_permanent_test_experiment.py` — a test that the two test IDs ask exactly those questions and that no "Segnaposto" is left
+- `logger/docs/research_dashboard.md` — the test IDs' paragraph says where their questions come from
+
+**What changed for the participant**
+No change for children. A researcher trying `TEST-costellazioni` or `TEST-muscoli` now meets the questions the classes get on 2 December ("Tra la Terra e il Sole", "Le stelle", "Missioni Spaziali"; "Tipologie di muscoli", "Animale dal sangue blu", "Muscoli del braccio") instead of the placeholders.
+
+**How it works**
+Only the question texts. The theme of each test ID stays `costellazioni` / `muscoli`, so it keeps its engine and its pictures. The published sessions' topic texts ("Costellazioni e Missioni Spaziali", "Il sistema muscolare") are not topic words the app knows; a test ID does not use them, so it cannot show whether a real run would search.
+
+**If something looks wrong after this, check**
+- A test ID asks other questions than its class → the session was edited in the dashboard after 26 November; the test ID keeps its own copy in `permanent_test.py`.
+- A question's picture does not fit it → the question's box in the session; the test ID copies the session's boxes.
+
+**Left alone**
+`TEST-spazio` and `TEST-orecchio`, the real sessions and their topic texts, `TOPIC_NAMES`, the pictures and their boxes, the intro lines.
+
+**Verified**
+The test IDs' server and browser tests pass, with the new test. Not yet tried on solar, which needs a redeploy for it.
+
+## 2026-11-26 — Call the way back from the change form "Non lo so", not "Annulla"
+
+**Commit:** pending · **Type:** content · **Area:** task-flow, docs, tests
+
+**Files**
+- `logger/search-app/templates/first_answer.html` — the change form's way back (`#first-answer-change-cancel`) reads "Non lo so" instead of "Annulla"
+- `logger/docs/research_dashboard.md` — the sentence on changing "Non lo so" names the button
+- `logger/search-app/tests/test_first_answer_change.py`, `test_practice_question.py` — the link reads "Non lo so", and "Annulla" is gone from the form
+- `logger/search-app/tests/test_first_answer_change_browser.py` — the test that keeps "Non lo so" taps the button by its new name (renamed from `test_annulla_keeps_non_lo_so`)
+
+**What changed for the participant**
+After "Cambia la mia risposta", the button beside "Conferma" reads "Non lo so", in the same place as the first form's "Non lo so". Tapping it goes back to "La tua prima risposta è: Non lo so", as "Annulla" did. Same in the prova. Matthias's request: "Annulla" was a new word for the children, and "Non lo so" says what they keep.
+
+**How it works**
+Only the label of the link. Its id, its look and its address (back to the question, or to `/prova/domanda`) are unchanged, so nothing is sent or logged when it is tapped.
+
+**If something looks wrong after this, check**
+- The button opens the "Non sai la risposta?" dialog → the page is the first form, not the change form (`change_mode` in `first_answer.html`).
+- A group's "Non lo so" changed after tapping it → it cannot from this link; look for an `OwnKnowledgeAnswerChanged` event, which only "Conferma" sends.
+
+**Left alone**
+The first form's "Non lo so" button and its dialog ("Torna alla risposta", "Confermo: non lo so"), "Cambia la mia risposta", the change itself and its logging, the search page's button, the dashboard's own "Annulla" buttons.
+
+**Verified**
+All 1308 server and browser tests pass. In Chromium, the change form of a real question and of the prova shows "Non lo so" beside "Conferma", and tapping it leaves "Non lo so" with no `OwnKnowledgeAnswerChanged` event. Not seen on a classroom tablet.
+
+## 2026-11-25 — Set the tablet's number before the prova, and start its run after it
+
+**Commit:** pending · **Type:** feature · **Area:** task-flow, session, logging, dashboard, docs, tests
+
+**Files**
+- `logger/search-app/practice_question.py` — the number waits in the browser's session (`SETUP_KEY`) during the prova
+- `logger/search-app/search_app.py` — `/start`: `setup=1` only sets the number (`set_number`); the start after the prova and its errors (`run_start_page`, `start_refused`, `start_unavailable`); "Ricomincia" of a test ID skips the prova
+- `logger/search-app/student_progress.py` — setting the number takes no admission lock; a start that cannot be saved may show its own page
+- `logger/search-app/templates/run_start.html` — new: sends the number's start by itself; "Riprova" after an error
+- `logger/search-app/templates/start.html`, `welcome.html`, `layout.html` — Inizia opens the ID page, whose form before the prova only sets the number
+- `logger/search-app/research_dashboard/i18n.py` — the prova's texts say the new order
+- `logger/docs/research_dashboard.md`, `manual_logging_walkthrough.md`
+- `logger/search-app/tests/` — `test_practice_question.py`, `test_practice_question_browser.py`, `test_student_fullscreen_browser.py`, `test_practice_dashboard.py`
+
+**What changed for the participant**
+Inizia opens the ID page first. An adult sets the number and hands the tablet over at "Facciamo una prova!". Inizia on "Avete finito la prova!" leads straight to "Cominciamo!": the children no longer choose a number.
+
+**How it works**
+Choosing the number and starting the run are two steps. The ID page posts `setup=1` and only keeps `{number, date, over}` in the session, not `user_id`, so the run's routes and `/log_session` refuse the browser as before. Leaving the prova marks it `over`, and `/start` then shows `run_start.html`, which sends the old start request by itself through logger.js's `enter-id-form`. So `idSubmitted` and the clearing of the browser's storage happen when the run starts, as they did, and the ID page's form before the prova (`set-number-form`) records nothing. No database change.
+
+**If something looks wrong after this, check**
+- A log that begins long before its first question, or a stray `INCOMPLETE` fragment under an ID nobody used → the form on the ID page must be `set-number-form` while the prova is on.
+- A group's run is under another class's number → the tablet was not reset between the classes (`/welcome?reset=1`, or the end page's logo): Inizia must show the list of numbers.
+- A group stuck on "Un momento…" or "Riprova" → the server's log for "Could not admit a child" or "Could not publish research run metadata".
+- The children see the list of numbers after the prova → `setup` was lost from the session: the browser was closed, or the tablet was reset.
+
+**Left alone**
+logger.js, the start request and everything after it, the end page, the recap, the rules for two tablets with one number, the databases. With the prova off or without an engine the ID page starts the run itself, as before.
+
+**Verified**
+Server and browser tests: nothing is saved before the prova ends, the log's first event is later than the prova's end, a wrong number followed by a reset leaves nothing under it, a reload returns to the step, a failed start keeps the number and records it once. Not yet on a classroom tablet.
+
 ## 2026-11-24 — Add the pictures of the constellations and muscles topics, and the prova's volcano
 
 **Commit:** pending · **Type:** feature · **Area:** task-flow, styling, data, docs, tests

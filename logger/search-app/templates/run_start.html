@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block content %}
+{# The run of the number already set on this tablet. The page sends itself as the ID page does, through logger.js's
+   enter-id-form, so the log begins here, after the practice. Children only see it after an error; Riprova is then
+   another form, because the first sending has already recorded idSubmitted. #}
+<div class="app-page">
+  <section class="app-panel id-panel">
+    <div class="id-form-wrap">
+    <form method="POST" action="{{ url_for('start_page') }}" id="{{ 'retry-start-form' if start_error else 'enter-id-form' }}" novalidate{% if not start_error %} data-send-now{% endif %}>
+        <input type="hidden" name="user_id" id="id-box" value="{{ number }}">
+        {% if start_error %}
+        <p class="form-label-strong">Non si può ancora iniziare.</p>
+        <p class="form-error" role="alert">{{ start_error }}</p>
+        {% else %}
+        <p class="form-label-strong" role="status">Un momento…</p>
+        {% endif %}
+        <button class="app-btn app-btn-primary" id="continue-btn" type="submit"{% if not start_error %} hidden{% endif %}>{{ 'Riprova' if start_error else 'Continua' }}</button>
+    </form>
+    </div>
+  </section>
+</div>
+
+<script>
+  const button = document.getElementById("continue-btn");
+  const form = button.form;
+
+  form.addEventListener("submit", event => {
+    // A second tap would ask for the same start twice.
+    if (form.dataset.submitting === "1") {
+      event.preventDefault();
+      return;
+    }
+    form.dataset.submitting = "1";
+    button.disabled = true;
+  });
+
+  // Coming back to this page from the browser cache must allow a new start.
+  window.addEventListener("pageshow", event => {
+    if (!event.persisted) return;
+    form.dataset.submitting = "";
+    button.disabled = false;
+  });
+
+  {% if not start_error %}
+  // After the page's other scripts: the logger must hear this submit, and the Back blocker may lead elsewhere.
+  document.addEventListener("DOMContentLoaded", () => window.setTimeout(() => {
+    if (!window.__SOLBrowserBackRecoveryInProgress) button.click();
+  }, 0));
+  // If the page is still here, it can be sent by hand.
+  window.setTimeout(() => { button.hidden = false; }, 4000);
+  {% endif %}
+</script>
+{% endblock %}

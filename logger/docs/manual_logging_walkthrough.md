@@ -12,7 +12,7 @@ the saved log therefore grows while the task is still open.
 
 ### Session and task flow
 
-- `idSubmitted`: emitted when the participant ID form is submitted.
+- `idSubmitted`: emitted when the run of an ID is started: after the practice question, or on the ID page when there is no practice. Setting the ID before the practice emits nothing.
 - `TaskStarted`: emitted once when the first-answer screen is first shown for an attempt/question.
 - `OwnKnowledgeAnswerSubmitted`: emitted once with the confirmed original first answer, outcome, confidence and `answerPhase: pre-search`.
 - `OwnKnowledgeAnswerChanged`: emitted at most once per question, by the server, when a confirmed "Non lo so" is replaced with a written answer before the question's first search. It carries the new `answer`, `confidence`, `outcome: answered`, `previousOutcome: unknown` and `answerPhase: pre-search`; the original `OwnKnowledgeAnswerSubmitted` stays in the log.

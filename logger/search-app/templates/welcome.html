@@ -18,9 +18,9 @@
             class="welcome-logo-img"
         >
     </div>
-    {# The practice question comes first; when it is off or has no engine, /prova sends the group on to the ID page.
-       The fullscreen frame opens this link's address, so the practice runs inside it too. #}
-    <a href="{{ url_for('practice_intro') }}" class="app-btn app-btn-warm welcome-start-btn"
+    {# An adult sets the tablet's number first, then the practice question comes; a tablet that already has its number
+       goes on from where it was. The fullscreen frame opens this link's address, so everything runs inside it. #}
+    <a href="{{ url_for('start_page') }}" class="app-btn app-btn-warm welcome-start-btn"
        data-fullscreen-host-url="{{ url_for('welcome') }}"
        data-back-guard-url="{{ url_for('static', filename='back-guard.js', v='strict-back-1') }}">
         Inizia

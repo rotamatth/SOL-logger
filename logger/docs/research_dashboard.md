@@ -594,8 +594,9 @@ The children still meet the three questions in a random order; the picture follo
 children's start page. Each is an experiment with one participant, itself, for developers to try
 the whole app on the real server: it searches its topic's engine and plays its topic's animations,
 when the topic has them. `TEST-spazio` and `TEST-orecchio` ask the questions of the 10 November
-sessions. `TEST-costellazioni` and `TEST-muscoli` ask placeholder questions (their topics start with
-"Segnaposto") until the 2 December questions are in. It works on any day
+sessions, `TEST-costellazioni` and `TEST-muscoli` those of the 2 December sessions (4a and 5a, as
+published on 26 November). Their theme stays the topic word, so they search the right engine even
+when a session's topic text is longer. It works on any day
 and needs no session, class or enrollment. Every start is a new attempt; **Ricomincia** in the
 red PROVA banner leaves the current one. Test pages show that banner, so a wrong choice on a
 child's tablet is noticed at once. A double tap on the start page still gives one attempt.
@@ -612,15 +613,26 @@ child's unsent events that reach a test browser stay with the child. To read the
 
 ## Practice question
 
-After **Inizia**, and before choosing its ID, each group tries the app once with one practice
-question on a topic no class studies (volcanoes at first): "Facciamo una prova!", the question
-with a first answer, the search, a page, the final answer, and "Avete finito la prova!" with both
-answers next to a volcano. **Inizia** there opens the ID page and the experiment goes on as usual.
+An adult opens the app, taps **Inizia**, sets the tablet's ID and hands the tablet over at "Facciamo
+una prova!". Each group then tries the app once with one practice question on a topic no class
+studies (volcanoes at first): the question with a first answer, the search, a page, the final
+answer, and "Avete finito la prova!" with both answers next to a volcano. **Inizia** there starts
+the run of that ID, and the experiment goes on as usual with "Cominciamo!".
 
-**Nothing is saved.** The practice comes before the ID, so there is no participant, run or log
-yet. Its pages do not load the logger, its answers stay in the browser's session until the ID page,
-and it never appears in Data and history, the live view, exports, recaps or session numbers. A
-screen recording is its only record.
+**Nothing is saved.** Setting the ID does not start a run: the ID waits in the tablet's browser
+session, so during the practice there is no participant, run or log. The practice's pages do not
+load the logger, its answers stay in the browser's session until it ends, and it never appears in
+Data and history, the live view, exports, recaps or session numbers. A screen recording is its only
+record. The log, with `idSubmitted` first, begins when the practice is over.
+
+**The ID on the tablet.** An ID without an approved session today is refused on the ID page, while the
+adult still has the tablet. An ID that already has a run today continues it without the practice. If
+the start fails after the practice, the group sees **Riprova** and keeps its ID. The test IDs'
+**Ricomincia** skips the practice.
+
+**A wrong ID, and between two classes:** reset the tablet, or it keeps its ID until its run is finished.
+Hold the logo of the end page for three seconds, or open `/welcome?reset=1`. It worked if **Inizia** then
+shows the list of IDs. An ID left from another day is forgotten by itself.
 
 **Settings › Practice question** holds the topic, the question and an on/off switch, stored apart
 from the study settings. A practice already under way keeps the question it began with. The page
@@ -635,7 +647,7 @@ others. The server's env file names it:
     VERTEX_PROVA_ENGINE_ID=…
     VERTEX_PROVA_DATA_STORE_ID=…
 
-With either missing, or with the switch off, **Inizia** opens the ID page directly, as before. To
+With either missing, or with the switch off, the run starts as soon as the ID is chosen. To
 change the topic: create the new engine, change the two lines, restart the app, enter the new
 question in the dashboard, and check it with **Try a search** or
 `docker compose exec search_app python tools/check_search_engines.py --prova-query "…"`.
@@ -809,7 +821,7 @@ For each question, typing a nonblank first answer immediately shows “Secondo t
 
 SQLite stores confidence as 1, 2 or 3 alongside the original first answer, or null for confirmed unknown and historical answers collected before this field existed. First-answer drafts save text and confidence together under the same revision and resume across browsers/workers. Search remains locked until confirmation. The canonical `OwnKnowledgeAnswerSubmitted` event includes `confidence`, `outcome`, `answerPhase: pre-search` and the existing attempt/session/task context. Identical retries do not duplicate the answer/event; a different confidence conflicts. Database upgrades do not infer historical confidence or rewrite previously queued/published events.
 
-**Changing "Non lo so" (November 2026).** After confirming "Non lo so", a group can still choose **Cambia la mia risposta** and write an answer with its stars, once, until the question's first search. It is offered on the confirmed answer and in the search page's "La mia prima risposta" pop-up, and disappears with the first search. Nothing is overwritten: the original row in `progress_first_answers` and its `OwnKnowledgeAnswerSubmitted` event stay as they were. The written answer is stored beside them in `progress_first_answer_changes` and logged as `OwnKnowledgeAnswerChanged` (`previousOutcome: unknown`). The first search of each question is noted in `progress_first_searches`. From then on the written answer is the first answer on the recap and in the dashboard, which marks it "first “Non lo so”, changed before searching". Neither table changes the schema version, so an older image still opens the database.
+**Changing "Non lo so" (November 2026).** After confirming "Non lo so", a group can still choose **Cambia la mia risposta** and write an answer with its stars, once, until the question's first search. On that form the button beside **Conferma** reads **Non lo so**, as on the first form, and goes back keeping it. It is offered on the confirmed answer and in the search page's "La mia prima risposta" pop-up, and disappears with the first search. Nothing is overwritten: the original row in `progress_first_answers` and its `OwnKnowledgeAnswerSubmitted` event stay as they were. The written answer is stored beside them in `progress_first_answer_changes` and logged as `OwnKnowledgeAnswerChanged` (`previousOutcome: unknown`). The first search of each question is noted in `progress_first_searches`. From then on the written answer is the first answer on the recap and in the dashboard, which marks it "first “Non lo so”, changed before searching". Neither table changes the schema version, so an older image still opens the database.
 
 The current progress schema is 6. It also provides internal storage for recap drafts/revisions and source-snapshot repeats, with the UI and authorization controls left to #9/#15. Reward assets no longer affect question-set eligibility. See [Issue #6 handover](issue6_handover.md) for the API contracts and acceptance boundaries.
 

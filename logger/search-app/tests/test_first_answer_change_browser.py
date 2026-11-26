@@ -38,7 +38,7 @@ def test_a_group_replaces_non_lo_so_before_searching(student_site):
     assert [event["answer"] for event in types_of(events, "OwnKnowledgeAnswerChanged")] == ["Un cane di nome Laika"]
 
 
-def test_annulla_keeps_non_lo_so(student_site):
+def test_non_lo_so_on_the_change_form_keeps_non_lo_so(student_site):
     page, base, root = student_site
     page.goto(base + "/start")
     page.select_option("#id-box", "1")
@@ -48,7 +48,8 @@ def test_annulla_keeps_non_lo_so(student_site):
     page.get_by_role("button", name="Confermo: non lo so").click()
     page.click("a#first-answer-change")
     page.wait_for_url("**/task?change=1")
-    page.click("#first-answer-change-cancel")
+    assert page.locator("#first-answer-change-cancel").inner_text() == "Non lo so"
+    page.get_by_role("link", name="Non lo so", exact=True).click()
     page.locator("a#first-answer-search").wait_for()
     assert page.locator(".first-answer-saved-text").inner_text() == "Non lo so"
     assert not types_of(saved(root, "1"), "OwnKnowledgeAnswerChanged")
