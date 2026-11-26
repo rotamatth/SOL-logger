@@ -726,7 +726,7 @@
             });
         }
 
-        document.querySelectorAll('form#search-bar, form#enter-id-form, form#task-form')
+        document.querySelectorAll('form#search-bar, form#enter-id-form, form#set-number-form, form#retry-start-form, form#task-form')
             .forEach(f => f.addEventListener('submit', maybeStart));
 
         document.addEventListener('click', (e) => {

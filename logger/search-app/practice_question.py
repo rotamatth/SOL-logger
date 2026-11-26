@@ -1,18 +1,19 @@
-"""The practice question ("prova") between the welcome page and the ID. It records nothing.
+"""The practice question ("prova") between the ID and the experiment. It records nothing.
 
-A group tries the whole flow once on a topic no class studies: the question, a first answer (stars or
-"Non lo so", which can become a written answer until the first search, as in the real questions), the
-search, a page, a final answer and a picture with both answers. Then it chooses its ID and the experiment
-starts as before.
+An adult sets the tablet's number and hands the tablet over. The group then tries the whole flow once on a
+topic no class studies: the question, a first answer (stars or "Non lo so", which can become a written
+answer until the first search, as in the real questions), the search, a page, a final answer and a picture
+with both answers. Only then does the number's run start, and the experiment goes on as before.
 
 Nothing is recorded, by construction:
-- It comes before the ID, so this browser has no participant, run or log yet. Every route here refuses
-  to run once a run exists, and the run's own routes keep refusing a browser without one.
+- The number only waits in this browser's session, under SETUP_KEY and not user_id, so this browser has no
+  participant, run or log yet. Every route here refuses to run once a run exists, and the run's own routes
+  keep refusing a browser without one.
 - Its pages load practice-page.js instead of logger.js: no event is kept, stored in the browser or sent.
-- Its answers stay in this browser's session only, to draw the last picture, and leave it when the
-  group goes on to the ID page (choosing an ID clears the session anyway).
+- Its answers stay in this browser's session only, to draw the last picture, and leave it when the group
+  goes on (starting the run clears the session anyway).
 - Its search uses its own engine (VERTEX_PROVA_*). Without that engine, or when the dashboard turns the
-  practice off, Inizia leads straight to the ID page.
+  practice off, the run starts as soon as the number is chosen.
 """
 import secrets
 
@@ -24,6 +25,8 @@ PRACTICE_ROUTES = {"search": "practice_search", "result": "practice_result", "we
                    "autocomplete": "practice_autocomplete", "iframe_check": "practice_iframe_check",
                    "end": "practice_end"}
 STATE_KEY = "practice"
+# The number an adult set on this tablet, until its run starts: {"number", "date", "over"}.
+SETUP_KEY = "setup"
 # What the shared search pages keep in the session while a question is searched.
 SEARCH_KEYS = ("nav_stack", "results_by_query", "search_results", "query", "raw_query",
                "corrected_query", "query_correction_source")
@@ -33,8 +36,9 @@ FIRST_ANSWER_ERROR = "Scrivi una risposta e scegli quanto è giusta, oppure conf
 
 class PracticeQuestion:
     def __init__(self, app, *, settings, engine_ready, phase, resume_url, search_results, frame_check,
-                 autocomplete, is_web_address):
+                 autocomplete, is_web_address, today):
         self.settings, self.engine_ready, self.phase, self.resume_url = settings, engine_ready, phase, resume_url
+        self.today = today
         self.search_results, self.frame_check = search_results, frame_check
         self.autocomplete_response, self.is_web_address = autocomplete, is_web_address
         for rule, endpoint, view, methods in (
@@ -51,10 +55,35 @@ class PracticeQuestion:
                 ("/prova/esci", "practice_leave", self.leave, ["POST"])):
             app.add_url_rule(rule, endpoint, view, methods=methods)
 
+    # -- The number set on this tablet --------------------------------------------------------
+
+    def setup(self):
+        """The number set on this tablet today, whose run has not started yet, else None."""
+        saved = session.get(SETUP_KEY)
+        if saved and saved["date"] != self.today():
+            session.pop(SETUP_KEY)
+            self.forget()
+            return None
+        return saved
+
+    def choose(self, number, *, over=False):
+        """Set the tablet's number. `over`: its run starts without the practice."""
+        current = self.setup()
+        if current and current["number"] == number:
+            over = over or current["over"]
+        else:
+            # Another group's practice never goes on under a new number.
+            self.forget()
+        session[SETUP_KEY] = {"number": number, "date": self.today(), "over": over}
+
+    def comes_first(self, setup):
+        """The number is set and its group has the practice before its run."""
+        return bool(setup and not setup["over"] and self.offered())
+
     # -- Where this browser stands ------------------------------------------------------------
 
     def offered(self):
-        """On in the dashboard and an engine to search. Otherwise Inizia goes straight to the ID page."""
+        """On in the dashboard and an engine to search. Otherwise the run starts right after the number."""
         return bool(self.settings()["enabled"] and self.engine_ready())
 
     @staticmethod
@@ -88,7 +117,7 @@ class PracticeQuestion:
         """A redirect when this browser may not be in the practice now, else None."""
         if self.phase() != "pre_id":
             return redirect(self.resume_url())
-        if not self.offered():
+        if not self.comes_first(self.setup()):
             self.forget()
             return redirect(url_for("start_page"))
         return None
@@ -100,7 +129,8 @@ class PracticeQuestion:
     def searching(self):
         """The practice state when this browser may search in it now, else None."""
         state = self.state()
-        if self.phase() != "pre_id" or not self.offered() or self.step(state) != "search":
+        # A background request: it reads the session and must not write it.
+        if not self.comes_first(session.get(SETUP_KEY)) or self.phase() != "pre_id" or self.step(state) != "search":
             return None
         return state
 
@@ -262,10 +292,12 @@ class PracticeQuestion:
                                csrf_token=state["csrf"])
 
     def leave(self):
-        """On to the ID page: the practice's answers leave the session here."""
+        """On to the run: the practice's answers leave the session here, and the start page starts the number's run."""
         state = self.state()
         if state is not None and not self.valid_token(state, request.form.get("csrf_token")):
             return jsonify(error="Conferma scaduta: ricarica la pagina."), 403
-        if self.phase() == "pre_id":
+        setup = self.setup()
+        if setup and self.phase() == "pre_id" and self.step(state) == "done":
             self.forget()
+            session[SETUP_KEY] = {**setup, "over": True}
         return redirect(url_for("start_page"), code=303)

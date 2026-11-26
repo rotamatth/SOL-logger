@@ -122,7 +122,8 @@ app.config["STUDENT_TOPICS"] = USER_TOPICS
 RESEARCH_STATE = init_dashboard(app)
 PROGRESS = StudentProgress(app, RESEARCH_STATE, init_progress(app), LOG_STORE,
                            lambda *args: _prepare_upload(*args), lambda **kw: idle_session_expired(**kw),
-                           test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt))
+                           test_logs=TEST_LOG_STORE, theme_of=lambda attempt: review_artwork_theme(attempt),
+                           start_unavailable=lambda: start_unavailable())
 app.config["SOL_RECAP_BACKGROUND"] = os.getenv("SOL_RECAP_BACKGROUND")
 # The recap picture (drawing and theme) also goes into the recap PDF; the helpers are defined further down.
 RECAP = StudentRecap(app, PROGRESS, artwork=lambda progress: (review_illustration(progress), review_artwork_theme(progress)))
@@ -449,6 +450,58 @@ def search_page():
     reminder = get_user_config(session.get('user_id')).get(str(session.get('task_number'))+'_full')
     return render_template(HOME_URL, form=form, show_search=True, reminder=reminder)
 
+def study_day():
+    return datetime.now(LOG_TIME_ZONE).date().isoformat()
+
+
+def id_page(val_ids, error=None, status=200):
+    """The list of numbers. With the practice, choosing one only sets the tablet (set_number)."""
+    return render_template('start.html', show_search=False, valid_ids=val_ids, start_error=error,
+                           setting_up=PRACTICE.offered()), status
+
+
+def run_start_page(number, error=None, status=200):
+    """Start the run of the number already set on this tablet, as the ID page starts it; Riprova after an error."""
+    return render_template('run_start.html', show_search=False, number=number, start_error=error), status
+
+
+def start_refused(val_ids, error, status):
+    setup = PRACTICE.setup()
+    if setup and setup['number'] == request.form.get('user_id'):
+        # The group is past the practice: it retries here, without the list and without a second practice.
+        return run_start_page(setup['number'], error, status)
+    return id_page(val_ids, error, status)
+
+
+def start_unavailable():
+    setup = PRACTICE.setup()
+    if setup is None:
+        return PROGRESS.unavailable()
+    return run_start_page(setup['number'], "Salvataggio non disponibile. Riprova o chiedi al ricercatore.", 503)
+
+
+def set_number(user_id, settings, val_ids):
+    """An adult sets the tablet's number. Nothing is recorded: the run starts when the practice is over.
+
+    What would stop the run is checked already here, while the adult still has the tablet.
+    """
+    if current_phase() != 'pre_id':
+        return redirect(phase_redirect_url())
+    is_test = is_test_participant(user_id)
+    under_way = not is_test and RESEARCH_STATE.progress_run_for_date(user_id, study_day()) is not None
+    assignment = None if is_test else scheduled_assignment(settings, user_id)
+    if not (is_test or under_way or assignment):
+        return id_page(val_ids, SESSION_UNAVAILABLE, 400)
+    # No practice for a number that comes back to its own run, or for a test run started again.
+    over = under_way or (is_test and bool(session.get('test_restart')))
+    PRACTICE.choose(user_id, over=over)
+    return redirect(url_for('start_page'), code=303)
+
+
+SESSION_UNAVAILABLE = ("La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, "
+                       "l’anno scolastico, la data e le domande.")
+
+
 @app.route('/start', methods=['GET', 'POST'])
 @PROGRESS.start_route
 def start_page():
@@ -456,6 +509,8 @@ def start_page():
     resumable = RESEARCH_STATE.progress_ids_for_date(datetime.now(LOG_TIME_ZONE).date().isoformat())
     val_ids = sorted({uid for uid, person in enrollment_settings['participant_registry'].items() if person['active']}
                      | resumable, key=participant_sort_key) + list(TEST_EXPERIMENTS)
+    if request.method == 'POST' and request.form.get('setup') == '1':
+        return set_number(request.form.get('user_id'), enrollment_settings, val_ids)
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         if untouched_run_for(user_id):
@@ -470,8 +525,7 @@ def start_page():
                 if admission_try:
                     session.clear()
                     session.update(previous_session)
-                return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                       start_error="La sessione non è disponibile. Chiedi al ricercatore di controllare l’iscrizione, l’anno scolastico, la data e le domande."), 400
+                return start_refused(val_ids, SESSION_UNAVAILABLE, 400)
             session.clear()
             session['user_id'] = user_id
             session['task_config'] = deepcopy(assignment['topics'])
@@ -516,22 +570,27 @@ def start_page():
             if durable is None:
                 session.clear()
                 session.update(previous_session)
-                return render_template('start.html', show_search=False, valid_ids=val_ids,
-                                       start_error="Impossibile avviare la sessione in sicurezza. Riprova o chiedi al ricercatore."), 503
+                return start_refused(val_ids, "Impossibile avviare la sessione in sicurezza. "
+                                              "Riprova o chiedi al ricercatore.", 503)
             break
 
         return redirect(url_for('task'))
 
     if current_phase() != 'pre_id':
         return redirect(phase_redirect_url())
-    
-    return render_template('start.html', show_search=False, valid_ids=val_ids)
+    setup = PRACTICE.setup()
+    if setup is None:
+        return id_page(val_ids)
+    if PRACTICE.comes_first(setup):
+        return redirect(url_for('practice_intro'))
+    return run_start_page(setup['number'])
 
 @app.get('/test-run/restart')
 def restart_test_run():
-    """Leave a test run, so a test ID can start again. A child's run is never left this way."""
+    """Leave a test run, so a test ID can start again, without the practice. A child's run is never left this way."""
     if session.get('progress_is_test'):
         session.clear()
+        session['test_restart'] = True
     return redirect(url_for('start_page'))
 
 
@@ -1291,7 +1350,7 @@ def practice_engine_ready():
 PRACTICE = PracticeQuestion(
     app, settings=RESEARCH_STATE.practice, engine_ready=practice_engine_ready, phase=current_phase,
     resume_url=phase_redirect_url, search_results=search_results_page, frame_check=frame_check_response,
-    autocomplete=autocomplete_response, is_web_address=_is_web_address)
+    autocomplete=autocomplete_response, is_web_address=_is_web_address, today=study_day)
 app.config["PRACTICE_SEARCH"] = lambda query: search_backend.search(query, 1, 5, theme=PRACTICE_THEME)
 app.config["PRACTICE_ENGINE_STATUS"] = lambda: (search_backend.practice_engine_status()
                                                 if hasattr(search_backend, "practice_engine_status")

@@ -1,8 +1,8 @@
 """Research UI translations. Source questions, answers and event fields are never translated."""
 TEXT = {
     "practice_question": ("Practice question", "Domanda di prova"),
-    "practice_explanation": ("Before choosing their ID, each group tries the app once with this question, on a topic no class studies. Nothing children do in the practice is saved.", "Prima di scegliere il loro ID, ogni gruppo prova l’app una volta con questa domanda, su un argomento che nessuna classe studia. Niente di ciò che i bambini fanno nella prova viene salvato."),
-    "practice_enabled": ("Show the practice question after Inizia", "Mostra la domanda di prova dopo Inizia"),
+    "practice_explanation": ("After an adult has set the tablet’s ID, each group tries the app once with this question, on a topic no class studies. Its run starts only afterwards. Nothing children do in the practice is saved.", "Dopo che un adulto ha impostato l’ID del tablet, ogni gruppo prova l’app una volta con questa domanda, su un argomento che nessuna classe studia. L’esperimento inizia solo dopo. Niente di ciò che i bambini fanno nella prova viene salvato."),
+    "practice_enabled": ("Show the practice question after the ID", "Mostra la domanda di prova dopo l’ID"),
     "practice_topic": ("Topic", "Argomento"),
     "practice_topic_hint": ("For researchers only. The picture on the practice’s last page is a volcano, fixed in the app: a new topic needs a new picture from a developer.", "Solo per i ricercatori. L’immagine dell’ultima pagina della prova è un vulcano, fisso nell’app: un nuovo argomento richiede una nuova immagine da uno sviluppatore."),
     "practice_question_label": ("Question", "Domanda"),
@@ -14,9 +14,9 @@ TEXT = {
     "practice_question_invalid": ("Enter a question of at most 300 characters.", "Inserisci una domanda di al massimo 300 caratteri."),
     "invalid_practice": ("The practice question could not be saved. Reload the page and try again.", "Non è stato possibile salvare la domanda di prova. Ricarica la pagina e riprova."),
     "practice_engine": ("Search engine", "Motore di ricerca"),
-    "practice_engine_ready": ("Connected. Children see the practice after Inizia.", "Collegato. I bambini vedono la prova dopo Inizia."),
-    "practice_engine_off": ("The practice is off: children go straight to the ID page.", "La prova è disattivata: i bambini vanno direttamente alla pagina dell’ID."),
-    "practice_engine_missing": ("No search engine is set for the practice (VERTEX_PROVA_ENGINE_ID and VERTEX_PROVA_DATA_STORE_ID in the server’s env file). Until it is, children go straight to the ID page.", "Nessun motore di ricerca è impostato per la prova (VERTEX_PROVA_ENGINE_ID e VERTEX_PROVA_DATA_STORE_ID nel file env del server). Finché manca, i bambini vanno direttamente alla pagina dell’ID."),
+    "practice_engine_ready": ("Connected. Children see the practice after the ID is set.", "Collegato. I bambini vedono la prova dopo l’ID."),
+    "practice_engine_off": ("The practice is off: the experiment starts right after the ID.", "La prova è disattivata: l’esperimento inizia subito dopo l’ID."),
+    "practice_engine_missing": ("No search engine is set for the practice (VERTEX_PROVA_ENGINE_ID and VERTEX_PROVA_DATA_STORE_ID in the server’s env file). Until it is, the experiment starts right after the ID.", "Nessun motore di ricerca è impostato per la prova (VERTEX_PROVA_ENGINE_ID e VERTEX_PROVA_DATA_STORE_ID nel file env del server). Finché manca, l’esperimento inizia subito dopo l’ID."),
     "practice_engine_shared": ("The practice engine is also an engine a class searches. Use an engine on a topic no class studies.", "Il motore della prova è anche un motore usato da una classe. Usa un motore su un argomento che nessuna classe studia."),
     "practice_test_search": ("Try a search", "Prova una ricerca"),
     "practice_test_hint": ("Searches the practice engine as a child would, to check that it answers about the topic. Nothing is saved.", "Cerca nel motore della prova come farebbe un bambino, per controllare che risponda sull’argomento. Non viene salvato nulla."),

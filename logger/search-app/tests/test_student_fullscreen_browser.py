@@ -130,6 +130,9 @@ def test_the_practice_and_the_end_page_restore_the_outer_fullscreen(student_site
     page.get_by_role("link", name="Inizia", exact=True).click()
     page.locator("#student-session-frame").wait_for()
     child = page.frames[1]
+    child.wait_for_url("**/start")
+    child.select_option("#id-box", "1")
+    child.click("#continue-btn")
     child.wait_for_url("**/prova")
     child.wait_for_load_state("load")
     leave_fullscreen_then_tap(page, child, ".task-intro-title")
@@ -153,6 +156,9 @@ def test_the_practice_and_the_end_page_restore_the_outer_fullscreen(student_site
     child.wait_for_url("**/prova/finita")
     child.wait_for_load_state("load")
     leave_fullscreen_then_tap(page, child, "#practice-done-heading")
+    child.click("#practice-done-continue")
+    child.wait_for_url("**/task/intro")
+    assert page.evaluate("Boolean(document.fullscreenElement)"), "starting the run stays inside the fullscreen frame"
     child.goto(base + "/fine")
     leave_fullscreen_then_tap(page, child, ".finished-title")
 

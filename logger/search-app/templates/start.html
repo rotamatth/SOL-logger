@@ -8,7 +8,10 @@
   <section class="app-panel id-panel">
     <div class="id-form-wrap">
       <label for="id-box" class="form-label-strong">Seleziona il numero che trovi scritto dietro al tablet</label>
-    <form method="POST" id="enter-id-form" novalidate>
+    {# Before the practice an adult only sets the number: that form is not logger.js's enter-id-form, so no event is
+       recorded and the browser's storage stays as it is. Both happen when the run starts (run_start.html). #}
+    <form method="POST" action="{{ url_for('start_page') }}" id="{{ 'set-number-form' if setting_up else 'enter-id-form' }}" novalidate>
+        {% if setting_up %}<input type="hidden" name="setup" value="1">{% endif %}
         <select name="user_id" class="form-control app-input id-input" id="id-box" required>
             <option value="" disabled selected>Seleziona il numero…</option>
             {% for id in valid_ids %}
@@ -26,7 +29,7 @@
 <script>
   const validIDs = {{ valid_ids | tojson }};
   const input = document.getElementById("id-box");
-  const form = document.getElementById("enter-id-form");
+  const form = input.form;
   const errorMsg = document.getElementById("error-message");
 
   input.addEventListener("change", () => {
