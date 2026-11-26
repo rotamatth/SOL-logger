@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Wait and try again by itself when the server is busy before the recap
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, styling, tests
+
+**Files**
+- `logger/search-app/student_progress.py` — `unavailable()`: on a page load (the recap opening, the step after a question's review) the new "Un momento…" page with the same page as its retry; on a start that could not be admitted, the same page without the automatic retry, back to the ID page
+- `logger/search-app/templates/busy.html`, `static/busy-retry.js` — new: "Un momento… Le tue risposte sono salvate", a Riprova button, and a reload by itself after 3 s, then 5 s, then every 10 s; from the fourth try in a row "Se questa pagina resta, chiama un adulto"
+- `logger/search-app/static/main.css`, `templates/layout.html` — the line asking for an adult; the stylesheet reloaded (`child-pages-4`)
+- `logger/search-app/tests/test_busy_retry.py` (new), `test_child_pages_browser.py` — the recap, the review step and the start on the server; the automatic retry in Chromium
+
+**What changed for the participant**
+Before: when the server was busy for a moment as the recap opened, the group got "Salvataggio non disponibile — Riprova o chiedi al ricercatore" with a "Torna alla ricerca" button, although every answer was saved. Now: "Un momento… Le tue risposte sono salvate", and the recap opens by itself a few seconds later; Riprova does it at once.
+
+**How it works**
+The recap first records the end of the session in the logs. Under 20 groups at once (rehearsal of 26 November, 2 runs out of 4) that record can wait longer than the log store's 2-second lock: nothing is lost, the event stays queued, and the next load of the page records it once. The page now makes that next load itself. Only page loads are retried by themselves; a form is never sent again without a tap.
+
+**If something looks wrong after this, check**
+- A tablet that keeps showing "Un momento…" with the line for an adult → the server cannot record at all: the server log and `/health/ready`.
+
+**Left alone**
+The recap's own messages inside the page, the "Sì, termina" window and its Riprova, the ID page's "Non si può ancora iniziare" after a practice, every other error page.
+
+**Verified**
+3 server tests and 1 browser test, all failing without the change. Full suite: all passed except 4 children's browser tests that failed only with the CDN's `reading 'fn'` error on this Mac.
+
 ## 2026-11-26 — Leave only the title and the picture on the recap PDF's first page
 
 **Commit:** pending · **Type:** content · **Area:** data, tests

@@ -808,6 +808,13 @@ a:hover {
   margin: 16px 0 28px;
 }
 
+/* "Un momento…" (busy.html): from the fourth try in a row, a line asking for an adult. */
+.error-container #busy-adult {
+  color: #b42318;
+  font-weight: 700;
+  margin: 20px 0 0;
+}
+
 /* Read-only original answer on the search surfaces. */
 .search-first-answer-trigger {
   margin-left: auto;

@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}Un momento{% endblock %}
+{% block content %}
+{# The server was busy recording the next step. On a page load the answers are already saved, so the page tries
+   again by itself (busy-retry.js); Riprova does the same at once. #}
+<div class="app-page">
+  <section class="app-panel error-panel">
+    <div class="error-container" id="busy-retry" data-retry-url="{{ retry_url }}" data-auto="{{ '1' if saved else '0' }}">
+      {% if saved %}
+      <h2>Un momento…</h2>
+      <p>Le tue risposte sono salvate. Stiamo finendo di registrare: la pagina riprova da sola tra pochi secondi.</p>
+      {% else %}
+      <h2>Non si può ancora iniziare</h2>
+      <p>Il salvataggio non è disponibile in questo momento. Riprova o chiedi al ricercatore.</p>
+      {% endif %}
+      <a href="{{ retry_url }}" class="app-btn app-btn-primary" id="busy-retry-btn">Riprova</a>
+      <p id="busy-adult" role="alert" hidden>Se questa pagina resta, chiama un adulto.</p>
+    </div>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='busy-retry.js', v='1') }}"></script>
+{% endblock %}
