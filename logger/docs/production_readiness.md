@@ -18,6 +18,11 @@ Back up these directories together while collection is stopped:
 | `research-secrets` | Dashboard password hash and private persistent `student-secret` |
 | `student-sessions` | Student session files, frozen questions/order, current phase |
 
+`research-state` also holds the live view's operational files, none of them study data: `presence.sqlite3`
+(the list's tablet signals), `monitor.sqlite3` (the classroom map's registrations, reports and short incident
+history) and `rooms.sqlite3` with `room-images/` (classroom layouts and floor plans). They go into the same
+backup; losing them loses only layouts and monitoring history, never a log or an answer.
+
 `research-state/index.sqlite3` is a disposable reporting cache. A corrupt cache is
 quarantined under `index-corrupt-*` and rebuilt on the next reporting request.
 Collection does not open this cache at startup. An unavailable cache can make the

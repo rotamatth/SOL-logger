@@ -65,6 +65,30 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Explain the classroom map: rooms, placing IDs, colours, timing, sound and what it cannot know
+
+**Commit:** pending · **Type:** content · **Area:** docs
+
+**Files**
+- `logger/docs/research_dashboard.md` — "Classroom map": rooms and their copies, editing, colours and reasons, the summary and details, timing and its constants, the limits (hidden pages, Wi-Fi versus VPN, the map's own feed), sound, the lifecycle, the files, and the checks to make on the classroom tablets
+- `logger/docs/production_readiness.md` — the live view's operational files in `research-state`, in the same backup
+- `logger/search-app/research_dashboard/guide_i18n.py` — the guide's live view step mentions the map, rooms and sound
+
+**What changed for the participant**
+No change for children. Researchers can read how the map works in the guide and the documentation.
+
+**How it works**
+Documentation only.
+
+**If something looks wrong after this, check**
+- The docs and the app disagree on a timing → the constants named in "Classroom map".
+
+**Left alone**
+Everything else in the guide; its pictures (the live view opens on the list until a session has a layout).
+
+**Verified**
+The guide's tests pass. The deploy's backup tool, run on a state folder with `monitor.sqlite3`, `rooms.sqlite3` and `room-images/`, created and verified the backup.
+
 ## 2026-11-26 — Show the class as a map in the live view: tables, one circle per tablet, and what needs an adult
 
 **Commit:** pending · **Type:** feature · **Area:** dashboard, styling, tests

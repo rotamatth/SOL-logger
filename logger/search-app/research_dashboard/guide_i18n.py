@@ -74,10 +74,10 @@ GUIDE_TEXT = {
     'guide_test_alt': ('A test ID’s page, with the red PROVA banner at the top.', 'La pagina di un ID di prova, con la fascia rossa PROVA in alto.'),
 
     'guide_live_title': ('On the day: the live view', 'Il giorno stesso: la vista in diretta'),
-    'guide_live_text': ('Open Live from today’s session to see who has started, which question each child is on and who has finished. A row also says when a tablet has left the app (Off the page) or stopped sending a signal (No signal). Open a child to see the figures of each finished question.',
-                        'Apri In diretta dalla sessione di oggi per vedere chi ha iniziato, a quale domanda è ogni bambino e chi ha finito. Una riga dice anche quando un tablet ha lasciato l’app (Fuori dalla pagina) o non manda più segnale (Nessun segnale). Apri un bambino per vedere i dati di ogni domanda completata.'),
-    'guide_live_detail': ('Logs arrive when a child changes page and at least once a minute, so a child with no recent update may still be working. When the connection fails, the tablet asks the group to call an adult.',
-                          'I log arrivano quando un bambino cambia pagina e almeno una volta al minuto: un bambino senza aggiornamenti recenti può stare ancora lavorando. Se il collegamento non funziona, il tablet chiede al gruppo di chiamare un adulto.'),
+    'guide_live_text': ('Open Live from today’s session to see who has started, which question each child is on and who has finished. Switch to Map to see each tablet on its table: grey not connected yet, green fine, amber or red when it needs an adult, with the reason written under it. Click a circle for details.',
+                        'Apri In diretta dalla sessione di oggi per vedere chi ha iniziato, a quale domanda è ogni bambino e chi ha finito. Passa a Mappa per vedere ogni tablet sul suo banco: grigio non ancora collegato, verde a posto, arancione o rosso quando serve un adulto, con il motivo scritto sotto. Clicca un cerchio per i dettagli.'),
+    'guide_live_detail': ('Rooms are saved and reused: start the session from a copy of the room, drag the IDs onto the tables and save. Sound alerts are off unless you switch them on.',
+                          'Le aule si salvano e si riusano: parti da una copia dell’aula, trascina gli ID sui banchi e salva. Gli avvisi sonori restano spenti finché non li attivi.'),
     'guide_live_alt': ('The live view, with class totals and one row per child.', 'La vista in diretta, con i totali della classe e una riga per bambino.'),
 
     'guide_data_title': ('Data and history', 'Dati e storico'),
