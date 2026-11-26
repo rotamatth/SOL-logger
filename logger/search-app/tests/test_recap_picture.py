@@ -33,6 +33,15 @@ def columns():
 
 
 @pytest.mark.parametrize("theme", ["space", "ear", "constellations", "muscles"])
+def test_the_drawing_is_kept_as_a_jpeg_so_each_pdf_stays_small(theme):
+    """Every saved PDF lives in the progress database and in each deploy's backup: the raw pixels were 3-5 MB."""
+    picture = {"background": APP_ROOT / f"static/images/review/{theme}-recap.webp",
+               "tasks": [task(1, "1"), task(2, "2"), task(3, "3")], "arrows": RECAP_ARROWS[theme], "theme": theme}
+    pdf = render_recap_pdf(columns(), picture)
+    assert b"/DCTDecode" in pdf and len(pdf) < 1024 * 1024
+
+
+@pytest.mark.parametrize("theme", ["space", "ear", "constellations", "muscles"])
 def test_the_picture_is_a_landscape_first_page_before_the_text(theme):
     picture = {"background": APP_ROOT / f"static/images/review/{theme}-recap.webp",
                "tasks": [task(2, "1"), task(3, "2"), task(1, "3")], "arrows": RECAP_ARROWS[theme], "theme": theme}

@@ -232,6 +232,12 @@ class StudentRecap:
         return {"background": Path(self.app.static_folder) / background, "tasks": tasks,
                 "arrows": RECAP_ARROWS[theme], "theme": theme}
 
+    def pdf_with_picture(self, attempt, states):
+        """The PDF Salva makes now, opening with the recap picture, or None when the session has no picture.
+        For drawing again a PDF saved before the picture page existed (tools/redraw_recap_pdfs.py)."""
+        picture = self._picture(attempt, states)
+        return None if picture is None else self.render_pdf(states, picture)
+
     def _pdf_for_finish(self, states, attempt=None):
         try:
             picture = self._picture(attempt, states) if attempt is not None else None

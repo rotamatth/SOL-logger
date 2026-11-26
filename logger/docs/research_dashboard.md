@@ -314,9 +314,21 @@ the participant's page; the tablet keeps nothing. Its first page is the recap pi
 showed it: the theme's drawing, "Domanda N" in the order the group met the questions, the first
 answers with their stars and the final answers on their cards, and the arrows. It is drawn on the
 server with ReportLab (`recap_picture.py`), at the card positions of `recap.css`, so a change of the
-recap's layout needs the same change there (a test compares them). A card holds what fits; the text
+recap's layout needs the same change there (a test compares them). The drawing goes into the PDF as a
+JPEG, so a PDF weighs 300–650 KB instead of 3–5 MB of raw pixels. A card holds what fits; the text
 pages that follow keep every answer in full, as before. A session without a recap picture (an
 unknown theme) keeps the text pages only.
+
+PDFs saved before the picture page existed (22 November 2026), such as those of 10 November, can be
+drawn again from the saved answers, with the code Salva uses now:
+
+    docker compose exec search_app python tools/redraw_recap_pdfs.py --date 2026-11-10          # shows, changes nothing
+    docker compose exec search_app python tools/redraw_recap_pdfs.py --date 2026-11-10 --write  # backup, then replace
+
+With `--write` it first keeps the old PDFs in `recap-pdfs-before-redraw-<date>-<time>.zip` in the
+research state folder (`logger/research-state/` on the server), then replaces them in one transaction,
+each only if nobody changed it meanwhile. Test runs, topics without a picture and PDFs that already
+have one are left alone, and the time of Salva stays. It prints IDs and topics, never answers.
 
 ## Research interpretation
 

@@ -65,6 +65,57 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Keep the recap picture in the PDF as a JPEG, ten times smaller
+
+**Commit:** pending · **Type:** fix · **Area:** data, tests, docs
+
+**Files**
+- `logger/search-app/recap_picture.py` — `jpeg()`: the drawing is converted to JPEG (quality 85) before ReportLab draws it
+- `logger/search-app/tests/test_recap_picture.py` — every topic's PDF embeds a JPEG and stays under 1 MB
+- `logger/docs/research_dashboard.md` — "Recap PDF": the size
+
+**What changed for the participant**
+No visible change: the picture page looks the same, and the answers on it are text as before. A recap PDF now weighs 330–640 KB instead of 3–4.5 MB.
+
+**How it works**
+ReportLab stored the WebP drawing as raw pixels (about 5 MB, barely compressed); JPEG data it keeps as it is (`/DCTDecode`). Each PDF is saved in `progress_recap_exports` at Salva, so the progress database, on the server's small `/home`, and every deploy backup that zips it grew by 3–5 MB per group. Found while drawing the 10 November PDFs again: 18 groups would have added about 80 MB.
+
+**If something looks wrong after this, check**
+- A blurry or blocky picture in the PDF → the JPEG quality in `jpeg()`.
+- A PDF without its picture → Pillow missing from the image (it comes with ReportLab in `requirements.lock`).
+
+**Left alone**
+The card places, the text pages, the tablet's recap page, the WebP files.
+
+**Verified**
+Old and new picture pages compared side by side and close up: no visible difference. 1347 of 1349 tests pass; the other two are the fullscreen browser tests that fail on and off with the CDN "reading 'fn'" error, and they passed when run again.
+
+## 2026-11-26 — Draw the 10 November recap PDFs again, with the picture
+
+**Commit:** pending · **Type:** feature · **Area:** data, dashboard, docs, tests
+
+**Files**
+- `logger/search-app/tools/redraw_recap_pdfs.py` — new: draws again the saved recap PDFs of one day with the picture page, keeping the old ones in a zip first
+- `logger/search-app/student_recap.py` — `StudentRecap.pdf_with_picture()`: the PDF Salva makes now, or None when the session has no picture; the tool uses it, Salva does not
+- `logger/search-app/tests/test_redraw_recap_pdfs.py` — new: dry run changes nothing; `--write` gives the picture page, keeps the time of Salva and the old PDF in a 0600 zip; a second run, another day, test runs and topics without a picture are left alone; a PDF changed meanwhile stops everything
+- `logger/docs/research_dashboard.md` — "Recap PDF": how to run it
+
+**What changed for the participant**
+No change for children. After the tool runs on the server, the dashboard's "Scarica il riepilogo finale del bambino (PDF)" for a 10 November session gives a PDF that opens with the recap picture, as 2 December's will, instead of the text only.
+
+**How it works**
+The PDF is saved at "Salva l'attività"; before #42 (22 November) it had no picture page. The tool imports the app the server runs, finds the day's saved PDFs that have no image (`/Subtype /Image`), and renders each again from `recap_columns` with `pdf_with_picture`, which is Salva's own code. With `--write` it writes the old PDFs to a zip, reads the zip back, then updates `progress_recap_exports.pdf` in one `BEGIN IMMEDIATE` transaction, each row only if its PDF is still the one read (`WHERE pdf = ?`); any mismatch rolls back everything. `finished_at` is not touched.
+
+**If something looks wrong after this, check**
+- A 10 November PDF still without the picture → the tool was run without `--write`, or that session's topic is not a topic word.
+- A PDF to restore → the zip in `logger/research-state/` holds each old PDF as `<ID>_<attempt>.pdf`.
+
+**Left alone**
+Salva and the PDFs it makes, the dashboard's download, the answers, the logs, `finished_at`, test runs.
+
+**Verified**
+The new tests pass. On a scratch copy of the 10 November progress database (taken that afternoon, on my Mac only): 18 PDFs drawn again (10 spazio, 8 orecchio), `TEST-spazio` left out, the zip written, and a second run changed nothing.
+
 ## 2026-11-26 — Add the tablets, the reset, the test IDs, the topic word and the practice question to the guide
 
 **Commit:** pending · **Type:** content · **Area:** dashboard, docs, tests
