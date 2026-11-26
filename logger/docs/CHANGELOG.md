@@ -65,6 +65,34 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Place the constellations and muscles recap cards as on 10 November
+
+**Commit:** pending · **Type:** fix · **Area:** task-flow, styling, data, tests
+
+**Files**
+- `logger/search-app/static/recap.css` — constellations and muscles: a column per question under its label, the first answers in one row, the final answers in one row below, moved down under the figures; muscles with taller cards, a slimmer title and the magnifier left of the final answer
+- `logger/search-app/recap_picture.py` — `PLACES` of both topics, the same places in the PDF
+- `logger/search-app/student_recap.py` — `RECAP_ARROWS` of both topics, from each first answer to its final one
+- `logger/search-app/templates/recap.html` — `recap.css` version `pictures-2`, so tablets load the new places
+- `logger/search-app/tests/test_child_pages_browser.py` — for both topics: the rows line up as on 10 November, and three lines of every answer show on a tablet (two on the shortest test screen)
+
+**What changed for the participant**
+On the recap of `costellazioni` and `muscoli` (tablet and PDF), the cards no longer sit in different places per question: as on 10 November, each question has its column under its "Domanda" label, "Cosa sapevi prima" above, "Cosa sai adesso" below, joined by the arrow through the magnifier. The rows sit below the figures, so the constellation, the sun, the rocket, the child at the telescope, the faces, the first boy's organs and the octopus's hearts stay in sight. Three lines of every answer show on a tablet (picture at least 500 px tall); the full answers stay in the PDF's text pages. Matthias's request, after seeing the muscles PDF: the 24 November places looked random.
+
+**How it works**
+The exact 10 November places would cover the faces, the sun and the rocket, so the same arrangement moves into the lower part of each drawing. Under the muscles' hearts there is less room: the two rows almost touch, the magnifier sits left of each final answer (still between the two answers), and the card title is the slimmer one short screens already used, which leaves three lines.
+
+**If something looks wrong after this, check**
+- A card over a face or a figure → `FIGURES` in `test_child_pages_browser.py`, and the places in `recap.css`.
+- The PDF and the tablet disagree → `recap_picture.PLACES` against `recap.css` (`test_the_pdf_places_cards_and_labels_where_the_tablet_does`).
+- The old places on a tablet → its cache: the stylesheet version must be `pictures-2`.
+
+**Left alone**
+Space and ear (10 November's places), the labels, the review pages after each question, the pictures, the text pages of the PDF.
+
+**Verified**
+1346 of 1349 tests pass; the other three are browser tests that fail on and off with the CDN "reading 'fn'" error, and they passed when run again. The recap browser tests at 1180×699, 1280×680 and 1024×520 with long answers: no card over a figure, a label, a magnifier or another card; rows aligned; three lines at the two tablet sizes, two at 1024×520. Both PDFs checked by eye.
+
 ## 2026-11-26 — Keep the recap picture in the PDF as a JPEG, ten times smaller
 
 **Commit:** pending · **Type:** fix · **Area:** data, tests, docs

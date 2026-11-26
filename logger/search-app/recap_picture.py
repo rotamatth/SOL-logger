@@ -36,16 +36,17 @@ _SPACE_AND_EAR = {
 PLACES = {
     "space": _SPACE_AND_EAR,
     "ear": _SPACE_AND_EAR,
+    # The arrangement of 10 November, moved down below the figures (recap.css explains why).
     "constellations": {
         "width": 0.248, "min_height": 0.17,
-        "before": {"1": _place(0.014, 0.22, top=0.465), "2": _place(0.276, 0.22, top=0.465), "3": _place(0.735, 0.22, top=0.465)},
-        "after": {"1": _place(0.03, 0.235, bottom=0.02), "2": _place(0.33, 0.235, bottom=0.02),
-                  "3": _place(0.74, 0.235, bottom=0.02)}},
+        "before": {"1": _place(0.014, 0.22, top=0.465), "2": _place(0.351, 0.22, top=0.465), "3": _place(0.688, 0.22, top=0.465)},
+        "after": {"1": _place(0.046, 0.235, bottom=0.015), "2": _place(0.392, 0.235, bottom=0.015),
+                  "3": _place(0.742, 0.235, bottom=0.015)}},
     "muscles": {
-        "width": 0.236, "min_height": 0.16,
-        "before": {"1": _place(0.176, 0.22, top=0.12), "2": _place(0.256, 0.22, bottom=0.03), "3": _place(0.748, 0.2, top=0.47)},
-        "after": {"1": _place(0.01, 0.22, bottom=0.03), "2": _place(0.502, 0.22, bottom=0.03),
-                  "3": _place(0.752, 0.22, bottom=0.03)}},
+        "width": 0.248, "min_height": 0.15,
+        "before": {"1": _place(0.014, 0.2, top=0.585), "2": _place(0.351, 0.2, top=0.585), "3": _place(0.688, 0.2, top=0.585)},
+        "after": {"1": _place(0.074, 0.2, bottom=0.005), "2": _place(0.411, 0.2, bottom=0.005),
+                  "3": _place(0.748, 0.2, bottom=0.005)}},
 }
 
 BLUE = colors.HexColor("#4285f4")
