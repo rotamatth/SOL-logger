@@ -65,6 +65,31 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Keep the recap picture in the PDF as a JPEG, ten times smaller
+
+**Commit:** pending · **Type:** fix · **Area:** data, tests, docs
+
+**Files**
+- `logger/search-app/recap_picture.py` — `jpeg()`: the drawing is converted to JPEG (quality 85) before ReportLab draws it
+- `logger/search-app/tests/test_recap_picture.py` — every topic's PDF embeds a JPEG and stays under 1 MB
+- `logger/docs/research_dashboard.md` — "Recap PDF": the size
+
+**What changed for the participant**
+No visible change: the picture page looks the same, and the answers on it are text as before. A recap PDF now weighs 330–640 KB instead of 3–4.5 MB.
+
+**How it works**
+ReportLab stored the WebP drawing as raw pixels (about 5 MB, barely compressed); JPEG data it keeps as it is (`/DCTDecode`). Each PDF is saved in `progress_recap_exports` at Salva, so the progress database, on the server's small `/home`, and every deploy backup that zips it grew by 3–5 MB per group. Found while drawing the 10 November PDFs again: 18 groups would have added about 80 MB.
+
+**If something looks wrong after this, check**
+- A blurry or blocky picture in the PDF → the JPEG quality in `jpeg()`.
+- A PDF without its picture → Pillow missing from the image (it comes with ReportLab in `requirements.lock`).
+
+**Left alone**
+The card places, the text pages, the tablet's recap page, the WebP files.
+
+**Verified**
+Old and new picture pages compared side by side and close up: no visible difference. 1347 of 1349 tests pass; the other two are the fullscreen browser tests that fail on and off with the CDN "reading 'fn'" error, and they passed when run again.
+
 ## 2026-11-26 — Draw the 10 November recap PDFs again, with the picture
 
 **Commit:** pending · **Type:** feature · **Area:** data, dashboard, docs, tests

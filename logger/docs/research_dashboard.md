@@ -314,7 +314,8 @@ the participant's page; the tablet keeps nothing. Its first page is the recap pi
 showed it: the theme's drawing, "Domanda N" in the order the group met the questions, the first
 answers with their stars and the final answers on their cards, and the arrows. It is drawn on the
 server with ReportLab (`recap_picture.py`), at the card positions of `recap.css`, so a change of the
-recap's layout needs the same change there (a test compares them). A card holds what fits; the text
+recap's layout needs the same change there (a test compares them). The drawing goes into the PDF as a
+JPEG, so a PDF weighs 300–650 KB instead of 3–5 MB of raw pixels. A card holds what fits; the text
 pages that follow keep every answer in full, as before. A session without a recap picture (an
 unknown theme) keeps the text pages only.
 

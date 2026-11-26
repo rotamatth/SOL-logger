@@ -7,8 +7,10 @@ A card holds what fits; the full answers are on the PDF's text pages.
 
 ReportLab draws it directly: no browser runs on the server, and nothing is taken from the tablet.
 """
+from io import BytesIO
 import re
 
+from PIL import Image
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -99,6 +101,16 @@ def _quadratic_points(path):
     return start, [((rest[i], rest[i + 1]), (rest[i + 2], rest[i + 3])) for i in range(0, len(rest), 4)]
 
 
+def jpeg(path):
+    """The drawing as JPEG data, which the PDF keeps as it is: about 400 KB instead of the 5 MB of raw pixels it
+    stores for the WebP file. Each saved PDF lives in the progress database and in every deploy's backup."""
+    with Image.open(path) as picture:
+        data = BytesIO()
+        picture.convert("RGB").save(data, "JPEG", quality=85, optimize=True)
+    data.seek(0)
+    return ImageReader(data)
+
+
 class RecapPicture(Flowable):
     """The recap picture as one flowable of the given width, with the cards at the theme's places."""
 
@@ -125,7 +137,7 @@ class RecapPicture(Flowable):
     def draw(self):
         canvas = self.canv
         canvas.saveState()
-        canvas.drawImage(ImageReader(str(self.background)), 0, 0, self.width, self.height)
+        canvas.drawImage(jpeg(self.background), 0, 0, self.width, self.height)
         canvas.setStrokeColor(colors.black)
         canvas.setLineWidth(1.5)
         canvas.roundRect(0, 0, self.width, self.height, 3, stroke=1, fill=0)
