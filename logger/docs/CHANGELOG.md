@@ -65,6 +65,32 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-26 — Keep classroom layouts for the map, and each tablet's health a request away
+
+**Commit:** pending · **Type:** feature · **Area:** dashboard, data, tests
+
+**Files**
+- `logger/search-app/research_dashboard/room_maps.py` — new: `rooms.sqlite3` and `room-images/` in the research state folder; named rooms (tables and an optional floor plan, never IDs), each session's own map (a copy of a room plus where each ID sits), revisions, validation on a fixed 1000 × 700 canvas, floor plans checked by their content (PNG, JPEG or WebP, at most 8 MB and 25 megapixels)
+- `logger/search-app/research_dashboard/map_views.py` — new: `GET /dashboard/sessions/<id>/map.json`, `POST …/map`, `POST …/map/room` (start from a room's copy), `POST …/map/image`, `POST /dashboard/rooms` and `/dashboard/rooms/<id>` (explicitly save a session's geometry as a room), `GET /dashboard/room-images/<name>`, and `GET …/health.json`, light enough for every two seconds
+- `logger/search-app/research_dashboard/__init__.py`, `dashboard.py`, `security.py` — the routes, their JSON errors, and a 9 MB limit for the floor plan's form only
+- `logger/search-app/tests/test_room_maps.py` — new
+
+**What changed for the participant**
+No change for children. Researchers' map data has a place to live (the next commit shows the map).
+
+**How it works**
+Every change is a POST with the CSRF token and the revision it was based on; a stale one gets 409 and the current version back. A session's map starts as a copy of a room with no ID placed, so another class's IDs never come along, and a session changes a room only through the explicit "save as room" or "update room". Placing an ID is a display choice, never an admission rule. The health feed reads the settings' roster and `monitor.sqlite3`, nothing else; when that database cannot be read it says monitoring is unavailable rather than reporting every tablet as lost.
+
+**If something looks wrong after this, check**
+- A map that will not save → its revision (409: someone else saved) or `invalid_map` (a table outside the canvas, an ID placed on a missing table).
+- A floor plan refused → `invalid_image`: not a real PNG, JPEG or WebP, or too large.
+
+**Left alone**
+The live view's existing JSON and page, the logs, the study's settings and enrollment, admission.
+
+**Verified**
+The new tests: exact string IDs, a bad map refused whole, revisions, a room copied without IDs and left alone by the session, explicit room updates with their own revision, two named rooms, real and fake pictures, the routes' authentication, CSRF, 409s, the served image's headers, the health feed and its unavailable case, and reads that write nothing. All server tests pass.
+
 ## 2026-11-26 — Report every two seconds what the classroom map needs, saves the tablet could not confirm included
 
 **Commit:** pending · **Type:** feature · **Area:** logging, session, tests
