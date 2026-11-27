@@ -75,3 +75,39 @@
     window.addEventListener('pageshow', syncDialog);
     syncDialog();
 })();
+
+(() => {
+    const viewport = window.visualViewport;
+    const field = document.getElementById('search-box');
+    const form = field?.form;
+    if (!viewport || !form) return;
+
+    const search = form.parentElement;
+    let lift = 0;
+
+    function keepSearchVisible() {
+        // A keyboard can shrink the visible area without resizing the page.
+        // Account for zoom when checking for a substantial height reduction.
+        const keyboardOpen = document.documentElement.clientHeight - viewport.height * viewport.scale > 100;
+        if (!keyboardOpen) {
+            lift = 0;
+            search.style.removeProperty('--search-lift');
+            return;
+        }
+        // Keep the row in place during a tap on Cerca or a suggestion.
+        if (!lift && document.activeElement !== field) return;
+
+        const {top, bottom} = form.getBoundingClientRect();
+        const visibleTop = viewport.offsetTop + 12;
+        const visibleBottom = viewport.offsetTop + viewport.height - 12;
+        const overlap = Math.max(0, bottom + lift - visibleBottom);
+        const roomAbove = Math.max(0, top + lift - visibleTop);
+        lift = Math.min(overlap, roomAbove);
+        search.style.setProperty('--search-lift', `${lift}px`);
+    }
+
+    field.addEventListener('focus', keepSearchVisible);
+    viewport.addEventListener('resize', keepSearchVisible);
+    viewport.addEventListener('scroll', keepSearchVisible);
+    window.addEventListener('pageshow', keepSearchVisible);
+})();

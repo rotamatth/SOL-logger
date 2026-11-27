@@ -244,6 +244,9 @@ access either: every student page and script is same-origin.
 - Server log warnings name only the event type and position, never queries or answers;
   the search backend logs neither corrected queries nor autocomplete suggestions.
 - Malformed result addresses are refused like any other non-web address.
+- On tablets, the search bar moves up when the on-screen keyboard would cover it.
+  The typed query and the **Cerca** button stay visible while the student types.
+  The bar returns to its original position when the keyboard closes.
 
 ## Research interpretation
 
