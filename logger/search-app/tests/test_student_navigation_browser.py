@@ -31,7 +31,8 @@ def student_browser():
 
     @app.get("/search")
     def search_page():
-        return render_student("search.html", form=SimpleNamespace(hidden_tag=lambda: ""), search_results=[],
+        template = "home.html" if request.args.get("home") else "search.html"
+        return render_student(template, form=SimpleNamespace(hidden_tag=lambda: ""), search_results=[],
                     query="", corrected_query="", total_pages=1)
 
     @app.route("/result", methods=["GET", "POST"])

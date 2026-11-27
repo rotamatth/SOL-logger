@@ -65,6 +65,33 @@ Two rules that make this worth keeping:
 
 # Entries
 
+## 2026-11-27 — Keep the search bar visible above the tablet keyboard
+
+**Commit:** pending · **Type:** fix · **Area:** search-bar, styling, tests
+
+**Files**
+
+- `logger/search-app/static/interface.js` and `logger/search-app/static/main.css` — adjust the search form to the visible viewport.
+- `logger/search-app/templates/layout.html` — refresh the JavaScript and stylesheet URLs.
+- `logger/search-app/tests/test_search_bar_browser.py` and `logger/search-app/tests/test_student_navigation_browser.py` — verify opening and closing the simulated keyboard.
+- `logger/docs/research_dashboard.md` — describe how the search bar behaves on tablets.
+
+**What changed for the participant**
+
+Students can see the typed query and the **Cerca** button above the on-screen keyboard. The bar returns to its original position when the keyboard closes.
+
+**How it works**
+
+`interface.js` tracks the visual viewport while the search field is focused. When the available space becomes too small for the form, the stylesheet moves it above the keyboard.
+
+**If something looks wrong after this, check**
+
+- The keyboard covers the form → check the visual viewport height and the search form position in `interface.js`.
+
+**Verified**
+
+The browser regression test simulates the keyboard opening and closing. Verification on a physical iPad with Safari is pending.
+
 ## 2026-11-10 — Leave `__main__` blocks out of the coverage measure
 
 **Commit:** pending · **Type:** infra · **Area:** tests, infra
